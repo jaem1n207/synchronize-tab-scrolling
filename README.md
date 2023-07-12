@@ -1,97 +1,35 @@
-<div align="center">
-<img src="public/icon-128.png" alt="logo"/>
-<h1> Chrome Extension Boilerplate with<br/>React + Vite + TypeScript</h1>
+# Synchronize tab scrolling
 
-![](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
-![](https://img.shields.io/badge/Typescript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![](https://badges.aleen42.com/src/vitejs.svg)
-![GitHub action badge](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite/actions/workflows/build-zip.yml/badge.svg)
-<img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https://github.com/Jonghakseo/chrome-extension-boilerplate-react-viteFactions&count_bg=%23#222222&title_bg=%23#454545&title=😀&edge_flat=true" alt="hits"/>
+[ENGLISH](./README.md) | [한국어](./README-ko_kr.md)
 
+여러 탭을 선택하고 스크롤 위치를 동기화할 수 있습니다.
 
-> This project is listed in the [Awesome Vite](https://github.com/vitejs/awesome-vite)
+Synchronize tab scrolling 브라우저 확장 프로그램은 [chrome-extension-boilerplate-react-vite](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) 저장소의 도움을 받아 빠르게 개발되었습니다.
 
-</div>
+## 목차
 
-## Table of Contents
+- [소개](#intro)
+- [사용 방법](#manual)
+- [설치](#installation)
+- [라이선스](#license)
 
-- [Intro](#intro)
-- [Features](#features)
-- [Installation](#installation)
-  - [Procedures](#procedures)
-- [Screenshots](#screenshots)
-  - [NewTab](#newtab)
-  - [Popup](#popup)  
-- [Sample](#sample)
-- [Documents](#documents)
+## 소개 <a name="intro"></a>
 
-## Intro <a name="intro"></a>
-This boilerplate is made for creating chrome extensions using React and Typescript.
-> The focus was on improving the build speed and development experience with Vite.
+Synchronize tab scrolling은 여러 탭의 스크롤 위치를 동기화할 수 있는 브라우저 확장 프로그램입니다.
 
-## Features <a name="features"></a>
-- [React 18](https://reactjs.org/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Jest](https://jestjs.io/)
-- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
-- [Vite](https://vitejs.dev/)
-- [SASS](https://sass-lang.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [ESLint](https://eslint.org/)
-- [Prettier](https://prettier.io/)
-- [Chrome Extension Manifest Version 3](https://developer.chrome.com/docs/extensions/mv3/intro/)
-- HRR(Hot Rebuild & Refresh/Reload)
+에를 들어 원문과 번역문의 스크롤 위치를 동기화하길 원하는 사용자를 돕기 위해 만들어졌습니다.
 
-## Installation <a name="installation"></a>
+## 사용 방법 <a name="manual"></a>
 
-### Procedures <a name="procedures"></a>
-1. Clone this repository.
-2. Change `name` and `description` in package.json => **Auto synchronize with manifest** 
-3. Run `yarn install` or `npm i` (check your node version >= 16.6, recommended >= 18)
-4. Run `yarn dev` or `npm run dev`
-5. Load Extension on Chrome
-   1. Open - Chrome browser
-   2. Access - chrome://extensions
-   3. Check - Developer mode
-   4. Find - Load unpacked extension
-   5. Select - `dist` folder in this project (after dev or build)
-6. If you want to build in production, Just run `yarn build` or `npm run build`.
+1. 브라우저 상단에서 확장 프로그램 아이콘을 눌러 활성화된 탭을 보여주는 메뉴를 열 수 있습니다.
+2. 메뉴에서 스크롤이 동기화되기 원하는 탭을 2개 이상 선택합니다.
+3. 메뉴 하단의 '스크롤 동기화 시작' 버튼을 눌러 시작합니다.
+4. 스크롤 동기화를 그만하고 싶다면 탭을 닫거나 메뉴 하단의 '스크롤 동기화 해제' 버튼을 눌러 해제할 수 있습니다.
 
-## Screenshots <a name="screenshots"></a>
+## 설치 <a name="installation"></a>
 
-### New Tab <a name="newtab"></a>
+추후 작성 예정입니다.
 
-<img width="971" src="https://user-images.githubusercontent.com/53500778/162631646-cd40976b-b737-43d0-8e6a-6ac090a2e2d4.png">
+## 라이선스 <a name="license"></a>
 
-### Popup <a name="popup"></a>
-
-<img width="314" alt="popup" src="https://user-images.githubusercontent.com/53500778/203561728-23517d46-12e3-4139-8a4f-e0b2f22a6ab3.png">
-
-## Sample <a name="sample"></a>
-- https://github.com/Jonghakseo/drag-gpt-extension
-- https://github.com/Jonghakseo/pr-commit-noti
-
-## Documents <a name="documents"></a>
-- [Vite Plugin](https://vitejs.dev/guide/api-plugin.html)
-- [ChromeExtension](https://developer.chrome.com/docs/extensions/mv3/)
-- [Rollup](https://rollupjs.org/guide/en/)
-- [Rollup-plugin-chrome-extension](https://www.extend-chrome.dev/rollup-plugin)
-
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Jonghakseo/chrome-extension-boilerplate-react-vite&type=Date)](https://star-history.com/#Jonghakseo/chrome-extension-boilerplate-react-vite&Date)
-
-
-
----
-## Thanks To
-
-| [Jetbrains](https://jb.gg/OpenSourceSupport)                                                                           | [Jackson Hong](https://www.linkedin.com/in/j-acks0n/)                                            |
-|--------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
-| <img width="100" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" alt="JetBrains Logo (Main) logo."> | <img width="100" src='https://avatars.githubusercontent.com/u/23139754?v=4' alt='Jackson Hong'/> |
-
-
----
-
-[Jonghakseo](https://nookpi.tistory.com/)
+이 프로젝트는 MIT 라이선스에 따라 라이센스가 부여됩니다. 자세한 내용은 LICENSE 파일을 참조해주세요.
