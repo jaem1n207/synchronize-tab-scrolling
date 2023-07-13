@@ -52,11 +52,16 @@ const Popup = () => {
     }
   }, [searchKeyword]);
 
+  const isSearching = searchKeyword !== "";
+  const isEmptySearchResult = isSearching && tabs.length === 0;
+  const isNotEnoughSelected =
+    Object.values(syncTabs).filter(Boolean).length < 2;
+
   return (
     <main className="p-3 bg-neutral-900 text-neutral-200">
       <div className="fixed top-0 left-0 right-0 z-10 p-3 bg-neutral-800">
         <TextField
-          className="w-full"
+          className="w-full text-sm"
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
           size="small"
@@ -64,7 +69,12 @@ const Popup = () => {
         />
       </div>
 
-      <div className="flex flex-col gap-1 py-12">
+      <div className="py-12">
+        {isEmptySearchResult && (
+          <div className="flex items-center justify-center h-12 text-sm text-neutral-400">
+            검색 결과가 없어요.
+          </div>
+        )}
         <FormGroup>
           {tabs.map((tab) => (
             <FormControlLabel
@@ -78,9 +88,9 @@ const Popup = () => {
                 />
               }
               label={
-                <div className="flex items-center gap-1">
+                <div className="flex items-center flex-auto min-w-0 gap-1">
                   <img src={tab.favIconUrl} className="w-4 h-4" />
-                  <div title={tab.title} className="flex-auto text-xs truncate">
+                  <div title={tab.title} className="text-xs truncate">
                     {tab.title}
                   </div>
                 </div>
@@ -91,12 +101,8 @@ const Popup = () => {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-10 p-3 bg-neutral-800">
-        <Button
-          variant="contained"
-          fullWidth
-          disabled={Object.values(syncTabs).filter(Boolean).length < 2}
-        >
-          탭 그룹 생성
+        <Button variant="contained" fullWidth disabled={isNotEnoughSelected}>
+          {isNotEnoughSelected ? "2개 이상의 탭을 선택해주세요" : "동기화 시작"}
         </Button>
       </div>
     </main>
