@@ -1,11 +1,11 @@
 {
-  "name": "chrome-extension-boilerplate-react-vite",
+  "name": "synchronize-tab-scrolling",
   "version": "0.0.1",
-  "description": "chrome extension boilerplate",
+  "description": "Synchronize Tab Scrolling chrome extension",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite.git"
+    "url": "https://github.com/jaem1n207/synchronize-tab-scrolling.git"
   },
   "scripts": {
     "build": "tsc --noEmit && vite build",
