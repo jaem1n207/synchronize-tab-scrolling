@@ -17,11 +17,13 @@
   },
   "type": "module",
   "dependencies": {
+    "@tanstack/react-query": "^4.29.19",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^8.5.0",
+    "@tanstack/eslint-plugin-query": "^4.29.9",
     "@testing-library/react": "13.4.0",
     "@types/chrome": "0.0.224",
     "@types/jest": "29.0.3",

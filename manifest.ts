@@ -7,6 +7,7 @@ const manifest: chrome.runtime.ManifestV3 = {
   manifest_version: 3,
   name: packageJson.name,
   version: packageJson.version,
+  permissions: ["tabs"],
   description: packageJson.description,
   options_page: "src/pages/options/index.html",
   background: {
