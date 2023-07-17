@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  Button,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
-  TextField,
-} from "@mui/material";
+import { Button, Checkbox, TextField } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 
@@ -99,13 +93,13 @@ const Popup = () => {
         />
       </div>
 
-      <div className="py-12" role="list">
+      <div className="py-14" role="list">
         {isEmptySearchResult && (
           <div className="flex items-center justify-center h-12 text-sm select-none text-neutral-400">
             검색 결과가 없어요.
           </div>
         )}
-        <div className="grid grid-cols-1">
+        <div className="grid grid-cols-1 overflow-y-auto h-80">
           {tabs.map((tab) => (
             <div
               className={`transition-colors duration-75 select-none hover:bg-neutral-700 ${
@@ -113,7 +107,7 @@ const Popup = () => {
               }`}
               key={tab.id}
             >
-              <label className="flex items-center flex-1 min-w-0 gap-1">
+              <label className="flex items-center flex-1 min-w-0 gap-1 cursor-pointer">
                 <Checkbox
                   checked={syncTabIds.includes(tab.id)}
                   onChange={handleChange}
