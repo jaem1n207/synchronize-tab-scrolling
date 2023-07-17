@@ -50,7 +50,7 @@ const Popup = () => {
   };
 
   const fuse = new Fuse(tabList, {
-    keys: ["title"],
+    keys: ["title", "url"],
   });
 
   const tabs = searchKeyword
@@ -91,7 +91,7 @@ const Popup = () => {
           size="small"
           label={
             <span className="flex items-center gap-1">
-              탭 제목으로 검색
+              검색
               <Kbd wide={!isMac}>{modifierKeyPrefix}</Kbd>
               <Kbd>K</Kbd>
             </span>
@@ -99,35 +99,34 @@ const Popup = () => {
         />
       </div>
 
-      <div className="py-12">
+      <div className="py-12" role="list">
         {isEmptySearchResult && (
-          <div className="flex items-center justify-center h-12 text-sm text-neutral-400">
+          <div className="flex items-center justify-center h-12 text-sm select-none text-neutral-400">
             검색 결과가 없어요.
           </div>
         )}
-        <FormGroup>
+        <div className="grid grid-cols-1">
           {tabs.map((tab) => (
-            <FormControlLabel
-              className="transition-colors duration-75 select-none hover:bg-neutral-700"
+            <div
+              className={`transition-colors duration-75 select-none hover:bg-neutral-700 ${
+                syncTabIds.includes(tab.id) && "bg-neutral-700"
+              }`}
               key={tab.id}
-              control={
+            >
+              <label className="flex items-center flex-1 min-w-0 gap-1">
                 <Checkbox
                   checked={syncTabIds.includes(tab.id)}
                   onChange={handleChange}
                   name={tab.id.toString()}
                 />
-              }
-              label={
-                <div className="flex items-center flex-auto min-w-0 gap-1">
-                  <img src={tab.favIconUrl} className="w-4 h-4" />
-                  <div title={tab.title} className="text-xs truncate">
-                    {tab.title}
-                  </div>
+                <img src={tab.favIconUrl} className="w-4 h-4" />
+                <div title={tab.title} className="w-full text-xs truncate">
+                  {tab.title}
                 </div>
-              }
-            />
+              </label>
+            </div>
           ))}
-        </FormGroup>
+        </div>
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-10 p-3 bg-neutral-800">
