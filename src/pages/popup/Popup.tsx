@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 
 import "@pages/popup/Popup.css";
+import Kbd from "./Kbd";
 
 const tabsKeys = {
   all: ["tabs"] as const,
@@ -76,6 +77,9 @@ const Popup = () => {
     };
   }, []);
 
+  const isMac = window.navigator.platform.includes("Mac");
+  const modifierKeyPrefix = isMac ? "⌘" : "Ctrl";
+
   return (
     <main className="p-3 bg-neutral-900 text-neutral-200">
       <div className="fixed top-0 left-0 right-0 z-10 p-3 bg-neutral-800">
@@ -85,7 +89,13 @@ const Popup = () => {
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
           size="small"
-          label="탭 제목으로 검색"
+          label={
+            <span className="flex items-center gap-1">
+              탭 제목으로 검색
+              <Kbd wide={!isMac}>{modifierKeyPrefix}</Kbd>
+              <Kbd>K</Kbd>
+            </span>
+          }
         />
       </div>
 
