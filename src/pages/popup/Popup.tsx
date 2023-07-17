@@ -7,60 +7,80 @@ import {
   TextField,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import Fuse from "fuse.js";
 
 import "@pages/popup/Popup.css";
 
 const tabsKeys = {
   all: ["tabs"] as const,
-  list: () => [...tabsKeys.all, "list"] as const,
+  list: (queryInfo?: chrome.tabs.QueryInfo) =>
+    [...tabsKeys.all, "list", queryInfo] as const,
 };
 
-const useTabList = () => {
+const useTabList = (queryInfo?: chrome.tabs.QueryInfo) => {
   return useQuery({
-    queryKey: tabsKeys.list(),
+    queryKey: tabsKeys.list(queryInfo),
     queryFn: async () => {
-      const tabs = await chrome.tabs.query({});
-      return tabs ?? [];
+      const tabs = await chrome.tabs.query(queryInfo ?? {});
+      console.log("🚀 ~ file: Popup.tsx:24 ~ queryFn: ~ tabs:", tabs);
+
+      // Returns "tabs", excluding items with URL 'chrome://newtab/'.
+      return tabs.filter((tab) => tab.url !== "chrome://newtab/");
     },
     suspense: true,
-    staleTime: 1000 * 60 * 5,
   });
 };
 
 const Popup = () => {
-  const { data: tabList } = useTabList();
+  const { data: tabList = [] } = useTabList();
 
-  const [syncTabs, setSyncTabs] = React.useState<{
-    [key: number]: boolean;
-  }>({});
+  const [syncTabIds, setSyncTabIds] = React.useState<number[]>([]);
   const [searchKeyword, setSearchKeyword] = React.useState("");
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSyncTabs({
-      ...syncTabs,
-      [event.target.name]: event.target.checked,
-    });
+    const tabId = Number(event.target.name);
+    const isChecked = event.target.checked;
+
+    if (isChecked) {
+      setSyncTabIds((prev) => [...prev, tabId]);
+    } else {
+      setSyncTabIds((prev) => prev.filter((id) => id !== tabId));
+    }
   };
 
-  const tabs = React.useMemo(() => {
-    if (searchKeyword === "") {
-      return tabList;
-    } else {
-      return tabList.filter((tab) =>
-        tab.title.toLowerCase().includes(searchKeyword.toLowerCase())
-      );
-    }
-  }, [searchKeyword]);
+  const fuse = new Fuse(tabList, {
+    keys: ["title"],
+  });
+
+  const tabs = searchKeyword
+    ? fuse.search(searchKeyword).map((result) => result.item)
+    : tabList;
 
   const isSearching = searchKeyword !== "";
   const isEmptySearchResult = isSearching && tabs.length === 0;
-  const isNotEnoughSelected =
-    Object.values(syncTabs).filter(Boolean).length < 2;
+  const isNotEnoughSelected = syncTabIds.length < 2;
+
+  const textFieldRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        textFieldRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <main className="p-3 bg-neutral-900 text-neutral-200">
       <div className="fixed top-0 left-0 right-0 z-10 p-3 bg-neutral-800">
         <TextField
+          inputRef={textFieldRef}
           className="w-full text-sm"
           value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
@@ -82,7 +102,7 @@ const Popup = () => {
               key={tab.id}
               control={
                 <Checkbox
-                  checked={syncTabs[tab.id]}
+                  checked={syncTabIds.includes(tab.id)}
                   onChange={handleChange}
                   name={tab.id.toString()}
                 />
