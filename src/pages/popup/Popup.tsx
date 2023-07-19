@@ -1,8 +1,9 @@
 import React from "react";
 import { Button, Checkbox, TextField } from "@mui/material";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 
+import { useAsyncErrorBoundaryQuery } from "@src/common/useAsyncErrorBoundaryQuery";
 import "@pages/popup/Popup.css";
 import Kbd from "./Kbd";
 
@@ -11,134 +12,107 @@ const tabsKeys = {
   list: (queryInfo?: chrome.tabs.QueryInfo) =>
     [...tabsKeys.all, "list", queryInfo] as const,
   storage: () => [...tabsKeys.all, "storage"] as const,
-  syncTabIds: () => [...tabsKeys.storage(), "syncTabIds"] as const,
-  sync: (syncTabIds: number[]) =>
-    [...tabsKeys.storage(), "syncs", syncTabIds] as const,
-};
-
-const useTabList = (queryInfo?: chrome.tabs.QueryInfo) => {
-  return useQuery({
-    queryKey: tabsKeys.list(queryInfo),
-    queryFn: async () => {
-      const tabs = await chrome.tabs.query(queryInfo || {});
-      // Returns "tabs", excluding items with URL 'chrome://newtab/'.
-      return tabs.filter((tab) => tab.url !== "chrome://newtab/");
-    },
-    suspense: true,
-  });
-};
-
-// The maximum number of set, remove, or clear operations that can be performed each hour.
-// This is 1 every 2 seconds, a lower ceiling than the short term higher writes-per-minute limit.
-// Updates that would cause this limit to be exceeded fail immediately and set runtime.lastError.
-const getSyncTabIds = async (): Promise<number[]> => {
-  return new Promise((resolve, reject) => {
-    chrome.storage.sync.get(["syncTabIds"], function (result) {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve(result.syncTabIds || []);
-      }
-    });
-  });
-};
-
-const setSyncTabIds = async (syncTabIds: number[]): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    chrome.storage.sync.set({ syncTabIds }, function () {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve();
-      }
-    });
-  });
-};
-
-const getIsSyncing = async (): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    chrome.storage.sync.get(["isSynced"], function (result) {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve(result.isSynced || false);
-      }
-    });
-  });
-};
-
-const setIsSyncing = async (isSynced: boolean): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    chrome.storage.sync.set({ isSynced }, function () {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve();
-      }
-    });
-  });
+  getSyncTabIds: () => [...tabsKeys.storage(), "getSyncTabIds"] as const,
 };
 
 const Popup = () => {
   const queryClient = useQueryClient();
 
-  const { data: tabList = [], isSuccess: tabsLoaded } = useTabList();
-  const { data: syncTabIds = [], isSuccess: syncTabIdsLoaded } = useQuery({
-    queryKey: tabsKeys.syncTabIds(),
-    queryFn: getSyncTabIds,
-    onSuccess: (data) => {
-      queryClient.setQueryData(tabsKeys.syncTabIds(), data);
+  const textFieldRef = React.useRef<HTMLInputElement>(null);
+
+  const [searchKeyword, setSearchKeyword] = React.useState("");
+
+  const { data: tabList = [], isSuccess: tabsLoaded } =
+    useAsyncErrorBoundaryQuery({
+      queryKey: tabsKeys.list(),
+      queryFn: async () => {
+        const tabs = await chrome.tabs.query({});
+        // Returns "tabs", excluding items with URL 'chrome://newtab/'.
+        return tabs.filter((tab) => tab.url !== "chrome://newtab/");
+      },
+    });
+  const [checkedTabIds, setCheckedTabIds] = React.useState<number[]>([]);
+
+  const { data: syncTabIds, isSuccess: syncTabIdsLoaded } =
+    useAsyncErrorBoundaryQuery({
+      queryKey: tabsKeys.getSyncTabIds(),
+      queryFn: async (): Promise<number[]> => {
+        return new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage(
+            { command: "getSyncTabIds" },
+            (response) => {
+              if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+              } else {
+                resolve(response);
+              }
+            }
+          );
+        });
+      },
+      onSuccess: (data) => {
+        queryClient.setQueryData(tabsKeys.getSyncTabIds(), data);
+      },
+    });
+  const isSynced = syncTabIds.length > 0;
+
+  const mutateSyncTabIds = useMutation({
+    mutationFn: async (syncTabIds: number[]) => {
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { command: "setSyncTabIds", data: { syncTabIds } },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError);
+            } else {
+              resolve(response);
+            }
+          }
+        );
+      });
     },
-  });
-
-  React.useEffect(() => {
-    console.log("🚀 ~ file: Popup.tsx:91 ~ Popup ~ syncTabIds:", syncTabIds);
-  }, [syncTabIds]);
-
-  const mutation = useMutation({
-    mutationFn: setSyncTabIds,
     onSuccess: () => {
-      queryClient.invalidateQueries(tabsKeys.syncTabIds());
+      queryClient.invalidateQueries(tabsKeys.getSyncTabIds());
     },
   });
 
-  const handleChangeSyncTabIds = (
+  const startSync = () => {
+    chrome.runtime.sendMessage({ command: "startSync", data: checkedTabIds });
+    mutateSyncTabIds.mutate(checkedTabIds);
+  };
+
+  const stopSync = () => {
+    chrome.runtime.sendMessage({ command: "stopSync" });
+    setCheckedTabIds([]); // clear checkedTabIds
+    mutateSyncTabIds.mutate([]); // clear syncTabIds
+  };
+
+  const fuse = new Fuse(tabList, {
+    keys: ["title", "url"],
+  });
+  const tabs = searchKeyword
+    ? fuse.search(searchKeyword).map((result) => result.item)
+    : tabList;
+
+  const sortedTabs = isSynced
+    ? tabs.sort((a, b) => (syncTabIds.includes(b.id) ? 1 : -1))
+    : tabs;
+
+  const isSearching = searchKeyword !== "";
+  const isNotEnoughSelected = checkedTabIds.length < 2;
+  const isEmptySearchResult = isSearching && sortedTabs.length === 0;
+
+  const handleChangeCheckedTabIds = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const tabId = Number(event.target.name);
     const isChecked = event.target.checked;
 
     if (isChecked) {
-      mutation.mutate([...syncTabIds, tabId]);
+      setCheckedTabIds([...checkedTabIds, tabId]);
     } else {
-      mutation.mutate(syncTabIds.filter((id) => id !== tabId));
+      setCheckedTabIds(checkedTabIds.filter((id) => id !== tabId));
     }
-  };
-
-  const { data: isSynced = false, isSuccess: isSyncedLoaded } = useQuery({
-    queryKey: tabsKeys.sync(syncTabIds),
-    queryFn: getIsSyncing,
-    onSuccess: (data) => {
-      queryClient.setQueryData(tabsKeys.sync(syncTabIds), data);
-    },
-  });
-
-  const syncMutation = useMutation({
-    mutationFn: setIsSyncing,
-    onSuccess: () => {
-      queryClient.invalidateQueries(tabsKeys.sync(syncTabIds));
-    },
-  });
-
-  const startSync = () => {
-    chrome.runtime.sendMessage({ command: "startSync", data: syncTabIds });
-    syncMutation.mutate(true);
-  };
-
-  const stopSync = () => {
-    chrome.runtime.sendMessage({ command: "stopSync" });
-    syncMutation.mutate(false);
-    mutation.mutate([]); // clear syncTabIds
   };
 
   React.useEffect(() => {
@@ -150,21 +124,8 @@ const Popup = () => {
     }
   }, [tabsLoaded, syncTabIdsLoaded, syncTabIds]);
 
-  const [searchKeyword, setSearchKeyword] = React.useState("");
-
-  const fuse = new Fuse(tabList, {
-    keys: ["title", "url"],
-  });
-
-  const tabs = searchKeyword
-    ? fuse.search(searchKeyword).map((result) => result.item)
-    : tabList;
-
-  const isSearching = searchKeyword !== "";
-  const isEmptySearchResult = isSearching && tabs.length === 0;
-  const isNotEnoughSelected = syncTabIds.length < 2;
-
-  const textFieldRef = React.useRef<HTMLInputElement>(null);
+  const isMac = window.navigator.platform.includes("Mac");
+  const modifierKeyPrefix = isMac ? "⌘" : "Ctrl";
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
@@ -180,13 +141,10 @@ const Popup = () => {
     };
   }, []);
 
-  const isMac = window.navigator.platform.includes("Mac");
-  const modifierKeyPrefix = isMac ? "⌘" : "Ctrl";
-
-  // I want to sort the tabs that are currently being synced to the top. But if isSynced is false, I don't want to sort it.
-  const sortedTabs = isSynced
-    ? tabs.sort((a, b) => (syncTabIds.includes(b.id) ? 1 : -1))
-    : tabs;
+  // If open the popup again while syncing, check the tabs being synced.
+  React.useEffect(() => {
+    setCheckedTabIds(syncTabIds);
+  }, [syncTabIds]);
 
   return (
     <main className="p-3 bg-neutral-900 text-neutral-200">
@@ -217,7 +175,7 @@ const Popup = () => {
           {sortedTabs.map((tab) => (
             <div
               className={`transition-colors duration-75 select-none hover:bg-neutral-700 ${
-                syncTabIds.includes(tab.id) && "bg-neutral-700"
+                checkedTabIds.includes(tab.id) && "bg-neutral-700"
               }`}
               key={tab.id}
             >
@@ -225,8 +183,8 @@ const Popup = () => {
                 <Checkbox
                   disabled={isSynced}
                   aria-label={tab.title}
-                  checked={syncTabIds.includes(tab.id)}
-                  onChange={handleChangeSyncTabIds}
+                  checked={checkedTabIds.includes(tab.id)}
+                  onChange={handleChangeCheckedTabIds}
                   name={tab.id.toString()}
                 />
                 <img src={tab.favIconUrl} className="w-4 h-4" />
@@ -254,13 +212,11 @@ const Popup = () => {
             onClick={startSync}
             variant="contained"
             fullWidth
-            disabled={isNotEnoughSelected || !isSyncedLoaded}
+            disabled={isNotEnoughSelected}
           >
             {isNotEnoughSelected
               ? "2개 이상의 탭을 선택해주세요"
-              : isSyncedLoaded
-              ? "동기화 시작"
-              : "동기화 중이예요..."}
+              : "동기화 시작"}
           </Button>
         )}
       </div>
