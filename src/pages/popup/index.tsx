@@ -11,6 +11,9 @@ import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
+import AsyncErrorBoundary from "@src/common/AsyncErrorBoundary";
+import { Button, Typography } from "@mui/material";
+
 refreshOnUpdate("pages/popup");
 
 const darkTheme = createTheme({
@@ -31,7 +34,30 @@ function init() {
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
-        <Popup />
+        <AsyncErrorBoundary
+          pendingFallback={
+            <div className="flex items-center justify-center h-screen">
+              <div className="w-32 h-32 border-t-2 border-b-2 border-gray-900 rounded-full animate-spin" />
+            </div>
+          }
+          errorFallback={({ error, resetErrorBoundary }) => (
+            <div className="flex flex-col items-center justify-center h-screen space-y-4 text-center text-gray-200 ">
+              <Typography variant="h5">문제가 발생했습니다.</Typography>
+              <pre className="w-full max-w-md p-4 m-6 overflow-auto bg-gray-800 rounded-md">
+                {error.message}
+              </pre>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => resetErrorBoundary()}
+              >
+                다시 시도
+              </Button>
+            </div>
+          )}
+        >
+          <Popup />
+        </AsyncErrorBoundary>
       </QueryClientProvider>
     </ThemeProvider>
   );
