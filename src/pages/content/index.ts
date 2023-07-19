@@ -1,6 +1,6 @@
-console.log("content loaded");
+/* eslint-disable @typescript-eslint/ban-types */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-// eslint-disable-next-line @typescript-eslint/ban-types
 const debounce = <A extends Function>(
   f: A,
   interval?: number,
@@ -38,7 +38,6 @@ const debounce = <A extends Function>(
   return debounced as any;
 };
 
-// eslint-disable-next-line @typescript-eslint/ban-types
 const throttle = <A extends Function>(
   f: A,
   interval: number,
@@ -72,7 +71,12 @@ const throttle = <A extends Function>(
   return throttled as any;
 };
 
-document.addEventListener("scroll", (e) => {
+// This is the variable used to apply 'scrollPosition' at the right time when 'syncScrollForTab' is received.
+let scrolling = false;
+
+const onScrollHandler = throttle(() => {
+  if (scrolling) return;
+
   const scrollPosition =
     window.scrollY ||
     document.documentElement.scrollTop ||
@@ -83,25 +87,36 @@ document.addEventListener("scroll", (e) => {
     scrollPosition / document.documentElement.scrollHeight;
 
   chrome.runtime.sendMessage({
-    command: "scroll",
-    data: { percentage: scrollYPercentage },
+    command: "syncScroll",
+    data: { scrollYPercentage },
   });
-});
+}, 50);
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.command === "scroll") {
-    const { percentage } = request.data;
-    const newScrollPosition =
-      percentage * document.documentElement.scrollHeight;
-    console.log(
-      percentage,
-      "🚀 ~ file: index.ts:34 ~ chrome.runtime.onMessage.addListener ~ newScrollPosition:",
-      newScrollPosition
-    );
+chrome.runtime.onMessage.addListener((request) => {
+  if (request.command === "startSyncTab") {
+    window.addEventListener("scroll", onScrollHandler);
+  }
+
+  if (request.command === "stopSyncTab") {
+    window.removeEventListener("scroll", onScrollHandler);
+  }
+
+  if (request.command === "syncScrollForTab") {
+    scrolling = true;
+
+    const { scrollYPercentage } = request.data;
+    const scrollPosition =
+      scrollYPercentage * document.documentElement.scrollHeight;
+    console.log("syncScrollForTab", scrollPosition);
+
     window.scrollTo({
-      top: newScrollPosition,
+      top: scrollPosition,
       behavior: "auto",
     });
+
+    debounce(() => {
+      scrolling = false;
+    }, 250);
   }
 });
 
