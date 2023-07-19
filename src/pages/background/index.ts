@@ -8,46 +8,114 @@ reloadOnUpdate("pages/background");
  */
 reloadOnUpdate("pages/content/style.scss");
 
-let syncTabIds: number[] = [];
-let isSyncing = false;
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.command === "getSyncTabIds") {
+    chrome.storage.sync.get(["syncTabIds"], (result) => {
+      if (chrome.runtime.lastError) {
+        // The maximum number of set, remove, or clear operations that can be performed each hour.
+        // This is 1 every 2 seconds, a lower ceiling than the short term higher writes-per-minute limit.
+        // Updates that would cause this limit to be exceeded fail immediately and set runtime.lastError.
+        sendResponse(chrome.runtime.lastError);
+      } else {
+        sendResponse(result.syncTabIds || []);
+      }
+    });
+
+    return true;
+  }
+
+  if (request.command === "setSyncTabIds") {
+    const { syncTabIds } = request.data;
+    chrome.storage.sync.set({ syncTabIds }, () => {
+      if (chrome.runtime.lastError) {
+        sendResponse(chrome.runtime.lastError);
+      } else {
+        sendResponse();
+      }
+    });
+
+    return true;
+  }
+
   if (request.command === "startSync") {
-    syncTabIds = request.data;
-    isSyncing = true;
+    const checkedTabIds: number[] = request.data || [];
+
+    if (checkedTabIds.length) {
+      checkedTabIds.forEach((tabId) => {
+        chrome.tabs.sendMessage(tabId, {
+          command: "startSyncTab",
+          data: tabId,
+        });
+      });
+    }
   }
 
   if (request.command === "stopSync") {
-    isSyncing = false;
+    const checkedTabIds: number[] = request.data || [];
+
+    if (checkedTabIds.length) {
+      checkedTabIds.forEach((tabId) => {
+        chrome.tabs.sendMessage(tabId, {
+          command: "stopSyncTab",
+          data: tabId,
+        });
+      });
+    }
   }
 
-  console.log(
-    "🚀 ~ file: index.ts:23 ~ chrome.runtime.onMessage.addListener ~ isSyncing:",
-    isSyncing
-  );
+  if (request.command === "syncScroll") {
+    const senderTabId = sender.tab?.id;
+    const { scrollYPercentage } = request.data;
 
-  if (request.command === "scroll" && isSyncing) {
-    const { percentage } = request.data;
-    const sourceTabId = sender.tab?.id;
-    if (!sourceTabId) return; // if tab id is undefined, don't do anything
-    for (const tabId of syncTabIds) {
-      if (tabId !== sourceTabId) {
-        console.log(
-          "🚀 ~ file: index.ts:39 ~ chrome.runtime.onMessage.addListener ~ tabId",
-          tabId,
-          percentage
-        );
-        chrome.tabs.sendMessage(tabId, { command: "scroll", data: percentage });
+    if (!senderTabId) return;
+
+    chrome.storage.sync.get(
+      ["syncTabIds"],
+      (result: { syncTabIds: number[] }) => {
+        if (chrome.runtime.lastError) {
+          console.error(chrome.runtime.lastError);
+        } else {
+          const { syncTabIds } = result;
+
+          if (!syncTabIds) return;
+
+          if (syncTabIds.length && syncTabIds.includes(senderTabId)) {
+            for (const tabId of syncTabIds) {
+              // Prevent sending messages to the sender tab.
+              if (tabId !== senderTabId) {
+                chrome.tabs.sendMessage(tabId, {
+                  command: "syncScrollForTab",
+                  data: { scrollYPercentage: scrollYPercentage },
+                });
+              }
+            }
+          }
+        }
       }
-    }
+    );
   }
 });
 
 // Stop syncing if removed tab IDs are included in syncTabIds.
 chrome.tabs.onRemoved.addListener((tabId) => {
-  if (syncTabIds.length && syncTabIds.includes(tabId)) {
-    console.log("removed!");
-    isSyncing = false;
-    syncTabIds = [];
-  }
+  chrome.storage.sync.get(["syncTabIds"], (result) => {
+    if (chrome.runtime.lastError) {
+      console.error(chrome.runtime.lastError);
+    } else {
+      const { syncTabIds } = result;
+
+      if (!syncTabIds || syncTabIds?.length === 0) return;
+
+      if (syncTabIds.length && syncTabIds.includes(tabId)) {
+        chrome.storage.sync.set({ syncTabIds: [] }, () => {
+          if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError);
+          }
+        });
+      }
+    }
+  });
 });
+
+// `Error: Could not establish connection. Receiving end does not exist.` error occurs when the tab is closed while the message is being sent.
+// https://stackoverflow.com/questions/20077487/chrome-extension-message-passing-response-not-sent
