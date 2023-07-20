@@ -5,7 +5,7 @@ const debounce = <A extends Function>(
   f: A,
   interval?: number,
   immediate?: boolean
-): A & { clear(): void } & { flush(): void } => {
+): A & { clear: () => void } & { flush: () => void } => {
   let timeout: number | NodeJS.Timeout | undefined;
   const debounced = function (this: any, ...args: any[]) {
     const callNow = immediate && !timeout;
@@ -42,7 +42,7 @@ const throttle = <A extends Function>(
   f: A,
   interval: number,
   immediate?: boolean
-): A & { clear(): void } => {
+): A & { clear: () => void } => {
   let timeout: number | NodeJS.Timeout | undefined;
   let initialCall = true;
   const throttled = function (this: any, ...args: any[]) {
