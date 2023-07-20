@@ -1,35 +1,39 @@
-# Synchronize tab scrolling
+# Synchronize Tab Scrolling
 
-[ENGLISH](./README.md) | [한국어](./README-ko_kr.md)
+![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-여러 탭을 선택하고 스크롤 위치를 동기화할 수 있습니다.
+ENGLISH | [한국어](./README-ko_kr.md)
 
-Synchronize tab scrolling 브라우저 확장 프로그램은 [chrome-extension-boilerplate-react-vite](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite) 저장소의 도움을 받아 빠르게 개발되었습니다.
+This extension enables you to select multiple tabs and synchronize their scrolling positions.
 
-## 목차
+The Synchronize Tab Scrolling chrome extension was efficiently developed using the chrome-extension-boilerplate-react-vite repository.
 
-- [소개](#intro)
-- [사용 방법](#manual)
-- [설치](#installation)
-- [라이선스](#license)
+## Contents
 
-## 소개 <a name="intro"></a>
+- [Intro](#intro)
+- [Usage](#usage)
+- [Installation](#installation)
+- [License](#license)
 
-Synchronize tab scrolling은 여러 탭의 스크롤 위치를 동기화할 수 있는 브라우저 확장 프로그램입니다.
+## Intro <a name="intro"></a>
 
-에를 들어 원문과 번역문의 스크롤 위치를 동기화하길 원하는 사용자를 돕기 위해 만들어졌습니다.
+Synchronize Tab Scrolling is a chrome extension that allows you to synchronize the scrolling position across multiple tabs.
 
-## 사용 방법 <a name="manual"></a>
+For instance, you might have one tab open with an article in its original language on a website, and another tab with the same article translated into a different language. This extension was developed to assist users who have multiple such tabs open and wish to synchronize their scrolling position.
 
-1. 브라우저 상단에서 확장 프로그램 아이콘을 눌러 활성화된 탭을 보여주는 메뉴를 열 수 있습니다.
-2. 메뉴에서 스크롤이 동기화되기 원하는 탭을 2개 이상 선택합니다.
-3. 메뉴 하단의 '스크롤 동기화 시작' 버튼을 눌러 시작합니다.
-4. 스크롤 동기화를 그만하고 싶다면 탭을 닫거나 메뉴 하단의 '스크롤 동기화 해제' 버튼을 눌러 해제할 수 있습니다.
+## Usage <a name="usage"></a>
 
-## 설치 <a name="installation"></a>
+1. Open multiple tabs in different windows.
+2. Click on the extension icon.
+3. Select two or more tabs that you want to synchronize scrolling for.
+4. Click on the 'Start Sync' button.
+5. Scroll through the synchronized tabs.
+6. If you want to stop the tab synchronization, click on the extension icon and then click on the 'Unsync' button, or simply close the synchronized tabs.
 
-추후 작성 예정입니다.
+## Installation <a name="installation"></a>
 
-## 라이선스 <a name="license"></a>
+Details to be provided soon.
 
-이 프로젝트는 MIT 라이선스에 따라 라이센스가 부여됩니다. 자세한 내용은 LICENSE 파일을 참조해주세요.
+## License <a name="license"></a>
+
+This project is licensed under the MIT License. For more details, please refer to the [LICENSE](./LICENSE) file.
