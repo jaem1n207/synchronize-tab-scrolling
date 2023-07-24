@@ -181,6 +181,7 @@ const Popup = () => {
             >
               <label className="flex items-center flex-1 min-w-0 gap-1 cursor-pointer">
                 <Checkbox
+                  size="small"
                   disabled={isSynced}
                   aria-label={tab.title}
                   checked={checkedTabIds.includes(tab.id)}
