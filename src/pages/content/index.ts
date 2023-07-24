@@ -75,26 +75,38 @@ const throttle = <A extends Function>(
 let scrolling = false;
 
 const onScrollHandler = throttle(() => {
-  if (scrolling) return;
+  try {
+    console.log("Scroll event triggered");
+    if (scrolling) return;
 
-  const scrollPosition =
-    window.scrollY ||
-    document.documentElement.scrollTop ||
-    document.body.scrollTop ||
-    0;
+    const scrollPosition =
+      window.scrollY ||
+      document.documentElement.scrollTop ||
+      document.body.scrollTop ||
+      0;
 
-  const scrollYPercentage =
-    scrollPosition / document.documentElement.scrollHeight;
+    const scrollYPercentage =
+      scrollPosition / document.documentElement.scrollHeight;
 
-  chrome.runtime.sendMessage({
-    command: "syncScroll",
-    data: { scrollYPercentage },
-  });
+    console.log(
+      "Scroll event triggered, sending syncScroll message with percentage:",
+      scrollYPercentage
+    );
+
+    chrome.runtime.sendMessage({
+      command: "syncScroll",
+      data: { scrollYPercentage },
+    });
+  } catch (err) {
+    console.error(`Error in onScrollHandler: ${err}`);
+  }
 }, 50);
 
 chrome.runtime.onMessage.addListener((request) => {
   if (request.command === "startSyncTab") {
+    console.log("Content script loaded for tab", request.data);
     window.addEventListener("scroll", onScrollHandler);
+    console.log("Scroll event listener registered");
   }
 
   if (request.command === "stopSyncTab") {
@@ -103,11 +115,11 @@ chrome.runtime.onMessage.addListener((request) => {
 
   if (request.command === "syncScrollForTab") {
     scrolling = true;
+    console.log("Received syncScrollForTab message with data", request.data);
 
     const { scrollYPercentage } = request.data;
     const scrollPosition =
       scrollYPercentage * document.documentElement.scrollHeight;
-    console.log("syncScrollForTab", scrollPosition);
 
     window.scrollTo({
       top: scrollPosition,

@@ -40,14 +40,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === "startSync") {
     const checkedTabIds: number[] = request.data || [];
 
-    if (checkedTabIds.length) {
-      checkedTabIds.forEach((tabId) => {
-        chrome.tabs.sendMessage(tabId, {
-          command: "startSyncTab",
-          data: tabId,
-        });
+    checkedTabIds.forEach((tabId) => {
+      chrome.tabs.sendMessage(tabId, {
+        command: "startSyncTab",
+        data: tabId,
       });
-    }
+    });
   }
 
   if (request.command === "stopSync") {
@@ -66,6 +64,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === "syncScroll") {
     const senderTabId = sender.tab?.id;
     const { scrollYPercentage } = request.data;
+    console.log(
+      "Received syncScroll message from tab",
+      sender.tab?.id,
+      "with data",
+      request.data
+    );
 
     if (!senderTabId) return;
 
@@ -83,9 +87,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             for (const tabId of syncTabIds) {
               // Prevent sending messages to the sender tab.
               if (tabId !== senderTabId) {
+                console.log("Sending syncScrollForTab message to tab", tabId);
                 chrome.tabs.sendMessage(tabId, {
                   command: "syncScrollForTab",
-                  data: { scrollYPercentage: scrollYPercentage },
+                  data: { scrollYPercentage },
                 });
               }
             }
