@@ -5,10 +5,11 @@ import packageJson from "./package.json";
  */
 const manifest: chrome.runtime.ManifestV3 = {
   manifest_version: 3,
-  name: packageJson.name,
+  name: "__MSG_extName__",
+  default_locale: "en",
   version: packageJson.version,
   permissions: ["storage", "tabs"],
-  description: packageJson.description,
+  description: "__MSG_extDescription__",
   options_page: "src/pages/options/index.html",
   background: {
     service_worker: "src/pages/background/index.js",

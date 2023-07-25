@@ -3,6 +3,7 @@ import { Button, Checkbox, TextField } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 
+import { t } from "@src/chrome/i18n";
 import { useAsyncErrorBoundaryQuery } from "@src/common/useAsyncErrorBoundaryQuery";
 import "@pages/popup/Popup.css";
 import Kbd from "./Kbd";
@@ -157,7 +158,7 @@ const Popup = () => {
           size="small"
           label={
             <span className="flex items-center gap-1 text-sm">
-              검색
+              {t("search")}
               <Kbd wide={!isMac}>{modifierKeyPrefix}</Kbd>
               <Kbd>K</Kbd>
             </span>
@@ -168,7 +169,7 @@ const Popup = () => {
       <div className="py-14" role="list">
         {isEmptySearchResult && (
           <div className="flex items-center justify-center h-12 text-sm select-none text-neutral-400">
-            검색 결과가 없어요.
+            {t("noSearchResult")}
           </div>
         )}
         <div className="grid grid-cols-1 overflow-y-auto max-h-80">
@@ -206,7 +207,7 @@ const Popup = () => {
             color="warning"
             fullWidth
           >
-            동기화 중지
+            {t("stopSync")}
           </Button>
         ) : (
           <Button
@@ -215,9 +216,7 @@ const Popup = () => {
             fullWidth
             disabled={isNotEnoughSelected}
           >
-            {isNotEnoughSelected
-              ? "2개 이상의 탭을 선택해주세요"
-              : "동기화 시작"}
+            {isNotEnoughSelected ? t("selectMoreTabs") : t("startSync")}
           </Button>
         )}
       </div>
