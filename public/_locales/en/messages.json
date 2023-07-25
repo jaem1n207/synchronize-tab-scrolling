@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "Synchronize Tab Scrolling - Keep multiple tabs' scrolling positions synchronized"
+    "message": "Synchronize Tab Scrolling"
   },
   "extDescription": {
     "message": "This extension enables you to select multiple tabs and synchronize their scrolling positions."
