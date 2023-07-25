@@ -1,78 +1,33 @@
-/* eslint-disable @typescript-eslint/ban-types */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-const debounce = <A extends Function>(
-  f: A,
-  interval?: number,
-  immediate?: boolean
-): A & { clear: () => void } & { flush: () => void } => {
-  let timeout: number | NodeJS.Timeout | undefined;
-  const debounced = function (this: any, ...args: any[]) {
-    const callNow = immediate && !timeout;
-    const later = () => {
-      timeout = undefined;
-      if (!immediate) {
-        f.apply(this, args);
-      }
-    };
+function debounce(func, wait) {
+  let timeout;
+  return function (...args) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const context = this;
     clearTimeout(timeout);
-    timeout = setTimeout(later, interval);
-    if (callNow) {
-      f.apply(this, args);
-    }
+    timeout = setTimeout(() => func.apply(context, args), wait);
   };
-  debounced.clear = () => {
-    if (timeout) {
-      clearTimeout(timeout);
-      timeout = undefined;
-    }
-  };
-  debounced.flush = () => {
-    if (timeout) {
-      f();
-      clearTimeout(timeout);
-      timeout = undefined;
-    }
-  };
+}
 
-  return debounced as any;
-};
-
-const throttle = <A extends Function>(
-  f: A,
-  interval: number,
-  immediate?: boolean
-): A & { clear: () => void } => {
-  let timeout: number | NodeJS.Timeout | undefined;
-  let initialCall = true;
-  const throttled = function (this: any, ...args: any[]) {
-    if (initialCall) {
-      initialCall = false;
-      if (immediate) {
-        f.apply(this, args);
-      }
+function throttle(func, limit) {
+  let inThrottle;
+  return (...args) => {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
     }
-    if (timeout) {
-      return;
-    }
-    timeout = setTimeout(() => {
-      f.apply(this, args);
-      timeout = undefined;
-    }, interval);
   };
-  throttled.clear = () => {
-    if (timeout) {
-      clearTimeout(timeout);
-      timeout = undefined;
-    }
-    initialCall = true;
-  };
+}
 
-  return throttled as any;
-};
-
-// This is the variable used to apply 'scrollPosition' at the right time when 'syncScrollForTab' is received.
+// This is a variable to avoid getting stuck in a loop that keeps the scroll position synchronized between multiple tabs.
 let scrolling = false;
+
+const resetScrolling = debounce(() => {
+  scrolling = false;
+  console.log("Scrolling reset to", scrolling);
+}, 250);
 
 const onScrollHandler = throttle(() => {
   try {
@@ -126,9 +81,7 @@ chrome.runtime.onMessage.addListener((request) => {
       behavior: "auto",
     });
 
-    debounce(() => {
-      scrolling = false;
-    }, 250);
+    resetScrolling();
   }
 });
 
