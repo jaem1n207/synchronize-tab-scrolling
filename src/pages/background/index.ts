@@ -101,8 +101,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Stop syncing if removed tab IDs are included in syncTabIds.
-chrome.tabs.onRemoved.addListener((tabId) => {
+const stopSync = (tabId: number) => {
   chrome.storage.sync.get(["syncTabIds"], (result) => {
     if (chrome.runtime.lastError) {
       console.error(chrome.runtime.lastError);
@@ -120,6 +119,18 @@ chrome.tabs.onRemoved.addListener((tabId) => {
       }
     }
   });
+};
+
+// Stop syncing if the url is changed.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url) {
+    stopSync(tabId);
+  }
+});
+
+// Stop syncing if removed tab IDs are included in syncTabIds.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  stopSync(tabId);
 });
 
 // `Error: Could not establish connection. Receiving end does not exist.` error occurs when the tab is closed while the message is being sent.
