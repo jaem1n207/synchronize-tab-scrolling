@@ -30,6 +30,8 @@ For instance, you might have one tab open with an article in its original langua
 5. Scroll through the synchronized tabs.
 6. If you want to stop the tab synchronization, click on the extension icon and then click on the 'Unsync' button, or simply close the synchronized tabs.
 
+[<img alt="sync-tab-scroll-screenshot" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/1506a3ce-a728-459c-854f-242929c54dda" width="640">](https://www.youtube.com/watch?v=bRR_Bx-H2Ak)
+
 ## Installation <a name="installation"></a>
 
 Details to be provided soon.
