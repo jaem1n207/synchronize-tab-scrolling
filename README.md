@@ -35,7 +35,7 @@ For instance, you might have one tab open with an article in its original langua
 
 ## Installation <a name="installation"></a>
 
-Details to be provided soon.
+Go to the [installation link](https://chrome.google.com/webstore/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc/) to install and use.
 
 ## License <a name="license"></a>
 
