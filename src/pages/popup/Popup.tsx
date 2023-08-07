@@ -205,6 +205,7 @@ const Popup = () => {
             onClick={stopSync}
             variant="contained"
             color="warning"
+            size="small"
             fullWidth
           >
             {t("stopSync")}
@@ -214,6 +215,7 @@ const Popup = () => {
             onClick={startSync}
             variant="contained"
             fullWidth
+            size="small"
             disabled={isNotEnoughSelected}
           >
             {isNotEnoughSelected ? t("selectMoreTabs") : t("startSync")}
