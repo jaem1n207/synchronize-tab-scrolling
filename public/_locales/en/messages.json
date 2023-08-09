@@ -19,5 +19,8 @@
   },
   "startSync": {
     "message": "Start Sync"
+  },
+  "optionsContent": {
+    "message": "Options will be added later."
   }
 }

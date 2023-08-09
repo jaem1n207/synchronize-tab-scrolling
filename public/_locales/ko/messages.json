@@ -19,5 +19,8 @@
   },
   "startSync": {
     "message": "동기화 시작"
+  },
+  "optionsContent": {
+    "message": "옵션 기능은 추후 추가될 예정입니다."
   }
 }
