@@ -1,37 +1,45 @@
-function debounce(func, wait) {
-  let timeout;
-  return function (...args) {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const context = this;
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(context, args), wait);
-  };
-}
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const debounce = <Params extends any[]>(
+  func: (...args: Params) => any,
+  wait: number
+): ((...args: Params) => void) => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
-function throttle(func, limit) {
-  let inThrottle;
-  return (...args) => {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const context = this;
-    if (!inThrottle) {
-      func.apply(context, args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
+  return (...args: Params) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      func(...args);
+    }, wait);
+  };
+};
+
+const throttle = <Params extends any[]>(
+  func: (...args: Params) => any,
+  wait: number
+): ((...args: Params) => void) => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  return (...args: Params) => {
+    if (!timer) {
+      timer = setTimeout(() => {
+        func(...args);
+        timer = undefined;
+      }, wait);
     }
   };
-}
+};
 
 // This is a variable to avoid getting stuck in a loop that keeps the scroll position synchronized between multiple tabs.
 let scrolling = false;
 
 const resetScrolling = debounce(() => {
   scrolling = false;
-  console.log("Scrolling reset to", scrolling);
+  console.debug("Scrolling reset to", scrolling);
 }, 250);
 
 const onScrollHandler = throttle(() => {
   try {
-    console.log("Scroll event triggered");
+    console.debug("Scroll event triggered");
     if (scrolling) return;
 
     const scrollPosition =
@@ -43,7 +51,7 @@ const onScrollHandler = throttle(() => {
     const scrollYPercentage =
       scrollPosition / document.documentElement.scrollHeight;
 
-    console.log(
+    console.debug(
       "Scroll event triggered, sending syncScroll message with percentage:",
       scrollYPercentage
     );
@@ -59,9 +67,9 @@ const onScrollHandler = throttle(() => {
 
 chrome.runtime.onMessage.addListener((request) => {
   if (request.command === "startSyncTab") {
-    console.log("Content script loaded for tab", request.data);
+    console.debug("Content script loaded for tab", request.data);
     window.addEventListener("scroll", onScrollHandler);
-    console.log("Scroll event listener registered");
+    console.debug("Scroll event listener registered");
   }
 
   if (request.command === "stopSyncTab") {
@@ -70,7 +78,7 @@ chrome.runtime.onMessage.addListener((request) => {
 
   if (request.command === "syncScrollForTab") {
     scrolling = true;
-    console.log("Received syncScrollForTab message with data", request.data);
+    console.debug("Received syncScrollForTab message with data", request.data);
 
     const { scrollYPercentage } = request.data;
     const scrollPosition =
@@ -84,9 +92,3 @@ chrome.runtime.onMessage.addListener((request) => {
     resetScrolling();
   }
 });
-
-/**
- * @description
- * Chrome extensions don't support modules in content scripts.
- */
-import("./components/Demo");
