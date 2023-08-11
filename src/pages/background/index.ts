@@ -41,9 +41,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const checkedTabIds: number[] = request.data || [];
 
     checkedTabIds.forEach((tabId) => {
-      chrome.tabs.sendMessage(tabId, {
-        command: "startSyncTab",
-        data: tabId,
+      // `Uncaught (in promise) Error: Could not establish connection. Receiving end does not exist.`
+      // This error means that the content script hasn't been injected into the tab when the chrome.tabs.sendMessage method is called from the background script.
+
+      // Check if the tab exists and is available.
+      chrome.tabs.get(tabId, (tab) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            `Error in chrome.tabs.get: ${chrome.runtime.lastError}`
+          );
+          return;
+        }
+
+        // Inject the content script to the tab
+        chrome.scripting.executeScript(
+          {
+            target: { tabId },
+            files: ["src/pages/content/index.js"],
+          },
+          () => {
+            // After successful injection, send the message
+            if (chrome.runtime.lastError) {
+              console.error(
+                `Error in chrome.scripting.executeScript: ${chrome.runtime.lastError.message}`
+              );
+              return;
+            }
+
+            chrome.tabs.sendMessage(tabId, {
+              command: "startSyncTab",
+              data: tabId,
+            });
+
+            console.debug(
+              "Sent startSyncTab message to tab",
+              tabId,
+              "with data",
+              tabId
+            );
+          }
+        );
       });
     });
   }
@@ -134,4 +171,3 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // `Error: Could not establish connection. Receiving end does not exist.` error occurs when the tab is closed while the message is being sent.
-// https://stackoverflow.com/questions/20077487/chrome-extension-message-passing-response-not-sent

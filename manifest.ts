@@ -8,7 +8,8 @@ const manifest: chrome.runtime.ManifestV3 = {
   name: "__MSG_extName__",
   default_locale: "en",
   version: packageJson.version,
-  permissions: ["storage", "tabs"],
+  permissions: ["scripting", "storage", "tabs"],
+  host_permissions: ["http://*/*", "https://*/*", "<all_urls>"],
   description: "__MSG_extDescription__",
   options_page: "src/pages/options/index.html",
   background: {
@@ -28,7 +29,6 @@ const manifest: chrome.runtime.ManifestV3 = {
       js: ["src/pages/content/index.js"],
     },
   ],
-  devtools_page: "src/pages/devtools/index.html",
   web_accessible_resources: [
     {
       resources: [
