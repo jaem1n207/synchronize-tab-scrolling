@@ -5,7 +5,6 @@ import Fuse from "fuse.js";
 
 import { t } from "@src/chrome/i18n";
 import { useAsyncErrorBoundaryQuery } from "@src/common/useAsyncErrorBoundaryQuery";
-import "@pages/popup/Popup.css";
 import Kbd from "./Kbd";
 
 const tabsKeys = {
