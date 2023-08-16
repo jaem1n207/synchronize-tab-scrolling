@@ -45,7 +45,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // This error means that the content script hasn't been injected into the tab when the chrome.tabs.sendMessage method is called from the background script.
 
       // Check if the tab exists and is available.
-      chrome.tabs.get(tabId, (tab) => {
+      chrome.tabs.get(tabId, () => {
         if (chrome.runtime.lastError) {
           console.error(
             `Error in chrome.tabs.get: ${chrome.runtime.lastError}`

@@ -20,12 +20,12 @@ const throttle = <Params extends any[]>(
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   return (...args: Params) => {
-    if (!timer) {
-      timer = setTimeout(() => {
-        func(...args);
-        timer = undefined;
-      }, wait);
-    }
+    if (timer) return;
+
+    timer = setTimeout(() => {
+      func(...args);
+      timer = undefined;
+    }, wait);
   };
 };
 
