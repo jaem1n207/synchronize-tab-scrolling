@@ -49,7 +49,7 @@ function init() {
               <Button
                 variant="contained"
                 color="primary"
-                onClick={() => resetErrorBoundary()}
+                onClick={resetErrorBoundary}
               >
                 다시 시도
               </Button>
