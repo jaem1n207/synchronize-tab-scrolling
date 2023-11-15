@@ -10,7 +10,7 @@ import manifest from "./manifest";
 const rootDir = resolve(__dirname);
 const srcDir = resolve(rootDir, "src");
 const pagesDir = resolve(srcDir, "pages");
-const assetsDir = resolve(srcDir, "assets");
+const sharedDir = resolve(srcDir, "shared");
 const outDir = resolve(rootDir, "dist");
 const publicDir = resolve(rootDir, "public");
 
@@ -24,8 +24,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@src": srcDir,
-      "@assets": assetsDir,
       "@pages": pagesDir,
+      "@shared": sharedDir,
     },
   },
   plugins: [
