@@ -57,7 +57,7 @@ chrome.runtime.onMessage.addListener((request) => {
 
     window.scrollTo({
       top: scrollPosition,
-      behavior: "auto",
+      behavior: "instant",
     });
 
     resetScrolling();
