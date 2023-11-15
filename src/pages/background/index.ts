@@ -158,10 +158,30 @@ const stopSync = (tabId: number) => {
   });
 };
 
-// Stop syncing if the url is changed.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  // Synchronisation stops when the URL changes.
   if (changeInfo.url) {
     stopSync(tabId);
+  }
+
+  // Ensures that synchronised tabs stay in sync when they are refreshed.
+  if (changeInfo.status === "complete") {
+    chrome.storage.sync.get(["syncTabIds"], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error(chrome.runtime.lastError);
+      } else {
+        const { syncTabIds } = result;
+
+        if (!syncTabIds || syncTabIds?.length === 0) return;
+
+        if (syncTabIds.length && syncTabIds.includes(tabId)) {
+          chrome.tabs.sendMessage(tabId, {
+            command: "startSyncTab",
+            data: tabId,
+          });
+        }
+      }
+    });
   }
 });
 
