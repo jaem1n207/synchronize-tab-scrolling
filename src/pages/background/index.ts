@@ -159,11 +159,6 @@ const stopSync = (tabId: number) => {
 };
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  // Synchronisation stops when the URL changes.
-  if (changeInfo.url) {
-    stopSync(tabId);
-  }
-
   // Ensures that synchronised tabs stay in sync when they are refreshed.
   if (changeInfo.status === "complete") {
     chrome.storage.sync.get(["syncTabIds"], (result) => {
