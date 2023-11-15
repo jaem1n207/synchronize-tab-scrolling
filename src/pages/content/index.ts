@@ -1,33 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const debounce = <Params extends any[]>(
-  func: (...args: Params) => any,
-  wait: number
-): ((...args: Params) => void) => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  return (...args: Params) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      func(...args);
-    }, wait);
-  };
-};
-
-const throttle = <Params extends any[]>(
-  func: (...args: Params) => any,
-  wait: number
-): ((...args: Params) => void) => {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  return (...args: Params) => {
-    if (timer) return;
-
-    timer = setTimeout(() => {
-      func(...args);
-      timer = undefined;
-    }, wait);
-  };
-};
+import { debounce, throttle } from "@shared/utils/utils";
 
 // This is a variable to avoid getting stuck in a loop that keeps the scroll position synchronized between multiple tabs.
 let scrolling = false;

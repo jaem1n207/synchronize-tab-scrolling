@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 
 import { t } from "@src/chrome/i18n";
-import { useAsyncErrorBoundaryQuery } from "@src/common/useAsyncErrorBoundaryQuery";
+import { useAsyncErrorBoundaryQuery } from "@shared/component/useAsyncErrorBoundaryQuery";
 import Kbd from "./Kbd";
 
 const tabsKeys = {

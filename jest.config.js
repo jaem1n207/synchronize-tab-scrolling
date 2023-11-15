@@ -83,8 +83,8 @@ export default {
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
   moduleNameMapper: {
     "^@src(.*)$": "<rootDir>/src$1",
-    "^@assets(.*)$": "<rootDir>/src/assets$1",
     "^@pages(.*)$": "<rootDir>/src/pages$1",
+    "^@shared(.*)$": "<rootDir>/src/shared$1",
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader

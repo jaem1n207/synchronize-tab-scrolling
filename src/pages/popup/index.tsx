@@ -1,4 +1,3 @@
-import React from "react";
 import { createRoot } from "react-dom/client";
 import "@pages/popup/index.css";
 import Popup from "@pages/popup/Popup";
@@ -11,7 +10,7 @@ import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
-import AsyncErrorBoundary from "@src/common/AsyncErrorBoundary";
+import AsyncErrorBoundary from "@shared/component/AsyncErrorBoundary";
 import { Button, Typography } from "@mui/material";
 
 refreshOnUpdate("pages/popup");
