@@ -1,0 +1,26 @@
+{
+	"extName": {
+		"message": "여러 탭의 스크롤 위치를 동일하게 유지-svelte"
+	},
+	"extDescription": {
+		"message": "여러 탭을 선택하고 스크롤 위치를 동기화할 수 있어요."
+	},
+	"search": {
+		"message": "검색"
+	},
+	"noSearchResult": {
+		"message": "검색 결과가 없어요."
+	},
+	"stopSync": {
+		"message": "동기화 중지"
+	},
+	"selectMoreTabs": {
+		"message": "2개 이상의 탭을 선택해주세요."
+	},
+	"startSync": {
+		"message": "동기화 시작"
+	},
+	"optionsContent": {
+		"message": "옵션 기능은 추후 추가될 예정입니다."
+	}
+}

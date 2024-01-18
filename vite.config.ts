@@ -1,86 +1,21 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path, { resolve } from "path";
-import makeManifest from "./utils/plugins/make-manifest";
-import customDynamicImport from "./utils/plugins/custom-dynamic-import";
-import addHmr from "./utils/plugins/add-hmr";
-import watchRebuild from "./utils/plugins/watch-rebuild";
-import manifest from "./manifest";
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vitest/config';
 
-const rootDir = resolve(__dirname);
-const srcDir = resolve(rootDir, "src");
-const pagesDir = resolve(srcDir, "pages");
-const sharedDir = resolve(srcDir, "shared");
-const outDir = resolve(rootDir, "dist");
-const publicDir = resolve(rootDir, "public");
+import createManifest from './utils/plugins/create-manifest';
+import manifest from './manifest';
+import watchRebuild from './utils/plugins/watch-rebuild';
 
-const isDev = process.env.__DEV__ === "true";
-const isProduction = !isDev;
-
-// ENABLE HMR IN BACKGROUND SCRIPT
-const enableHmrInBackgroundScript = true;
+const isDev = process.env.__DEV__ === 'true';
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@src": srcDir,
-      "@pages": pagesDir,
-      "@shared": sharedDir,
-    },
-  },
-  plugins: [
-    react(),
-    makeManifest(manifest, {
-      isDev,
-    }),
-    customDynamicImport(),
-    addHmr({ background: enableHmrInBackgroundScript, view: true }),
-    watchRebuild(),
-  ],
-  publicDir,
-  build: {
-    outDir,
-    /** Can slowDown build speed. */
-    // sourcemap: isDev,
-    minify: isProduction,
-    reportCompressedSize: isProduction,
-    rollupOptions: {
-      /**
-       * Ignore "use client" waning since we are not using SSR
-       * @see {@link https://github.com/TanStack/query/pull/5161#issuecomment-1477389761 Preserve 'use client' directives TanStack/query#5161}
-       */
-      onwarn(warning, warn) {
-        if (
-          warning.code === "MODULE_LEVEL_DIRECTIVE" &&
-          warning.message.includes("use client")
-        ) {
-          return;
-        }
-        warn(warning);
-      },
-      input: {
-        content: resolve(pagesDir, "content", "index.ts"),
-        background: resolve(pagesDir, "background", "index.ts"),
-        popup: resolve(pagesDir, "popup", "index.html"),
-        options: resolve(pagesDir, "options", "index.html"),
-      },
-      output: {
-        entryFileNames: "src/pages/[name]/index.js",
-        chunkFileNames: isDev
-          ? "assets/js/[name].js"
-          : "assets/js/[name].[hash].js",
-        assetFileNames: (assetInfo) => {
-          const { dir, name: _name } = path.parse(assetInfo.name);
-          const assetFolder = dir.split("/").at(-1);
-          const name = assetFolder + firstUpperCase(_name);
-          return `assets/[ext]/${name}.chunk.[ext]`;
-        },
-      },
-    },
-  },
+	plugins: [
+		sveltekit(),
+		createManifest(manifest, {
+			isDev
+		}),
+		watchRebuild()
+	],
+	test: {
+		include: ['src/**/*.{test,spec}.{js,ts}']
+	}
 });
-
-function firstUpperCase(str: string) {
-  const firstAlphabet = new RegExp(/( |^)[a-z]/, "g");
-  return str.toLowerCase().replace(firstAlphabet, (L) => L.toUpperCase());
-}

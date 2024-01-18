@@ -1,18 +1,10 @@
-# dependencies
-/node_modules
-
-# testing
-/coverage
-
-# build
-/dist
-
-# etc
 .DS_Store
-.env.local
-.idea
-
-# compiled
-utils/reload/*.js
-utils/reload/injections/*.js
-public/manifest.json
+node_modules
+/build
+/.svelte-kit
+/package
+.env
+.env.*
+!.env.example
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
