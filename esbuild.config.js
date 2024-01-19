@@ -20,8 +20,8 @@ import { build } from 'esbuild';
 			}),
 			build({
 				...defaultBuildOptions,
-				entryPoints: ['./src/inject-static/theme.inject.ts'],
-				outfile: './static/theme.js'
+				entryPoints: ['./src/inject-static/background-script.inject.ts'],
+				outfile: './static/background-script.js'
 			})
 		]);
 	} catch (error) {
