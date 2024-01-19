@@ -1,64 +1,66 @@
+import typography from '@tailwindcss/typography';
 import type { Config } from 'tailwindcss';
+import { fontFamily } from 'tailwindcss/defaultTheme';
 
-export default {
-	future: {
-		// https://github.com/tailwindlabs/tailwindcss/pull/8394
-		hoverOnlyWhenSupported: true
-	},
-	darkMode: ['class'],
+const config = {
+	darkMode: 'class',
 	content: ['./src/**/*.{html,js,svelte,ts}'],
+	safelist: ['dark'],
 	theme: {
+		container: {
+			center: true,
+			padding: '2rem',
+			screens: {
+				'2xl': '1400px'
+			}
+		},
 		extend: {
 			colors: {
-				border: 'hsl(var(--border))',
-				input: 'hsl(var(--input))',
-				ring: 'hsl(var(--ring))',
-				background: 'hsl(var(--background))',
-				foreground: 'hsl(var(--foreground))',
+				border: 'hsl(var(--border) / <alpha-value>)',
+				input: 'hsl(var(--input) / <alpha-value>)',
+				ring: 'hsl(var(--ring) / <alpha-value>)',
+				background: 'hsl(var(--background) / <alpha-value>)',
+				foreground: 'hsl(var(--foreground) / <alpha-value>)',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+					foreground: 'hsl(var(--primary-foreground) / <alpha-value>)'
 				},
 				secondary: {
-					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))'
+					DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
+					foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)'
 				},
 				destructive: {
-					DEFAULT: 'hsl(var(--destructive))',
-					foreground: 'hsl(var(--destructive-foreground))'
+					DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+					foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)'
 				},
 				muted: {
-					DEFAULT: 'hsl(var(--muted))',
-					foreground: 'hsl(var(--muted-foreground))'
+					DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+					foreground: 'hsl(var(--muted-foreground) / <alpha-value>)'
 				},
 				accent: {
-					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))'
+					DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+					foreground: 'hsl(var(--accent-foreground) / <alpha-value>)'
 				},
 				popover: {
-					DEFAULT: 'hsl(var(--popover))',
-					foreground: 'hsl(var(--popover-foreground))'
+					DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+					foreground: 'hsl(var(--popover-foreground) / <alpha-value>)'
 				},
 				card: {
-					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))'
-				},
-				basic: 'hsl(var(--basic))',
-				['basic-500']: 'hsl(var(--basic-500))',
-				['background-primary']: 'hsl(var(--background-primary))',
-				['background-secondary']: 'hsl(var(--background-secondary))',
-				['background-modifier-accent']: 'hsl(var(--background-modifier-accent))',
-				['header-primary']: 'hsl(var(--header-primary))',
-				['brand-experiment-360']: 'hsl(var(--brand-experiment-360))',
-				['status-danger']: 'hsl(var(--status-danger))',
-				['button-danger-background']: 'hsl(var(--button-danger-background))'
+					DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+					foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
+				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			fontFamily: {
+				sans: [...fontFamily.sans]
 			}
 		}
 	},
-	plugins: []
+	plugins: [typography]
 } satisfies Config;
+
+export default config;

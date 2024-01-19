@@ -14,7 +14,10 @@ const config = {
 			precompress: false,
 			manifest: 'manifest.json'
 		}),
-		appDir: 'app'
+		appDir: 'app',
+		alias: {
+			'@/*': './src/*'
+		}
 	},
 	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
 	// for more information about preprocessors

@@ -18,14 +18,13 @@
 		--muted-foreground: 240 3.8% 46.1%;
 		--accent: 240 4.8% 95.9%;
 		--accent-foreground: 240 5.9% 10%;
-		--destructive: 0 84.2% 60.2%;
+		--destructive: 0 72.22% 50.59%;
 		--destructive-foreground: 0 0% 98%;
 		--border: 240 5.9% 90%;
 		--input: 240 5.9% 90%;
 		--ring: 142.1 76.2% 36.3%;
 		--radius: 0.5rem;
 	}
-
 	.dark {
 		--background: 20 14.3% 4.1%;
 		--foreground: 0 0% 95%;
@@ -46,5 +45,23 @@
 		--border: 240 3.7% 15.9%;
 		--input: 240 3.7% 15.9%;
 		--ring: 142.4 71.8% 29.2%;
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border box-border relative min-w-0;
+	}
+	body {
+		@apply bg-background text-foreground antialiased;
+	}
+	h1,
+	h2,
+	h3,
+	h4 {
+		@apply text-balance;
+	}
+	p {
+		@apply text-pretty;
 	}
 }

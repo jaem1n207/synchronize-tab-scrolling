@@ -1,7 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { defineConfig } from 'vitest/config';
 
 import manifest from './manifest';
@@ -28,6 +28,11 @@ export default defineConfig({
 	],
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}']
+	},
+	resolve: {
+		alias: {
+			$lib: resolve('./src/lib')
+		}
 	},
 	build: {
 		rollupOptions: {
