@@ -23,17 +23,17 @@ const manifest: chrome.runtime.ManifestV3 = {
 		'16': 'icons/icon-16.png',
 		'48': 'icons/icon-48.png',
 		'128': 'icons/icon-128.png'
-	}
-	// background: {
-	// 	service_worker: 'src/pages/background/index.js',
-	// 	type: 'module'
-	// },
-	// content_scripts: [
-	// 	{
-	// 		matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-	// 		js: ['src/pages/content/index.js']
-	// 	}
-	// ]
+	},
+	background: {
+		service_worker: 'background-script.js',
+		type: 'module'
+	},
+	content_scripts: [
+		{
+			matches: ['*://*/*'],
+			js: ['content-script.js']
+		}
+	]
 };
 
 export default manifest;
