@@ -12,13 +12,13 @@
 		"message": "No search results."
 	},
 	"stopSync": {
-		"message": "Stop Sync"
+		"message": "Stop sync"
 	},
 	"selectMoreTabs": {
 		"message": "Please select more than 2 tabs."
 	},
 	"startSync": {
-		"message": "Start Sync"
+		"message": "Start sync"
 	},
 	"optionsContent": {
 		"message": "Options will be added later."
