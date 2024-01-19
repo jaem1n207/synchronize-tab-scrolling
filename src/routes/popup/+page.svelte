@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Button } from '$lib/components/ui/button';
 </script>
 
 <svelte:head>
@@ -6,14 +7,7 @@
 	<meta name="description" content="Popup this app" />
 </svelte:head>
 
-<div class="text-column">
-	<h1>Popup this app</h1>
-
-	<pre>npm create svelte@latest</pre>
-
-	<p>
-		The page you're looking at is purely static HTML, with no client-side interactivity needed.
-		Because of that, we don't need to load any JavaScript. Try viewing the page's source, or opening
-		the devtools network panel and reloading.
-	</p>
-</div>
+<main class="flex flex-col items-center justify-center space-y-2 w-80 max-h-96 overflow-auto">
+	<h1 class="text-2xl font-bold">Popup this app</h1>
+	<Button variant="default" size="default">Button</Button>
+</main>
