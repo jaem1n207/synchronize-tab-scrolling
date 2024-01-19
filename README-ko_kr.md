@@ -34,7 +34,7 @@ Synchronize Tab Scrolling은 여러 탭의 스크롤 위치를 동기화할 수 
 
 ## 설치 <a name="installation"></a>
 
-[설치 링크](https://chrome.google.com/webstore/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc/)로 이동해서 설치 후 사용할 수 있습니다.
+[설치 링크](https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc)로 이동해서 설치 후 사용할 수 있습니다.
 
 ## 라이선스 <a name="license"></a>
 

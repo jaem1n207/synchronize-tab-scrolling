@@ -32,10 +32,9 @@ For instance, you might have one tab open with an article in its original langua
 
 ![sync-scroll](https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/916520a5-e01b-4912-bb0e-67595aebdfa5)
 
-
 ## Installation <a name="installation"></a>
 
-Go to the [installation link](https://chrome.google.com/webstore/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc/) to install and use.
+Go to the [installation link](https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc) to install and use.
 
 ## License <a name="license"></a>
 
