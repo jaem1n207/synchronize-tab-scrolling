@@ -1,5 +1,12 @@
-<script>
-	import '../app.css';
+<script lang="ts">
+	import { ModeWatcher } from 'mode-watcher';
+
+	import ThemeSwitcher from '$lib/components/theme-switcher.svelte';
+	import '@/app.pcss';
 </script>
 
-<slot />
+<ModeWatcher />
+<div>
+	<ThemeSwitcher />
+	<slot />
+</div>
