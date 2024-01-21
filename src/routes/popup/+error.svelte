@@ -8,5 +8,5 @@
 
 <div>
 	{$page.status}: {$page.error?.message}
-	<button on:click={reload}>다시 시도</button>
+	<button on:click={reload}>Retry</button>
 </div>

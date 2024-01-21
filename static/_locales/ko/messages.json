@@ -22,5 +22,8 @@
 	},
 	"optionsContent": {
 		"message": "옵션 기능은 추후 추가될 예정입니다."
+	},
+	"retry": {
+		"message": "다시 시도"
 	}
 }
