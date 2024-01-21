@@ -17,7 +17,7 @@
 	/>
 </svelte:head>
 
-<main class="max-h-96 min-h-96 w-80 overflow-auto">
+<div class="max-h-96 min-h-96 w-80 overflow-auto">
 	{#if $query.isFetching}
 		<p>Loading...</p>
 	{:else if $query.isError}
@@ -28,4 +28,4 @@
 		{/each}
 	{/if}
 	<Button>Hello</Button>
-</main>
+</div>
