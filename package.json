@@ -53,6 +53,7 @@
 		"vitest": "^1.0.0"
 	},
 	"dependencies": {
+		"@tanstack/svelte-query": "^5.17.19",
 		"bits-ui": "^0.14.0",
 		"clsx": "^2.1.0",
 		"lucide-svelte": "^0.312.0",

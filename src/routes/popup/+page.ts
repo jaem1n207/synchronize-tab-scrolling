@@ -7,3 +7,13 @@ export const csr = dev;
 // since there's no dynamic data here, we can prerender
 // it so that it gets served as a static asset in production
 export const prerender = true;
+
+// request pokeymon api
+export const load = async ({ parent, fetch }) => {
+	const { queryClient } = await parent();
+
+	await queryClient.prefetchQuery({
+		queryKey: ['pokemon'],
+		queryFn: async () => (await fetch('https://pokeapi.co/api/v2/pokemon?limit=33')).json()
+	});
+};
