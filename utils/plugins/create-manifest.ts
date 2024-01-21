@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import type { PluginOption } from 'vite';
 
 import colorLog from '../log';
@@ -9,10 +9,7 @@ const __dirname = dirname(new URL(import.meta.url).pathname);
 const buildDir = resolve(__dirname, '..', '..', 'build');
 const staticDir = resolve(__dirname, '..', '..', 'static');
 
-export default function createManifest(
-	manifest: chrome.runtime.ManifestV3,
-	config: { isDev: boolean }
-): PluginOption {
+export default function createManifest(manifest: chrome.runtime.ManifestV3): PluginOption {
 	function createManifest(to: string) {
 		if (!existsSync(to)) {
 			mkdirSync(to);
@@ -27,15 +24,10 @@ export default function createManifest(
 	return {
 		name: 'create-manifest',
 		buildStart() {
-			if (config.isDev) {
-				createManifest(buildDir);
-			}
+			createManifest(staticDir);
 		},
 		buildEnd() {
-			if (config.isDev) {
-				return;
-			}
-			createManifest(staticDir);
+			createManifest(buildDir);
 		}
 	};
 }
