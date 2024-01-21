@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ModeWatcher } from 'mode-watcher';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
+	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
 
 	import '@/app.pcss';
 	import type { LayoutData } from './$types';
@@ -11,6 +12,9 @@
 
 <ModeWatcher />
 <Header />
-<main>
-<QueryClientProvider client={data.queryClient}><slot /></QueryClientProvider>
-</main>
+<QueryClientProvider client={data.queryClient}>
+	<main>
+		<slot />
+	</main>
+	<SvelteQueryDevtools />
+</QueryClientProvider>
