@@ -1,9 +1,9 @@
 {
 	"extName": {
-		"message": "Synchronize Tab Scrolling-svelte"
+		"message": "Synchronize Tab Scrolling"
 	},
 	"extDescription": {
-		"message": "This extension enables you to select multiple tabs and synchronize their scrolling positions."
+		"message": "Browser extension that lets you synchronize the scrolling position of multiple tabs."
 	},
 	"search": {
 		"message": "Search"

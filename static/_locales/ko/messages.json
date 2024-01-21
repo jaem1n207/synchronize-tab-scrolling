@@ -1,9 +1,9 @@
 {
 	"extName": {
-		"message": "여러 탭의 스크롤 위치를 동일하게 유지-svelte"
+		"message": "Synchronize Tab Scrolling - 여러 탭의 스크롤 위치를 동일하게 유지"
 	},
 	"extDescription": {
-		"message": "여러 탭을 선택하고 스크롤 위치를 동기화할 수 있어요."
+		"message": "여러 탭의 스크롤 위치를 동기화할 수 있는 브라우저 확장 프로그램이예요."
 	},
 	"search": {
 		"message": "검색"
