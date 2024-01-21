@@ -94,7 +94,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		if (!senderTabId) return;
 
 		// FIXME: 크롬 버전 업그레이드에 따른 props 수정 필요
-		// @ts-ignore
+		// @ts-expect-error
 		chrome.storage.sync.get(['syncTabIds'], (result: { syncTabIds: number[] }) => {
 			if (chrome.runtime.lastError) {
 				console.error(chrome.runtime.lastError);
