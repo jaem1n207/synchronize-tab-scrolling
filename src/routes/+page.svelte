@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
 	import Tabs from '@/lib/tabs/tabs.svelte';
 </script>
 
@@ -13,5 +12,4 @@
 
 <div class="max-h-96 min-h-96 w-80 overflow-auto">
 	<Tabs />
-	<Button>Hello</Button>
 </div>

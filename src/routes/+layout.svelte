@@ -13,7 +13,7 @@
 <ModeWatcher />
 <Header />
 <QueryClientProvider client={data.queryClient}>
-	<main>
+	<main class="px-2 py-3">
 		<slot />
 	</main>
 	<SvelteQueryDevtools />
