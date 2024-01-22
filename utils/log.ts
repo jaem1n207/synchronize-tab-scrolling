@@ -1,6 +1,15 @@
 type ColorType = 'success' | 'info' | 'error' | 'warning' | keyof typeof COLORS;
 
-export default function colorLog(message: string, type?: ColorType) {
+/**
+ * 콘솔에 색상을 입혀서 출력합니다.
+ * @param message 출력할 메시지
+ * @param type 출력할 메시지의 타입
+ * @param force 강제로 출력할 것인지 여부.
+ * ex) build-static-script.js처럼 `vite build`를 실행하기 전에 실행해야 할 경우
+ */
+const colorLog = (message: string, type?: ColorType, force = false) => {
+	if (!force && !process.env.__WATCH__) return;
+
 	let color: string = type || COLORS.FgBlack;
 
 	switch (type) {
@@ -19,7 +28,7 @@ export default function colorLog(message: string, type?: ColorType) {
 	}
 
 	console.log(color, message);
-}
+};
 
 const COLORS = {
 	Reset: '\x1b[0m',
@@ -46,3 +55,5 @@ const COLORS = {
 	BgCyan: '\x1b[46m',
 	BgWhite: '\x1b[47m'
 } as const;
+
+export default colorLog;

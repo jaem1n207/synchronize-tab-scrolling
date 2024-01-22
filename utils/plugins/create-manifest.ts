@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import type { PluginOption } from 'vite';
 
 import colorLog from '../log';
@@ -9,8 +9,8 @@ const __dirname = dirname(new URL(import.meta.url).pathname);
 const buildDir = resolve(__dirname, '..', '..', 'build');
 const staticDir = resolve(__dirname, '..', '..', 'static');
 
-export default function createManifest(manifest: chrome.runtime.ManifestV3): PluginOption {
-	function createManifest(to: string) {
+const createManifest = (manifest: chrome.runtime.ManifestV3): PluginOption => {
+	const createManifest = (to: string) => {
 		if (!existsSync(to)) {
 			mkdirSync(to);
 		}
@@ -19,7 +19,7 @@ export default function createManifest(manifest: chrome.runtime.ManifestV3): Plu
 		writeFileSync(manifestPath, ManifestParser.convertManifestToString(manifest));
 
 		colorLog(`Manifest file copy complete: ${manifestPath}`, 'success');
-	}
+	};
 
 	return {
 		name: 'create-manifest',
@@ -30,4 +30,6 @@ export default function createManifest(manifest: chrome.runtime.ManifestV3): Plu
 			createManifest(buildDir);
 		}
 	};
-}
+};
+
+export default createManifest;
