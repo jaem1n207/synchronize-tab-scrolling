@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Tabs from '@/lib/tabs/tabs.svelte';
+	import TabsCmdk from '@/lib/tabs/tabs-cmdk.svelte';
 </script>
 
 <svelte:head>
@@ -10,6 +10,6 @@
 	/>
 </svelte:head>
 
-<div class="max-h-96 min-h-96 w-80 overflow-auto">
-	<Tabs />
+<div class="min-w-80 overflow-auto">
+	<TabsCmdk />
 </div>
