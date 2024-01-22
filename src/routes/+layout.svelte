@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { ModeWatcher } from 'mode-watcher';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
+	import { ModeWatcher } from 'mode-watcher';
 
 	import '@/app.pcss';
 	import type { LayoutData } from './$types';

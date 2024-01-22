@@ -17,7 +17,10 @@ const manifest: chrome.runtime.ManifestV3 = {
 			'16': 'icons/icon-16.png',
 			'48': 'icons/icon-48.png'
 		},
-		default_popup: 'popup.html'
+		default_popup: 'index.html'
+	},
+	content_security_policy: {
+		extension_pages: "script-src 'self'; object-src 'self'"
 	},
 	icons: {
 		'16': 'icons/icon-16.png',
