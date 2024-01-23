@@ -166,9 +166,12 @@
 
 <Command.Root onKeydown={handleKeydown} class="vercel">
 	<div class="select-none p-1">
+		{#if selectedTabs.size === 0}
+			<div class="invisible mx-0.5 mb-1 h-6 px-2 opacity-0" aria-hidden="true">제목 없음</div>
+		{/if}
 		{#each Array.from(selectedTabs.values()) as tab}
 			<div
-				class="mx-0.5 mb-1 inline-flex h-6 items-center rounded-sm bg-muted px-2 text-xs font-medium capitalize"
+				class="mx-0.5 mb-1 inline-flex h-6 max-w-24 items-center rounded-sm bg-muted px-2 text-xs font-medium capitalize"
 			>
 				<div class="relative mr-1 flex size-4 shrink-0 overflow-hidden rounded-full">
 					<img
@@ -178,7 +181,7 @@
 						on:error={handleFaviconError}
 					/>
 				</div>
-				{tab.title ? tab.title.slice(0, 10) : '제목 없음'}
+				<div class="truncate">{tab.title ?? '제목 없음'}</div>
 			</div>
 		{/each}
 	</div>
