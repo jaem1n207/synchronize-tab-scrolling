@@ -8,4 +8,9 @@ export const load: PageLoad = async ({ parent }) => {
 		queryKey: tabKeys.lists(),
 		queryFn: () => chromeApi.getTabs()
 	});
+
+	await queryClient.prefetchQuery({
+		queryKey: tabKeys.sync(),
+		queryFn: () => chromeApi.getSyncTabIds()
+	});
 };
