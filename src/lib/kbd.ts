@@ -31,5 +31,7 @@ export const kbd = {
 	SPACE: ' ',
 	TAB: 'Tab',
 	CTRL: 'Control',
-	ASTERISK: '*'
+	ASTERISK: '*',
+	K: 'k',
+	S: 's'
 };
