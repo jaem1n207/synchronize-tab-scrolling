@@ -9,7 +9,7 @@ const manifest: chrome.runtime.ManifestV3 = {
 	default_locale: 'en',
 	version: packageJson.version,
 	permissions: ['scripting', 'storage', 'tabs'],
-	host_permissions: ['*://*/*'],
+	host_permissions: ['*://*/*', '<all_urls>'],
 	description: '__MSG_extDescription__',
 	action: {
 		default_title: '__MSG_extName__',
@@ -33,7 +33,7 @@ const manifest: chrome.runtime.ManifestV3 = {
 	},
 	content_scripts: [
 		{
-			matches: ['*://*/*'],
+			matches: ['*://*/*', '<all_urls>'],
 			js: ['content-script.js']
 		}
 	]
