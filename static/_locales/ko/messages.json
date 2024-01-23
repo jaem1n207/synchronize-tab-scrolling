@@ -5,22 +5,43 @@
 	"extDescription": {
 		"message": "여러 탭의 스크롤 위치를 동기화할 수 있는 브라우저 확장 프로그램이예요."
 	},
-	"search": {
-		"message": "검색"
+	"searchPlaceholder": {
+		"message": "탭 제목 검색..."
 	},
-	"noSearchResult": {
-		"message": "검색 결과가 없어요."
-	},
-	"stopSync": {
-		"message": "동기화 중지"
-	},
-	"selectMoreTabs": {
-		"message": "2개 이상의 탭을 선택해주세요."
+	"noSearchFound": {
+		"message": "검색한 탭을 찾을 수 없어요"
 	},
 	"startSync": {
 		"message": "동기화 시작"
 	},
-	"optionsContent": {
-		"message": "옵션 기능은 추후 추가될 예정입니다."
+	"stopSync": {
+		"message": "동기화 중지"
+	},
+	"syncValidationError": {
+		"message": "2개 이상의 탭을 선택해주세요"
+	},
+	"loading": {
+		"message": "로딩 중..."
+	},
+	"error": {
+		"message": "오류가 발생했어요"
+	},
+	"backgroundUpdate": {
+		"message": "정보를 최신 상태로 업데이트 중이예요..."
+	},
+	"tabs": {
+		"message": "탭"
+	},
+	"changeTheme": {
+		"message": "테마 변경"
+	},
+	"light": {
+		"message": "라이트"
+	},
+	"dark": {
+		"message": "다크"
+	},
+	"system": {
+		"message": "자동"
 	}
 }

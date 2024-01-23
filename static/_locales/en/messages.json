@@ -5,22 +5,43 @@
 	"extDescription": {
 		"message": "Browser extension that lets you synchronize the scrolling position of multiple tabs."
 	},
-	"search": {
-		"message": "Search"
+	"searchPlaceholder": {
+		"message": "Search the tab title..."
 	},
-	"noSearchResult": {
-		"message": "No search results."
-	},
-	"stopSync": {
-		"message": "Stop sync"
-	},
-	"selectMoreTabs": {
-		"message": "Please select more than 2 tabs."
+	"noSearchFound": {
+		"message": "No search results found"
 	},
 	"startSync": {
 		"message": "Start sync"
 	},
-	"optionsContent": {
-		"message": "Options will be added later."
+	"stopSync": {
+		"message": "Stop sync"
+	},
+	"syncValidationError": {
+		"message": "Please select at least 2 tabs"
+	},
+	"loading": {
+		"message": "Loading..."
+	},
+	"error": {
+		"message": "An error occurred"
+	},
+	"backgroundUpdate": {
+		"message": "Background Updating..."
+	},
+	"tabs": {
+		"message": "Tabs"
+	},
+	"changeTheme": {
+		"message": "Change Theme"
+	},
+	"light": {
+		"message": "Light"
+	},
+	"dark": {
+		"message": "Dark"
+	},
+	"system": {
+		"message": "System"
 	}
 }
