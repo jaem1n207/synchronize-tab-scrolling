@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Command from '$lib/components/ui/command';
-
+	import ThemeSwitcher from '../components/theme-switcher.svelte';
+	import { Button } from '../components/ui/button';
 	import { isEmptyString, isHTMLElement } from '../is';
 	import { kbd } from '../kbd';
 	import { getUserPreferredTheme } from '../media-query';
@@ -160,11 +161,11 @@
 	const handleFaviconError = (event: Event) => {
 		const theme = getUserPreferredTheme();
 		const target = event.target as HTMLImageElement;
-		target.src = `/images/${theme}-fallback-favicon.svg`;
+		target.src = `/images/fallback-favicon.${theme}.svg`;
 	};
 </script>
 
-<Command.Root onKeydown={handleKeydown} class="vercel">
+<Command.Root onKeydown={handleKeydown}>
 	<div class="select-none p-1">
 		{#if selectedTabs.size === 0}
 			<div class="invisible mx-0.5 mb-1 h-6 px-2 opacity-0" aria-hidden="true">제목 없음</div>
@@ -209,6 +210,17 @@
 			{/each}
 		</Command.Group>
 	</Command.List>
+	<div
+		class="absolute bottom-0 flex h-10 w-full items-center rounded-b-xl border-t border-border bg-background px-2 py-1"
+	>
+		<span class="mr-auto text-xs">Synchronize Tab Scrolling</span>
+		<ThemeSwitcher />
+		<Button class="itesm-center flex h-full gap-1 pl-2 pr-1 text-xs" variant="ghost">
+			Start Sync
+			<Command.Shortcut class="ml-2 size-5">⌘</Command.Shortcut>
+			<Command.Shortcut class="size-5">↵</Command.Shortcut>
+		</Button>
+	</div>
 </Command.Root>
 
 <!-- <Command.Root onKeydown={handleKeydown} class="vercel">
