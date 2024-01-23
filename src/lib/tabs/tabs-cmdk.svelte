@@ -46,6 +46,8 @@
 			});
 		}
 	});
+	let isPending = false;
+	$: isPending = $mutateSyncTabIds.isPending;
 
 	let inputValue: string = '';
 
@@ -211,7 +213,7 @@
 		{:else}
 			<Command.Empty>{getLocalMessage('noSearchFound')}</Command.Empty>
 			<Command.Group heading={getLocalMessage('tabs')}>
-				{#each $tabs.data as tab}
+				{#each $tabs.data as tab (getTabIdentifier(tab))}
 					<Command.Item
 						disabled={isSyncing}
 						aria-disabled={isSyncing}
@@ -230,5 +232,11 @@
 			</Command.Group>
 		{/if}
 	</Command.List>
-	<SubCommand {handleStartSync} {handleStopSync} {hasMultipleSelectedTabs} {isSyncing} />
+	<SubCommand
+		{handleStartSync}
+		{handleStopSync}
+		{hasMultipleSelectedTabs}
+		{isSyncing}
+		{isPending}
+	/>
 </Command.Root>

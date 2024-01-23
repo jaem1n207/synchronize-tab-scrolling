@@ -11,6 +11,7 @@
 	export let handleStopSync: () => void;
 	export let hasMultipleSelectedTabs: boolean;
 	export let isSyncing: boolean;
+	export let isPending: boolean;
 </script>
 
 <div
@@ -23,6 +24,7 @@
 		<Button
 			class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
 			variant="ghost"
+			disabled={isPending}
 			on:click={handleStopSync}
 		>
 			<RefreshCwOff class="mr-0.5 size-3 stroke-black dark:stroke-white" />
@@ -34,8 +36,8 @@
 		<Button
 			class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
 			variant="ghost"
+			disabled={!hasMultipleSelectedTabs || isPending}
 			on:click={handleStartSync}
-			disabled={!hasMultipleSelectedTabs}
 		>
 			<SyncIcon class="mr-0.5 size-3 stroke-black dark:stroke-white" />
 			{getLocalMessage('startSync')}
