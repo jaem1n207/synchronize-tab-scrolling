@@ -1,11 +1,14 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+
+	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Command from '$lib/components/ui/command';
-	import ThemeSwitcher from '../components/theme-switcher.svelte';
-	import { Button } from '../components/ui/button';
+	import { Image } from 'lucide-svelte';
 	import { isEmptyString, isHTMLElement } from '../is';
 	import { kbd } from '../kbd';
-	import { getUserPreferredTheme } from '../media-query';
 	import { cn } from '../utils';
+	import SelectedTabs from './selected-tabs.svelte';
+	import SubCommand from './sub-command.svelte';
 
 	// const tabs = createQuery({
 	// 	queryKey: tabKeys.lists(),
@@ -48,7 +51,7 @@
 			index: 4,
 			sessionId: 'svf5324th',
 			title: 'Youtube',
-			favIconUrl: 'https://www.youtube.com/favicon.ico'
+			favIconUrl: ''
 		},
 		{
 			index: 5,
@@ -74,6 +77,11 @@
 
 	let selectedTabs = new Map<string, (typeof tabs)[0]>();
 	$: isEmptySelectedTabIds = selectedTabs.size === 0;
+	$: hasMultipleSelectedTabs = selectedTabs.size >= 2;
+
+	const resetInputValue = () => (inputValue = '');
+
+	const resetSelectedTabs = () => (selectedTabs = new Map());
 
 	/**
 	 * 선택된 탭을 추가합니다.
@@ -124,7 +132,7 @@
 		const currentTarget = e.currentTarget;
 		if (!isHTMLElement(currentTarget)) return;
 
-		if (isEmptySelectedTabIds || !isEmptyString(inputValue)) return;
+		if (isEmptySelectedTabIds || !isEmptyString(inputValue) || isSyncing) return;
 
 		if (e.key === kbd.BACKSPACE) {
 			e.preventDefault();
@@ -149,6 +157,8 @@
 	 * @param {chrome.tabs.Tab} tab - 사용자가 선택한 탭 객체
 	 */
 	const handleTabSelect = (tab: (typeof tabs)[0]) => {
+		if (isSyncing) return;
+
 		const identifier = getTabIdentifier(tab);
 
 		if (selectedTabs.has(identifier)) {
@@ -158,69 +168,76 @@
 		}
 	};
 
-	const handleFaviconError = (event: Event) => {
-		const theme = getUserPreferredTheme();
-		const target = event.target as HTMLImageElement;
-		target.src = `/images/fallback-favicon.${theme}.svg`;
+	// TODO: 탭 동기화 기능 구현
+	let isSyncing: boolean = false;
+
+	const handleStartSync = () => {
+		if (isSyncing || !hasMultipleSelectedTabs) return;
+
+		isSyncing = true;
+		console.log('start sync!');
 	};
+
+	const handleStopSync = () => {
+		if (!isSyncing) return;
+
+		isSyncing = false;
+		resetSelectedTabs();
+		console.log('stop sync!');
+	};
+
+	onMount(() => {
+		const handleKeydown = (e: KeyboardEvent) => {
+			if (isSyncing) {
+				if (e.key === kbd.E && (e.metaKey || e.ctrlKey)) {
+					handleStopSync();
+				}
+			} else {
+				if (e.key === kbd.S && (e.metaKey || e.ctrlKey)) {
+					resetInputValue();
+					handleStartSync();
+				}
+			}
+		};
+
+		document.addEventListener('keydown', handleKeydown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeydown);
+		};
+	});
 </script>
 
-<Command.Root onKeydown={handleKeydown}>
-	<div class="select-none p-1">
-		{#if selectedTabs.size === 0}
-			<div class="invisible mx-0.5 mb-1 h-6 px-2 opacity-0" aria-hidden="true">제목 없음</div>
-		{/if}
-		{#each Array.from(selectedTabs.values()) as tab}
-			<div
-				class="mx-0.5 mb-1 inline-flex h-6 max-w-24 items-center rounded-sm bg-muted px-2 text-xs font-medium capitalize"
-			>
-				<div class="relative mr-1 flex size-4 shrink-0 overflow-hidden rounded-full">
-					<img
-						class="aspect-square size-full object-cover"
-						src={tab.favIconUrl}
-						alt=""
-						on:error={handleFaviconError}
-					/>
-				</div>
-				<div class="truncate">{tab.title ?? '제목 없음'}</div>
-			</div>
-		{/each}
-	</div>
-	<Command.Input placeholder="Type a command or search..." autofocus bind:value={inputValue} />
-	<Command.List>
+<Command.Root onKeydown={handleKeydown} class="py-2">
+	<SelectedTabs {selectedTabs} />
+	<Command.Input
+		placeholder="Type a command or search..."
+		autofocus
+		bind:value={inputValue}
+		class="py-1"
+	/>
+	<Command.List class="px-2 pb-10">
 		<Command.Empty>No results found.</Command.Empty>
 		<Command.Group heading="Tabs">
 			{#each tabs as tab}
 				<Command.Item
+					disabled={isSyncing}
+					aria-disabled={isSyncing}
 					onSelect={() => handleTabSelect(tab)}
 					class={cn('my-0.5 cursor-pointer py-2 transition-colors aria-selected:bg-muted/50', {
 						'bg-muted': selectedTabs.has(getTabIdentifier(tab))
 					})}
 				>
-					<div class="relative mr-2 flex size-6 shrink-0 overflow-hidden rounded-full">
-						<img
-							class="aspect-square size-full object-cover"
-							src={tab.favIconUrl}
-							alt=""
-							on:error={handleFaviconError}
-						/>
-					</div>
+					<Avatar.Root class="mr-2">
+						<Avatar.Image src={tab.favIconUrl} alt={tab.title} />
+						<Avatar.Fallback><Image /></Avatar.Fallback>
+					</Avatar.Root>
 					<span class="line-clamp-2 text-sm">{tab.title}</span>
 				</Command.Item>
 			{/each}
 		</Command.Group>
 	</Command.List>
-	<div
-		class="absolute bottom-0 flex h-10 w-full items-center rounded-b-xl border-t border-border bg-background px-2 py-1"
-	>
-		<span class="mr-auto text-xs">Synchronize Tab Scrolling</span>
-		<ThemeSwitcher />
-		<Button class="itesm-center flex h-full gap-1 pl-2 pr-1 text-xs" variant="ghost">
-			Start Sync
-			<Command.Shortcut class="ml-2 size-5">⌘</Command.Shortcut>
-			<Command.Shortcut class="size-5">↵</Command.Shortcut>
-		</Button>
-	</div>
+	<SubCommand {handleStartSync} {handleStopSync} {hasMultipleSelectedTabs} {isSyncing} />
 </Command.Root>
 
 <!-- <Command.Root onKeydown={handleKeydown} class="vercel">

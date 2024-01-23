@@ -33,5 +33,6 @@ export const kbd = {
 	CTRL: 'Control',
 	ASTERISK: '*',
 	K: 'k',
-	S: 's'
+	S: 's',
+	E: 'e'
 };
