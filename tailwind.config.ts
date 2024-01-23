@@ -3,6 +3,10 @@ import type { Config } from 'tailwindcss';
 import { fontFamily } from 'tailwindcss/defaultTheme';
 
 const config = {
+	future: {
+		// https://github.com/tailwindlabs/tailwindcss/pull/8394
+		hoverOnlyWhenSupported: true
+	},
 	darkMode: 'class',
 	content: ['./src/**/*.{html,js,svelte,ts}'],
 	safelist: ['dark'],
