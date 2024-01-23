@@ -1,19 +1,41 @@
 <script lang="ts">
+	import { resetMode, setMode } from 'mode-watcher';
+	import { onMount } from 'svelte';
+
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { Moon, Sun } from 'lucide-svelte';
+	import { kbd } from '../kbd';
+	import { Shortcut } from './ui/command';
 
-	import { resetMode, setMode } from 'mode-watcher';
+	let open = false;
+
+	onMount(() => {
+		function handleKeydown(e: KeyboardEvent) {
+			if (e.key === kbd.K && (e.metaKey || e.ctrlKey)) {
+				e.preventDefault();
+				open = true;
+			}
+		}
+
+		document.addEventListener('keydown', handleKeydown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeydown);
+		};
+	});
 </script>
 
-<DropdownMenu.Root>
+<DropdownMenu.Root bind:open preventScroll={true}>
 	<DropdownMenu.Trigger asChild let:builder>
-		<Button builders={[builder]} variant="outline" size="icon">
-			<Sun class="w-h-5 h-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-			<Moon
-				class="w-h-5 absolute h-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"
-			/>
-			<span class="sr-only">Toggle theme</span>
+		<Button
+			aria-expanded={open}
+			builders={[builder]}
+			variant="ghost"
+			class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
+		>
+			<span class="text-xs">Change Theme</span>
+			<Shortcut class="ml-1 size-5">⌘</Shortcut>
+			<Shortcut class="size-5">K</Shortcut>
 		</Button>
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content>

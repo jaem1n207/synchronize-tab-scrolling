@@ -10,6 +10,6 @@
 	/>
 </svelte:head>
 
-<div class="min-w-80 overflow-auto">
+<div class="relative w-full min-w-96 overflow-auto rounded-xl border border-border">
 	<TabsCmdk />
 </div>
