@@ -3,17 +3,7 @@
 
 	import * as Avatar from '$lib/components/ui/avatar';
 
-	// export let selectedTabs: Map<string, chrome.tabs.Tab>;
-	export let selectedTabs: Map<
-		string,
-		{
-			id?: number | undefined;
-			title?: string | undefined;
-			favIconUrl?: string | undefined;
-			sessionId?: string | undefined;
-			index: number;
-		}
-	>;
+	export let selectedTabs: Map<string, chrome.tabs.Tab>;
 </script>
 
 <div class="select-none border-b px-1 pt-1">

@@ -3,79 +3,23 @@
 
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Command from '$lib/components/ui/command';
+	import { createQuery } from '@tanstack/svelte-query';
 	import { Image } from 'lucide-svelte';
 	import { isEmptyString, isHTMLElement } from '../is';
 	import { kbd } from '../kbd';
 	import { cn } from '../utils';
 	import SelectedTabs from './selected-tabs.svelte';
 	import SubCommand from './sub-command.svelte';
+	import { chromeApi, tabKeys } from './tabs';
 
-	// const tabs = createQuery({
-	// 	queryKey: tabKeys.lists(),
-	// 	queryFn: () => chromeApi.getTabs()
-	// });
-
-	let tabs: {
-		id?: number | undefined;
-		title?: string | undefined;
-		favIconUrl?: string | undefined;
-		sessionId?: string | undefined;
-		index: number;
-	}[] = [
-		{
-			index: 0,
-			id: 1,
-			title: 'Google',
-			favIconUrl: 'https://www.google.com/favicon.ico'
-		},
-		{
-			index: 1,
-			id: 2,
-			title:
-				'FacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebookFacebook',
-			favIconUrl: 'https://www.facebook.com/favicon.ico'
-		},
-		{
-			index: 2,
-			sessionId: 'ac34adcb',
-			title: 'Twitter',
-			favIconUrl: 'https://www.twitter.com/favicon.ico'
-		},
-		{
-			index: 3,
-			id: 4,
-			title: 'Instagram',
-			favIconUrl: 'https://www.instagram.com/favicon.ico'
-		},
-		{
-			index: 4,
-			sessionId: 'svf5324th',
-			title: 'Youtube',
-			favIconUrl: ''
-		},
-		{
-			index: 5,
-			id: 6,
-			title: 'Linkedin',
-			favIconUrl: 'https://www.linkedin.com/favicon.ico'
-		},
-		{
-			index: 6,
-			id: 7,
-			title: 'Github',
-			favIconUrl: 'https://www.github.com/favicon.ico'
-		},
-		{
-			index: 7,
-			id: 8,
-			title: 'Stack Overflow',
-			favIconUrl: 'https://www.stackoverflow.com/favicon.ico'
-		}
-	];
+	const tabs = createQuery({
+		queryKey: tabKeys.lists(),
+		queryFn: () => chromeApi.getTabs()
+	});
 
 	let inputValue: string = '';
 
-	let selectedTabs = new Map<string, (typeof tabs)[0]>();
+	let selectedTabs = new Map<string, chrome.tabs.Tab>();
 	$: isEmptySelectedTabIds = selectedTabs.size === 0;
 	$: hasMultipleSelectedTabs = selectedTabs.size >= 2;
 
@@ -90,7 +34,7 @@
 	 *
 	 * @param {chrome.tabs.Tab} tab - 선택할 탭 객체
 	 */
-	const addSelectedTab = (tab: (typeof tabs)[0]) => {
+	const addSelectedTab = (tab: chrome.tabs.Tab) => {
 		const identifier = getTabIdentifier(tab);
 		selectedTabs = new Map(selectedTabs.set(identifier, tab));
 	};
@@ -147,7 +91,7 @@
 	 *
 	 * @param {chrome.tabs.Tab} tab - 사용자가 선택한 탭 객체
 	 */
-	const getTabIdentifier = (tab: (typeof tabs)[0]): string => {
+	const getTabIdentifier = (tab: chrome.tabs.Tab): string => {
 		return tab.id?.toString() ?? tab.sessionId ?? tab.index.toString();
 	};
 
@@ -156,7 +100,7 @@
 	 *
 	 * @param {chrome.tabs.Tab} tab - 사용자가 선택한 탭 객체
 	 */
-	const handleTabSelect = (tab: (typeof tabs)[0]) => {
+	const handleTabSelect = (tab: chrome.tabs.Tab) => {
 		if (isSyncing) return;
 
 		const identifier = getTabIdentifier(tab);
@@ -211,38 +155,12 @@
 <Command.Root onKeydown={handleKeydown} class="py-2">
 	<SelectedTabs {selectedTabs} />
 	<Command.Input
-		placeholder="Type a command or search..."
 		autofocus
+		placeholder="Type a command or search..."
 		bind:value={inputValue}
 		class="py-1"
 	/>
 	<Command.List class="px-2 pb-10">
-		<Command.Empty>No results found.</Command.Empty>
-		<Command.Group heading="Tabs">
-			{#each tabs as tab}
-				<Command.Item
-					disabled={isSyncing}
-					aria-disabled={isSyncing}
-					onSelect={() => handleTabSelect(tab)}
-					class={cn('my-0.5 cursor-pointer py-2 transition-colors aria-selected:bg-muted/50', {
-						'bg-muted': selectedTabs.has(getTabIdentifier(tab))
-					})}
-				>
-					<Avatar.Root class="mr-2">
-						<Avatar.Image src={tab.favIconUrl} alt={tab.title} />
-						<Avatar.Fallback><Image /></Avatar.Fallback>
-					</Avatar.Root>
-					<span class="line-clamp-2 text-sm">{tab.title}</span>
-				</Command.Item>
-			{/each}
-		</Command.Group>
-	</Command.List>
-	<SubCommand {handleStartSync} {handleStopSync} {hasMultipleSelectedTabs} {isSyncing} />
-</Command.Root>
-
-<!-- <Command.Root onKeydown={handleKeydown} class="vercel">
-	<Command.Input placeholder="Type a command or search..." autofocus bind:value={inputValue} />
-	<Command.List>
 		{#if $tabs.status === 'pending'}
 			<Command.Loading>Loading...</Command.Loading>
 		{:else if $tabs.status === 'error'}
@@ -254,21 +172,22 @@
 			<Command.Group heading="Tabs">
 				{#each $tabs.data as tab}
 					<Command.Item
-						onSelect={() => handleTabSelect(tab.id ?? tab.index)}
-						class={cn('cursor-pointer space-y-1', {
-							'bg-primary-foreground/90': selectedTabIds.has(tab.id ?? tab.index)
+						disabled={isSyncing}
+						aria-disabled={isSyncing}
+						onSelect={() => handleTabSelect(tab)}
+						class={cn('my-0.5 cursor-pointer py-2 transition-colors aria-selected:bg-muted/50', {
+							'bg-muted': selectedTabs.has(getTabIdentifier(tab))
 						})}
 					>
-						<img
-							class="mr-2 size-4 min-h-4 min-w-4"
-							src={tab.favIconUrl}
-							alt=""
-							on:error={handleFaviconError}
-						/>
-						<span class="line-clamp-2">{tab.title}</span>
+						<Avatar.Root class="mr-2">
+							<Avatar.Image src={tab.favIconUrl} alt={tab.title} />
+							<Avatar.Fallback><Image /></Avatar.Fallback>
+						</Avatar.Root>
+						<span class="line-clamp-2 text-xs">{tab.title}</span>
 					</Command.Item>
 				{/each}
 			</Command.Group>
 		{/if}
 	</Command.List>
-</Command.Root> -->
+	<SubCommand {handleStartSync} {handleStopSync} {hasMultipleSelectedTabs} {isSyncing} />
+</Command.Root>

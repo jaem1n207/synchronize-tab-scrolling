@@ -18,17 +18,6 @@
 	<Wand2 class="mr-auto size-4 stroke-gray-500 dark:stroke-gray-400" />
 	<ThemeSwitcher />
 	<hr class="ml-3 mr-1 h-3 w-[1px] border-none bg-border" />
-	<!-- <Button
-		class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
-		variant="ghost"
-		on:click={handleStartSync}
-		disabled={!hasMultipleSelectedTabs}
-	>
-		<SyncIcon class="size-4 stroke-black dark:stroke-white" />
-		Start Sync
-		<Command.Shortcut class="ml-1 size-5">⌘</Command.Shortcut>
-		<Command.Shortcut class="size-5">S</Command.Shortcut>
-	</Button> -->
 	{#if isSyncing}
 		<Button
 			class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
