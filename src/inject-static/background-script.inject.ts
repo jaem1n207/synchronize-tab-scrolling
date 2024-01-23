@@ -30,7 +30,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.command === 'startSync') {
 		const checkedTabIds: number[] = request.data || [];
 
-		checkedTabIds.forEach((tabId) => {
+		for (const tabId of checkedTabIds) {
 			// `Uncaught (in promise) Error: Could not establish connection. Receiving end does not exist.`
 			// This error means that the content script hasn't been injected into the tab when the chrome.tabs.sendMessage method is called from the background script.
 
@@ -45,7 +45,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				chrome.scripting.executeScript(
 					{
 						target: { tabId },
-						files: ['src/pages/content/index.js']
+						files: ['content-script.js']
 					},
 					() => {
 						// After successful injection, send the message
@@ -65,19 +65,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 					}
 				);
 			});
-		});
+		}
 	}
 
 	if (request.command === 'stopSync') {
 		const checkedTabIds: number[] = request.data || [];
 
 		if (checkedTabIds.length) {
-			checkedTabIds.forEach((tabId) => {
+			for (const tabId of checkedTabIds) {
 				chrome.tabs.sendMessage(tabId, {
 					command: 'stopSyncTab',
 					data: tabId
 				});
-			});
+			}
 		}
 	}
 
@@ -93,13 +93,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 		if (!senderTabId) return;
 
-		// FIXME: 크롬 버전 업그레이드에 따른 props 수정 필요
-		// @ts-expect-error
-		chrome.storage.sync.get(['syncTabIds'], (result: { syncTabIds: number[] }) => {
+		chrome.storage.sync.get(['syncTabIds'], (result) => {
+			console.log('🚀 ~ chrome.storage.sync.get ~ result:', result);
 			if (chrome.runtime.lastError) {
 				console.error(chrome.runtime.lastError);
 			} else {
-				const { syncTabIds } = result;
+				const { syncTabIds } = result as { syncTabIds: number[] };
 
 				if (!syncTabIds) return;
 
