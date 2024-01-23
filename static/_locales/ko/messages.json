@@ -6,10 +6,10 @@
 		"message": "여러 탭의 스크롤 위치를 동기화할 수 있는 브라우저 확장 프로그램이예요."
 	},
 	"searchPlaceholder": {
-		"message": "탭 제목 검색..."
+		"message": "탭 검색"
 	},
 	"noSearchFound": {
-		"message": "검색한 탭을 찾을 수 없어요"
+		"message": "검색어와 일치하는 탭을 찾을 수 없어요"
 	},
 	"startSync": {
 		"message": "동기화 시작"
@@ -43,5 +43,8 @@
 	},
 	"system": {
 		"message": "자동"
+	},
+	"noTitle": {
+		"message": "제목 없음"
 	}
 }

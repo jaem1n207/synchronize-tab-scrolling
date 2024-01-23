@@ -5,6 +5,7 @@
 	import ThemeSwitcher from '../components/theme-switcher.svelte';
 	import { Button } from '../components/ui/button';
 	import SyncIcon from './icons/sync-icon.svelte';
+	import { getLocalMessage } from '../locales';
 
 	export let handleStartSync: () => void;
 	export let handleStopSync: () => void;
@@ -15,7 +16,7 @@
 <div
 	class="absolute bottom-0 flex h-10 w-full items-center rounded-b-xl border-t border-border bg-background px-2 py-1"
 >
-	<Wand2 class="mr-auto size-4 stroke-gray-500 dark:stroke-gray-400" />
+	<Wand2 class="mr-auto size-3 stroke-gray-500 dark:stroke-gray-400" />
 	<ThemeSwitcher />
 	<hr class="ml-3 mr-1 h-3 w-[1px] border-none bg-border" />
 	{#if isSyncing}
@@ -24,8 +25,8 @@
 			variant="ghost"
 			on:click={handleStopSync}
 		>
-			<RefreshCwOff class="size-4 stroke-black dark:stroke-white" />
-			Stop Sync
+			<RefreshCwOff class="mr-0.5 size-3 stroke-black dark:stroke-white" />
+			{getLocalMessage('stopSync')}
 			<Command.Shortcut class="ml-1 size-5">⌘</Command.Shortcut>
 			<Command.Shortcut class="size-5">E</Command.Shortcut>
 		</Button>
@@ -36,8 +37,8 @@
 			on:click={handleStartSync}
 			disabled={!hasMultipleSelectedTabs}
 		>
-			<SyncIcon class="size-4 stroke-black dark:stroke-white" />
-			Start Sync
+			<SyncIcon class="mr-0.5 size-3 stroke-black dark:stroke-white" />
+			{getLocalMessage('startSync')}
 			<Command.Shortcut class="ml-1 size-5">⌘</Command.Shortcut>
 			<Command.Shortcut class="size-5">S</Command.Shortcut>
 		</Button>

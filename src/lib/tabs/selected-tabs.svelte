@@ -2,6 +2,7 @@
 	import { Image } from 'lucide-svelte';
 
 	import * as Avatar from '$lib/components/ui/avatar';
+	import { getLocalMessage } from '../locales';
 
 	export let selectedTabs: Map<string, chrome.tabs.Tab>;
 </script>
@@ -18,7 +19,7 @@
 				<Avatar.Image src={tab.favIconUrl} alt={tab.title} />
 				<Avatar.Fallback><Image /></Avatar.Fallback>
 			</Avatar.Root>
-			<div class="truncate">{tab.title ?? '제목 없음'}</div>
+			<div class="truncate">{tab.title ?? getLocalMessage('noTitle')}</div>
 		</div>
 	{/each}
 </div>

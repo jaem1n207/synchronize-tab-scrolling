@@ -6,6 +6,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { kbd } from '../kbd';
 	import { Shortcut } from './ui/command';
+	import { getLocalMessage } from '../locales';
 
 	let open = false;
 
@@ -33,14 +34,17 @@
 			variant="ghost"
 			class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
 		>
-			<span class="text-xs">Change Theme</span>
+			<span class="text-xs">{getLocalMessage('changeTheme')}</span>
 			<Shortcut class="ml-1 size-5">⌘</Shortcut>
 			<Shortcut class="size-5">K</Shortcut>
 		</Button>
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content>
-		<DropdownMenu.Item on:click={() => setMode('light')}>Light</DropdownMenu.Item>
-		<DropdownMenu.Item on:click={() => setMode('dark')}>Dark</DropdownMenu.Item>
-		<DropdownMenu.Item on:click={() => resetMode()}>System</DropdownMenu.Item>
+		<DropdownMenu.Item on:click={() => setMode('light')}
+			>{getLocalMessage('light')}</DropdownMenu.Item
+		>
+		<DropdownMenu.Item on:click={() => setMode('dark')}>{getLocalMessage('dark')}</DropdownMenu.Item
+		>
+		<DropdownMenu.Item on:click={() => resetMode()}>{getLocalMessage('system')}</DropdownMenu.Item>
 	</DropdownMenu.Content>
 </DropdownMenu.Root>

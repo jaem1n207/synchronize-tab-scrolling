@@ -11,6 +11,7 @@
 	import SelectedTabs from './selected-tabs.svelte';
 	import SubCommand from './sub-command.svelte';
 	import { chromeApi, tabKeys } from './tabs';
+	import { getLocalMessage } from '../locales';
 
 	const tabs = createQuery({
 		queryKey: tabKeys.lists(),
@@ -156,20 +157,20 @@
 	<SelectedTabs {selectedTabs} />
 	<Command.Input
 		autofocus
-		placeholder="Type a command or search..."
+		placeholder={getLocalMessage('searchPlaceholder')}
 		bind:value={inputValue}
 		class="py-1"
 	/>
 	<Command.List class="px-2 pb-10">
 		{#if $tabs.status === 'pending'}
-			<Command.Loading>Loading...</Command.Loading>
+			<Command.Loading>{getLocalMessage('loading')}</Command.Loading>
 		{:else if $tabs.status === 'error'}
-			<Command.Item>Error: {$tabs.error.message}</Command.Item>
+			<Command.Item>{getLocalMessage('error')}: {$tabs.error.message}</Command.Item>
 		{:else if $tabs.isFetching}
-			<Command.Loading>Background Updating...</Command.Loading>
+			<Command.Loading>{getLocalMessage('backgroundUpdate')}</Command.Loading>
 		{:else}
-			<Command.Empty>No results found.</Command.Empty>
-			<Command.Group heading="Tabs">
+			<Command.Empty>{getLocalMessage('noSearchFound')}</Command.Empty>
+			<Command.Group heading={getLocalMessage('tabs')}>
 				{#each $tabs.data as tab}
 					<Command.Item
 						disabled={isSyncing}
