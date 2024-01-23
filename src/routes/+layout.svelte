@@ -5,13 +5,11 @@
 
 	import '@/app.pcss';
 	import type { LayoutData } from './$types';
-	import Header from './header.svelte';
 
 	export let data: LayoutData;
 </script>
 
 <ModeWatcher />
-<Header />
 <QueryClientProvider client={data.queryClient}>
 	<main class="px-2 py-3">
 		<slot />
