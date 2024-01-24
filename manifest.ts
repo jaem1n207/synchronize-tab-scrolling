@@ -10,7 +10,6 @@ const manifest: chrome.runtime.ManifestV3 = {
 	version: packageJson.version,
 	permissions: ['scripting', 'storage', 'tabs'],
 	host_permissions: ['*://*/*'],
-	description: '__MSG_extDescription__',
 	action: {
 		default_title: '__MSG_extName__',
 		default_icon: {
