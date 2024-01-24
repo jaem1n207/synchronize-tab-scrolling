@@ -1,7 +1,11 @@
 export const chromeApi = {
 	getTabs: async (query: chrome.tabs.QueryInfo = {}): Promise<chrome.tabs.Tab[]> => {
-		const tabs = await chrome.tabs.query(query);
-		return tabs.filter((tab) => tab.url !== 'chrome://newtab/');
+		const tabs = await chrome.tabs.query({
+			...query,
+			// chrome://*/* 페이지에서는 스크립트를 삽입할 수 없습니다.
+			url: ['http://*/*', 'https://*/*']
+		});
+		return tabs;
 	},
 	getSyncTabIds: async (): Promise<number[]> => {
 		return new Promise((resolve, reject) => {
