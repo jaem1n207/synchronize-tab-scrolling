@@ -18,8 +18,10 @@
 </script>
 
 <Command.Item
-	disabled={isSyncing}
-	aria-disabled={isSyncing}
+	value={`${tab.title}${tab.index}`}
+	title={tab.title}
+	disabled={isSyncing || tab.url?.startsWith('chrome://')}
+	aria-disabled={isSyncing || tab.url?.startsWith('chrome://')}
 	onSelect={handleSelect}
 	class={cn('my-0.5 cursor-pointer py-2 transition-colors aria-selected:bg-muted/50', {
 		'bg-muted': $selectedTabStore.selectedTabs.has(getTabIdentifier(tab.id))
