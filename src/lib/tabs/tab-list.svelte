@@ -26,7 +26,7 @@
 	{:else}
 		<Command.Empty>{getLocalMessage('noSearchFound')}</Command.Empty>
 		<Command.Group heading={getLocalMessage('tabs')}>
-			{#each $tabs.data as tab (tab.id)}
+			{#each $tabs.data as tab}
 				<TabItem {tab} {isSyncing} />
 			{/each}
 		</Command.Group>

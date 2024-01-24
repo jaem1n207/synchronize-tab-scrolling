@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+
 import { getTabIdentifier } from './utils.tabs';
 
 interface TabState {
@@ -21,12 +22,12 @@ const createSelectedTabStore = () => {
 					newSelectedTabs.delete(identifier);
 
 					return { selectedTabs: newSelectedTabs };
-				} else {
-					const newSelectedTabs = new Map(state.selectedTabs);
-					newSelectedTabs.set(identifier, tab);
-
-					return { selectedTabs: newSelectedTabs };
 				}
+
+				const newSelectedTabs = new Map(state.selectedTabs);
+				newSelectedTabs.set(identifier, tab);
+
+				return { selectedTabs: newSelectedTabs };
 			}),
 		add: (tab: chrome.tabs.Tab) =>
 			update((state) => {

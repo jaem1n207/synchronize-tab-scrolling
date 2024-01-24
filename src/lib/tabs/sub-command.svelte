@@ -2,22 +2,20 @@
 <script lang="ts">
 	import { createMutation, useQueryClient } from '@tanstack/svelte-query';
 	import { RefreshCwOff, Wand2 } from 'lucide-svelte';
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 
 	import ThemeSwitcher from '$lib/components/theme-switcher.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
 	import { getLocalMessage } from '$lib/locales';
+	import { kbd } from '$lib/kbd';
 
-	import { kbd } from '../kbd';
 	import SyncIcon from './icons/sync-icon.svelte';
 	import { selectedTabStore } from './selectedTabStore';
 	import { tabKeys } from './utils.tabs';
 
 	export let isSyncing: boolean;
 	export let resetInputValue: () => void;
-
-	const dispatch = createEventDispatcher();
 
 	const queryClient = useQueryClient();
 
@@ -54,10 +52,8 @@
 		chrome.runtime.sendMessage<{
 			command: 'startSync';
 			data: number[];
-		}>({ command: 'startSync', data: Array.from(selectedTabs.keys()).map(Number) });
+		}>({ command: 'startSync', data: Array.from(selectedTabs.keys()) });
 		$mutateSyncTabIds.mutate(Array.from(selectedTabs.keys()).map(Number));
-
-		dispatch('startSync');
 	};
 
 	const handleStopSync = () => {
@@ -67,8 +63,6 @@
 		$mutateSyncTabIds.mutate([]);
 
 		selectedTabStore.reset();
-
-		dispatch('stopSync');
 	};
 
 	onMount(() => {
