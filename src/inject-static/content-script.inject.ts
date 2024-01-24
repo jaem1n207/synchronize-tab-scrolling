@@ -1,4 +1,4 @@
-export const debounce = <T extends (...args: Parameters<T>) => void>(func: T, wait: number) => {
+const debounce = <T extends (...args: Parameters<T>) => void>(func: T, wait: number) => {
 	let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
 	const clear = () => {
@@ -15,7 +15,7 @@ export const debounce = <T extends (...args: Parameters<T>) => void>(func: T, wa
 	return debouncedFn;
 };
 
-export const throttle = <T extends (...args: Parameters<T>) => void>(func: T, wait: number) => {
+const throttle = <T extends (...args: Parameters<T>) => void>(func: T, wait: number) => {
 	let lastCalled = 0;
 
 	return (...args: Parameters<T>) => {

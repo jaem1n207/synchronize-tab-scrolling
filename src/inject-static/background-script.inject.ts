@@ -2,13 +2,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.command === 'getSyncTabIds') {
 		chrome.storage.sync.get(['syncTabIds'], (result) => {
 			if (chrome.runtime.lastError) {
-				// The maximum number of set, remove, or clear operations that can be performed each hour.
-				// This is 1 every 2 seconds, a lower ceiling than the short term higher writes-per-minute limit.
-				// Updates that would cause this limit to be exceeded fail immediately and set runtime.lastError.
 				sendResponse(chrome.runtime.lastError);
-			} else {
-				sendResponse(result.syncTabIds || []);
+				return;
 			}
+
+			sendResponse(result.syncTabIds || []);
 		});
 
 		return true;
@@ -19,9 +17,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		chrome.storage.sync.set({ syncTabIds }, () => {
 			if (chrome.runtime.lastError) {
 				sendResponse(chrome.runtime.lastError);
-			} else {
-				sendResponse();
+				return;
 			}
+
+			sendResponse();
 		});
 
 		return true;
@@ -48,7 +47,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						files: ['content-script.js']
 					},
 					() => {
-						// After successful injection, send the message
 						if (chrome.runtime.lastError) {
 							console.error(
 								`Error in chrome.scripting.executeScript: ${chrome.runtime.lastError.message}`
@@ -56,6 +54,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 							return;
 						}
 
+						// After successful injection, send the message
 						chrome.tabs.sendMessage(tabId, {
 							command: 'startSyncTab',
 							data: tabId
@@ -94,7 +93,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		if (!senderTabId) return;
 
 		chrome.storage.sync.get(['syncTabIds'], (result) => {
-			console.log('🚀 ~ chrome.storage.sync.get ~ result:', result);
 			if (chrome.runtime.lastError) {
 				console.error(chrome.runtime.lastError);
 			} else {
@@ -165,5 +163,3 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
 	stopSync(tabId);
 });
-
-// `Error: Could not establish connection. Receiving end does not exist.` error occurs when the tab is closed while the message is being sent.
