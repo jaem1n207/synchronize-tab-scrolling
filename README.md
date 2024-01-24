@@ -29,7 +29,7 @@ To get started, simply follow these steps:
 
 Then, simply click the 'Start sync' button and scroll through the tabs. To stop synchronizing tabs, just click the extension icon once more and select the 'Stop sync' button or close the synchronized tabs.
 
-![sync-scroll](https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/916520a5-e01b-4912-bb0e-67595aebdfa5)
+![sync-scroll-tab](https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/7e66445a-634a-49f4-b69e-e2b27380a88d)
 
 ## Installation <a name="installation"></a>
 
