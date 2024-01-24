@@ -9,7 +9,7 @@ const manifest: chrome.runtime.ManifestV3 = {
 	default_locale: 'en',
 	version: packageJson.version,
 	permissions: ['scripting', 'storage', 'tabs'],
-	host_permissions: ['*://*/*', '<all_urls>'],
+	host_permissions: ['*://*/*'],
 	description: '__MSG_extDescription__',
 	action: {
 		default_title: '__MSG_extName__',
@@ -18,9 +18,6 @@ const manifest: chrome.runtime.ManifestV3 = {
 			'48': 'icons/icon-48.png'
 		},
 		default_popup: 'index.html'
-	},
-	content_security_policy: {
-		extension_pages: "script-src 'self'; object-src 'self'"
 	},
 	icons: {
 		'16': 'icons/icon-16.png',
@@ -33,7 +30,7 @@ const manifest: chrome.runtime.ManifestV3 = {
 	},
 	content_scripts: [
 		{
-			matches: ['*://*/*', '<all_urls>'],
+			matches: ['*://*/*'],
 			js: ['content-script.js']
 		}
 	]
