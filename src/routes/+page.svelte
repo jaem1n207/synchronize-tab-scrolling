@@ -1,5 +1,5 @@
 <script lang="ts">
-	import TabsCmdk from '@/lib/tabs/tabs-cmdk.svelte';
+	import TabsCmdk from '$lib/tabs/tabs-cmdk.svelte';
 </script>
 
 <svelte:head>

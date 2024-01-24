@@ -1,4 +1,4 @@
-import { chromeApi, tabKeys } from '@/lib/tabs/tabs';
+import { chromeApi, tabKeys } from '@/lib/tabs/utils.tabs';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {

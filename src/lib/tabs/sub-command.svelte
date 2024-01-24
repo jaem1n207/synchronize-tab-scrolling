@@ -1,17 +1,96 @@
+<!-- 동기화 시작 및 중지와 같은 액션을 실행합니다. -->
 <script lang="ts">
+	import { createMutation, useQueryClient } from '@tanstack/svelte-query';
 	import { RefreshCwOff, Wand2 } from 'lucide-svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 
+	import ThemeSwitcher from '$lib/components/theme-switcher.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
-	import ThemeSwitcher from '../components/theme-switcher.svelte';
-	import { Button } from '../components/ui/button';
-	import SyncIcon from './icons/sync-icon.svelte';
-	import { getLocalMessage } from '../locales';
+	import { getLocalMessage } from '$lib/locales';
 
-	export let handleStartSync: () => void;
-	export let handleStopSync: () => void;
-	export let hasMultipleSelectedTabs: boolean;
+	import { kbd } from '../kbd';
+	import SyncIcon from './icons/sync-icon.svelte';
+	import { selectedTabStore } from './selectedTabStore';
+	import { tabKeys } from './utils.tabs';
+
 	export let isSyncing: boolean;
-	export let isPending: boolean;
+	export let resetInputValue: () => void;
+
+	const dispatch = createEventDispatcher();
+
+	const queryClient = useQueryClient();
+
+	const mutateSyncTabIds = createMutation({
+		mutationFn: async (syncTabIds: number[]) => {
+			return new Promise((resolve, reject) => {
+				chrome.runtime.sendMessage(
+					{ command: 'setSyncTabIds', data: { syncTabIds } },
+					(response) => {
+						if (chrome.runtime.lastError) {
+							reject(chrome.runtime.lastError);
+						} else {
+							resolve(response);
+						}
+					}
+				);
+			});
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: tabKeys.sync()
+			});
+		}
+	});
+
+	$: isPending = $mutateSyncTabIds.isPending;
+
+	$: selectedTabs = $selectedTabStore.selectedTabs;
+	$: hasMultipleSelectedTabs = selectedTabs.size >= 2;
+
+	const handleStartSync = () => {
+		if (isSyncing || !hasMultipleSelectedTabs) return;
+
+		chrome.runtime.sendMessage<{
+			command: 'startSync';
+			data: number[];
+		}>({ command: 'startSync', data: Array.from(selectedTabs.keys()).map(Number) });
+		$mutateSyncTabIds.mutate(Array.from(selectedTabs.keys()).map(Number));
+
+		dispatch('startSync');
+	};
+
+	const handleStopSync = () => {
+		if (!isSyncing) return;
+
+		chrome.runtime.sendMessage({ command: 'stopSync' });
+		$mutateSyncTabIds.mutate([]);
+
+		selectedTabStore.reset();
+
+		dispatch('stopSync');
+	};
+
+	onMount(() => {
+		const handleKeydown = (e: KeyboardEvent) => {
+			if (isSyncing) {
+				if (e.key === kbd.E && (e.metaKey || e.ctrlKey)) {
+					handleStopSync();
+				}
+			} else {
+				if (e.key === kbd.S && (e.metaKey || e.ctrlKey)) {
+					resetInputValue();
+					handleStartSync();
+				}
+			}
+		};
+
+		document.addEventListener('keydown', handleKeydown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeydown);
+		};
+	});
 </script>
 
 <div

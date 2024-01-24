@@ -2,9 +2,10 @@
 	import { Image } from 'lucide-svelte';
 
 	import * as Avatar from '$lib/components/ui/avatar';
-	import { getLocalMessage } from '../locales';
+	import { getLocalMessage } from '$lib/locales';
+	import { selectedTabStore } from '$lib/tabs/selectedTabStore';
 
-	export let selectedTabs: Map<string, chrome.tabs.Tab>;
+	$: selectedTabs = $selectedTabStore.selectedTabs;
 </script>
 
 <div class="select-none border-b px-1 pt-1">
