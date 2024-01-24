@@ -25,7 +25,7 @@ Synchronize Tab Scrolling은 여러 탭의 스크롤 위치를 동기화할 수 
 
 '동기화 시작' 버튼을 클릭하고 탭을 스크롤하기만 하면 됩니다. 탭 동기화를 중지하려면 확장 아이콘을 한 번 더 클릭하고 '동기화 해제' 버튼을 선택하거나 동기화된 탭을 닫으면 됩니다.
 
-![sync-scroll](https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/916520a5-e01b-4912-bb0e-67595aebdfa5)
+https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/7e66445a-634a-49f4-b69e-e2b27380a88d
 
 ## 설치 <a name="installation"></a>
 
