@@ -1,86 +1,35 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path, { resolve } from "path";
-import makeManifest from "./utils/plugins/make-manifest";
-import customDynamicImport from "./utils/plugins/custom-dynamic-import";
-import addHmr from "./utils/plugins/add-hmr";
-import watchRebuild from "./utils/plugins/watch-rebuild";
-import manifest from "./manifest";
+import { sveltekit } from '@sveltejs/kit/vite';
+import { readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vitest/config';
 
-const rootDir = resolve(__dirname);
-const srcDir = resolve(rootDir, "src");
-const pagesDir = resolve(srcDir, "pages");
-const sharedDir = resolve(srcDir, "shared");
-const outDir = resolve(rootDir, "dist");
-const publicDir = resolve(rootDir, "public");
+import manifest from './manifest';
+import createManifest from './utils/plugins/create-manifest';
+import watchRebuild from './utils/plugins/watch-rebuild';
+import extractInlineScript from './utils/plugins/extract-inline-script';
 
-const isDev = process.env.__DEV__ === "true";
-const isProduction = !isDev;
+// 번들링에서 제외할 파일 경로
+const injectStaticDir = 'src/inject-static';
+const injectFilesPattern = /\.inject\.ts$/;
 
-// ENABLE HMR IN BACKGROUND SCRIPT
-const enableHmrInBackgroundScript = true;
+const filesPathToExclude = readdirSync(injectStaticDir)
+	.filter((filename) => injectFilesPattern.test(filename))
+	.map((filename) => fileURLToPath(new URL(join(injectStaticDir, filename), import.meta.url)));
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@src": srcDir,
-      "@pages": pagesDir,
-      "@shared": sharedDir,
-    },
-  },
-  plugins: [
-    react(),
-    makeManifest(manifest, {
-      isDev,
-    }),
-    customDynamicImport(),
-    addHmr({ background: enableHmrInBackgroundScript, view: true }),
-    watchRebuild(),
-  ],
-  publicDir,
-  build: {
-    outDir,
-    /** Can slowDown build speed. */
-    // sourcemap: isDev,
-    minify: isProduction,
-    reportCompressedSize: isProduction,
-    rollupOptions: {
-      /**
-       * Ignore "use client" waning since we are not using SSR
-       * @see {@link https://github.com/TanStack/query/pull/5161#issuecomment-1477389761 Preserve 'use client' directives TanStack/query#5161}
-       */
-      onwarn(warning, warn) {
-        if (
-          warning.code === "MODULE_LEVEL_DIRECTIVE" &&
-          warning.message.includes("use client")
-        ) {
-          return;
-        }
-        warn(warning);
-      },
-      input: {
-        content: resolve(pagesDir, "content", "index.ts"),
-        background: resolve(pagesDir, "background", "index.ts"),
-        popup: resolve(pagesDir, "popup", "index.html"),
-        options: resolve(pagesDir, "options", "index.html"),
-      },
-      output: {
-        entryFileNames: "src/pages/[name]/index.js",
-        chunkFileNames: isDev
-          ? "assets/js/[name].js"
-          : "assets/js/[name].[hash].js",
-        assetFileNames: (assetInfo) => {
-          const { dir, name: _name } = path.parse(assetInfo.name);
-          const assetFolder = dir.split("/").at(-1);
-          const name = assetFolder + firstUpperCase(_name);
-          return `assets/[ext]/${name}.chunk.[ext]`;
-        },
-      },
-    },
-  },
+	plugins: [sveltekit(), createManifest(manifest), extractInlineScript(), watchRebuild()],
+	test: {
+		include: ['src/**/*.{test,spec}.{js,ts}']
+	},
+	resolve: {
+		alias: {
+			$lib: resolve('./src/lib')
+		}
+	},
+	build: {
+		rollupOptions: {
+			external: [...filesPathToExclude]
+		}
+	}
 });
-
-function firstUpperCase(str: string) {
-  const firstAlphabet = new RegExp(/( |^)[a-z]/, "g");
-  return str.toLowerCase().replace(firstAlphabet, (L) => L.toUpperCase());
-}
