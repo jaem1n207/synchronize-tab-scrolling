@@ -7,6 +7,11 @@ export const chromeApi = {
 		});
 		return tabs;
 	},
+	// `createQuery` 함수를 사용하지 않습니다.
+	getTabById: async (tabId: number): Promise<chrome.tabs.Tab> => {
+		const tab = await chrome.tabs.get(tabId);
+		return tab;
+	},
 	getSyncTabIds: async (): Promise<number[]> => {
 		return new Promise((resolve, reject) => {
 			chrome.runtime.sendMessage({ command: 'getSyncTabIds' }, (response) => {

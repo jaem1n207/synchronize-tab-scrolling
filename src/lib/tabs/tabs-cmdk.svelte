@@ -24,8 +24,20 @@
 			return;
 		}
 
+		updateSelectedTabs(data);
 		isSyncing = true;
 	});
+
+	const updateSelectedTabs = async (syncTabIds: number[]) => {
+		selectedTabStore.reset();
+
+		for (const id of syncTabIds) {
+			const tab = await chromeApi.getTabById(id);
+			if (tab) {
+				selectedTabStore.add(tab);
+			}
+		}
+	};
 
 	let inputValue: string = '';
 	const resetInputValue = () => (inputValue = '');
