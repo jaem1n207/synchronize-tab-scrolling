@@ -17,8 +17,6 @@
 		queryFn: () => chromeApi.getSyncTabIds()
 	});
 
-	let inputValue: string = '';
-
 	let isSyncing: boolean = false;
 	$: syncTabIds.subscribe(({ data }) => {
 		if (!data?.length) {
@@ -28,6 +26,9 @@
 
 		isSyncing = true;
 	});
+
+	let inputValue: string = '';
+	const resetInputValue = () => (inputValue = '');
 
 	const bounce = (node: HTMLElement) => {
 		node.style.transform = 'scale(0.98)';
@@ -61,5 +62,5 @@
 		bind:value={inputValue}
 	/>
 	<TabList {isSyncing} />
-	<SubCommand {isSyncing} resetInputValue={() => (inputValue = '')} />
+	<SubCommand {isSyncing} {resetInputValue} />
 </Command.Root>
