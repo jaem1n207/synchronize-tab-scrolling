@@ -1,17 +1,25 @@
-# Synchronize Tab Scrolling
-
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc" target="_blank" rel="noreferrer noopener">
+    <img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Chrome Web Store" />
+  <a />
+</p>
+<p align="center">A browser extension that lets you <strong>synchronize</strong> the scrolling position of multiple tabs</p>
+<p align="center"><a href="https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a></p>
+<h1 align="center">Synchronize Tab Scrolling</h2>
 
 ENGLISH | [한국어](./README-ko_kr.md)
 
 Hey there! Have you heard of 'Synchronize Tab Scrolling'? It's a really cool browser extension that lets you synchronize the scrolling position of multiple tabs!
 
 Also, you'll find a table of contents included in this document for easy navigation.
+<br />
+<br />
 
 ## Contents
 
 - [Intro](#intro)
 - [Usage](#usage)
+- [Youtube Video Link](#youtubevideolink)
 - [Installation](#installation)
 - [License](#license)
 
@@ -29,7 +37,11 @@ To get started, simply follow these steps:
 
 Then, simply click the 'Start sync' button and scroll through the tabs. To stop synchronizing tabs, just click the extension icon once more and select the 'Stop sync' button or close the synchronized tabs.
 
-https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/7e66445a-634a-49f4-b69e-e2b27380a88d
+## Youtube Video Link <a name="youtubevideolink"></a>
+
+<a target="_blank" rel="noreferrer noopener" href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC">
+ <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Watch the video" width="480" height="360" border="10" title="Synchronize Tab Scrolling Promotion - Click to Watch!" />
+</a>
 
 ## Installation <a name="installation"></a>
 
