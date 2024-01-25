@@ -1,14 +1,16 @@
 type ColorType = 'success' | 'info' | 'error' | 'warning' | keyof typeof COLORS;
 
 /**
- * 콘솔에 색상을 입혀서 출력합니다.
- * @param message 출력할 메시지
- * @param type 출력할 메시지의 타입
- * @param force 강제로 출력할 것인지 여부.
- * ex) build-static-script.js처럼 `vite build`를 실행하기 전에 실행해야 할 경우
+ * Pretty print a message to the console.
+ * @param message - The message to print.
+ * @param type - The type of message.
+ * @param force - Whether to print the message regardless of the environment.
+ * e.g. If you want to output a message from a script that runs before any environment variables are assigned, such as the 'build-static-script.js' script.
  */
 const colorLog = (message: string, type?: ColorType, force = false) => {
-	if (!force && !process.env.__WATCH__) return;
+	const isWatch = import.meta.env.__WATCH__ === 'true';
+	const isSkip = !force && !isWatch;
+	if (isSkip) return;
 
 	let color: string = type || COLORS.FgBlack;
 

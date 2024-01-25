@@ -1,5 +1,5 @@
-// TODO: Vite와 Bun의 번들러 설정을 통합할 수 있도록 지원되면,
-// 이 파일을 제거하고 vite 플러그인으로 만들어 vite 설정에 통합할 수 있도록 한다.
+// TODO: If it is supported to integrate Vite and Bun's native bundler settings,
+// remove this file and make it a vite plugin so that it can be integrated into the vite settings.
 import { build } from 'bun';
 
 import colorLog from './utils/log';

@@ -6,10 +6,10 @@ import { defineConfig } from 'vitest/config';
 
 import manifest from './manifest';
 import createManifest from './utils/plugins/create-manifest';
-import watchRebuild from './utils/plugins/watch-rebuild';
 import extractInlineScript from './utils/plugins/extract-inline-script';
+import watchRebuild from './utils/plugins/watch-rebuild';
 
-// 번들링에서 제외할 파일 경로
+// file path to exclude from bundling
 const injectStaticDir = 'src/inject-static';
 const injectFilesPattern = /\.inject\.ts$/;
 

@@ -2,12 +2,14 @@ export const chromeApi = {
 	getTabs: async (query: chrome.tabs.QueryInfo = {}): Promise<chrome.tabs.Tab[]> => {
 		const tabs = await chrome.tabs.query({
 			...query,
-			// chrome://*/* 페이지에서는 스크립트를 삽입할 수 없습니다.
+			// can use the `chrome.scripting` API to inject JavaScript and CSS into websites.
+			// However, can't inject scripts into pages like 'chrome://*/*',
+			// so only get information from tabs that match the URL pattern specify.
 			url: ['http://*/*', 'https://*/*']
 		});
 		return tabs;
 	},
-	// `createQuery` 함수를 사용하지 않습니다.
+	// Do not use the `createQuery` function.
 	getTabById: async (tabId: number): Promise<chrome.tabs.Tab> => {
 		const tab = await chrome.tabs.get(tabId);
 		return tab;
@@ -33,11 +35,11 @@ export const tabKeys = {
 };
 
 /**
- * 선택된 탭의 고유 식별자를 가져옵니다.
+ * Get the unique identifier of the selected tab.
  *
- * 브라우저 탭에 스크립트를 삽입할 때 `tabId`만 필요하므로 `chrome.tabs.Tab` 객체에서 `tabId`만 추출합니다. (sessionId, index는 활용하지 않습니다)
+ * Extracts only the `tabId` from the `chrome.tabs.Tab` object, as only the `tabId` is needed when inserting a script into a tab in the browser. (Don't use sessionId, index)
  *
- * @param {chrome.tabs.Tab} tab - 사용자가 선택한 탭 객체
+ * @param {chrome.tabs.Tab} tab - The `chrome.tabs.Tab` object selected by the user
  */
 export const getTabIdentifier = (tabId: chrome.tabs.Tab['id']): number => {
 	if (tabId == null) {

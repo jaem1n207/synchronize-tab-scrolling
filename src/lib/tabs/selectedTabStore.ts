@@ -38,7 +38,7 @@ const createSelectedTabStore = () => {
 					return state;
 				}
 
-				// 새로운 Map 객체를 생성하고 할당하여 Svelte가 변경을 감지하고 UI를 업데이트하도록 합니다.
+				// Create and assign a new Map object so that Svelte can detect the change and update the UI.
 				const newSelectedTabs = new Map(state.selectedTabs);
 				newSelectedTabs.set(identifier, tab);
 
@@ -53,7 +53,7 @@ const createSelectedTabStore = () => {
 					return state;
 				}
 
-				// 새로운 Map 객체를 생성하고 할당하여 Svelte가 변경을 감지하고 UI를 업데이트하도록 합니다.
+				// Create and assign a new Map object so that Svelte can detect the change and update the UI.
 				const newSelectedTabs = new Map(state.selectedTabs);
 				newSelectedTabs.delete(identifier);
 
@@ -66,7 +66,7 @@ const createSelectedTabStore = () => {
 					return state;
 				}
 
-				// 새로운 Map 객체를 생성하고 할당하여 Svelte가 변경을 감지하고 UI를 업데이트하도록 합니다.
+				// Create and assign a new Map object so that Svelte can detect the change and update the UI.
 				const newSelectedTabs = new Map(state.selectedTabs);
 				newSelectedTabs.delete(Array.from(newSelectedTabs.keys()).pop()!);
 
