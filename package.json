@@ -13,7 +13,7 @@
 	"scripts": {
 		"dev": "bunx --bun vite",
 		"build:static-script": "bun run build-static-script.js",
-		"build": "bun run build:static-script && bunx --bun vite build",
+		"build": "bun run build:static-script && vite build",
 		"build:watch": "bun run build:static-script && __WATCH__=true bunx --bun vite build -w",
 		"preview": "vite preview",
 		"test": "npm run test:integration && npm run test:unit",

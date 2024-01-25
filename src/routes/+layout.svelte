@@ -8,8 +8,7 @@
 
 	export let data: LayoutData;
 
-	const isWatch = import.meta.env.__WATCH__ === 'true';
-	const isDev = import.meta.env.MODE === 'development';
+	const isDev = import.meta.env.DEV;
 </script>
 
 <ModeWatcher />
@@ -17,7 +16,7 @@
 	<main class="px-2 py-3">
 		<slot />
 	</main>
-	{#if isDev || isWatch}
+	{#if isDev}
 		<SvelteQueryDevtools />
 	{/if}
 </QueryClientProvider>
