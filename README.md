@@ -39,7 +39,7 @@ Then, simply click the 'Start sync' button and scroll through the tabs. To stop 
 
 ## Youtube Video Link <a name="youtubevideolink"></a>
 
-<a href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC" target="_blank" rel="noreferrer noopener">
+<a target="_blank" rel="noreferrer noopener" href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC">
  <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Watch the video" width="480" height="360" border="10" title="Synchronize Tab Scrolling Promotion - Click to Watch!" />
 </a>
 
