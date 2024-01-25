@@ -1,15 +1,19 @@
-# Synchronize Tab Scrolling
-
-![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc" target="_blank" rel="noreferrer noopener">
+    <img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Chrome Web Store" />
+  <a />
+</p>
+<p align="center">여러 탭의 스크롤 위치를 <strong>동기화</strong>할 수 있는 브라우저 확장 프로그램입니다.</p>
+<p align="center"><a href="https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a></p>
+<h1 align="center">Synchronize Tab Scrolling</h2>
 
 [ENGLISH](./README.md) | 한국어
-
-Synchronize Tab Scrolling은 여러 탭의 스크롤 위치를 동기화할 수 있는 브라우저 확장 프로그램입니다.
 
 ## 목차
 
 - [소개](#intro)
 - [사용 방법](#usage)
+- [사용 영상](#youtubevideolink)
 - [설치](#installation)
 - [라이선스](#license)
 
@@ -25,7 +29,11 @@ Synchronize Tab Scrolling은 여러 탭의 스크롤 위치를 동기화할 수 
 
 '동기화 시작' 버튼을 클릭하고 탭을 스크롤하기만 하면 됩니다. 탭 동기화를 중지하려면 확장 아이콘을 한 번 더 클릭하고 '동기화 해제' 버튼을 선택하거나 동기화된 탭을 닫으면 됩니다.
 
-https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/7e66445a-634a-49f4-b69e-e2b27380a88d
+## 사용 영상 <a name="youtubevideolink"></a>
+
+<a target="_blank" rel="noreferrer noopener" href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC">
+ <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Watch the video" width="480" height="360" border="10" title="Synchronize Tab Scrolling Promotion - 클릭하여 시청해보세요!" />
+</a>
 
 ## 설치 <a name="installation"></a>
 
