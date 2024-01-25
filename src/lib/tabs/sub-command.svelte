@@ -7,8 +7,8 @@
 	import ThemeSwitcher from '$lib/components/theme-switcher.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Command from '$lib/components/ui/command';
-	import { getLocalMessage } from '$lib/locales';
 	import { kbd } from '$lib/kbd';
+	import { getLocalMessage } from '$lib/locales';
 
 	import SyncIcon from './icons/sync-icon.svelte';
 	import { selectedTabStore } from './selectedTabStore';
@@ -88,7 +88,7 @@
 </script>
 
 <div
-	class="absolute bottom-0 flex h-10 w-full items-center rounded-b-xl border-t border-border bg-background px-2 py-1"
+	class="absolute bottom-0.5 left-0.5 flex h-10 w-[calc(100%-0.25rem)] items-center rounded-b-xl border-t border-border bg-background px-2 py-1"
 >
 	<Wand2 class="mr-auto size-3 stroke-gray-500 dark:stroke-gray-400" />
 	<ThemeSwitcher />

@@ -5,6 +5,7 @@
 	import { isEmptyString, isHTMLElement } from '$lib/is';
 	import { kbd } from '$lib/kbd';
 	import { getLocalMessage } from '$lib/locales';
+	import { cn } from '$lib/utils';
 
 	import SelectedTabs from './selected-tabs.svelte';
 	import { selectedTabStore } from './selectedTabStore';
@@ -65,7 +66,14 @@
 	};
 </script>
 
-<Command.Root onKeydown={handleKeydown} class="py-2">
+<Command.Root
+	onKeydown={handleKeydown}
+	class={cn(
+		'relative p-0.5',
+		isSyncing &&
+			'before:animate-clippath border-2 border-solid border-transparent before:absolute before:inset-0 before:content-normal before:rounded-md before:border-2 before:border-solid before:border-[#a8efff99]'
+	)}
+>
 	<SelectedTabs />
 	<Command.Input
 		autofocus
