@@ -16,7 +16,7 @@
 	export let isSyncing: boolean;
 </script>
 
-<Command.List class="px-2 pb-10">
+<Command.List class="h-80 scroll-pb-10 overflow-auto overscroll-contain px-1 pb-10">
 	{#if $tabs.status === 'pending'}
 		<Command.Loading>{getLocalMessage('loading')}</Command.Loading>
 	{:else if $tabs.status === 'error'}
