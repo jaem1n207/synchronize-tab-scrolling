@@ -12,7 +12,7 @@
 	{#if selectedTabs.size === 0}
 		<div class="invisible mx-0.5 mb-1 h-6 px-2 opacity-0" aria-hidden="true">제목 없음</div>
 	{/if}
-	{#each Array.from(selectedTabs.values()) as tab}
+	{#each Array.from(selectedTabs.values()) as tab (tab.id)}
 		<div
 			class="mx-0.5 mb-1 inline-flex h-6 max-w-24 items-center rounded-sm bg-muted px-2 text-xs font-medium capitalize"
 		>
