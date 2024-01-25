@@ -61,6 +61,25 @@ const config = {
 			},
 			fontFamily: {
 				sans: [...fontFamily.sans]
+			},
+			keyframes: {
+				clippath: {
+					'0%, 100%': {
+						'clip-path': 'inset(0 0 98% 0)'
+					},
+					'25%': {
+						'clip-path': 'inset(0 98% 0 0)'
+					},
+					'50%': {
+						'clip-path': 'inset(98% 0 0 0)'
+					},
+					'75%': {
+						'clip-path': 'inset(0 0 0 98%)'
+					}
+				}
+			},
+			animation: {
+				clippath: 'clippath 3s infinite linear'
 			}
 		}
 	},
