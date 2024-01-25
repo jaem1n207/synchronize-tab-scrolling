@@ -1,6 +1,6 @@
 {
 	"name": "synchronize-tab-scrolling",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"private": true,
 	"description": "여러 탭을 선택하고 스크롤 위치를 동기화할 수 있습니다.",
 	"author": "jaem1n207",
