@@ -71,7 +71,7 @@
 	class={cn(
 		'relative p-0.5',
 		isSyncing &&
-			'before:animate-clippath border-2 border-solid border-transparent before:absolute before:inset-0 before:content-normal before:rounded-md before:border-2 before:border-solid before:border-[#a8efff99]'
+			'border-2 border-solid border-transparent before:absolute before:inset-0 before:animate-clippath before:content-normal before:rounded-md before:border-2 before:border-solid before:border-[#a8efff99]'
 	)}
 >
 	<SelectedTabs />
