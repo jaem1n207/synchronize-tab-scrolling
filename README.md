@@ -1,4 +1,8 @@
-<p align="center"><a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc" target="_blank" rel="noreferrer noopener"><img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Chrome Web Store" /><a /></p>
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc" target="_blank" rel="noreferrer noopener">
+    <img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Chrome Web Store" />
+  <a />
+</p>
 <p align="center">A browser extension that lets you <strong>synchronize</strong> the scrolling position of multiple tabs</p>
 <p align="center"><a href="https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a></p>
 <h1 align="center">Synchronize Tab Scrolling</h2>
@@ -35,7 +39,9 @@ Then, simply click the 'Start sync' button and scroll through the tabs. To stop 
 
 ## Youtube Video Link <a name="youtubevideolink"></a>
 
-[![Synchronize Tab Scrolling Promotion](https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg)](https://youtu.be/DxFYu6XHGJY?si=j8NQLdqcpDFUpiuB "Synchronize Tab Scrolling Promotion - Click to Watch!")
+<a href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC" target="_blank" rel="noreferrer noopener">
+ <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Watch the video" width="480" height="360" border="10" title="Synchronize Tab Scrolling Promotion - Click to Watch!" />
+</a>
 
 ## Installation <a name="installation"></a>
 
