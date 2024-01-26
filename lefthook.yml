@@ -1,0 +1,9 @@
+pre-commit:
+  parallel: true
+  commands:
+    linter:
+      glob: '*.{svelte,js,ts}'
+      run: bun run eslint --fix {staged_files}
+    style:
+      glob: '*.{html,svelte,js,ts,json,pcss,md,yml}'
+      run: bun run prettier --write {staged_files}
