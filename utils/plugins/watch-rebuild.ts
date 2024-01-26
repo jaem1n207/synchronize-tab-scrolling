@@ -1,4 +1,4 @@
-import { dirname, resolve } from 'path';
+import { dirname, resolve } from 'node:path';
 import type { PluginOption } from 'vite';
 
 const SUPPORTED_LANGUAGES = ['en', 'ko'] as const;
