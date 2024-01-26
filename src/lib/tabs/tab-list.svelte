@@ -8,12 +8,29 @@
 	import TabItem from './tab-item.svelte';
 	import { chromeApi, tabKeys } from './utils.tabs';
 
+	export let isSyncing: boolean;
+
 	const tabs = createQuery({
 		queryKey: tabKeys.lists(),
 		queryFn: () => chromeApi.getTabs()
 	});
 
-	export let isSyncing: boolean;
+	const excludedPatterns = [
+		'https://chromewebstore.google.com/*',
+		'https://chrome.google.com/webstore/*',
+		'https://accounts.google.com/*',
+		'https://search.google.com/search-console*',
+		'https://analytics.google.com/analytics/*'
+	];
+
+	const isExcludedUrl = (url: string) => {
+		return excludedPatterns.some((pattern) => {
+			// Convert the '*' in the pattern to '.*' in the regex.
+			const regexPattern = pattern.replace(/\*/g, '.*');
+			const regex = new RegExp(regexPattern);
+			return regex.test(url);
+		});
+	};
 </script>
 
 <Command.List class="h-80 scroll-pb-10 overflow-auto overscroll-contain px-1 pb-10">
@@ -23,12 +40,18 @@
 		<Command.Item>{getLocalMessage('error')}: {$tabs.error.message}</Command.Item>
 	{:else if $tabs.isFetching}
 		<Command.Loading>{getLocalMessage('backgroundUpdate')}</Command.Loading>
-	{:else}
-		<Command.Empty>{getLocalMessage('noSearchFound')}</Command.Empty>
+	{:else if $tabs.data.length > 0}
+		<Command.Empty>
+			{getLocalMessage('noSearchFound')}
+		</Command.Empty>
 		<Command.Group heading={getLocalMessage('tabs')}>
 			{#each $tabs.data as tab (tab.id)}
-				<TabItem {tab} {isSyncing} />
+				<TabItem {tab} isDisabled={isSyncing || isExcludedUrl(tab.url ?? '')} />
 			{/each}
 		</Command.Group>
+	{:else}
+		<Command.Empty>
+			{getLocalMessage('noTabsFound')}
+		</Command.Empty>
 	{/if}
 </Command.List>

@@ -7,11 +7,13 @@ export const chromeApi = {
 			// so only get information from tabs that match the URL pattern specify.
 			url: ['http://*/*', 'https://*/*']
 		});
+
 		return tabs;
 	},
 	// Do not use the `createQuery` function.
 	getTabById: async (tabId: number): Promise<chrome.tabs.Tab> => {
 		const tab = await chrome.tabs.get(tabId);
+
 		return tab;
 	},
 	getSyncTabIds: async (): Promise<number[]> => {
