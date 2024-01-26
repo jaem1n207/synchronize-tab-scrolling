@@ -15,6 +15,7 @@
 	"homepage": "https://github.com/jaem1n207/synchronize-tab-scrolling#readme",
 	"keywords": [
 		"chrome",
+		"firefox",
 		"webstore",
 		"extension"
 	],
@@ -23,6 +24,7 @@
 		"start": "bun run build:static-script && __WATCH__=true bunx --bun vite build -w",
 		"build:static-script": "bun run build-static-script.js",
 		"build": "bun run build:static-script && vite build",
+		"release": "semantic-release",
 		"preview": "vite preview",
 		"test": "npm run test:integration && npm run test:unit",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -34,6 +36,8 @@
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.28.1",
+		"@semantic-release/changelog": "^6.0.3",
+		"@semantic-release/git": "^10.0.1",
 		"@sveltejs/adapter-static": "^3.0.1",
 		"@sveltejs/kit": "^2.0.0",
 		"@sveltejs/vite-plugin-svelte": "^3.0.0",
@@ -54,6 +58,7 @@
 		"prettier": "^3.1.1",
 		"prettier-plugin-svelte": "^3.1.2",
 		"prettier-plugin-tailwindcss": "^0.5.11",
+		"semantic-release": "^23.0.0",
 		"svelte": "^4.2.7",
 		"svelte-check": "^3.6.0",
 		"tailwindcss": "^3.4.1",
