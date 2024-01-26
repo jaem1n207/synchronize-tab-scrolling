@@ -41,6 +41,7 @@
 	};
 
 	let inputValue: string = '';
+	$: isEmptyInputValue = isEmptyString(inputValue.trim());
 	const resetInputValue = () => (inputValue = '');
 
 	const bounce = (node: HTMLElement) => {
@@ -54,8 +55,7 @@
 		const currentTarget = e.currentTarget;
 		if (!isHTMLElement(currentTarget)) return;
 
-		if ($selectedTabStore.selectedTabs.size === 0 || !isEmptyString(inputValue) || isSyncing)
-			return;
+		if ($selectedTabStore.selectedTabs.size === 0 || !isEmptyInputValue || isSyncing) return;
 
 		if (e.key === kbd.BACKSPACE) {
 			e.preventDefault();
@@ -71,7 +71,7 @@
 	class={cn(
 		'relative p-0.5',
 		isSyncing &&
-			'border-2 border-solid border-transparent before:absolute before:inset-0 before:animate-clippath before:content-normal before:rounded-md before:border-2 before:border-solid before:border-[#a8efff99]'
+			'border-2 border-solid border-transparent before:absolute before:inset-0 before:animate-clippath before:content-normal before:rounded-md before:border-2 before:border-solid before:border-neutral-700 dark:before:border-[#a8efff99]'
 	)}
 >
 	<SelectedTabs />
