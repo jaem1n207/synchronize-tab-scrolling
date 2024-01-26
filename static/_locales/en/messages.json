@@ -3,13 +3,16 @@
 		"message": "Synchronize Tab Scrolling"
 	},
 	"extDescription": {
-		"message": "Browser extension that lets you synchronize the scrolling position of multiple tabs."
+		"message": "Browser extension that lets you synchronize the scrolling position of multiple tabs"
 	},
 	"searchPlaceholder": {
 		"message": "Search Tabs"
 	},
 	"noSearchFound": {
-		"message": "Unable to find any tabs matching your search."
+		"message": "Unable to find any tabs matching your search"
+	},
+	"noTabsFound": {
+		"message": "No syncable tabs found"
 	},
 	"startSync": {
 		"message": "Start sync"
