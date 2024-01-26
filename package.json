@@ -24,7 +24,6 @@
 		"start": "bun run build:static-script && __WATCH__=true bunx --bun vite build -w",
 		"build:static-script": "bun run build-static-script.js",
 		"build": "bun run build:static-script && vite build",
-		"release": "semantic-release",
 		"preview": "vite preview",
 		"test": "npm run test:integration && npm run test:unit",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
