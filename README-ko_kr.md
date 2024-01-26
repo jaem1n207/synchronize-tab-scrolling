@@ -13,6 +13,7 @@
 
 - [소개](#intro)
 - [사용 방법](#usage)
+- [참고 사항](#importantnote)
 - [사용 영상](#youtubevideolink)
 - [설치](#installation)
 - [라이선스](#license)
@@ -20,6 +21,18 @@
 ## 소개 <a name="intro"></a>
 
 이 확장 프로그램은 **원문과 번역문의 스크롤 위치를 동기화**하고자 하는 사용자에게 적합합니다.
+
+## 참고 사항 <a name="importantnote"></a>
+
+특정 URL이 포함된 특정 탭은 자동으로 비활성화되며 동기화를 위해 선택할 수 없다는 점에 유의하세요. 이는 확장 프로그램이 특정 Google 서비스와 같이 의도하지 않은 페이지와 상호 작용하지 않도록 하기 위한 것입니다. 다음 URL 패턴은 제외됩니다:
+
+- `https://chromewebstore.google.com~`
+- `https://chrome.google.com/webstore~`
+- `https://accounts.google.com~`
+- `https://search.google.com/search-console~`
+- `https://analytics.google.com/analytics~`
+
+이러한 URL이 포함된 탭은 `Synchronize Tab Scrolling` 확장 프로그램에서 선택할 수 없습니다.
 
 ## 사용 방법 <a name="usage"></a>
 

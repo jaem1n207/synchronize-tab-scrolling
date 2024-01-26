@@ -19,6 +19,7 @@ Also, you'll find a table of contents included in this document for easy navigat
 
 - [Intro](#intro)
 - [Usage](#usage)
+- [Important Note](#importantnote)
 - [Youtube Video Link](#youtubevideolink)
 - [Installation](#installation)
 - [License](#license)
@@ -36,6 +37,18 @@ To get started, simply follow these steps:
 3. Select two or more tabs you want to synchronize scrolling.
 
 Then, simply click the 'Start sync' button and scroll through the tabs. To stop synchronizing tabs, just click the extension icon once more and select the 'Stop sync' button or close the synchronized tabs.
+
+## Important Note <a name="importantnote"></a>
+
+Please be aware that certain tabs with specific URLs are automatically disabled and cannot be selected for synchronization. This is to ensure the extension does not interact with pages where it's not intended to operate, such as certain Google services. The following URL patterns are excluded:
+
+- `https://chromewebstore.google.com~`
+- `https://chrome.google.com/webstore~`
+- `https://accounts.google.com~`
+- `https://search.google.com/search-console~`
+- `https://analytics.google.com/analytics~`
+
+Tabs with these URLs will not be available for selection in the `Synchronize Tab Scrolling` extension.
 
 ## Youtube Video Link <a name="youtubevideolink"></a>
 
