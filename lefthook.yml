@@ -3,7 +3,7 @@ pre-commit:
   commands:
     linter:
       glob: '*.{svelte,js,ts}'
-      run: bun run eslint --fix {staged_files}
+      run: bun run eslint --fix {staged_files} && git update-index --again
     style:
       glob: '*.{html,svelte,js,ts,json,pcss,md,yml}'
-      run: bun run prettier --write {staged_files}
+      run: bun run prettier --write {staged_files} && git update-index --again
