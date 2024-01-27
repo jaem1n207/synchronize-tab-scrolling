@@ -15,7 +15,7 @@
 		queryFn: () => chromeApi.getTabs()
 	});
 
-	const excludedPatterns = [
+	const googleServicesUrl = [
 		'https://chromewebstore.google.com/*',
 		'https://chrome.google.com/webstore/*',
 		'https://accounts.google.com/*',
@@ -23,8 +23,8 @@
 		'https://analytics.google.com/analytics/*'
 	];
 
-	const isExcludedUrl = (url: string) => {
-		return excludedPatterns.some((pattern) => {
+	const isGoogleService = (url: string) => {
+		return googleServicesUrl.some((pattern) => {
 			// Convert the '*' in the pattern to '.*' in the regex.
 			const regexPattern = pattern.replace(/\*/g, '.*');
 			const regex = new RegExp(regexPattern);
@@ -46,7 +46,7 @@
 		</Command.Empty>
 		<Command.Group heading={getLocalMessage('tabs')}>
 			{#each $tabs.data as tab (tab.id)}
-				<TabItem {tab} isDisabled={isSyncing || isExcludedUrl(tab.url ?? '')} />
+				<TabItem {tab} isDisabled={isSyncing || isGoogleService(tab.url ?? '')} />
 			{/each}
 		</Command.Group>
 	{:else}
