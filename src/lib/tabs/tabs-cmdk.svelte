@@ -12,6 +12,7 @@
 	import SubCommand from './sub-command.svelte';
 	import TabList from './tab-list.svelte';
 	import { chromeApi, tabKeys } from './utils.tabs';
+	import { onMount } from 'svelte';
 
 	const syncTabIds = createQuery({
 		queryKey: tabKeys.sync(),
@@ -51,7 +52,11 @@
 		}, 100);
 	};
 
+	let cmdkInputEl: HTMLInputElement | null = null;
 	const handleKeydown = (e: KeyboardEvent) => {
+		if (e.key === kbd.SLASH && (e.metaKey || e.ctrlKey)) {
+			cmdkInputEl?.focus();
+		}
 		const currentTarget = e.currentTarget;
 		if (!isHTMLElement(currentTarget)) return;
 
@@ -64,6 +69,10 @@
 			bounce(currentTarget);
 		}
 	};
+
+	onMount(() => {
+		cmdkInputEl = document.querySelector('[data-cmdk-input]') as HTMLInputElement;
+	});
 </script>
 
 <Command.Root
@@ -77,11 +86,17 @@
 >
 	<SelectedTabs />
 	<Command.Input
+		data-cmdk-input
 		autofocus
 		class="py-1"
 		placeholder={getLocalMessage('searchPlaceholder')}
 		bind:value={inputValue}
-	/>
+	>
+		<div slot="suffix" class="ml-2 flex cursor-default items-center gap-1">
+			<Command.Shortcut class="size-5">⌘</Command.Shortcut>
+			<Command.Shortcut class="size-5">/</Command.Shortcut>
+		</div>
+	</Command.Input>
 	<TabList {isSyncing} />
 	<SubCommand {isSyncing} {resetInputValue} />
 </Command.Root>
