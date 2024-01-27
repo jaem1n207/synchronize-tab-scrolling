@@ -33,11 +33,6 @@
 		"test:integration": "playwright test",
 		"test:unit": "vitest"
 	},
-	"release": {
-		"branches": [
-			"main"
-		]
-	},
 	"devDependencies": {
 		"@playwright/test": "^1.28.1",
 		"@semantic-release/changelog": "^6.0.3",
