@@ -3,7 +3,6 @@
  */
 export default {
 	branches: ['main'],
-	tagFormat: 'v2.0.1',
 	plugins: [
 		'@semantic-release/git',
 		{
