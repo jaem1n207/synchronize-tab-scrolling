@@ -1,9 +1,12 @@
 import packageJson from './package.json';
 
-/**
- * After changing, please reload the extension at `chrome://extensions`
- */
-const manifest: chrome.runtime.ManifestV3 = {
+const manifest: browser._manifest.WebExtensionManifest = {
+  browser_specific_settings: {
+    gecko: {
+      id: 'addon@synchronize-tab-scrolling.org',
+      strict_min_version: '54.0'
+    }
+  },
   manifest_version: 3,
   name: '__MSG_extName__',
   default_locale: 'en',
