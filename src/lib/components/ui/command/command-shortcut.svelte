@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
-	import type { HTMLAttributes } from 'svelte/elements';
+  import { cn } from '$lib/utils';
+  import type { HTMLAttributes } from 'svelte/elements';
 
-	type $$Props = HTMLAttributes<HTMLSpanElement>;
+  type $$Props = HTMLAttributes<HTMLSpanElement>;
 
-	let className: string | undefined | null = undefined;
-	export { className as class };
+  let className: string | undefined | null = undefined;
+  export { className as class };
 </script>
 
 <span
-	class={cn(
-		'ml-auto flex items-center justify-center rounded-sm bg-muted px-1 text-xs tracking-widest text-muted-foreground',
-		className
-	)}
-	{...$$restProps}
+  class={cn(
+    'ml-auto flex items-center justify-center rounded-sm bg-muted px-1 text-xs tracking-widest text-muted-foreground',
+    className
+  )}
+  {...$$restProps}
 >
-	<slot />
+  <slot />
 </span>

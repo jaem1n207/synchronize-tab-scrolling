@@ -9,20 +9,20 @@ const __dirname = dirname(new URL(import.meta.url).pathname);
 const buildDir = resolve(__dirname, '..', '..', 'build');
 
 const hash = (value: string) => {
-	let hash = 5381;
-	let i = value.length;
+  let hash = 5381;
+  let i = value.length;
 
-	while (i) {
-		hash = (hash * 33) ^ value.charCodeAt(--i);
-	}
+  while (i) {
+    hash = (hash * 33) ^ value.charCodeAt(--i);
+  }
 
-	return (hash >>> 0).toString(36);
+  return (hash >>> 0).toString(36);
 };
 
 const transformContent = (content: string) => {
-	return content
-		.replace('__sveltekit', 'const __sveltekit')
-		.replace('document.currentScript.parentElement', 'document.body.firstElementChild');
+  return content
+    .replace('__sveltekit', 'const __sveltekit')
+    .replace('document.currentScript.parentElement', 'document.body.firstElementChild');
 };
 
 /**
@@ -34,38 +34,38 @@ const transformContent = (content: string) => {
  * @param getScriptTag Function to return the extracted script tag
  */
 const extractScript = async (
-	to: string,
-	scriptRegex: RegExp,
-	getFilename: (hash: string) => string,
-	getScriptTag: (filename: string) => string
+  to: string,
+  scriptRegex: RegExp,
+  getFilename: (hash: string) => string,
+  getScriptTag: (filename: string) => string
 ) => {
-	const files = await glob('**/*.{html}', {
-		cwd: to,
-		dot: true,
-		absolute: false,
-		filesOnly: true
-	});
+  const files = await glob('**/*.{html}', {
+    cwd: to,
+    dot: true,
+    absolute: false,
+    filesOnly: true
+  });
 
-	for (const file of files.map((file) => join(to, file))) {
-		colorLog(`edit file: ${file}`, 'info', true);
+  for (const file of files.map((file) => join(to, file))) {
+    colorLog(`edit file: ${file}`, 'info', true);
 
-		const f = readFileSync(file, { encoding: 'utf-8' });
-		const scriptMatch = f.match(scriptRegex);
+    const f = readFileSync(file, { encoding: 'utf-8' });
+    const scriptMatch = f.match(scriptRegex);
 
-		if (scriptMatch) {
-			let inlineContent = scriptMatch[1];
-			inlineContent = transformContent(inlineContent);
-			const scriptHash = hash(inlineContent);
-			const scriptFilename = getFilename(scriptHash);
-			const scriptTag = getScriptTag(scriptFilename);
-			const newHtml = f.replace(scriptRegex, scriptTag);
+    if (scriptMatch) {
+      let inlineContent = scriptMatch[1];
+      inlineContent = transformContent(inlineContent);
+      const scriptHash = hash(inlineContent);
+      const scriptFilename = getFilename(scriptHash);
+      const scriptTag = getScriptTag(scriptFilename);
+      const newHtml = f.replace(scriptRegex, scriptTag);
 
-			writeFileSync(file, newHtml);
-			writeFileSync(`${to}${scriptFilename}`, inlineContent);
+      writeFileSync(file, newHtml);
+      writeFileSync(`${to}${scriptFilename}`, inlineContent);
 
-			colorLog(`✅ Script extracted and saved at: ${to}${scriptFilename}`, 'success', true);
-		}
-	}
+      colorLog(`✅ Script extracted and saved at: ${to}${scriptFilename}`, 'success', true);
+    }
+  }
 };
 
 /**
@@ -75,23 +75,23 @@ const extractScript = async (
  * `*.{hash}.js' file and paste the extracted script into the `*.html' file.
  */
 const extractInlineScript = (): PluginOption => {
-	return {
-		name: 'extract-inline-script',
-		closeBundle() {
-			extractScript(
-				buildDir,
-				/<script nonce="%sveltekit.nonce%">([\s\S]*?)<\/script>/,
-				(hash) => `/color-scheme-script.${hash}.js`,
-				(filename) => `<script nonce="%sveltekit.nonce%" src='${filename}'></script>`
-			);
-			extractScript(
-				buildDir,
-				/<script>([\s\S]+)<\/script>/,
-				(hash) => `/script-${hash}.js`,
-				(filename) => `<script type="module" src="${filename}"></script>`
-			);
-		}
-	};
+  return {
+    name: 'extract-inline-script',
+    closeBundle() {
+      extractScript(
+        buildDir,
+        /<script nonce="%sveltekit.nonce%">([\s\S]*?)<\/script>/,
+        (hash) => `/color-scheme-script.${hash}.js`,
+        (filename) => `<script nonce="%sveltekit.nonce%" src='${filename}'></script>`
+      );
+      extractScript(
+        buildDir,
+        /<script>([\s\S]+)<\/script>/,
+        (hash) => `/script-${hash}.js`,
+        (filename) => `<script type="module" src="${filename}"></script>`
+      );
+    }
+  };
 };
 
 export default extractInlineScript;

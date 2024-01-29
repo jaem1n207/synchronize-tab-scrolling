@@ -14,22 +14,22 @@ const injectStaticDir = 'src/inject-static';
 const injectFilesPattern = /\.inject\.ts$/;
 
 const filesPathToExclude = readdirSync(injectStaticDir)
-	.filter((filename) => injectFilesPattern.test(filename))
-	.map((filename) => fileURLToPath(new URL(join(injectStaticDir, filename), import.meta.url)));
+  .filter((filename) => injectFilesPattern.test(filename))
+  .map((filename) => fileURLToPath(new URL(join(injectStaticDir, filename), import.meta.url)));
 
 export default defineConfig({
-	plugins: [sveltekit(), createManifest(manifest), extractInlineScript(), watchRebuild()],
-	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}']
-	},
-	resolve: {
-		alias: {
-			$lib: resolve('./src/lib')
-		}
-	},
-	build: {
-		rollupOptions: {
-			external: [...filesPathToExclude]
-		}
-	}
+  plugins: [sveltekit(), createManifest(manifest), extractInlineScript(), watchRebuild()],
+  test: {
+    include: ['src/**/*.{test,spec}.{js,ts}']
+  },
+  resolve: {
+    alias: {
+      $lib: resolve('./src/lib')
+    }
+  },
+  build: {
+    rollupOptions: {
+      external: [...filesPathToExclude]
+    }
+  }
 });
