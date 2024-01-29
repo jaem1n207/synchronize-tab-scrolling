@@ -15,8 +15,10 @@ const createManifest = (manifest: chrome.runtime.ManifestV3): PluginOption => {
       mkdirSync(to);
     }
     const manifestPath = resolve(to, 'manifest.json');
+    const firefoxManifestPath = resolve(to, 'manifest-firefox.json');
 
     writeFileSync(manifestPath, ManifestParser.convertManifestToString(manifest));
+    writeFileSync(firefoxManifestPath, ManifestParser.convertManifestToString(manifest));
 
     colorLog(`Manifest file copy complete: ${manifestPath}`, 'success');
   };
