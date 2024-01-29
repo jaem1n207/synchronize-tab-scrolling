@@ -47,6 +47,7 @@
     "@types/bun": "^1.0.1",
     "@types/chrome": "^0.0.256",
     "@types/eslint": "8.56.0",
+    "@types/firefox-webext-browser": "^120.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "autoprefixer": "^10.4.17",
