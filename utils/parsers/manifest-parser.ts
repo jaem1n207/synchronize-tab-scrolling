@@ -1,9 +1,9 @@
 class ManifestParser {
-	private constructor() {}
+  private constructor() {}
 
-	static convertManifestToString(manifest: chrome.runtime.ManifestV3): string {
-		return JSON.stringify(manifest, null, 2);
-	}
+  static convertManifestToString(manifest: chrome.runtime.ManifestV3): string {
+    return JSON.stringify(manifest, null, 2);
+  }
 }
 
 export default ManifestParser;

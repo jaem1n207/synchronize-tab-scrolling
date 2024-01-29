@@ -10,26 +10,26 @@ const buildDir = resolve(__dirname, '..', '..', 'build');
 const staticDir = resolve(__dirname, '..', '..', 'static');
 
 const createManifest = (manifest: chrome.runtime.ManifestV3): PluginOption => {
-	const createManifest = (to: string) => {
-		if (!existsSync(to)) {
-			mkdirSync(to);
-		}
-		const manifestPath = resolve(to, 'manifest.json');
+  const createManifest = (to: string) => {
+    if (!existsSync(to)) {
+      mkdirSync(to);
+    }
+    const manifestPath = resolve(to, 'manifest.json');
 
-		writeFileSync(manifestPath, ManifestParser.convertManifestToString(manifest));
+    writeFileSync(manifestPath, ManifestParser.convertManifestToString(manifest));
 
-		colorLog(`Manifest file copy complete: ${manifestPath}`, 'success');
-	};
+    colorLog(`Manifest file copy complete: ${manifestPath}`, 'success');
+  };
 
-	return {
-		name: 'create-manifest',
-		buildStart() {
-			createManifest(staticDir);
-		},
-		buildEnd() {
-			createManifest(buildDir);
-		}
-	};
+  return {
+    name: 'create-manifest',
+    buildStart() {
+      createManifest(staticDir);
+    },
+    buildEnd() {
+      createManifest(buildDir);
+    }
+  };
 };
 
 export default createManifest;
