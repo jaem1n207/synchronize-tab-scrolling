@@ -16,18 +16,18 @@ const manifest: browser._manifest.WebExtensionManifest = {
   action: {
     default_title: '__MSG_extName__',
     default_icon: {
-      '16': 'icons/icon-16.png',
-      '32': 'icons/icon-32.png',
-      '48': 'icons/icon-48.png',
-      '72': 'icons/icon-72.png'
+      '16': 'icons/logo-16.png',
+      '32': 'icons/logo-32.png',
+      '48': 'icons/logo-48.png',
+      '72': 'icons/logo-72.png'
     },
     default_popup: 'index.html'
   },
   icons: {
-    '16': 'icons/icon-16.png',
-    '48': 'icons/icon-48.png',
-    '128': 'icons/icon-128.png',
-    '256': 'icons/icon-256.png',
+    '16': 'icons/logo-16.png',
+    '48': 'icons/logo-48.png',
+    '128': 'icons/logo-128.png',
+    '256': 'icons/logo-256.png',
     '512': 'icons/logo-512.png'
   },
   background: {
