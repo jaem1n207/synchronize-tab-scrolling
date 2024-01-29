@@ -45,7 +45,7 @@
     "@tailwindcss/typography": "^0.5.10",
     "@tanstack/svelte-query-devtools": "^5.17.19",
     "@types/bun": "^1.0.1",
-    "@types/chrome": "^0.0.256",
+    "@types/chrome": "^0.0.259",
     "@types/eslint": "8.56.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
