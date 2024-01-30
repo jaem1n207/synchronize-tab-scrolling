@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
+  import { onMount } from 'svelte';
 
   import * as Command from '$lib/components/ui/command';
   import { isEmptyString, isHTMLElement } from '$lib/is';
@@ -12,7 +13,6 @@
   import SubCommand from './sub-command.svelte';
   import TabList from './tab-list.svelte';
   import { chromeApi, tabKeys } from './utils.tabs';
-  import { onMount } from 'svelte';
 
   const syncTabIds = createQuery({
     queryKey: tabKeys.sync(),
@@ -97,6 +97,6 @@
       <Command.Shortcut class="size-5">/</Command.Shortcut>
     </div>
   </Command.Input>
-  <TabList {isSyncing} />
+  <TabList {inputValue} {isSyncing} />
   <SubCommand {isSyncing} {resetInputValue} />
 </Command.Root>

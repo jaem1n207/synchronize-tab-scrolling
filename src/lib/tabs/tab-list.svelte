@@ -9,6 +9,7 @@
   import { chromeApi, tabKeys } from './utils.tabs';
 
   export let isSyncing: boolean;
+  export let inputValue: string;
 
   const tabs = createQuery({
     queryKey: tabKeys.lists(),
@@ -46,7 +47,7 @@
     </Command.Empty>
     <Command.Group heading={getLocalMessage('tabs')}>
       {#each $tabs.data as tab (tab.id)}
-        <TabItem {tab} isDisabled={isSyncing || isGoogleService(tab.url ?? '')} />
+        <TabItem {inputValue} {tab} isDisabled={isSyncing || isGoogleService(tab.url ?? '')} />
       {/each}
     </Command.Group>
   {:else}

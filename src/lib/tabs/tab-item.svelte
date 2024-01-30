@@ -6,8 +6,10 @@
   import { selectedTabStore } from '$lib/tabs/selectedTabStore';
   import { cn } from '$lib/utils';
 
+  import HighlightMatches from '../components/highlight-matches.svelte';
   import { getTabIdentifier } from './utils.tabs';
 
+  export let inputValue: string;
   export let tab: chrome.tabs.Tab;
   export let isDisabled: boolean;
 
@@ -37,6 +39,6 @@
     <Avatar.Image src={tab.favIconUrl} alt={tab.title} />
     <Avatar.Fallback><Image /></Avatar.Fallback>
   </Avatar.Root>
-  <span class="line-clamp-2 text-xs">{tab.title}</span>
+  <HighlightMatches class="line-clamp-2 text-xs" match={inputValue} value={tab.title} />
   <Command.CommandShortcut class="size-5">↵</Command.CommandShortcut>
 </Command.Item>
