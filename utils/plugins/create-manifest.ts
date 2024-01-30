@@ -9,7 +9,9 @@ const __dirname = dirname(new URL(import.meta.url).pathname);
 const buildDir = resolve(__dirname, '..', '..', 'build');
 const staticDir = resolve(__dirname, '..', '..', 'static');
 
-const createManifest = (manifest: chrome.runtime.ManifestV3): PluginOption => {
+const createManifest = (
+  manifest: chrome.runtime.ManifestV3 | browser._manifest.WebExtensionManifest
+): PluginOption => {
   const createManifest = (to: string) => {
     if (!existsSync(to)) {
       mkdirSync(to);

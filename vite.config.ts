@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
-import manifest from './manifest';
+import manifest from './manifest-firefox';
 import createManifest from './utils/plugins/create-manifest';
 import extractInlineScript from './utils/plugins/extract-inline-script';
 import watchRebuild from './utils/plugins/watch-rebuild';
