@@ -4,7 +4,28 @@
   <a />
 </p>
 <p align="center">여러 탭의 스크롤 위치를 <strong>동기화</strong>할 수 있는 브라우저 확장 프로그램입니다.</p>
-<p align="center"><a href="https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" /></a></p>
+<p align="center">
+  <a rel="noreferrer noopener" target="_blank" href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
+    <img alt="Chrome Web Store" src="https://img.shields.io/badge/CHROME-4285F4?style=for-the-badge&logo=GoogleChrome&logoColor=white">
+  </a>
+  <a rel="noreferrer noopener" target="_blank" href="https://addons.mozilla.org/firefox/addon/syncronize-tab-scrolling">
+    <img alt="Firefox Add-ons" src="https://img.shields.io/badge/Firefox-FF7139?style=for-the-badge&logo=Firefox-Browser&logoColor=white">
+  </a>
+</p>
+<p align="center">
+  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/releases">
+    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/jaem1n207/synchronize-tab-scrolling?include_prereleases&sort=semver&display_name=release&style=for-the-badge&logo=semanticrelease&logoColor=white&color=%236096B4">
+  </a>
+  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/pulls">
+    <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logo=github&logoColor=white&color=%236096B4">
+  </a>
+  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/issues">
+    <img alt="GitHub issues" src="https://img.shields.io/github/issues/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logo=github&logoColor=white&color=%236096B4">
+  </a>
+  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE">
+    <img alt="GitHub License" src="https://img.shields.io/github/license/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logoColor=white&color=%236096B4">
+  </a>
+</p>
 <h1 align="center">Synchronize Tab Scrolling</h2>
 
 [ENGLISH](./README.md) | 한국어
