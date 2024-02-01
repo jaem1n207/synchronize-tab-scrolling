@@ -10,7 +10,7 @@ import extractInlineScript from './utils/plugins/extract-inline-script';
 import watchRebuild from './utils/plugins/watch-rebuild';
 
 // file path to exclude from bundling
-const injectStaticDir = 'src/inject-static';
+const injectStaticDir = 'src/inject';
 const injectFilesPattern = /\.inject\.ts$/;
 
 const filesPathToExclude = readdirSync(injectStaticDir)

@@ -1,6 +1,6 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === 'getSyncTabIds') {
-    chrome.storage.sync.get(['syncTabIds'], (result) => {
+    chrome.storage.local.get(['syncTabIds'], (result) => {
       if (chrome.runtime.lastError) {
         sendResponse(chrome.runtime.lastError);
         return;
@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.command === 'setSyncTabIds') {
     const { syncTabIds } = request.data;
-    chrome.storage.sync.set({ syncTabIds }, () => {
+    chrome.storage.local.set({ syncTabIds }, () => {
       if (chrome.runtime.lastError) {
         sendResponse(chrome.runtime.lastError);
         return;
@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (!senderTabId) return;
 
-    chrome.storage.sync.get(['syncTabIds'], (result) => {
+    chrome.storage.local.get(['syncTabIds'], (result) => {
       if (chrome.runtime.lastError) {
         console.error(chrome.runtime.lastError);
       } else {
@@ -117,7 +117,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 const stopSync = (tabId: number) => {
-  chrome.storage.sync.get(['syncTabIds'], (result) => {
+  chrome.storage.local.get(['syncTabIds'], (result) => {
     if (chrome.runtime.lastError) {
       console.error(chrome.runtime.lastError);
     } else {
@@ -126,7 +126,7 @@ const stopSync = (tabId: number) => {
       if (!syncTabIds || syncTabIds?.length === 0) return;
 
       if (syncTabIds.length && syncTabIds.includes(tabId)) {
-        chrome.storage.sync.set({ syncTabIds: [] }, () => {
+        chrome.storage.local.set({ syncTabIds: [] }, () => {
           if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError);
           }
@@ -139,7 +139,7 @@ const stopSync = (tabId: number) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   // Ensures that synchronized tabs stay in sync when they are refreshed.
   if (changeInfo.status === 'complete') {
-    chrome.storage.sync.get(['syncTabIds'], (result) => {
+    chrome.storage.local.get(['syncTabIds'], (result) => {
       if (chrome.runtime.lastError) {
         console.error(chrome.runtime.lastError);
       } else {

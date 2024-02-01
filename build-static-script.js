@@ -35,7 +35,7 @@ const buildScript = async (filePath, naming) => {
 
 (async () => {
   await Promise.all([
-    buildScript('./src/inject-static/content-script.inject.ts', 'content-script.js'),
-    buildScript('./src/inject-static/background-script.inject.ts', 'background-script.js')
+    buildScript('./src/inject/content-script.inject.ts', 'content-script.js'),
+    buildScript('./src/inject/background-script.inject.ts', 'background-script.js')
   ]);
 })();
