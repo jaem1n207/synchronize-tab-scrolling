@@ -4,6 +4,7 @@
 
   import * as Command from '$lib/components/ui/command';
   import { getLocalMessage } from '$lib/locales';
+  import { isEdge, isFirefox } from '$lib/platform';
 
   import TabItem from './tab-item.svelte';
   import { chromeApi, tabKeys } from './utils.tabs';
@@ -11,27 +12,55 @@
   export let isSyncing: boolean;
   export let inputValue: string;
 
+  const canInjectScript = (url: string | null | undefined): boolean => {
+    const googleServices = [
+      'https://accounts.google.com',
+      'https://analytics.google.com/analytics',
+      'https://search.google.com/search-console',
+      'https://chromewebstore.google.com'
+    ];
+
+    if (isFirefox) {
+      return Boolean(
+        url &&
+          !url.startsWith('about:') &&
+          !url.startsWith('moz') &&
+          !url.startsWith('view-source:') &&
+          !url.startsWith('resource:') &&
+          !url.startsWith('chrome:') &&
+          !url.startsWith('jar:') &&
+          !url.startsWith('https://addons.mozilla.org/') &&
+          !googleServices.some((serviceUrl) => url.startsWith(serviceUrl))
+      );
+    }
+    if (isEdge) {
+      return Boolean(
+        url &&
+          !url.startsWith('chrome') &&
+          !url.startsWith('data') &&
+          !url.startsWith('devtools') &&
+          !url.startsWith('edge') &&
+          !url.startsWith('https://chrome.google.com/webstore') &&
+          !url.startsWith('https://microsoftedge.microsoft.com/addons') &&
+          !url.startsWith('view-source') &&
+          !googleServices.some((serviceUrl) => url.startsWith(serviceUrl))
+      );
+    }
+    return Boolean(
+      url &&
+        !url.startsWith('chrome') &&
+        !url.startsWith('https://chrome.google.com/webstore') &&
+        !url.startsWith('data') &&
+        !url.startsWith('devtools') &&
+        !url.startsWith('view-source') &&
+        !googleServices.some((serviceUrl) => url.startsWith(serviceUrl))
+    );
+  };
+
   const tabs = createQuery({
     queryKey: tabKeys.lists(),
     queryFn: () => chromeApi.getTabs()
   });
-
-  const googleServicesUrl = [
-    'https://chromewebstore.google.com/*',
-    'https://chrome.google.com/webstore/*',
-    'https://accounts.google.com/*',
-    'https://search.google.com/search-console*',
-    'https://analytics.google.com/analytics/*'
-  ];
-
-  const isGoogleService = (url: string) => {
-    return googleServicesUrl.some((pattern) => {
-      // Convert the '*' in the pattern to '.*' in the regex.
-      const regexPattern = pattern.replace(/\*/g, '.*');
-      const regex = new RegExp(regexPattern);
-      return regex.test(url);
-    });
-  };
 </script>
 
 <Command.List class="h-80 scroll-pb-10 overflow-auto overscroll-contain px-1 pb-10">
@@ -47,7 +76,7 @@
     </Command.Empty>
     <Command.Group heading={getLocalMessage('tabs')}>
       {#each $tabs.data as tab (tab.id)}
-        <TabItem {inputValue} {tab} isDisabled={isSyncing || isGoogleService(tab.url ?? '')} />
+        <TabItem {inputValue} {tab} isDisabled={isSyncing || !canInjectScript(tab.url)} />
       {/each}
     </Command.Group>
   {:else}
