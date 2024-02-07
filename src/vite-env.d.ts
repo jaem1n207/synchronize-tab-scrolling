@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly __WATCH__: string;
+  readonly __WATCH__: string | undefined;
 }
 
 interface ImportMeta {
