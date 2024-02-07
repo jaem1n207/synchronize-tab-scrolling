@@ -9,9 +9,9 @@ import cleanOutDir from './utils/plugins/clean-out-dir';
 import copyToPlatformDirsPlugin from './utils/plugins/copy-to-platform-dirs';
 import createManifests from './utils/plugins/create-manifests';
 import ensureOutDir from './utils/plugins/ensure-out-dir';
+import extractInlineScript from './utils/plugins/extract-inline-script';
 import watchRebuild from './utils/plugins/watch-rebuild';
 import zip from './utils/plugins/zip';
-import extractInlineScript from './utils/plugins/extract-inline-script';
 
 const OUT_DIR = 'build';
 
@@ -21,10 +21,13 @@ export default defineConfig(async () => {
   return {
     plugins: [
       sveltekit(),
+      // ---- buildStart ---
       await cleanOutDir(OUT_DIR),
       await ensureOutDir(OUT_DIR),
       watchRebuild(),
+      // ---- generateBundle ---
       await bundleExtensionScript(),
+      // ---- closeBundle ---
       await createManifests({
         debug: isDebug,
         platforms: Object.values(PLATFORM)

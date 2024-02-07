@@ -7,6 +7,9 @@ import { getPaths, readFile, writeFile } from '../utils';
 
 const zipInstance = new JSZip();
 
+/**
+ * It should always be placed **at the end** of the `vite.plugins` array so that it runs after everything else is done.
+ */
 const zip = async ({
   debug,
   platforms,
@@ -63,7 +66,13 @@ const zip = async ({
 
   return {
     name: 'zip',
-    async closeBundle() {
+    async closeBundle(this) {
+      /**
+       * This task, which compresses the generated output, should be executed
+       * after the `extract-inline-script` plugin is executed at the end of bundle creation.
+       * Unfortunately there's no hook to make it run after the `closeBundle` cycle, so wait one second before running it.
+       */
+      await Bun.sleep(1000);
       await zip({ platforms, version });
     }
   };
