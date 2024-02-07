@@ -1,35 +1,54 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
-import manifest from './manifest-firefox';
-import createManifest from './utils/plugins/create-manifest';
-import extractInlineScript from './utils/plugins/extract-inline-script';
+import packageJson from './package.json';
+import { PLATFORM } from './utils/paths';
+import bundleExtensionScript from './utils/plugins/bundle-extension-script';
+import cleanOutDir from './utils/plugins/clean-out-dir';
+import copyToPlatformDirsPlugin from './utils/plugins/copy-to-platform-dirs';
+import createManifests from './utils/plugins/create-manifests';
+import ensureOutDir from './utils/plugins/ensure-out-dir';
 import watchRebuild from './utils/plugins/watch-rebuild';
+import zip from './utils/plugins/zip';
+import extractInlineScript from './utils/plugins/extract-inline-script';
 
-// file path to exclude from bundling
-const injectStaticDir = 'src/inject';
-const injectFilesPattern = /\.inject\.ts$/;
+const OUT_DIR = 'build';
 
-const filesPathToExclude = readdirSync(injectStaticDir)
-  .filter((filename) => injectFilesPattern.test(filename))
-  .map((filename) => fileURLToPath(new URL(join(injectStaticDir, filename), import.meta.url)));
+export default defineConfig(async () => {
+  const isDebug = import.meta.env.__WATCH__ === 'true';
 
-export default defineConfig({
-  plugins: [sveltekit(), createManifest(manifest), extractInlineScript(), watchRebuild()],
-  test: {
-    include: ['src/**/*.{test,spec}.{js,ts}']
-  },
-  resolve: {
-    alias: {
-      $lib: resolve('./src/lib')
+  return {
+    plugins: [
+      sveltekit(),
+      await cleanOutDir(OUT_DIR),
+      await ensureOutDir(OUT_DIR),
+      watchRebuild(),
+      await bundleExtensionScript(),
+      await createManifests({
+        debug: isDebug,
+        platforms: Object.values(PLATFORM)
+      }),
+      await extractInlineScript(),
+      copyToPlatformDirsPlugin(),
+      await zip({
+        debug: isDebug,
+        platforms: Object.values(PLATFORM),
+        version: packageJson.version
+      })
+    ],
+    test: {
+      include: ['src/**/*.{test,spec}.{js,ts}']
+    },
+    resolve: {
+      alias: {
+        $lib: resolve('./src/lib')
+      }
+    },
+    build: {
+      // outDir: OUT_DIR,
+      chunkSizeWarningLimit: 600,
+      target: ['es2018', 'firefox57']
     }
-  },
-  build: {
-    rollupOptions: {
-      external: [...filesPathToExclude]
-    }
-  }
+  };
 });
