@@ -5,7 +5,6 @@ type ColorType = 'success' | 'info' | 'error' | 'warning' | keyof typeof COLORS;
  * @param message - The message to print.
  * @param type - The type of message.
  * @param force - Whether to print the message regardless of the environment.
- * e.g. If you want to output a message from a script that runs before any environment variables are assigned, such as the 'build-static-script.js' script.
  */
 const colorLog = (message: string, type?: ColorType, force = false) => {
   const isWatch = import.meta.env?.__WATCH__ === 'true';
