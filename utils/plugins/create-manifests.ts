@@ -73,11 +73,13 @@ const createManifests = async ({
   return {
     name: 'create-manifests',
     async closeBundle() {
+      const promises: Promise<void>[] = [];
       for (const platform of platforms) {
         const manifest = await patchManifest({ debug, platform });
         const buildDir = getBuildDir({ debug, platform });
-        await writeJSON(resolve(buildDir, 'manifest.json'), manifest);
+        promises.push(writeJSON(resolve(buildDir, 'manifest.json'), manifest));
       }
+      await Promise.all(promises);
       colorLog(`📦 Created manifests for ${platforms.join(', ')}`, 'success', true);
     }
   };

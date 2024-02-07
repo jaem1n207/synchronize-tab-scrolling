@@ -9,14 +9,15 @@ import cleanOutDir from './utils/plugins/clean-out-dir';
 import copyToPlatformDirsPlugin from './utils/plugins/copy-to-platform-dirs';
 import createManifests from './utils/plugins/create-manifests';
 import ensureOutDir from './utils/plugins/ensure-out-dir';
-import extractInlineScript from './utils/plugins/extract-inline-script';
+// import extractInlineScript from './utils/plugins/extract-inline-script';
 import watchRebuild from './utils/plugins/watch-rebuild';
 import zip from './utils/plugins/zip';
 
 const OUT_DIR = 'build';
 
 export default defineConfig(async () => {
-  const isDebug = import.meta.env.__WATCH__ === 'true';
+  const debug = import.meta.env.__WATCH__ === 'true';
+  const platforms = Object.values(PLATFORM);
 
   return {
     plugins: [
@@ -29,15 +30,16 @@ export default defineConfig(async () => {
       await bundleExtensionScript(),
       // ---- closeBundle ---
       await createManifests({
-        debug: isDebug,
-        platforms: Object.values(PLATFORM)
+        debug,
+        platforms
       }),
-      await extractInlineScript(),
-      copyToPlatformDirsPlugin(),
+      await copyToPlatformDirsPlugin({ debug, platforms }),
+      // await extractInlineScript(),
       await zip({
-        debug: isDebug,
-        platforms: Object.values(PLATFORM),
-        version: packageJson.version
+        debug,
+        platforms,
+        version: packageJson.version,
+        delay: 1000
       })
     ],
     test: {
