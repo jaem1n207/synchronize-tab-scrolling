@@ -1,3 +1,5 @@
+import { firefoxVersion, isFirefox } from '@/lib/platform';
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === 'getSyncTabIds') {
     chrome.storage.local.get(['syncTabIds'], (result) => {
@@ -40,6 +42,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           return;
         }
 
+        const supportExecuteScript = isFirefox ? firefoxVersion >= '102.0' : true;
+        if (!supportExecuteScript) {
+          console.error('scripting.executeScript is not supported in this version of Firefox');
+          return;
+        }
         // Inject the content script to the tab
         chrome.scripting.executeScript(
           {
