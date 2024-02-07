@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import type { PluginOption } from 'vite';
 
 import colorLog from '../log';
-import { PLATFORM, rootPath } from '../paths';
+import { PLATFORM, getBuildDir, rootPath } from '../paths';
 import { getPaths, readFile, writeFile } from '../utils';
 
 const zipInstance = new JSZip();
@@ -13,11 +13,13 @@ const zipInstance = new JSZip();
 const zip = async ({
   debug,
   platforms,
-  version
+  version,
+  delay = 1000
 }: {
   debug: boolean;
   platforms: PLATFORM[];
   version: string;
+  delay?: number;
 }): Promise<PluginOption> => {
   const archiveFiles = async ({
     files,
@@ -50,10 +52,9 @@ const zip = async ({
 
     const promises: Promise<void>[] = [];
     for (const platform of platforms) {
-      // FIXME: 각 플랫폼별 폴더로 변경하고 getBuildDir 함수 사용하도록 수정하기
-      const buildDir = rootPath('build');
+      const buildDir = getBuildDir({ debug, platform });
       const format = platform === PLATFORM.FIREFOX_MV2 ? 'xpi' : 'zip';
-      const dest = rootPath('build', `sync-tab-scroll-${platform}-v${version}.${format}`);
+      const dest = rootPath('build/release', `sync-tab-scroll-${platform}-v${version}.${format}`);
       promises.push(archiveDirectory({ dir: buildDir, dest }));
     }
     await Promise.all(promises);
@@ -66,13 +67,13 @@ const zip = async ({
 
   return {
     name: 'zip',
-    async closeBundle(this) {
+    async closeBundle() {
       /**
        * This task, which compresses the generated output, should be executed
        * after the `extract-inline-script` plugin is executed at the end of bundle creation.
        * Unfortunately there's no hook to make it run after the `closeBundle` cycle, so wait one second before running it.
        */
-      await Bun.sleep(1000);
+      await Bun.sleep(delay);
       await zip({ platforms, version });
     }
   };
