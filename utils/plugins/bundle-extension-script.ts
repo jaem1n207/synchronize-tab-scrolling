@@ -30,7 +30,7 @@ const bundleExtensionScript = async (): Promise<PluginOption> => {
   return {
     name: 'bundle-extension-script',
     apply: 'build',
-    async buildStart() {
+    async generateBundle() {
       await Promise.all([
         buildScript('./src/inject/content-script.inject.ts', 'content-script.js'),
         buildScript('./src/inject/background-script.inject.ts', 'background-script.js')
