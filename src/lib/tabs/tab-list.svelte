@@ -1,4 +1,3 @@
-<!-- 탭 리스트를 렌더링하고, 사용자 상호작용을 처리합니다. -->
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
 

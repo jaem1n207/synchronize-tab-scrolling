@@ -1,11 +1,7 @@
 export const chromeApi = {
   getTabs: async (query: chrome.tabs.QueryInfo = {}): Promise<chrome.tabs.Tab[]> => {
     const tabs = await chrome.tabs.query({
-      ...query,
-      // can use the `chrome.scripting` API to inject JavaScript and CSS into websites.
-      // However, can't inject scripts into pages like 'chrome://*/*',
-      // so only get information from tabs that match the URL pattern specify.
-      url: ['http://*/*', 'https://*/*']
+      ...query
     });
 
     return tabs;
