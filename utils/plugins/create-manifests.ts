@@ -44,6 +44,7 @@ const patchManifest = async ({ debug, platform }: { debug: boolean; platform: PL
       default_popup: 'index.html'
     };
     patched.browser_action = undefined;
+    patched.content_security_policy = undefined;
   }
   if (platform === 'firefox') {
     patched.browser_specific_settings = {

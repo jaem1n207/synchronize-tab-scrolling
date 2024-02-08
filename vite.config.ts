@@ -9,7 +9,7 @@ import cleanOutDir from './utils/plugins/clean-out-dir';
 import copyToPlatformDirsPlugin from './utils/plugins/copy-to-platform-dirs';
 import createManifests from './utils/plugins/create-manifests';
 import ensureOutDir from './utils/plugins/ensure-out-dir';
-// import extractInlineScript from './utils/plugins/extract-inline-script';
+import extractInlineScript from './utils/plugins/extract-inline-script';
 import watchRebuild from './utils/plugins/watch-rebuild';
 import zip from './utils/plugins/zip';
 
@@ -33,8 +33,8 @@ export default defineConfig(async () => {
         debug,
         platforms
       }),
-      await copyToPlatformDirsPlugin({ debug, platforms }),
-      // await extractInlineScript(),
+      await extractInlineScript(),
+      await copyToPlatformDirsPlugin({ debug, platforms, delay: 500 }),
       await zip({
         debug,
         platforms,
@@ -51,7 +51,6 @@ export default defineConfig(async () => {
       }
     },
     build: {
-      // outDir: OUT_DIR,
       chunkSizeWarningLimit: 600,
       target: ['es2018', 'firefox57']
     }

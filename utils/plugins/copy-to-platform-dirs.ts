@@ -8,10 +8,12 @@ import { mkDirIfMissing, readFile, writeFile } from '../utils';
 
 const copyToPlatformDirsPlugin = async ({
   debug,
-  platforms
+  platforms,
+  delay = 500
 }: {
   debug: boolean;
   platforms: PLATFORM[];
+  delay?: number;
 }): Promise<PluginOption> => {
   const copyFilesToPlatformDir = async (platform: PLATFORM) => {
     const buildDir = rootPath('build');
@@ -39,8 +41,8 @@ const copyToPlatformDirsPlugin = async ({
     const items = await fs.readdir(buildDir);
 
     for (const item of items) {
-      // Remove everything except the 'release' folder
-      if (item !== 'release') {
+      // Remove all folders except the 'release' and 'debug' folders
+      if (item !== 'release' && item !== 'debug') {
         const itemPath = path.join(buildDir, item);
         await fs.rm(itemPath, { recursive: true, force: true });
       }
@@ -50,6 +52,12 @@ const copyToPlatformDirsPlugin = async ({
   return {
     name: 'copy-to-platform-dirs',
     async closeBundle() {
+      /**
+       * This task, which compresses the generated output, should be executed
+       * after the `extract-inline-script` plugin is executed at the end of bundle creation.
+       * Unfortunately there's no hook to make it run after the `closeBundle` cycle, so wait one second before running it.
+       */
+      await Bun.sleep(delay);
       const promises: Promise<void>[] = [];
       for (const platform of platforms) {
         promises.push(copyFilesToPlatformDir(platform));
@@ -58,7 +66,7 @@ const copyToPlatformDirsPlugin = async ({
 
       await cleanBuildFolder();
 
-      console.log('📦 Copied build files to platform directories, excluding the release folder');
+      console.log(' 📦 Copied build files to platform directories, excluding the release folder');
     }
   };
 };
