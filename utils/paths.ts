@@ -7,6 +7,9 @@ export const rootPath = (...paths: string[]) => join(rootDir, ...paths);
 export const staticDir = rootPath('static');
 
 export const PLATFORM = {
+  /**
+   * @deprecated Manifest version 2 is deprecated, and support will be removed in 2024.
+   */
   CHROMIUM_MV2: 'chrome',
   CHROMIUM_MV3: 'chrome-mv3',
   FIREFOX_MV2: 'firefox'

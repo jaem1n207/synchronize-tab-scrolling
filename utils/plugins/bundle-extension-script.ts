@@ -35,7 +35,7 @@ const bundleExtensionScript = async (): Promise<PluginOption> => {
         buildScript('./src/inject/content-script.inject.ts', 'content-script.js'),
         buildScript('./src/inject/background-script.inject.ts', 'background-script.js')
       ]);
-      colorLog('📦 Extension scripts bundled successfully', 'success', true);
+      colorLog('\n📦 Extension scripts bundled successfully', 'success', true);
     }
   };
 };
