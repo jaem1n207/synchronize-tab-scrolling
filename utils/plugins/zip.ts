@@ -21,6 +21,16 @@ const zip = async ({
   version: string;
   delay?: number;
 }): Promise<PluginOption> => {
+  const getExtensionFormat = (platform: PLATFORM) => {
+    switch (platform) {
+      case PLATFORM.FIREFOX_MV2:
+        return 'xpi';
+      case PLATFORM.CHROMIUM_MV2:
+      case PLATFORM.CHROMIUM_MV3:
+        return 'zip';
+    }
+  };
+
   const archiveFiles = async ({
     files,
     dir,
@@ -53,7 +63,7 @@ const zip = async ({
     const promises: Promise<void>[] = [];
     for (const platform of platforms) {
       const buildDir = getBuildDir({ debug, platform });
-      const format = platform === PLATFORM.FIREFOX_MV2 ? 'xpi' : 'zip';
+      const format = getExtensionFormat(platform);
       const dest = rootPath('build/release', `sync-tab-scroll-${platform}-v${version}.${format}`);
       promises.push(archiveDirectory({ dir: buildDir, dest }));
     }
@@ -70,7 +80,7 @@ const zip = async ({
     async closeBundle() {
       /**
        * This task, which compresses the generated output, should be executed
-       * after the `extract-inline-script` plugin is executed at the end of bundle creation.
+       * after both the `extract-inline-script` & `copy-to-platform-dirs` plugins have been executed at the end of bundle creation.
        * Unfortunately there's no hook to make it run after the `closeBundle` cycle, so wait one second before running it.
        */
       await Bun.sleep(delay);
