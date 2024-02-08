@@ -13,6 +13,10 @@
   export let tab: chrome.tabs.Tab;
   export let isDisabled: boolean;
 
+  const escapeCSSSelector = (selector: string) => {
+    return selector.replace(/(["\\])/g, '\\$1');
+  };
+
   const handleSelect = () => {
     if (isDisabled) return;
 
@@ -23,7 +27,7 @@
 </script>
 
 <Command.Item
-  value={`${tab.title}${tab.index}`}
+  value={escapeCSSSelector(`${tab.title}${tab.index}`)}
   title={tab.title}
   disabled={isDisabled}
   aria-disabled={isDisabled}
