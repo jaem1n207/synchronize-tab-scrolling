@@ -1,6 +1,6 @@
 {
   "name": "synchronize-tab-scrolling",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "private": true,
   "description": "여러 탭을 선택하고 스크롤 위치를 동기화할 수 있습니다.",
   "author": "jaem1n207",
@@ -16,9 +16,12 @@
   "keywords": [
     "chrome",
     "firefox",
-    "safari",
+    "brave",
+    "edge",
+    "opera",
     "webstore",
-    "extension"
+    "extension",
+    "sync"
   ],
   "type": "module",
   "scripts": {
