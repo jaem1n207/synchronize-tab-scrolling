@@ -70,3 +70,18 @@ export const writeJSON = async (
   const string = JSON.stringify(content, null, space);
   await writeFile(dest, string);
 };
+
+export const copyFile = async (src: string, dest: string) => {
+  await mkDirIfMissing(dest);
+  await fs.copyFile(src, dest);
+};
+
+export const measureTime = async (
+  promise: Promise<void> | Promise<[void, void]> | Promise<void[]>,
+  message: string
+) => {
+  const start = Date.now();
+  await promise;
+  const end = Date.now();
+  colorLog(`${message} (${(end - start).toFixed(0)}ms)`, 'info', true);
+};

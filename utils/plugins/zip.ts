@@ -2,8 +2,8 @@ import JSZip from 'jszip';
 import type { PluginOption } from 'vite';
 
 import colorLog from '../log';
-import { PLATFORM, getBuildDir, rootPath } from '../paths';
-import { getPaths, readFile, writeFile } from '../utils';
+import { PLATFORM, getDestDir, rootPath } from '../paths';
+import { getPaths, measureTime, readFile, writeFile } from '../utils';
 
 const zipInstance = new JSZip();
 
@@ -60,19 +60,13 @@ const zip = async ({
       return;
     }
 
-    const promises: Promise<void>[] = [];
-    for (const platform of platforms) {
-      const buildDir = getBuildDir({ debug, platform });
+    const promises = platforms.map(async (platform) => {
+      const buildDir = getDestDir({ debug, platform });
       const format = getExtensionFormat(platform);
       const dest = rootPath('build/release', `sync-tab-scroll-${platform}-v${version}.${format}`);
-      promises.push(archiveDirectory({ dir: buildDir, dest }));
-    }
+      return archiveDirectory({ dir: buildDir, dest });
+    });
     await Promise.all(promises);
-    colorLog(
-      `🎁 Zipped build files for ${platforms.map((p) => p.toLowerCase()).join(', ')}`,
-      'success',
-      true
-    );
   };
 
   return {
@@ -84,7 +78,10 @@ const zip = async ({
        * Unfortunately there's no hook to make it run after the `closeBundle` cycle, so wait one second before running it.
        */
       await Bun.sleep(delay);
-      await zip({ platforms, version });
+      await measureTime(
+        zip({ platforms, version }),
+        `🎁 Zipped build files for ${platforms.map((p) => p.toLowerCase()).join(', ')}`
+      );
     }
   };
 };

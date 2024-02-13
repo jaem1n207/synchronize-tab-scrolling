@@ -15,5 +15,5 @@ export const PLATFORM = {
   FIREFOX_MV2: 'firefox'
 } as const;
 export type PLATFORM = (typeof PLATFORM)[keyof typeof PLATFORM];
-export const getBuildDir = ({ debug, platform }: { debug: boolean; platform: PLATFORM }) =>
+export const getDestDir = ({ debug, platform }: { debug: boolean; platform: PLATFORM }) =>
   join(rootPath('build'), debug ? 'debug' : 'release', platform);

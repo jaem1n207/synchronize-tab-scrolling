@@ -6,7 +6,7 @@ import packageJson from './package.json';
 import { PLATFORM } from './utils/paths';
 import bundleExtensionScript from './utils/plugins/bundle-extension-script';
 import cleanOutDir from './utils/plugins/clean-out-dir';
-import copyToPlatformDirsPlugin from './utils/plugins/copy-to-platform-dirs';
+import copyToPlatformDirs from './utils/plugins/copy-to-platform-dirs';
 import createManifests from './utils/plugins/create-manifests';
 import ensureOutDir from './utils/plugins/ensure-out-dir';
 import extractInlineScript from './utils/plugins/extract-inline-script';
@@ -29,18 +29,10 @@ export default defineConfig(async () => {
       // ---- generateBundle ---
       await bundleExtensionScript(),
       // ---- closeBundle ---
-      await createManifests({
-        debug,
-        platforms
-      }),
+      await createManifests({ debug, platforms }),
       await extractInlineScript(),
-      await copyToPlatformDirsPlugin({ debug, platforms, delay: 500 }),
-      await zip({
-        debug,
-        platforms,
-        version: packageJson.version,
-        delay: 1000
-      })
+      await copyToPlatformDirs({ debug, platforms, delay: 500 }),
+      await zip({ debug, platforms, version: packageJson.version, delay: 1000 })
     ],
     test: {
       include: ['src/**/*.{test,spec}.{js,ts}']

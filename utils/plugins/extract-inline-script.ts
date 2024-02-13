@@ -1,8 +1,7 @@
 import type { PluginOption } from 'vite';
 
-import colorLog from '../log';
 import { rootPath } from '../paths';
-import { getPaths, readFile, writeFile } from '../utils';
+import { getPaths, measureTime, readFile, writeFile } from '../utils';
 
 //
 const buildDir = rootPath('build');
@@ -60,19 +59,23 @@ const extractInlineScript = async (): Promise<PluginOption> => {
   return {
     name: 'extract-inline-script',
     async closeBundle() {
-      await extractInlineScript(
-        buildDir,
-        /<script nonce="%sveltekit.nonce%">([\s\S]*?)<\/script>/,
-        (hash) => `/color-scheme-script.${hash}.js`,
-        (filename) => `<script nonce="%sveltekit.nonce%" src='${filename}'></script>`
+      await measureTime(
+        (async () => {
+          await extractInlineScript(
+            buildDir,
+            /<script nonce="%sveltekit.nonce%">([\s\S]*?)<\/script>/,
+            (hash) => `/color-scheme-script.${hash}.js`,
+            (filename) => `<script nonce="%sveltekit.nonce%" src='${filename}'></script>`
+          );
+          await extractInlineScript(
+            buildDir,
+            /<script>([\s\S]+)<\/script>/,
+            (hash) => `/script-${hash}.js`,
+            (filename) => `<script type="module" src="${filename}"></script>`
+          );
+        })(),
+        '📦 Inline scripts extracted and saved'
       );
-      await extractInlineScript(
-        buildDir,
-        /<script>([\s\S]+)<\/script>/,
-        (hash) => `/script-${hash}.js`,
-        (filename) => `<script type="module" src="${filename}"></script>`
-      );
-      colorLog('📦 Inline scripts extracted and saved', 'success', true);
     }
   };
 };
