@@ -1,9 +1,8 @@
 import { resolve } from 'node:path';
 import type { PluginOption } from 'vite';
 
-import colorLog from '../log';
-import { PLATFORM, getBuildDir } from '../paths';
-import { writeJSON } from '../utils';
+import { PLATFORM, getDestDir } from '../paths';
+import { measureTime, writeJSON } from '../utils';
 
 /**
  * Chrome or Mozilla manifest file
@@ -74,14 +73,12 @@ const createManifests = async ({
   return {
     name: 'create-manifests',
     async closeBundle() {
-      const promises: Promise<void>[] = [];
-      for (const platform of platforms) {
+      const promises = platforms.map(async (platform) => {
         const manifest = await patchManifest({ debug, platform });
-        const buildDir = getBuildDir({ debug, platform });
-        promises.push(writeJSON(resolve(buildDir, 'manifest.json'), manifest));
-      }
-      await Promise.all(promises);
-      colorLog(`📦 Created manifests for ${platforms.join(', ')}`, 'success', true);
+        const buildDir = getDestDir({ debug, platform });
+        return writeJSON(resolve(buildDir, 'manifest.json'), manifest);
+      });
+      await measureTime(Promise.all(promises), `📦 Created manifests for ${platforms.join(', ')}`);
     }
   };
 };
