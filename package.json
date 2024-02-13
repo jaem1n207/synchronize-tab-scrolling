@@ -89,7 +89,7 @@
   },
   "dependencies": {
     "@tanstack/svelte-query": "^5.17.19",
-    "bits-ui": "^0.15.1",
+    "bits-ui": "^0.18.1",
     "clsx": "^2.1.0",
     "cmdk-sv": "^0.0.13",
     "escape-string-regexp": "^5.0.0",
