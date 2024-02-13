@@ -8,7 +8,7 @@
 
   export let data: LayoutData;
 
-  const isDev = import.meta.env.DEV;
+  const isDev = import.meta.env.MODE === 'development';
 </script>
 
 <ModeWatcher />
