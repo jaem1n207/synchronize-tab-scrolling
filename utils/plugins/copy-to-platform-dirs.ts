@@ -41,7 +41,7 @@ const copyEntry = async (
 const copyToPlatformDirsPlugin = async ({
   debug,
   platforms,
-  delay = 500
+  delay = 1000
 }: {
   debug: boolean;
   platforms: PLATFORM[];

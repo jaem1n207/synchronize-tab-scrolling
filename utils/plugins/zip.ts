@@ -14,7 +14,7 @@ const zip = async ({
   debug,
   platforms,
   version,
-  delay = 1000
+  delay = 1500
 }: {
   debug: boolean;
   platforms: PLATFORM[];

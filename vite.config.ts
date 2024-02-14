@@ -31,8 +31,8 @@ export default defineConfig(async () => {
       // ---- closeBundle ---
       await createManifests({ debug, platforms }),
       await extractInlineScript(),
-      await copyToPlatformDirs({ debug, platforms, delay: 500 }),
-      await zip({ debug, platforms, version: packageJson.version, delay: 1000 })
+      await copyToPlatformDirs({ debug, platforms, delay: 1000 }),
+      await zip({ debug, platforms, version: packageJson.version, delay: 1500 })
     ],
     test: {
       include: ['src/**/*.{test,spec}.{js,ts}']
