@@ -79,7 +79,7 @@
   onKeydown={handleKeydown}
   tabindex={-1}
   class={cn(
-    'relative p-0.5 outline-none',
+    'relative w-96 p-0.5 outline-none',
     isSyncing &&
       'border-2 border-solid border-transparent before:absolute before:inset-0 before:animate-clippath before:content-normal before:rounded-md before:border-2 before:border-solid before:border-neutral-700 dark:before:border-[#a8efff99]'
   )}
