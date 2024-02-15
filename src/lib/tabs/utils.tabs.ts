@@ -11,7 +11,7 @@ export const chromeApi = {
     const browser = createWebExtensionPolyfillObj();
     return browser.tabs.get(tabId);
   },
-  getSyncTabIds: async (): Promise<number> => {
+  getSyncTabIds: async (): Promise<number[]> => {
     const browser = createWebExtensionPolyfillObj();
     return await browser.runtime.sendMessage({ command: 'getSyncTabIds' });
   }
