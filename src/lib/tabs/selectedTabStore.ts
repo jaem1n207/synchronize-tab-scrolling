@@ -3,7 +3,7 @@ import { writable } from 'svelte/store';
 import { getTabIdentifier } from './utils.tabs';
 
 interface TabState {
-  selectedTabs: Map<number, chrome.tabs.Tab>;
+  selectedTabs: Map<number, webExtension.tabs.Tab>;
 }
 
 const createSelectedTabStore = () => {
@@ -13,7 +13,7 @@ const createSelectedTabStore = () => {
 
   return {
     subscribe,
-    toggle: (tab: chrome.tabs.Tab) =>
+    toggle: (tab: webExtension.tabs.Tab) =>
       update((state) => {
         const identifier = getTabIdentifier(tab.id);
 
@@ -29,7 +29,7 @@ const createSelectedTabStore = () => {
 
         return { selectedTabs: newSelectedTabs };
       }),
-    add: (tab: chrome.tabs.Tab) =>
+    add: (tab: webExtension.tabs.Tab) =>
       update((state) => {
         const identifier = getTabIdentifier(tab.id);
 
@@ -44,7 +44,7 @@ const createSelectedTabStore = () => {
 
         return { selectedTabs: newSelectedTabs };
       }),
-    remove: (tabId: chrome.tabs.Tab['id']) =>
+    remove: (tabId: webExtension.tabs.Tab['id']) =>
       update((state) => {
         const identifier = getTabIdentifier(tabId);
 
