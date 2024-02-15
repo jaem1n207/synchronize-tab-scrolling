@@ -27,6 +27,7 @@ module.exports = {
   },
   globals: {
     globalThis: true,
+    chrome: true,
     webExtension: true
   },
   overrides: [
