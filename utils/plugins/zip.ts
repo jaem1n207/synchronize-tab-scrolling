@@ -55,11 +55,6 @@ const zip = async ({
   };
 
   const zip = async ({ platforms, version }: { platforms: PLATFORM[]; version: string }) => {
-    if (debug) {
-      colorLog('🛑 Skipping zip archive creation in debug mode', 'info', true);
-      return;
-    }
-
     const promises = platforms.map(async (platform) => {
       const buildDir = getDestDir({ debug, platform });
       const format = getExtensionFormat(platform);
@@ -78,6 +73,10 @@ const zip = async ({
        * Unfortunately there's no hook to make it run after the `closeBundle` cycle, so wait one second before running it.
        */
       await Bun.sleep(delay);
+      if (debug) {
+        colorLog('🛑 Skipping zip archive creation in debug mode', 'info', true);
+        return;
+      }
       await measureTime(
         zip({ platforms, version }),
         `🎁 Zipped build files for ${platforms.map((p) => p.toLowerCase()).join(', ')}`
