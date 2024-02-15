@@ -10,7 +10,7 @@
   import { getTabIdentifier } from './utils.tabs';
 
   export let inputValue: string;
-  export let tab: chrome.tabs.Tab;
+  export let tab: webExtension.tabs.Tab;
   export let isDisabled: boolean;
 
   const escapeCSSSelector = (selector: string) => {
