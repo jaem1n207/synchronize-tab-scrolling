@@ -1,30 +1,24 @@
 <script lang="ts">
   import { resetMode, setMode } from 'mode-watcher';
-  import { onMount } from 'svelte';
 
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { kbd } from '../kbd';
-  import { Shortcut } from './ui/command';
   import { getLocalMessage } from '../locales';
+  import { isMacOS } from '../platform';
+  import { Shortcut } from './ui/command';
 
   let open = false;
 
-  onMount(() => {
-    function handleKeydown(e: KeyboardEvent) {
-      if (e.key === kbd.K && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        open = true;
-      }
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === kbd.K && (e.metaKey || e.altKey)) {
+      e.preventDefault();
+      open = true;
     }
-
-    document.addEventListener('keydown', handleKeydown);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeydown);
-    };
-  });
+  }
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <DropdownMenu.Root bind:open preventScroll={true}>
   <DropdownMenu.Trigger asChild let:builder>
@@ -35,7 +29,7 @@
       class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
     >
       <span class="text-xs">{getLocalMessage('changeTheme')}</span>
-      <Shortcut class="ml-1 size-5">⌘</Shortcut>
+      <Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Ctrl'}</Shortcut>
       <Shortcut class="size-5">K</Shortcut>
     </Button>
   </DropdownMenu.Trigger>

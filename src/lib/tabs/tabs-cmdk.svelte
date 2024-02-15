@@ -8,6 +8,7 @@
   import { getLocalMessage } from '$lib/locales';
   import { cn } from '$lib/utils';
 
+  import { isMacOS } from '../platform';
   import SelectedTabs from './selected-tabs.svelte';
   import { selectedTabStore } from './selectedTabStore';
   import SubCommand from './sub-command.svelte';
@@ -54,7 +55,7 @@
 
   let cmdkInputEl: HTMLInputElement | null = null;
   const handleKeydown = (e: KeyboardEvent) => {
-    if (e.key === kbd.SLASH && (e.metaKey || e.ctrlKey)) {
+    if (e.key === kbd.SLASH && (e.metaKey || e.altKey)) {
       cmdkInputEl?.focus();
     }
     const currentTarget = e.currentTarget;
@@ -93,7 +94,7 @@
     bind:value={inputValue}
   >
     <div slot="suffix" class="ml-2 flex cursor-default items-center gap-1">
-      <Command.Shortcut class="size-5">⌘</Command.Shortcut>
+      <Command.Shortcut class="size-5">{isMacOS ? '⌘' : 'Ctrl'}</Command.Shortcut>
       <Command.Shortcut class="size-5">/</Command.Shortcut>
     </div>
   </Command.Input>
