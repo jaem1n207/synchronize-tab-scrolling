@@ -1,8 +1,6 @@
-<!-- 동기화 시작 및 중지와 같은 액션을 실행합니다. -->
 <script lang="ts">
   import { createMutation, useQueryClient } from '@tanstack/svelte-query';
   import { RefreshCwOff, Wand2 } from 'lucide-svelte';
-  import { onMount } from 'svelte';
 
   import ThemeSwitcher from '$lib/components/theme-switcher.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -10,6 +8,7 @@
   import { kbd } from '$lib/kbd';
   import { getLocalMessage } from '$lib/locales';
 
+  import { isMacOS } from '../platform';
   import SyncIcon from './icons/sync-icon.svelte';
   import { selectedTabStore } from './selectedTabStore';
   import { tabKeys } from './utils.tabs';
@@ -66,27 +65,21 @@
     selectedTabStore.reset();
   };
 
-  onMount(() => {
-    const handleKeydown = (e: KeyboardEvent) => {
-      if (isSyncing) {
-        if (e.key === kbd.E && (e.metaKey || e.ctrlKey)) {
-          handleStopSync();
-        }
-      } else {
-        if (e.key === kbd.S && (e.metaKey || e.ctrlKey)) {
-          resetInputValue();
-          handleStartSync();
-        }
+  const handleKeydown = (e: KeyboardEvent) => {
+    if (isSyncing) {
+      if (e.key === kbd.E && (e.altKey || e.metaKey)) {
+        handleStopSync();
       }
-    };
-
-    document.addEventListener('keydown', handleKeydown);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeydown);
-    };
-  });
+    } else {
+      if (e.key === kbd.S && (e.altKey || e.metaKey)) {
+        resetInputValue();
+        handleStartSync();
+      }
+    }
+  };
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <div
   class="absolute bottom-0.5 left-0.5 flex h-10 w-[calc(100%-0.25rem)] items-center rounded-b-xl border-t border-border bg-background px-2 py-1"
@@ -103,7 +96,7 @@
     >
       <RefreshCwOff class="mr-0.5 size-3 stroke-black dark:stroke-white" />
       {getLocalMessage('stopSync')}
-      <Command.Shortcut class="ml-1 size-5">⌘</Command.Shortcut>
+      <Command.Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Ctrl'}</Command.Shortcut>
       <Command.Shortcut class="size-5">E</Command.Shortcut>
     </Button>
   {:else}
@@ -115,7 +108,7 @@
     >
       <SyncIcon class="mr-0.5 size-3 stroke-black dark:stroke-white" />
       {getLocalMessage('startSync')}
-      <Command.Shortcut class="ml-1 size-5">⌘</Command.Shortcut>
+      <Command.Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Ctrl'}</Command.Shortcut>
       <Command.Shortcut class="size-5">S</Command.Shortcut>
     </Button>
   {/if}
