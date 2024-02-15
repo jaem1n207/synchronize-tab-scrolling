@@ -52,7 +52,7 @@ const wrapObject = (target: typeof chrome | typeof browser) => {
   };
 
   const proxyTarget = Object.create(target);
-  return new Proxy(proxyTarget, handlers) as typeof chrome;
+  return new Proxy(proxyTarget, handlers);
 };
 
 export const createWebExtensionPolyfillObj = (): typeof webExtension => {
