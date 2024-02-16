@@ -1,5 +1,3 @@
-Reflect, proxy, symbol, 가비지 컬렉션, globalThis polyfill, bundler, node
-
 # 1번째 이슈: WebExtension API의 크로스 브라우저 호환성 문제 해결하기
 
 ## 배경
@@ -171,7 +169,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector#paramete
 
 > Note: Characters that are not part of standard CSS syntax must be escaped using a backslash character. Since JavaScript also uses backslash escaping, be especially careful when writing string literals using these characters. See Escaping special characters for more information.
 
-# 5번째 이슈: 브라우저마다 다른 Manifest 설정
+# 3번째 이슈: 브라우저마다 다른 Manifest 설정
 
 ## 배경
 
