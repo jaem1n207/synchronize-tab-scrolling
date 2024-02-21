@@ -21,17 +21,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v1
         with:
-          node-version: 'lts/*'
+          bun-version: latest
 
-      - run: npm ci
+      - run: bun install
 
-      - name: Verify the integrity of provenance attestations and registry signatures for installed dependencies
-        run: npm audit signatures
+      - name: Build package on Bun@1.0.28
+        run: bun run build
 
-      - name: Build package on node
-        run: npm run build
+      - name: Setup Node 21 for semantic-release
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21
 
       - name: Release
         env:
