@@ -12,7 +12,10 @@ export const PLATFORM = {
    */
   CHROMIUM_MV2: 'chrome',
   CHROMIUM_MV3: 'chrome-mv3',
-  FIREFOX_MV2: 'firefox'
+  FIREFOX_MV2: 'firefox',
+  EDGE: 'edge',
+  FIREFOX: 'firefox',
+  OPERA: 'opera'
 } as const;
 export type PLATFORM = (typeof PLATFORM)[keyof typeof PLATFORM];
 export const getDestDir = ({ debug, platform }: { debug: boolean; platform: PLATFORM }) =>
