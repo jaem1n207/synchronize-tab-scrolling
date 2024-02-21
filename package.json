@@ -53,6 +53,7 @@
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^11.1.0",
     "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^9.2.6",
     "@sveltejs/adapter-static": "^3.0.1",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
