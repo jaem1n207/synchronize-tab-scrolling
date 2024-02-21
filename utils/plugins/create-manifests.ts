@@ -22,7 +22,7 @@ const patchManifest = async ({ debug, platform }: { debug: boolean; platform: PL
   const manifest = await import('../../manifest').then((m) => m.default);
   const patched: Manifest = { ...manifest };
 
-  if (platform === 'chrome-mv3') {
+  if (platform === 'chrome-mv3' || platform === 'edge' || platform === 'opera') {
     patched.manifest_version = 3;
     patched.minimum_chrome_version = '88';
     patched.permissions = ['scripting', 'storage', 'tabs'];

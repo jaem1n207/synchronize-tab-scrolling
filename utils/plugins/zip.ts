@@ -25,8 +25,7 @@ const zip = async ({
     switch (platform) {
       case PLATFORM.FIREFOX_MV2:
         return 'xpi';
-      case PLATFORM.CHROMIUM_MV2:
-      case PLATFORM.CHROMIUM_MV3:
+      default:
         return 'zip';
     }
   };
