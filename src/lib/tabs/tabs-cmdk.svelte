@@ -94,7 +94,7 @@
     bind:value={inputValue}
   >
     <div slot="suffix" class="ml-2 flex cursor-default items-center gap-1">
-      <Command.Shortcut class="size-5">{isMacOS ? '⌘' : 'Ctrl'}</Command.Shortcut>
+      <Command.Shortcut class="size-5">{isMacOS ? '⌘' : 'Alt'}</Command.Shortcut>
       <Command.Shortcut class="size-5">/</Command.Shortcut>
     </div>
   </Command.Input>

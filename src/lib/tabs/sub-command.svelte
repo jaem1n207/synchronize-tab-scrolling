@@ -96,7 +96,7 @@
     >
       <RefreshCwOff class="mr-0.5 size-3 stroke-black dark:stroke-white" />
       {getLocalMessage('stopSync')}
-      <Command.Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Ctrl'}</Command.Shortcut>
+      <Command.Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Alt'}</Command.Shortcut>
       <Command.Shortcut class="size-5">E</Command.Shortcut>
     </Button>
   {:else}
@@ -108,7 +108,7 @@
     >
       <SyncIcon class="mr-0.5 size-3 stroke-black dark:stroke-white" />
       {getLocalMessage('startSync')}
-      <Command.Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Ctrl'}</Command.Shortcut>
+      <Command.Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Alt'}</Command.Shortcut>
       <Command.Shortcut class="size-5">S</Command.Shortcut>
     </Button>
   {/if}

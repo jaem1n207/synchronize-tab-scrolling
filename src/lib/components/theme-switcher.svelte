@@ -29,7 +29,7 @@
       class="h-full gap-1 rounded-md pl-2 pr-1 text-xs"
     >
       <span class="text-xs">{getLocalMessage('changeTheme')}</span>
-      <Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Ctrl'}</Shortcut>
+      <Shortcut class="ml-1 size-5">{isMacOS ? '⌘' : 'Alt'}</Shortcut>
       <Shortcut class="size-5">K</Shortcut>
     </Button>
   </DropdownMenu.Trigger>
