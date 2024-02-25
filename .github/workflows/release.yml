@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   release:
+    if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write # to be able to publish a GitHub release
