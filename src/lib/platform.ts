@@ -49,7 +49,7 @@ export const isMobile =
 
 export const firefoxVersion = (() => {
   const m = userAgent.match(/(?:firefox|librewolf)(?:\/| )([^ ]+)/);
-  if (m && m[1]) {
+  if (m?.[1]) {
     return m[1];
   }
   return '';
