@@ -27,7 +27,7 @@
 </script>
 
 <Command.Item
-  value={escapeCSSSelector(`${tab.title}${tab.index}`)}
+  value={escapeCSSSelector(`${tab.title}${tab.url}`)}
   title={tab.title}
   disabled={isDisabled}
   aria-disabled={isDisabled}
