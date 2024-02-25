@@ -71,10 +71,28 @@
     }
   };
 
+  const isFocusable = (element: HTMLElement): boolean => {
+    const tabIndex = element.getAttribute('tabIndex');
+    const isTabIndexFocusable = tabIndex !== null && parseInt(tabIndex, 10) >= 0;
+
+    return isTabIndexFocusable || element.isContentEditable;
+  };
+
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+
+    if (!isFocusable(target)) {
+      cmdkInputEl?.focus();
+      event.preventDefault();
+    }
+  };
+
   onMount(() => {
     cmdkInputEl = document.querySelector('[data-cmdk-input]') as HTMLInputElement;
   });
 </script>
+
+<svelte:window on:click={handleClickOutside} />
 
 <Command.Root
   onKeydown={handleKeydown}
