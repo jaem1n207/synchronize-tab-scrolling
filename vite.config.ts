@@ -16,7 +16,7 @@ import zip from './utils/plugins/zip';
 const OUT_DIR = 'build';
 
 export default defineConfig(async () => {
-  const debug = import.meta.env.__WATCH__ === 'true';
+  const debug = import.meta.env?.__WATCH__ === 'true';
   const platforms = Object.values(PLATFORM);
 
   return {

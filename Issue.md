@@ -18,6 +18,9 @@ Firefox에서 `chrome.tabs.query` 함수를 호출하면 콜백을 통해 결과
 
 개인적으로 `Promise`를 사용하면 코드를 더 선언적으로 작성할 수 있으며, 코드의 가독성과 유지보수성이 높아지는 경험을 했기에 콜백보다 Promise를 더 선호합니다. 하지만 무작정 `Promise`를 반환하는 API를 사용한다면 구형 브라우저나 Manifest V3를 지원하지 않는 브라우저에서는 해당 기능을 사용할 수 없을 것입니다. 다양한 브라우저를 지원하는 목적이 더 많은 사용자가 이용하길 바래서인데 이 작업을 위해 구형 브라우저 사용자가 사용하지 못하게 되는 것은 제 목적과 맞지 않습니다. 그래서 다양한 브라우저에서 사용 가능하고 구형 브라우저 사용자도 챙기면서 코드의 가독성도 모두 챙기기 위한 작업을 진행했습니다.
 
+> `async & await` 구문을 사용하면 개발자가 코드를 더 읽기 쉽게 만들 수 있을 뿐만 아니라 JS 엔진에서 비동기 코드에 대한 스택 추적과 관련된 최적화를 수행할 수 있습니다.
+> [why await beats Promise#then()](https://mathiasbynens.be/notes/async-stack-traces)
+
 브라우저 API 호출을 추상화하는 래퍼 함수를 만들어 해결할 수 있었습니다.
 
 ```typescript
@@ -58,7 +61,7 @@ const wrapAsyncFunction = (method: FunctionShape) => {
 
 // 대상 객체의 기존 함수를 래핑하여 지정된 래퍼 함수에 의해 호출을 가로채도록 합니다. 래퍼 함수는 첫 번째 인자로 원래의 `target` 객체를 받은 다음, 원래 메서드에 전달된 각 인자를 받습니다.
 const wrapMethod = (
-  target: typeof chrome | typeof browser,
+  target: typeof chrome,
   method: any,
   wrapper: FunctionShape
 ) => {
@@ -70,9 +73,9 @@ const wrapMethod = (
 };
 
 // 함수를 가로채서 Proxy로 객체를 래핑합니다.
-const wrapObject = (target: typeof chrome | typeof browser) => {
+const wrapObject = (target: typeof chrome) => {
   ...
-  return new Proxy(proxyTarget, handlers) as typeof chrome;
+  return new Proxy(proxyTarget, handlers)
 };
 
 const createWebExtensionPolyfillObj = (): typeof webExtension => {
