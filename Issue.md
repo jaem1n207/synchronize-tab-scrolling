@@ -239,3 +239,225 @@ Chrome, Edge, Firefox 를 지원한다면 아래와 같은 폴더 구조를 가�
  ┃ ┣ 📜sync-tab-scroll-edge-v2.1.0.zip
  ┃ ┗ 📜sync-tab-scroll-firefox-v2.1.0.xpi
 ```
+
+# 4번째 이슈: 복잡하고 "똑똑한" 코드보다는 단순하고 이해하기 쉬운 코드 작성
+
+공유 코드베이스의 맥락에서 좋은 코드는 단순한 코드입니다. 마치 초보 개발자에게 기본 개념을 설명할 때처럼 추상화를 최소한으로 사용하는 코드처럼요.
+
+개발 과정에서 코드의 추상화 수준을 결정하는 것은 중요합니다. 추상화는 코드를 더 유연하고 재사용 가능하게 만들 수 있지만, 과도한 추상화는 오히려 코드의 가독성과 유지보수성을 저하시킬 수 있기 때문입니다.
+
+이를 잘 보여주는 예시로 `canInjectScript` 함수를 살펴보겠습니다:
+
+```typescript
+type BrowserType = 'firefox' | 'edge' | 'chrome';
+
+const browserRules = {
+  firefox: [
+    'about:',
+    'moz',
+    'view-source:',
+    'resource:',
+    'chrome:',
+    'jar:',
+    'https://addons.mozilla.org/'
+  ],
+  edge: [
+    'chrome',
+    'data',
+    'devtools',
+    'edge',
+    'https://chrome.google.com/webstore',
+    'https://microsoftedge.microsoft.com/addons',
+    'view-source'
+  ],
+  chrome: ['chrome', 'https://chrome.google.com/webstore', 'data', 'devtools', 'view-source']
+};
+
+const googleServices = [
+  'https://accounts.google.com',
+  'https://analytics.google.com/analytics',
+  'https://search.google.com/search-console',
+  'https://chromewebstore.google.com'
+];
+
+const canInjectScript = (url: string | null | undefined, browserType: BrowserType): boolean => {
+  if (!url) return false;
+
+  const isRestricted = (rule: string) =>
+    url.startsWith(rule) || googleServices.some((serviceUrl) => url.startsWith(serviceUrl));
+  return !browserRules[browserType].some(isRestricted);
+};
+```
+
+이 코드를 단순하게 변경해보겠습니다:
+
+```typescript
+const googleServices = [
+  'https://accounts.google.com',
+  'https://analytics.google.com/analytics',
+  'https://search.google.com/search-console',
+  'https://chromewebstore.google.com'
+];
+
+const canInjectScript = (url: string | null | undefined): boolean => {
+  if (!url) return false;
+
+  const isGoogleService = googleServices.some((serviceUrl) => url.startsWith(serviceUrl));
+
+  if (isFirefox) {
+    return !(
+      url.startsWith('about:') ||
+      url.startsWith('moz') ||
+      url.startsWith('view-source:') ||
+      url.startsWith('resource:') ||
+      url.startsWith('chrome:') ||
+      url.startsWith('jar:') ||
+      url.startsWith('https://addons.mozilla.org/') ||
+      isGoogleService
+    );
+  }
+  if (isEdge) {
+    return !(
+      url.startsWith('chrome') ||
+      url.startsWith('data') ||
+      url.startsWith('devtools') ||
+      url.startsWith('edge') ||
+      url.startsWith('https://chrome.google.com/webstore') ||
+      url.startsWith('https://microsoftedge.microsoft.com/addons') ||
+      url.startsWith('view-source') ||
+      isGoogleService
+    );
+  }
+  return !(
+    url.startsWith('chrome') ||
+    url.startsWith('https://chrome.google.com/webstore') ||
+    url.startsWith('data') ||
+    url.startsWith('devtools') ||
+    url.startsWith('view-source') ||
+    isGoogleService
+  );
+};
+```
+
+변경하기 전 코드는 많은 장점이 있습니다:
+
+1. 코드 중복 없음(수정된 코드는 본질적으로 동일한 작업을 수행하는 if문을 여러 개 사용)
+2. 재사용성 및 유연성 향상: 브라우저 타입에 따라 URL을 검사하는 규칙을 `browserRules` 객체에 매핑하고, `isRestricted` 함수를 통해 URL이 주어진 규칙에 부합하는지 검사합니다.
+
+하지만 대충 봐도 이해하는 데 걸리는 시간이 짧은 건 수정 후 if문이 중첩된 코드입니다.
+
+## 가독성은 왜 중요한가
+
+팀 작업과 오픈소스 프로젝트의 핵심은 많은 사람이 프로젝트에 기여하도록 장려하는 것입니다. 그 방법 중 하나가 코드를 매우 기본적인 수준으로 유지하는 것인데, 간단하고 기본적인 구문을 사용하면 주니어, 시니어 상관없이 **누구나** 코드를 쉽게 이해하고 기여할 수 있기 때문입니다.
+
+## 코드 길이가 짧다고 버그를 발견하기 쉬운가?
+
+보통 코드가 짧을수록 버그를 발견하기 쉽다고 합니다.
+
+이는 **오타**에 관해서는 사실입니다. 하지만 오타는 쉽게 발견할 수 있습니다. 정말 퇴근을 늦추는 버그는 코드가 길어서가 아니라 너무 복잡해서 발생하는 경우가 많습니다.
+
+문제를 디버깅하려면 코드가 무엇을 하고 있는지 머릿속으로 파악할 수 있어야 합니다. 복잡한 추상화를 만들면 디버깅하는 데 어려움을 겪을 가능성이 높아집니다.
+
+## 추상화에서의 비용
+
+그렇다면 아예 추상화를 하면 안 되나요?
+
+추상화는 어디에나 있습니다. 루프, 함수는 추상화이며 심지어 프로그래밍 언어 자체도 기계 코드에 대한 추상화입니다. 모든 것이 추상화입니다.
+
+핵심은 추상화의 비용과 이점을 비교하는 것입니다. 개발 환경에서 Vite와 Webpack의 성능을 비교하기 위해 5000개의 JSX를 렌더링해야 한다고 가정해 보겠습니다. 동일한 JSX를 5000번 복사/붙여넣을 수도 있고, 배열 위에 매핑하고 JSX를 한 번만 작성할 수도 있습니다. 이 경우 복붙하는 건 유지 관리가 매우 부담스럽기 때문에 그만한 가치가 있습니다.
+
+## 피할 수 없는 복잡성이 쉬운 곳을 오염시키지 않도록 관리
+
+때로 코드는 복잡해야 하는 경우가 있습니다. 비즈니스 로직이 정말 까다롭거나, 이해할 수 없는 인터페이스의 API를 사용해야 할 때도 있습니다.
+
+이를 해결하는 가장 좋은 방법은 복잡성을 차단하는 것입니다. 복잡성이 주변 영역으로 스며들지 않도록 간단한 일과 복잡성 사이에 명확한 경계를 만들어야 합니다.
+
+간단하고 이해하기 쉬운 코드는 밖으로, 복잡한 부분은 어려운 문제를 처리하는 코어로 밀어 넣는 것이죠. 이렇게 하면 앱 전체에 흩어져 있지 않게 되므로 대부분의 기여자는 이러한 복잡성을 처리할 필요가 없습니다.
+
+예로 이 프로젝트에선 노드 모듈을 적절히 추상화해두었습니다:
+
+```typescript
+// utils/utils.ts
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+import colorLog from './log';
+
+export const getPaths = async (patterns: string | string[]) => {
+  const { globby } = await import('globby');
+  return await globby(patterns);
+};
+
+export const fileExists = async (src: string) => {
+  try {
+    await fs.access(src, fs.constants.R_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const pathExists = async (dest: string) => {
+  try {
+    await fs.access(dest);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const mkDirIfMissing = async (dest: string) => {
+  const dirName = path.dirname(dest);
+  if (await pathExists(dirName)) {
+    return;
+  }
+
+  try {
+    await fs.mkdir(dirName, { recursive: true });
+  } catch (error) {
+    colorLog(`Failed to create directory ${dirName}`, 'error');
+  }
+};
+
+export const removeFolder = async (dir: string) => {
+  try {
+    if (await pathExists(dir)) {
+      await fs.rm(dir, { recursive: true });
+    }
+  } catch (error) {
+    colorLog(`Failed to remove directory ${dir}`, 'error');
+  }
+};
+
+export const writeFile = async (
+  dest: string,
+  data: Parameters<typeof fs.writeFile>[1],
+  encoding: BufferEncoding = 'utf8'
+) => {
+  await mkDirIfMissing(dest);
+  await fs.writeFile(dest, data, encoding);
+};
+
+export const copyFile = async (src: string, dest: string) => {
+  await mkDirIfMissing(dest);
+  await fs.copyFile(src, dest);
+};
+
+...
+```
+
+파일을 읽거나 쓰고, 폴더를 생성/삭제하는 등의 작업은 개발 과정에서 자주 발생합니다.이러한 작업을 할 때 노드 모듈을 다루게 됩니다. `utils.ts` 파일에 정의된 함수들은 파일 시스템 작업을 수행하는 공통적인 작업들을 추상화합니다. 이러한 추상화는 많은 이점을 제공합니다:
+
+1. 유지보수 향상: 코드의 중복을 줄이고 재사용 가능한 함수로 적절히 추상화했습니다.
+2. 가독성: 각 함수는 명확한 이름과 목적을 가지고 있어, 코드를 읽는 사람이 해당 함수가 무엇을 하는지 쉽게 이해할 수 있습니다. 예를 들어, `writeFile` 함수는 여러 단계를 추상화하여, 파일을 쓰는 작업을 간단하게 만듭니다. 폴더 존재 여부를 직접 확인하고 생성하는 복잡한 로직을 구현할 필요 없이, `writeFile` 함수를 호출하기만 하면 됩니다. **노드 모듈을 잘 모르는 개발자도 쉽게 작업을 할 수 있도록** 도와줍니다!
+3. 오류 처리: 파일 시스템 작업은 실패할 가능성이 있습니다. 각 함수는 오류 처리 로직을 내장하고 있어, 각 작업을 수행할 때마다 오류 처리를 반복적으로 구현할 필요가 없습니다.
+
+이러한 추상화는 코드를 더 단순하고 이해하기 쉽게 만들며, 동시에 코드의 재사용성과 유지보수성을 향상시켜주기에 적절하다고 볼 수 있습니다. 따라서, 추상화 자체가 나쁜 것이 아니라, 어떻게 사용되느냐가 중요합니다.
+
+## 똑똑하다는 것을 복잡한 코드로 티내지 말기
+
+모든 사람들은 자신이 잘 알고 있다는 것을 서로에게 증명하려고 노력합니다. 일부러 해독이 불가능할 만큼 추상화하고 억지로 라인 수를 줄여 예쁘게 함수를 작성하는 것처럼요.
+
+하지만 복잡한 코드는 누구나 작성할 수 있습니다. 진짜 어려운 것은 **복잡한 일을 간단한 코드로 해결**하는 것입니다.
+
+4번째 이슈에 대한 내용은 Joshua Comeau의 [Clever Code Considered Harmful](https://www.joshwcomeau.com/career/clever-code-considered-harmful/) 글에 영감을 받아 작성되었습니다. 이 글에선 모두가 이해하고 사용할 수 있는 간단한 코드를 작성해야 하는 이유에 대해 설명합니다.
