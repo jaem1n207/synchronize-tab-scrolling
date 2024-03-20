@@ -14,9 +14,6 @@
   <a rel="noreferrer noopener" target="_blank" href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling">
     <img alt="Firefox Add-ons" src="https://img.shields.io/badge/Firefox-FF7139?style=for-the-badge&logo=Firefox-Browser&logoColor=white">
   </a>
-  <a rel="noreferrer noopener" target="_blank" href="">
-    <img alt="Opera Add-ons" src="https://img.shields.io/badge/Opera-FF1B2D?style=for-the-badge&logo=Opera&logoColor=white">
-  </a>
   <a rel="noreferrer noopener" target="_blank" href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
     <img alt="Brave Extensions" src="https://img.shields.io/badge/Brave-FB542B?style=for-the-badge&logo=Brave&logoColor=white">
   </a>
