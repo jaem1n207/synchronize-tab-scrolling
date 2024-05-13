@@ -43,8 +43,11 @@ const onScrollHandler = throttle(() => {
 
     const scrollPosition =
       window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const clientHeight = document.documentElement.clientHeight;
 
-    const scrollYPercentage = scrollPosition / document.documentElement.scrollHeight;
+    const scrollYPercentage =
+      scrollHeight === clientHeight ? 0 : scrollPosition / (scrollHeight - clientHeight);
 
     console.debug(
       'Scroll event triggered, sending syncScroll message with percentage:',
@@ -76,7 +79,10 @@ chrome.runtime.onMessage.addListener((request) => {
     console.debug('Received syncScrollForTab message with data', request.data);
 
     const { scrollYPercentage } = request.data;
-    const scrollPosition = scrollYPercentage * document.documentElement.scrollHeight;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const clientHeight = document.documentElement.clientHeight;
+
+    const scrollPosition = scrollYPercentage * (scrollHeight - clientHeight);
 
     window.scrollTo({
       top: scrollPosition,
