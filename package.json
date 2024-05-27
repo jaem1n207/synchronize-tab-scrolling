@@ -68,7 +68,7 @@
     "autoprefixer": "^10.4.17",
     "commitizen": "^4.3.0",
     "cz-git": "^1.8.0",
-    "esbuild": "^0.20.0",
+    "esbuild": "^0.21.4",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-svelte": "^2.35.1",
