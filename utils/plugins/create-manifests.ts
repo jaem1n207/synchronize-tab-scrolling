@@ -49,7 +49,7 @@ const patchManifest = async ({ debug, platform }: { debug: boolean; platform: PL
     patched.browser_specific_settings = {
       gecko: {
         id: 'addon@synchronize-tab-scrolling.org',
-        strict_min_version: '57.0'
+        strict_min_version: '58.0'
       }
     };
   }
