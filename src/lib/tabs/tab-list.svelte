@@ -16,7 +16,15 @@
       'https://accounts.google.com',
       'https://analytics.google.com/analytics',
       'https://search.google.com/search-console',
-      'https://chromewebstore.google.com'
+      'https://chromewebstore.google.com',
+      'https://docs.google.com',
+      'https://drive.google.com',
+      'https://mail.google.com',
+      'https://sheets.google.com',
+      'https://calendar.google.com',
+      'https://slides.google.com',
+      'https://meet.google.com',
+      'https://photos.google.com'
     ];
 
     if (isFirefox) {
