@@ -42,21 +42,22 @@ Synchronize Tab Scrolling is a tool that automatically synchronizes scroll posit
 
 ## Contents
 
+- [Contents](#contents)
 - [Intro](#intro)
 - [Usage](#usage)
-- [Youtube Video Link](#youtubevideolink)
-- [Privacy Policy](#privacypolicy)
-- [Note](#note)
-- [Support](#support)
+- [Youtube Video Link](#youtube-video-link)
+- [Privacy Policy](#privacy-policy)
+- [Unsupported Pages](#unsupported-pages)
+- [SUPPORT](#support)
 - [License](#license)
 
-## Intro <a name="intro"></a>
+## Intro
 
 This extension provides convenience for users reading original and translated documents across multiple tabs.
 When the user scrolls in one tab, the linked tab automatically scrolls to the same position, allowing for easy comparison and reading of the original and translated texts.
 This feature is particularly useful when translating documents or referencing multilingual documents simultaneously.
 
-## Usage <a name="usage"></a>
+## Usage
 
 To get started, simply follow these steps:
 
@@ -66,41 +67,36 @@ To get started, simply follow these steps:
 
 Then, simply click the 'Start sync' button and scroll through the tabs. To stop synchronizing tabs, just click the extension icon once more and select the 'Stop sync' button or close the synchronized tabs.
 
-## Youtube Video Link <a name="youtubevideolink"></a>
+## Youtube Video Link
 
 <a target="_blank" rel="noreferrer noopener" href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC">
  <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Watch the video" width="480" height="360" border="10" title="Synchronize Tab Scrolling Promotion - Click to Watch!" />
 </a>
 
-## Privacy Policy <a name="privacypolicy"></a>
+## Privacy Policy
 
 The Synchronize Tab Scrolling extension has no ads, no analytics, no trackers, and no use of cookies. It is also an open-source project.
 
-## Note <a name="note"></a>
+## Unsupported Pages
 
-Please note that tab scrolling cannot be synchronized for tabs with certain URLs. Tabs starting with the following URLs are excluded:
+Due to security and technical limitations, this extension does not function on the following types of pages:
 
-- about:
-- moz
-- view-source:
-- resource:
-- chrome:
-- jar:
-- https://addons.mozilla.org/
-- https://accounts.google.com
-- https://analytics.google.com/analytics
-- https://search.google.com/search-console
-- https://chromewebstore.google.com
+- Browser internal pages (e.g., chrome://, about:, moz-extension://)
+- Extension store pages
+- Data URLs (data:)
+- Developer tools (devtools:)
+- Source view pages (view-source:)
+- Google services (e.g., Google Accounts, Analytics, Search Console, Docs, Drive, Gmail, Sheets, Calendar, Slides, Meet, Photos)
 
-This is to prevent the extension from interacting with unintended pages, such as certain services.
+On these pages, the corresponding items in the tab list will appear disabled.
 
-## SUPPORT <a name="support"></a>
+## SUPPORT
 
 I use it myself to improve usability and catch bugs, but if you encounter any issues, please report it below:
 
-- Email: roy.jm.lee@gmail.com
+- Email: <a href="mailto:tech.jmtt@gmail.com">tech.jmtt@gmail.com</a>
 - GitHub: <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/issues/new?title=%3CSUMMARIZE%20THE%20PROBLEM%3E&labels=bug&assignees=jaem1n207" title="report bug">Report a bug on github issue</a>
 
-## License <a name="license"></a>
+## License
 
 This project is licensed under the MIT License. For more details, please refer to the [LICENSE](./LICENSE) file.
