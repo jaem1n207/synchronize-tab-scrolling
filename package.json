@@ -92,7 +92,7 @@
     "@tanstack/svelte-query": "^5.17.19",
     "bits-ui": "^0.21.3",
     "clsx": "^2.1.0",
-    "cmdk-sv": "^0.0.17",
+    "cmdk-sv": "^0.0.18",
     "escape-string-regexp": "^5.0.0",
     "lucide-svelte": "^0.416.0",
     "mode-watcher": "^0.2.1",
