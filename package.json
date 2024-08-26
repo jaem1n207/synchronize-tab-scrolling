@@ -61,7 +61,7 @@
     "@tanstack/svelte-query-devtools": "^5.17.19",
     "@types/bun": "^1.0.1",
     "@types/chrome": "^0.0.269",
-    "@types/eslint": "8.56.10",
+    "@types/eslint": "9.6.1",
     "@types/firefox-webext-browser": "^120.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.2",
