@@ -63,7 +63,7 @@
     "@types/chrome": "^0.0.269",
     "@types/eslint": "8.56.10",
     "@types/firefox-webext-browser": "^120.0.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.4.0",
     "@typescript-eslint/parser": "^7.0.2",
     "autoprefixer": "^10.4.17",
     "commitizen": "^4.3.0",
