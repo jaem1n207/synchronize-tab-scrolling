@@ -1,0 +1,29 @@
+pre-commit:
+  parallel: true
+  commands:
+    # lint:
+    #   glob: '*.{js,ts,jsx,tsx}'
+    #   run: pnpm eslint {staged_files}
+    prettier:
+      glob: '*.{js,ts,jsx,tsx,css,md,json}'
+      run: prettier --check {staged_files}
+  typecheck:
+    glob: '*.{ts,tsx}'
+    run: pnpm tsc --noEmit {staged_files}
+
+# post-merge: 종속성 변경 시 패키지 업데이트
+post-merge:
+  commands:
+    install-deps:
+      run: if git diff --name-only HEAD@{1} HEAD | grep -q "package.json"; then pnpm install; fi
+
+# 커스텀 스크립트: 전체 린트 실행
+health:
+  parallel: true
+  commands:
+    eslint:
+      run: pnpm eslint .
+    prettier:
+      run: pnpm prettier --check .
+    typecheck:
+      run: pnpm tsc --noEmit

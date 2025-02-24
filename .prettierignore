@@ -1,0 +1,6 @@
+!/.*.js
+*.min.js
+.*cache
+.next/
+node_modules/
+pnpm-lock.yaml

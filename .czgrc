@@ -1,0 +1,5 @@
+{
+  "path": "czg",
+  "$schema": "https://cdn.jsdelivr.net/gh/Zhengqbbb/cz-git@1.10.1/docs/public/schema/cz-git.json",
+  "useEmoji": true
+}

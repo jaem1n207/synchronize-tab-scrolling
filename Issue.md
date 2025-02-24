@@ -133,7 +133,7 @@ return browser.tabs.query(queryInfo);
 
 ```javascript
 document.querySelector(
-  '[data-cmdk-item][data-value="Steal The Show (From "Elemental") - YouTube Music"]'
+  '[data-cmdk-item][data-value="Steal The Show (From "Elemental") - YouTube Music"]',
 );
 ```
 
@@ -259,7 +259,7 @@ const browserRules = {
     'resource:',
     'chrome:',
     'jar:',
-    'https://addons.mozilla.org/'
+    'https://addons.mozilla.org/',
   ],
   edge: [
     'chrome',
@@ -268,16 +268,16 @@ const browserRules = {
     'edge',
     'https://chrome.google.com/webstore',
     'https://microsoftedge.microsoft.com/addons',
-    'view-source'
+    'view-source',
   ],
-  chrome: ['chrome', 'https://chrome.google.com/webstore', 'data', 'devtools', 'view-source']
+  chrome: ['chrome', 'https://chrome.google.com/webstore', 'data', 'devtools', 'view-source'],
 };
 
 const googleServices = [
   'https://accounts.google.com',
   'https://analytics.google.com/analytics',
   'https://search.google.com/search-console',
-  'https://chromewebstore.google.com'
+  'https://chromewebstore.google.com',
 ];
 
 const canInjectScript = (url: string | null | undefined, browserType: BrowserType): boolean => {
@@ -296,7 +296,7 @@ const googleServices = [
   'https://accounts.google.com',
   'https://analytics.google.com/analytics',
   'https://search.google.com/search-console',
-  'https://chromewebstore.google.com'
+  'https://chromewebstore.google.com',
 ];
 
 const canInjectScript = (url: string | null | undefined): boolean => {
