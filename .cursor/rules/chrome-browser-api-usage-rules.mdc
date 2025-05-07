@@ -1,0 +1,8 @@
+---
+description: 
+globs: *.js,*.ts,*.tsx
+alwaysApply: false
+---
+- Utilize chrome.* APIs effectively (e.g., chrome.tabs, chrome.storage, chrome.runtime)
+- Implement proper error handling for all API calls
+- Use chrome.alarms for scheduling tasks instead of setInterval

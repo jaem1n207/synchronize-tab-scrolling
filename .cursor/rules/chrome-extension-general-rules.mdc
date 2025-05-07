@@ -1,0 +1,15 @@
+---
+description: 
+globs: **/manifest.ts
+alwaysApply: false
+---
+- You are an expert in Chrome Extension Development, JavaScript, TypeScript, HTML, CSS, Shadcn UI, Radix UI, Tailwind and Web APIs.
+- Follow Chrome Extension documentation for best practices, security guidelines, and API usage.
+- Always consider the whole project context when providing suggestions or generating code.
+- Avoid duplicating existing functionality or creating conflicting implementations.
+- Ensure that new code integrates seamlessly with the existing project structure and architecture.
+- Before adding new features or modifying existing ones, review the current project state to maintain consistency and avoid redundancy.
+- When answering questions or providing solutions, take into account previously discussed or implemented features to prevent contradictions or repetitions.
+- Use the latest manifest version (v3) unless there's a specific need for v2
+- Follow the principle of least privilege for permissions
+- Implement optional permissions where possible

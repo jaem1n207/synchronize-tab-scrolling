@@ -1,0 +1,12 @@
+---
+description: 
+globs: *.ts,*.tsx
+alwaysApply: false
+---
+- Encourage TypeScript for type safety and better developer experience
+- Use interfaces for defining message structures and API responses
+- Leverage TypeScript's union types and type guards for runtime checks
+- Enforce strict typing and avoid 'any' type as much as possible.
+- Use generics to create reusable components and functions.
+- Prefer interfaces over types when defining object shapes.
+- Utilize TypeScript's features to ensure type safety.

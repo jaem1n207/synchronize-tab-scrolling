@@ -1,0 +1,8 @@
+---
+description: 
+globs: *.js,*.ts,*.tsx
+alwaysApply: false
+---
+- Follow standard TypeScript and JavaScript naming conventions for variables, functions, and components.
+- Component names should be PascalCase.
+- Variable and function names should be camelCase.
