@@ -1,6 +1,7 @@
 import { onMessage, sendMessage } from 'webext-bridge/background';
-import type { Tabs } from 'webextension-polyfill';
 import browser from 'webextension-polyfill';
+
+import type { Tabs } from 'webextension-polyfill';
 
 // only on dev mode
 if (import.meta.hot) {

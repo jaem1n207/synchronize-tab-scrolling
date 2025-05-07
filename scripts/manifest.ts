@@ -1,5 +1,7 @@
 import fs from 'fs-extra';
+
 import { getManifest } from '../src/manifest';
+
 import { log, r } from './utils';
 
 export async function writeManifest() {

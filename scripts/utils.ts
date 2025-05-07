@@ -1,6 +1,7 @@
-import { bgCyan, black } from 'kolorist';
 import { resolve } from 'node:path';
 import process from 'node:process';
+
+import { bgCyan, black } from 'kolorist';
 import { z } from 'zod';
 
 const envVariables = z.object({
