@@ -1,7 +1,13 @@
 import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+
 import type { Tabs } from 'webextension-polyfill';
+import { ExtensionLogger } from '~/shared/lib/logger';
+import { initializeSentry } from '~/shared/lib/sentry_init';
+
+// Sentry 초기화
+initializeSentry();
 
 // only on dev mode
 if (import.meta.hot) {
@@ -12,7 +18,8 @@ if (import.meta.hot) {
 }
 
 browser.runtime.onInstalled.addListener((): void => {
-  console.log('Extension installed');
+  const logger = new ExtensionLogger({ scope: 'background-onInstalled' });
+  logger.info('Extension installed');
 });
 
 browser.action.onClicked.addListener(() => {
@@ -34,21 +41,26 @@ browser.tabs.onActivated.addListener(async ({ tabId }) => {
   try {
     tab = await browser.tabs.get(previousTabId);
     previousTabId = tabId;
-  } catch {
+  } catch (error) {
+    const logger = new ExtensionLogger({ scope: 'background-tabs-onActivated' });
+    logger.error('Failed to get previous tab', error);
     return;
   }
 
-  console.log('previous tab', tab);
+  const logger = new ExtensionLogger({ scope: 'background-tabs-onActivated' });
+  logger.info('previous tab', { title: tab.title });
   sendMessage('tab-prev', { title: tab.title }, { context: 'content-script', tabId });
 });
 
 onMessage('get-current-tab', async () => {
+  const logger = new ExtensionLogger({ scope: 'background-onMessage-get-current-tab' });
   try {
     const tab = await browser.tabs.get(previousTabId);
     return {
       title: tab?.title,
     };
-  } catch {
+  } catch (error) {
+    logger.error('Failed to get current tab', error);
     return {
       title: undefined,
     };
