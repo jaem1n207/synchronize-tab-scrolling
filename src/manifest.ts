@@ -17,7 +17,7 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
     description: pkg.description,
     default_locale: 'en',
     action: {
-      default_icon: './assets/logo-512.png',
+      default_icon: './icons/logo-512.png',
     },
     options_ui: {
       page: './dist/options/index.html',
@@ -32,9 +32,9 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
           service_worker: './dist/background/index.mjs',
         },
     icons: {
-      16: './assets/logo-512.png',
-      48: './assets/logo-512.png',
-      128: './assets/logo-512.png',
+      16: './icons/logo-512.png',
+      48: './icons/logo-512.png',
+      128: './icons/logo-512.png',
     },
     permissions: ['tabs', 'storage', 'activeTab'],
     host_permissions: ['<all_urls>'],

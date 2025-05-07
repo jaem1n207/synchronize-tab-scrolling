@@ -1,8 +1,12 @@
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 import { bgCyan, black } from 'kolorist';
 import { z } from 'zod';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const envVariables = z.object({
   PORT: z.string().optional().default('3303').transform(Number),
@@ -17,12 +21,14 @@ const getEnvIssues = (): z.ZodIssue[] | void => {
 const issues = getEnvIssues();
 if (issues) {
   console.error('Invalid environment variables:');
+  issues.forEach((issue) => console.error(issue));
   process.exit(9);
 }
 
 const validatedEnv = envVariables.parse(process.env);
 
 export const port = validatedEnv.PORT;
+// 상대 경로를 올바르게 계산합니다.
 export const r = (...args: string[]) => resolve(__dirname, '..', ...args);
 export const isDev = validatedEnv.NODE_ENV !== 'production';
 export const isFirefox = validatedEnv.EXTENSION === 'firefox';

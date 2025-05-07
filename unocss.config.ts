@@ -1,6 +1,6 @@
 import { presetAttributify, presetIcons, presetUno, transformerDirectives } from 'unocss';
 import { defineConfig } from 'unocss/vite';
-import presetAnimations from 'unocss-preset-animations';
+import { presetAnimations } from 'unocss-preset-animations';
 import { builtinColors, presetShadcn } from 'unocss-preset-shadcn';
 
 export default defineConfig({
