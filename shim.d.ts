@@ -2,7 +2,7 @@ import type { AttributifyAttributes } from 'unocss/preset-attributify';
 import type { ProtocolWithReturn } from 'webext-bridge';
 
 declare module 'react' {
-  interface HTMLAttributes<T> extends Omit<AttributifyAttributes, 'size'> {}
+  type HTMLAttributes = Omit<AttributifyAttributes, 'size'>;
 }
 
 declare module 'webext-bridge' {

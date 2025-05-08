@@ -118,7 +118,7 @@ export class ExtensionLogger {
         break;
     }
 
-    // 2. 로컬 스토리지에 로그 저장 (선택적)
+    // 2. 로컬 스토리지에 로그 저장
     const logEntry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -132,34 +132,50 @@ export class ExtensionLogger {
     const sentryClientOptions = Sentry.getClient()?.getOptions();
     if (sentryClientOptions && sentryClientOptions.dsn) {
       const sentryLevel = this.mapToSentryLevel(level);
+      const tags = { scope: this.scope };
 
-      // 디버그 로그는 프로덕션에서 Sentry로 보내지 않음 (Sentry 샘플링으로도 조절 가능)
-      if (level === 'debug' && process.env.NODE_ENV === 'production') {
-        return;
-      }
+      if (level === 'error') {
+        const errorInstanceFromArgs = args.find((arg) => arg instanceof Error) as Error | undefined;
+        let exceptionToCapture: Error;
+        let extraForSentry: Record<string, unknown> = {};
 
-      const extraData = {
-        scope: this.scope,
-        ...this.getSerializableArgs(args), // args를 직렬화 가능한 형태로 추가
-      };
+        if (errorInstanceFromArgs) {
+          // 사용자가 Error 객체를 명시적으로 전달한 경우
+          // 예: logger.error("추가 메시지", new Error("실제 에러"), ...);
+          // 또는 logger.error(new Error("실제 에러"), ...);
+          exceptionToCapture = errorInstanceFromArgs;
+          const remainingArgs = args.filter((arg) => arg !== errorInstanceFromArgs);
+          extraForSentry = this.getSerializableArgs(remainingArgs);
+          // `log` 메소드에 전달된 `message`가 실제 Error 객체의 메시지와 다를 경우,
+          // 사용자가 에러 객체와 함께 컨텍스트 메시지를 제공한 것으로 간주하여 extra에 포함합니다.
+          if (message !== exceptionToCapture.message) {
+            extraForSentry.contextualMessage = message;
+          }
+        } else {
+          // 문자열 메시지만 전달된 경우, 내부적으로 Error 객체를 생성하여 스택 트레이스 확보
+          // 예: logger.error("단순 에러 메시지", ...);
+          exceptionToCapture = new Error(message);
+          extraForSentry = this.getSerializableArgs(args); // 여기서 args는 Error 객체가 아닌 추가 정보들
+        }
 
-      // 첫 번째 인자가 Error 객체인지 확인
-      const errorArg = args.find((arg) => arg instanceof Error) as Error | undefined;
-
-      if (level === 'error' && errorArg) {
-        Sentry.captureException(errorArg, {
+        Sentry.captureException(exceptionToCapture, {
           level: sentryLevel,
-          extra: {
-            ...extraData,
-            originalMessage: message, // Error 객체와 별개로 전달된 메시지
-          },
-          tags: { scope: this.scope },
+          extra: extraForSentry,
+          tags: tags,
         });
       } else {
+        // 'warn', 'info', 'debug' 레벨은 기존처럼 captureMessage 사용
+        // (단, debug 레벨은 프로덕션에서 Sentry 전송 안 하도록 추가 제어 가능)
+        // if (level === 'debug' && process.env.NODE_ENV === 'production') {
+        //   return; // 프로덕션 환경에서는 debug 로그를 Sentry로 보내지 않음
+        // }
+        console.log('captureMessage', message, sentryLevel, tags);
         Sentry.captureMessage(message, {
           level: sentryLevel,
-          extra: extraData,
-          tags: { scope: this.scope },
+          extra: {
+            ...this.getSerializableArgs(args),
+          },
+          tags: tags,
         });
       }
     }
@@ -169,10 +185,22 @@ export class ExtensionLogger {
     return this.log('info', message, ...args);
   }
 
+  /**
+   * 에러를 로깅합니다.
+   * 가장 정확한 스택 트레이스를 위해서는 첫 번째 인자로 Error 객체를 전달하는 것이 좋습니다.
+   * 예: logger.error(new Error("데이터베이스 연결 실패"));
+   *     logger.error("사용자 인증 실패", { userId: 123 }); (이 경우 스택 트레이스는 로거 내부에서 시작됨)
+   *     logger.error("결제 처리 중 오류", new Error("PG사 응답 실패"), { orderId: 456 });
+   */
   error(messageOrError: string | Error, ...args: unknown[]): Promise<void> {
     if (messageOrError instanceof Error) {
+      // logger.error(new Error("에러 객체"), 추가정보1, 추가정보2)
+      // -> log('error', error.message, error객체, 추가정보1, 추가정보2)
       return this.log('error', messageOrError.message, messageOrError, ...args);
     }
+    // logger.error("문자열 메시지", new Error("에러 객체"), 추가정보1)
+    // logger.error("문자열 메시지", 일반객체, 추가정보1)
+    // -> log('error', "문자열 메시지", new Error객체 또는 일반객체, 추가정보1)
     return this.log('error', messageOrError, ...args);
   }
 

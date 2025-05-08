@@ -15,6 +15,7 @@ const logger = new ExtensionLogger({ scope: 'background' });
 // only on dev mode
 if (import.meta.hot) {
   // @ts-expect-error for background HMR
+  // eslint-disable-next-line import/no-unresolved
   import('/@vite/client');
   // load latest content script
   import('./contentScriptHMR');

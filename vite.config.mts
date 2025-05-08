@@ -7,6 +7,7 @@ import AutoImport from 'unplugin-auto-import/vite';
 import Icons from 'unplugin-icons/vite';
 import type { UserConfig } from 'vite';
 import { defineConfig } from 'vite';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 import packageJson from './package.json';
 import { isDev, port, r } from './scripts/utils';
@@ -28,6 +29,9 @@ export const sharedConfig: UserConfig = {
     AutoImport({
       imports: ['react'],
       dts: r('src/auto-imports.d.ts'),
+      eslintrc: {
+        enabled: true,
+      },
     }),
     // https://github.com/antfu/unplugin-icons
     // https://github.com/unocss/unocss
@@ -46,6 +50,19 @@ export const sharedConfig: UserConfig = {
         return html;
       },
     },
+    sentryVitePlugin({
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      org: 'jaemin',
+      project: 'synchronize-tab-scrolling',
+      sourcemaps: {
+        assets: ['./extension/dist/**'],
+        filesToDeleteAfterUpload: ['./extension/dist/**/*.map'],
+      },
+      release: {
+        name: `synchronize-tab-scrolling@${packageJson.version}`,
+      },
+      telemetry: false,
+    }),
   ],
   optimizeDeps: {
     include: ['react', 'webextension-polyfill'],
@@ -66,7 +83,7 @@ export default defineConfig(({ command }) => ({
     watch: isDev ? {} : undefined,
     outDir: r('extension/dist'),
     emptyOutDir: false,
-    sourcemap: isDev ? 'inline' : false,
+    sourcemap: isDev ? 'inline' : true,
     // https://developer.chrome.com/docs/webstore/program_policies/#:~:text=Code%20Readability%20Requirements
     terserOptions: {
       mangle: false,

@@ -27,6 +27,12 @@ export default tsEslint.config(
   // React Hooks 설정
   ...fixupConfigRules(compat.extends('plugin:react-hooks/recommended') as FixupConfigArray),
 
+  // unplugin-auto-import ESLint 설정 추가
+  // 이 설정은 unplugin-auto-import 플러그인의 `eslintrc: { enabled: true }` 옵션에 의해
+  // 생성된 '.eslintrc-auto-import.json' 파일을 확장합니다.
+  // 해당 파일이 'src' 디렉토리에 생성되도록 vite.config.mts에서 설정해야 합니다.
+  ...fixupConfigRules(compat.extends('./src/.eslintrc-auto-import.json') as FixupConfigArray),
+
   // React 설정 통합
   {
     files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
@@ -45,6 +51,10 @@ export default tsEslint.config(
       ],
       'react/jsx-filename-extension': ['warn', { extensions: ['.jsx', '.tsx'] }],
       'react/jsx-curly-brace-presence': ['warn', { props: 'never', children: 'never' }],
+      'import-x/no-unresolved': 'off',
+      'import-x/no-named-as-default-member': 'off',
+      '@typescript-eslint/consistent-type-imports': 'error',
+      'no-undef': 'off', // unplugin-auto-import 문서 권장 사항: TypeScript가 이미 이 검사를 수행합니다.
     },
   },
 
@@ -141,6 +151,7 @@ export default tsEslint.config(
       'import-x/no-unresolved': 'off',
       'import-x/no-named-as-default-member': 'off',
       '@typescript-eslint/consistent-type-imports': 'error',
+      'no-undef': 'off', // unplugin-auto-import 문서 권장 사항: TypeScript가 이미 이 검사를 수행합니다.
     },
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
