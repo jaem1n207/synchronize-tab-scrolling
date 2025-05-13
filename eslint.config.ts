@@ -64,39 +64,39 @@ export default tsEslint.config(
     },
     rules: {
       ...importPlugin.configs.recommended.rules,
-      // 'import/order': [
-      //   'error',
-      //   {
-      //     groups: [
-      //       'builtin',
-      //       'external',
-      //       'internal',
-      //       'parent',
-      //       'sibling',
-      //       'index',
-      //       'object',
-      //       'type',
-      //     ],
-      //     'newlines-between': 'always',
-      //     alphabetize: {
-      //       order: 'asc',
-      //       caseInsensitive: true,
-      //     },
-      //     pathGroups: [
-      //       {
-      //         pattern: 'react',
-      //         group: 'external',
-      //         position: 'before',
-      //       },
-      //       {
-      //         pattern: '@/**',
-      //         group: 'internal',
-      //         position: 'before',
-      //       },
-      //     ],
-      //     pathGroupsExcludedImportTypes: ['react'],
-      //   },
-      // ],
+      'import/order': [
+        'error',
+        {
+          groups: [
+            'builtin',
+            'external',
+            'internal',
+            'parent',
+            'sibling',
+            'index',
+            'object',
+            'type',
+          ],
+          'newlines-between': 'always',
+          alphabetize: {
+            order: 'asc',
+            caseInsensitive: true,
+          },
+          pathGroups: [
+            {
+              pattern: 'react',
+              group: 'external',
+              position: 'before',
+            },
+            {
+              pattern: '@/**',
+              group: 'internal',
+              position: 'before',
+            },
+          ],
+          pathGroupsExcludedImportTypes: ['react'],
+        },
+      ],
       'import/prefer-default-export': 'off',
       'import/no-default-export': 'off',
     },
