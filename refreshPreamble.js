@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
+// eslint-disable-next-line import/no-unresolved
 import i from 'http://localhost:3303/@react-refresh';
 i.injectIntoGlobalHook(window),
   (window.$RefreshReg$ = () => {}),

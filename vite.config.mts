@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import React from '@vitejs/plugin-react';
 import { dirname, relative } from 'node:path';
 import UnoCSS from 'unocss/vite';
@@ -7,7 +8,6 @@ import AutoImport from 'unplugin-auto-import/vite';
 import Icons from 'unplugin-icons/vite';
 import type { UserConfig } from 'vite';
 import { defineConfig } from 'vite';
-import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 import packageJson from './package.json';
 import { isDev, port, r } from './scripts/utils';
@@ -24,18 +24,15 @@ export const sharedConfig: UserConfig = {
     __NAME__: JSON.stringify(packageJson.name),
   },
   plugins: [
+    // https://github.com/antfu/unplugin-icons
+    // https://github.com/unocss/unocss
+    UnoCSS(),
     React(),
     Icons({ compiler: 'jsx', jsx: 'react' }),
     AutoImport({
       imports: ['react'],
       dts: r('src/auto-imports.d.ts'),
-      eslintrc: {
-        enabled: true,
-      },
     }),
-    // https://github.com/antfu/unplugin-icons
-    // https://github.com/unocss/unocss
-    UnoCSS(),
     // rewrite assets to use relative path
     {
       name: 'assets-rewrite',

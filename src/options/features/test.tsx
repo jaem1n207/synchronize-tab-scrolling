@@ -1,5 +1,6 @@
-import { ExtensionLogger } from '~/shared/lib/logger';
 import * as Sentry from '@sentry/react';
+
+import { ExtensionLogger } from '~/shared/lib/logger';
 
 const logger = new ExtensionLogger({ scope: 'options-test-page' });
 

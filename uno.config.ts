@@ -1,13 +1,21 @@
-import { presetAttributify, presetIcons, presetUno, transformerDirectives } from 'unocss';
-import { defineConfig } from 'unocss/vite';
+import unocssPresetWind4 from '@unocss/preset-wind4';
+import {
+  defineConfig,
+  presetAttributify,
+  presetIcons,
+  transformerDirectives,
+  type Preset,
+} from 'unocss';
 import { presetAnimations } from 'unocss-preset-animations';
 import { builtinColors, presetShadcn } from 'unocss-preset-shadcn';
 
 export default defineConfig({
   presets: [
-    presetUno({
-      dark: 'class',
-    }),
+    unocssPresetWind4({
+      preflights: {
+        reset: true,
+      },
+    }) as Preset,
     presetAttributify(),
     presetIcons(),
     presetAnimations(),
