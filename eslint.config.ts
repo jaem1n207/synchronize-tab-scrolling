@@ -27,12 +27,6 @@ export default tsEslint.config(
   // React Hooks 설정
   ...fixupConfigRules(compat.extends('plugin:react-hooks/recommended') as FixupConfigArray),
 
-  // unplugin-auto-import ESLint 설정 추가
-  // 이 설정은 unplugin-auto-import 플러그인의 `eslintrc: { enabled: true }` 옵션에 의해
-  // 생성된 '.eslintrc-auto-import.json' 파일을 확장합니다.
-  // 해당 파일이 'src' 디렉토리에 생성되도록 vite.config.mts에서 설정해야 합니다.
-  ...fixupConfigRules(compat.extends('./src/.eslintrc-auto-import.json') as FixupConfigArray),
-
   // React 설정 통합
   {
     files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
@@ -70,39 +64,39 @@ export default tsEslint.config(
     },
     rules: {
       ...importPlugin.configs.recommended.rules,
-      'import/order': [
-        'error',
-        {
-          groups: [
-            'builtin',
-            'external',
-            'internal',
-            'parent',
-            'sibling',
-            'index',
-            'object',
-            'type',
-          ],
-          'newlines-between': 'always',
-          alphabetize: {
-            order: 'asc',
-            caseInsensitive: true,
-          },
-          pathGroups: [
-            {
-              pattern: 'react',
-              group: 'external',
-              position: 'before',
-            },
-            {
-              pattern: '@/**',
-              group: 'internal',
-              position: 'before',
-            },
-          ],
-          pathGroupsExcludedImportTypes: ['react'],
-        },
-      ],
+      // 'import/order': [
+      //   'error',
+      //   {
+      //     groups: [
+      //       'builtin',
+      //       'external',
+      //       'internal',
+      //       'parent',
+      //       'sibling',
+      //       'index',
+      //       'object',
+      //       'type',
+      //     ],
+      //     'newlines-between': 'always',
+      //     alphabetize: {
+      //       order: 'asc',
+      //       caseInsensitive: true,
+      //     },
+      //     pathGroups: [
+      //       {
+      //         pattern: 'react',
+      //         group: 'external',
+      //         position: 'before',
+      //       },
+      //       {
+      //         pattern: '@/**',
+      //         group: 'internal',
+      //         position: 'before',
+      //       },
+      //     ],
+      //     pathGroupsExcludedImportTypes: ['react'],
+      //   },
+      // ],
       'import/prefer-default-export': 'off',
       'import/no-default-export': 'off',
     },
