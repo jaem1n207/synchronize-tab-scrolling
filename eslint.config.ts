@@ -1,38 +1,57 @@
-import type { FixupConfigArray } from '@eslint/compat';
-import { fixupConfigRules } from '@eslint/compat';
-import { FlatCompat } from '@eslint/eslintrc';
 import jsEslint from '@eslint/js';
 import importPlugin from 'eslint-plugin-import';
 import importXPlugin from 'eslint-plugin-import-x';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import playwrightPlugin from 'eslint-plugin-playwright';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import prettierPlugin from 'eslint-plugin-prettier';
 import reactPlugin from 'eslint-plugin-react';
+import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tsEslint from 'typescript-eslint';
-
-const compat = new FlatCompat();
 
 export default tsEslint.config(
   // 기본 설정
   jsEslint.configs.recommended,
   ...tsEslint.configs.recommended,
 
-  // JSX A11y, Import-X, Prettier 설정
+  // JSX A11y, Import-X 설정
   jsxA11y.flatConfigs.recommended,
   importXPlugin.flatConfigs.recommended,
   importXPlugin.flatConfigs.typescript,
-  eslintPluginPrettierRecommended,
 
-  // React Hooks 설정
-  ...fixupConfigRules(compat.extends('plugin:react-hooks/recommended') as FixupConfigArray),
-
-  // React 설정 통합
+  // Prettier 설정
   {
     files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
-    ...reactPlugin.configs.flat.recommended,
-    ...reactPlugin.configs.flat['jsx-runtime'],
+    plugins: {
+      prettier: prettierPlugin,
+    },
     rules: {
+      'prettier/prettier': 'error',
+      'arrow-body-style': 'off',
+      'prefer-arrow-callback': 'off',
+    },
+  },
+
+  // React Hooks 설정
+  {
+    files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
+    plugins: {
+      'react-hooks': reactHooksPlugin,
+    },
+    rules: {
+      ...reactHooksPlugin.configs.recommended.rules,
+    },
+  },
+
+  // React 설정
+  {
+    files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
+    plugins: {
+      react: reactPlugin,
+    },
+    rules: {
+      ...reactPlugin.configs.flat.recommended.rules,
+      ...reactPlugin.configs.flat['jsx-runtime'].rules,
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
       'react/jsx-sort-props': [
@@ -45,13 +64,10 @@ export default tsEslint.config(
       ],
       'react/jsx-filename-extension': ['warn', { extensions: ['.jsx', '.tsx'] }],
       'react/jsx-curly-brace-presence': ['warn', { props: 'never', children: 'never' }],
-      'import-x/no-unresolved': 'off',
-      'import-x/no-named-as-default-member': 'off',
-      '@typescript-eslint/consistent-type-imports': 'error',
-      'no-undef': 'off', // unplugin-auto-import 문서 권장 사항: TypeScript가 이미 이 검사를 수행합니다.
     },
   },
 
+  // Import 설정
   {
     files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
     plugins: {
@@ -102,7 +118,7 @@ export default tsEslint.config(
     },
   },
 
-  // Playwright 테스트 설정 (기존 eslint.config.js 참고)
+  // Playwright 테스트 설정
   {
     files: ['**/*.spec.{ts,js}', 'e2e/**/*.{ts,js}', 'tests/**/*.{ts,js}'],
     plugins: {
@@ -113,12 +129,7 @@ export default tsEslint.config(
     },
   },
 
-  // 무시할 파일 설정
-  {
-    ignores: ['**/build/**', '**/dist/**', '**/node_modules/**', 'eslint.config.ts'],
-  },
-
-  // 전역 설정 (React 관련 규칙 제거)
+  // 전역 설정
   {
     files: ['**/*.{js,mjs,cjs,jsx,mjsx,ts,tsx,mtsx}'],
     languageOptions: {
@@ -141,7 +152,6 @@ export default tsEslint.config(
       },
     },
     rules: {
-      // React 관련 규칙은 React 설정 블록으로 이동
       'import-x/no-unresolved': 'off',
       'import-x/no-named-as-default-member': 'off',
       '@typescript-eslint/consistent-type-imports': 'error',
@@ -150,5 +160,10 @@ export default tsEslint.config(
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
     },
+  },
+
+  // 무시할 파일 설정
+  {
+    ignores: ['**/build/**', '**/dist/**', '**/node_modules/**', 'eslint.config.ts'],
   },
 );
