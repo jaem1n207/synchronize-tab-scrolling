@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import fs from 'fs-extra';
 
 import { isDev, isFirefox, port, r } from '../scripts/utils';
@@ -18,6 +19,7 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
     default_locale: 'en',
     action: {
       default_icon: './icons/logo-512.png',
+      default_popup: './dist/popup/index.html',
     },
     options_ui: {
       page: './dist/options/index.html',
@@ -37,7 +39,7 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
       128: './icons/logo-512.png',
     },
     permissions: ['tabs', 'storage', 'activeTab'],
-    host_permissions: ['<all_urls>'],
+    host_permissions: ['*://*/*'],
     content_scripts: [
       {
         matches: ['<all_urls>'],
@@ -52,10 +54,8 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
     ],
     content_security_policy: {
       extension_pages: isDev
-        ? // this is required on dev for Vite script to load
-          // eslint-disable-next-line no-useless-escape
-          `script-src \'self\' http://localhost:${port}; object-src \'self\'`
-        : "script-src 'self'; object-src 'self'",
+        ? `script-src \'self\' http://localhost:${port}; object-src \'self\'`
+        : `script-src \'self\'; object-src \'self\'`,
     },
   };
 
