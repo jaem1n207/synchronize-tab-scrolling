@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/react';
-import browser from 'webextension-polyfill';
 
 // Sentry SeverityLevel 타입. @sentry/types 에서 가져올 수도 있습니다.
 type SentrySeverityLevel = 'fatal' | 'error' | 'warning' | 'log' | 'info' | 'debug';
@@ -9,25 +8,13 @@ type LogLevel = 'info' | 'error' | 'warn' | 'debug';
 
 interface LoggerOptions {
   scope: string;
-  storage?: browser.Storage.StorageArea;
-}
-
-interface LogEntry {
-  timestamp: string;
-  level: LogLevel;
-  message: string;
-  scope: string;
-  args?: unknown[]; // 직렬화 가능한 추가 데이터
 }
 
 export class ExtensionLogger {
   private scope: string;
-  private storage: browser.Storage.StorageArea;
-  private static MAX_LOCAL_LOGS = 100; // 로컬 스토리지에 저장할 최대 로그 수
 
-  constructor({ scope, storage = browser.storage.local }: LoggerOptions) {
+  constructor({ scope }: LoggerOptions) {
     this.scope = scope;
-    this.storage = storage;
   }
 
   private mapToSentryLevel(level: LogLevel): SentrySeverityLevel {
@@ -52,22 +39,6 @@ export class ExtensionLogger {
       ?.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)))
       .join(' ');
     return `[${timestamp}] [${level.toUpperCase()}] [${this.scope}]: ${message}${formattedArgs ? ` ${formattedArgs}` : ''}`;
-  }
-
-  private async storeLogLocally(logEntry: LogEntry): Promise<void> {
-    // 디버그 로그는 로컬에 저장하지 않거나, 개발 모드에서만 저장할 수 있습니다.
-    if (logEntry.level === 'debug' && process.env.NODE_ENV === 'production') {
-      return;
-    }
-    try {
-      const result = await this.storage.get('logs');
-      const logs: LogEntry[] = (result.logs || []) as LogEntry[];
-      logs.push(logEntry);
-      await this.storage.set({ logs: logs.slice(-ExtensionLogger.MAX_LOCAL_LOGS) });
-    } catch (error) {
-      // 로컬 스토리지 저장 실패는 Sentry로 보내지 않도록 주의 (무한 루프 방지)
-      console.error(`[${this.scope}] 로컬 스토리지에 로그 저장 실패:`, error);
-    }
   }
 
   private getSerializableArgs(args?: unknown[]): Record<string, unknown> {
@@ -118,17 +89,7 @@ export class ExtensionLogger {
         break;
     }
 
-    // 2. 로컬 스토리지에 로그 저장
-    const logEntry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      scope: this.scope,
-      message,
-      args,
-    };
-    await this.storeLogLocally(logEntry);
-
-    // 3. Sentry로 로그 전송
+    // 2. Sentry로 로그 전송
     const sentryClientOptions = Sentry.getClient()?.getOptions();
     if (sentryClientOptions && sentryClientOptions.dsn) {
       const sentryLevel = this.mapToSentryLevel(level);
@@ -210,27 +171,6 @@ export class ExtensionLogger {
 
   debug(message: string, ...args: unknown[]): Promise<void> {
     return this.log('debug', message, ...args);
-  }
-
-  // 저장된 로그를 가져오는 유틸리티 함수 (디버깅용)
-  async getLocalLogs(): Promise<LogEntry[]> {
-    try {
-      const result = await this.storage.get('logs');
-      return (result.logs || []) as LogEntry[];
-    } catch (error) {
-      console.error(`[${this.scope}] 로컬 로그 가져오기 실패:`, error);
-      return [];
-    }
-  }
-
-  // 로컬 로그 삭제 함수
-  async clearLocalLogs(): Promise<void> {
-    try {
-      await this.storage.remove('logs');
-      console.info(`[${this.scope}] 로컬 로그가 삭제되었습니다.`);
-    } catch (error) {
-      console.error(`[${this.scope}] 로컬 로그 삭제 실패:`, error);
-    }
   }
 }
 
