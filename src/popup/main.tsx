@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import * as Sentry from '@sentry/react';
 import { createRoot } from 'react-dom/client';
 
+import { Button } from '~/shared/components/ui/button';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
 
@@ -40,7 +41,16 @@ if (container) {
 
   root.render(
     <StrictMode>
-      <div>Popup</div>
+      <div className="w-600px h-400px overflow-auto">
+        <h1>Popup</h1>
+        <Button
+          onClick={() => {
+            console.log('clicked');
+          }}
+        >
+          Click me!
+        </Button>
+      </div>
     </StrictMode>,
   );
 } else {

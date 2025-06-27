@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react';
 
+import { Button } from '~/shared/components/ui/button';
 import { ExtensionLogger } from '~/shared/lib/logger';
 
 const logger = new ExtensionLogger({ scope: 'options-test-page' });
@@ -27,6 +28,7 @@ export function Test() {
       >
         Break the world
       </button>
+      <Button>hello</Button>
       <button
         onClick={() => {
           Sentry.captureException(

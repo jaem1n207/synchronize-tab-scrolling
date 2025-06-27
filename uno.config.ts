@@ -7,7 +7,7 @@ import {
   type Preset,
 } from 'unocss';
 import { presetAnimations } from 'unocss-preset-animations';
-import { builtinColors, presetShadcn } from 'unocss-preset-shadcn';
+import { presetShadcn } from 'unocss-preset-shadcn';
 
 export default defineConfig({
   presets: [
@@ -19,7 +19,7 @@ export default defineConfig({
     presetAttributify(),
     presetIcons(),
     presetAnimations(),
-    presetShadcn(builtinColors.map((c) => ({ color: c }))),
+    presetShadcn({ color: 'blue' }),
   ],
   rules: [
     // timing function credit: https://www.joshwcomeau.com/animation/css-transitions/#custom-curves-7
