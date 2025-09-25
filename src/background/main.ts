@@ -186,6 +186,19 @@ onMessage('toggle-url-sync', async ({ data }) => {
   }
 });
 
+onMessage('switch-tab', async ({ data }) => {
+  const { tabId } = data;
+  try {
+    await browser.tabs.update(tabId, { active: true });
+    const tab = await browser.tabs.get(tabId);
+    if (tab.windowId) {
+      await browser.windows.update(tab.windowId, { focused: true });
+    }
+  } catch (error) {
+    logger.error('Failed to switch tab', error);
+  }
+});
+
 // Handle tab removal
 browser.tabs.onRemoved.addListener((tabId) => {
   // Remove tab from all sync groups

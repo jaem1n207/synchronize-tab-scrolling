@@ -59,6 +59,7 @@ export interface Messages {
   'toggle-url-sync': (data: { groupId: string; enabled: boolean }) => void;
   'get-sync-state': () => SyncState;
   'get-current-tab': () => { title?: string };
+  'switch-tab': (data: { tabId: number }) => void;
 }
 
 // Control panel states
