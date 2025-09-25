@@ -8,6 +8,7 @@ import { initializeSentry } from '~/shared/lib/sentry_init';
 
 import '~/shared/styles';
 import { renderApp } from './render';
+import './features/scrollSync'; // Initialize scroll sync
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
 (() => {

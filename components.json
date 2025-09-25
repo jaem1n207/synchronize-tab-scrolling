@@ -14,5 +14,10 @@
     "components": "~/shared/components",
     "utils": "~/shared/lib/utils",
     "ui": "~/shared/components/ui"
+  },
+  "registries": {
+    "@magicui": {
+      "url": "https://magicui.design/r/{name}"
+    }
   }
 }

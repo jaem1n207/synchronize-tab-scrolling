@@ -7,9 +7,8 @@ import { createRoot } from 'react-dom/client';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
 
-import { ScrollSyncPopup } from './components/ScrollSyncPopup';
-
 import '~/shared/styles';
+import { TabList } from './components/TabList';
 
 // Sentry 초기화 실행
 initializeSentry();
@@ -60,7 +59,7 @@ function init() {
   root.render(
     <QueryClientProvider client={queryClient}>
       <StrictMode>
-        <ScrollSyncPopup />
+        <TabList />
       </StrictMode>
     </QueryClientProvider>,
   );
