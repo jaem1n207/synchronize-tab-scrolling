@@ -2,6 +2,7 @@ import { captureException, startInactiveSpan, startSpan } from '@sentry/react';
 import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser, { type Tabs } from 'webextension-polyfill';
 
+import { t, type TranslationKey } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
 import { isRestrictedUrl } from '~/shared/types';
@@ -42,14 +43,14 @@ async function getAllTabs(): Promise<SyncTab[]> {
   try {
     const tabs = await browser.tabs.query({});
     return tabs.map((tab) => {
-      const { restricted, reason } = isRestrictedUrl(tab.url || '');
+      const { restricted, reasonKey } = isRestrictedUrl(tab.url || '');
       return {
         id: tab.id!,
         title: tab.title || 'Untitled',
         url: tab.url || '',
         favicon: tab.favIconUrl,
         isEligible: !restricted && tab.id !== undefined,
-        ineligibilityReason: reason,
+        ineligibilityReason: reasonKey ? t(reasonKey as TranslationKey) : undefined,
         windowId: tab.windowId!,
       };
     });
@@ -72,7 +73,7 @@ onMessage('create-sync-group', async ({ data }) => {
   const { tabIds, syncMode, urlSync } = data;
 
   if (tabIds.length < 2) {
-    throw new Error('At least 2 tabs required for synchronization');
+    throw new Error(t('errors.noTabs'));
   }
 
   // Create new sync group

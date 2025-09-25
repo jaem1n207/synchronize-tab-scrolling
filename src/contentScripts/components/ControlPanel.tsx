@@ -4,6 +4,8 @@ import { ChevronDown, ChevronUp, Link, Maximize2, Minimize2, Monitor, Square } f
 import { motion, useMotionValue, animate } from 'motion/react';
 import { sendMessage } from 'webext-bridge/content-script';
 
+import { t } from '~/shared/i18n';
+
 import { getCurrentSyncGroup, isCurrentlySyncing } from '../features/scrollSync';
 
 import type { SyncGroup } from '~/shared/types';
@@ -111,7 +113,7 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
         onDragEnd={handleDragEnd}
       >
         <button
-          aria-label="Maximize control panel"
+          aria-label={t('controlPanel.maximize')}
           className="w-full h-full flex items-center justify-center hover:bg-accent rounded-lg transition-colors"
           onClick={handleMinimizeToggle}
         >
@@ -140,10 +142,10 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
       <div className="flex items-center justify-between p-3 border-b border-border cursor-move">
         <div className="flex items-center gap-2">
           <Monitor className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold">Scroll Sync</span>
+          <span className="text-sm font-semibold">{t('controlPanel.title')}</span>
         </div>
         <button
-          aria-label="Minimize control panel"
+          aria-label={t('controlPanel.minimize')}
           className="p-1 hover:bg-accent rounded transition-colors"
           onClick={handleMinimizeToggle}
         >
@@ -158,11 +160,11 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
-                Syncing {currentGroup.tabs.length} tabs
+                {t('popup.status.syncing', { count: currentGroup.tabs.length })}
               </span>
               <div className="flex items-center gap-1">
                 {currentGroup.urlSync && (
-                  <Link aria-label="URL sync enabled" className="w-3 h-3 text-primary" />
+                  <Link aria-label={t('popup.urlSync.enabled')} className="w-3 h-3 text-primary" />
                 )}
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               </div>
@@ -173,13 +175,13 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
               onClick={handleStopSync}
             >
               <Square className="w-3 h-3" />
-              Stop Sync
+              {t('controlPanel.stopSync')}
             </button>
           </div>
         ) : (
           <div className="text-center py-2">
-            <p className="text-xs text-muted-foreground">Not syncing</p>
-            <p className="text-xs text-muted-foreground mt-1">Use extension popup to start</p>
+            <p className="text-xs text-muted-foreground">{t('controlPanel.notSyncing')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('controlPanel.usePopup')}</p>
           </div>
         )}
 
@@ -190,7 +192,7 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
               className="w-full flex items-center justify-between text-xs font-medium hover:bg-accent rounded px-2 py-1 transition-colors"
               onClick={() => setIsLinkedSitesExpanded(!isLinkedSitesExpanded)}
             >
-              <span>Linked Sites ({currentGroup.tabs.length})</span>
+              <span>{t('controlPanel.linkedSites', { count: currentGroup.tabs.length })}</span>
               {isLinkedSitesExpanded ? (
                 <ChevronUp className="w-3 h-3" />
               ) : (
@@ -222,7 +224,10 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
         {/* Sync Mode Indicator */}
         {isSyncing && currentGroup && (
           <div className="text-xs text-center text-muted-foreground border-t border-border pt-2">
-            Mode: {currentGroup.syncMode === 'ratio' ? 'Ratio' : 'Element'}
+            {t('controlPanel.mode')}:{' '}
+            {currentGroup.syncMode === 'ratio'
+              ? t('controlPanel.syncMode.ratio')
+              : t('controlPanel.syncMode.element')}
           </div>
         )}
       </div>

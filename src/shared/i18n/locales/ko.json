@@ -1,0 +1,58 @@
+{
+  "extension": {
+    "name": "탭 스크롤 동기화",
+    "description": "브라우저 탭 간 스크롤 위치 동기화"
+  },
+  "popup": {
+    "title": "탭 동기화",
+    "selectTabs": "스크롤 위치를 동기화할 2개 이상의 탭을 선택하세요",
+    "startSync": "동기화 시작",
+    "stopSync": "동기화 중지",
+    "syncMode": {
+      "label": "동기화 모드",
+      "ratio": "비율 모드",
+      "element": "요소 모드"
+    },
+    "urlSync": {
+      "enabled": "URL 동기화 켜짐",
+      "disabled": "URL 동기화 꺼짐"
+    },
+    "tabSelection": {
+      "minimum": "동기화를 시작하려면 최소 2개의 탭을 선택하세요",
+      "noEligible": "사용 가능한 탭이 없습니다",
+      "openPages": "웹 페이지를 열어 시작하세요",
+      "restricted": "제한된 탭 (동기화할 수 없음)"
+    },
+    "status": {
+      "syncing": "{{count}}개 탭 동기화 중"
+    }
+  },
+  "controlPanel": {
+    "title": "스크롤 동기화",
+    "minimize": "컨트롤 패널 최소화",
+    "maximize": "컨트롤 패널 최대화",
+    "stopSync": "동기화 중지",
+    "notSyncing": "동기화 중이 아님",
+    "usePopup": "확장 프로그램 팝업을 사용하여 시작",
+    "linkedSites": "연결된 사이트 ({{count}})",
+    "syncMode": {
+      "ratio": "비율",
+      "element": "요소"
+    },
+    "mode": "모드"
+  },
+  "errors": {
+    "tabSwitch": "탭 전환 실패",
+    "syncStart": "동기화 시작 실패",
+    "syncStop": "동기화 중지 실패",
+    "noTabs": "동기화를 위해 최소 2개의 탭이 필요합니다",
+    "groupNotFound": "동기화 그룹을 찾을 수 없습니다"
+  },
+  "restrictions": {
+    "browser": "브라우저 내부 페이지에 접근할 수 없습니다",
+    "viewSource": "소스 보기 페이지는 동기화할 수 없습니다",
+    "webStore": "확장 프로그램 스토어 페이지는 제한됩니다",
+    "google": "Google 서비스에는 보안 제한이 있습니다",
+    "restricted": "제한된 URL"
+  }
+}

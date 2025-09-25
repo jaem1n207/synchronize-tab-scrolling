@@ -1,0 +1,58 @@
+{
+  "extension": {
+    "name": "Tab-Scroll-Synchronisation",
+    "description": "Synchronisiere Scroll-Positionen zwischen Browser-Tabs"
+  },
+  "popup": {
+    "title": "Tab-Synchronisation",
+    "selectTabs": "Wähle 2 oder mehr Tabs zur Synchronisation",
+    "startSync": "Synchronisation Starten",
+    "stopSync": "Synchronisation Stoppen",
+    "syncMode": {
+      "label": "Synchronisationsmodus",
+      "ratio": "Verhältnis-Modus",
+      "element": "Element-Modus"
+    },
+    "urlSync": {
+      "enabled": "URL-Synchronisation aktiviert",
+      "disabled": "URL-Synchronisation deaktiviert"
+    },
+    "tabSelection": {
+      "minimum": "Wähle mindestens 2 Tabs zum Starten",
+      "noEligible": "Keine geeigneten Tabs gefunden",
+      "openPages": "Öffne Webseiten zum Starten",
+      "restricted": "Eingeschränkte Tabs (können nicht synchronisiert werden)"
+    },
+    "status": {
+      "syncing": "Synchronisiere {{count}} Tabs"
+    }
+  },
+  "controlPanel": {
+    "title": "Scroll-Sync",
+    "minimize": "Bedienfeld minimieren",
+    "maximize": "Bedienfeld maximieren",
+    "stopSync": "Sync Stoppen",
+    "notSyncing": "Nicht synchronisiert",
+    "usePopup": "Verwende das Popup zum Starten",
+    "linkedSites": "Verknüpfte Seiten ({{count}})",
+    "syncMode": {
+      "ratio": "Verhältnis",
+      "element": "Element"
+    },
+    "mode": "Modus"
+  },
+  "errors": {
+    "tabSwitch": "Tab-Wechsel fehlgeschlagen",
+    "syncStart": "Start der Synchronisation fehlgeschlagen",
+    "syncStop": "Stoppen der Synchronisation fehlgeschlagen",
+    "noTabs": "Mindestens 2 Tabs für Synchronisation erforderlich",
+    "groupNotFound": "Synchronisationsgruppe nicht gefunden"
+  },
+  "restrictions": {
+    "browser": "Browser-interne Seiten nicht zugänglich",
+    "viewSource": "Quellcode-Seiten können nicht synchronisiert werden",
+    "webStore": "Erweiterungsshop-Seiten sind eingeschränkt",
+    "google": "Google-Dienste haben Sicherheitsbeschränkungen",
+    "restricted": "Eingeschränkte URL"
+  }
+}

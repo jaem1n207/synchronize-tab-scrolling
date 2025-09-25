@@ -1,0 +1,58 @@
+{
+  "extension": {
+    "name": "Synchronisation du Défilement",
+    "description": "Synchroniser les positions de défilement entre les onglets"
+  },
+  "popup": {
+    "title": "Synchronisation des Onglets",
+    "selectTabs": "Sélectionnez 2 onglets ou plus pour synchroniser leurs positions",
+    "startSync": "Démarrer la Synchronisation",
+    "stopSync": "Arrêter la Synchronisation",
+    "syncMode": {
+      "label": "Mode de Synchronisation",
+      "ratio": "Mode Ratio",
+      "element": "Mode Élément"
+    },
+    "urlSync": {
+      "enabled": "Synchronisation URL activée",
+      "disabled": "Synchronisation URL désactivée"
+    },
+    "tabSelection": {
+      "minimum": "Sélectionnez au moins 2 onglets pour démarrer",
+      "noEligible": "Aucun onglet éligible trouvé",
+      "openPages": "Ouvrez des pages web pour commencer",
+      "restricted": "Onglets restreints (ne peuvent pas être synchronisés)"
+    },
+    "status": {
+      "syncing": "Synchronisation de {{count}} onglets"
+    }
+  },
+  "controlPanel": {
+    "title": "Synchro Défilement",
+    "minimize": "Réduire le panneau",
+    "maximize": "Agrandir le panneau",
+    "stopSync": "Arrêter Synchro",
+    "notSyncing": "Pas de synchronisation",
+    "usePopup": "Utilisez le popup pour démarrer",
+    "linkedSites": "Sites Liés ({{count}})",
+    "syncMode": {
+      "ratio": "Ratio",
+      "element": "Élément"
+    },
+    "mode": "Mode"
+  },
+  "errors": {
+    "tabSwitch": "Échec du changement d'onglet",
+    "syncStart": "Échec du démarrage de la synchronisation",
+    "syncStop": "Échec de l'arrêt de la synchronisation",
+    "noTabs": "Au moins 2 onglets requis pour la synchronisation",
+    "groupNotFound": "Groupe de synchronisation introuvable"
+  },
+  "restrictions": {
+    "browser": "Les pages internes du navigateur ne sont pas accessibles",
+    "viewSource": "Les pages de code source ne peuvent pas être synchronisées",
+    "webStore": "Les pages du magasin d'extensions sont restreintes",
+    "google": "Les services Google ont des restrictions de sécurité",
+    "restricted": "URL restreinte"
+  }
+}

@@ -2,6 +2,8 @@ import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 
+import { exportCurrentElementContext, applyElementBasedSync, type ElementSignature } from './elementSync';
+
 import type { ScrollPosition, SyncGroup, SyncMode } from '~/shared/types';
 
 const logger = new ExtensionLogger({ scope: 'content-scroll-sync' });
@@ -53,9 +55,21 @@ function applyScrollPosition(position: ScrollPosition, syncMode: SyncMode) {
   }, 100);
 }
 
-// Element-based scroll synchronization (placeholder for future implementation)
-function applyElementBasedScroll(position: ScrollPosition) {
-  // For now, fallback to ratio-based
+// Element-based scroll synchronization
+function applyElementBasedScroll(position: ScrollPosition & { elementContext?: unknown }) {
+  // Try element-based sync first
+  if (position.elementContext) {
+    const success = applyElementBasedSync(position.elementContext as {
+      signature: ElementSignature | null;
+      scrollTop: number;
+      pageHeight: number;
+    });
+    if (success) {
+      return;
+    }
+  }
+
+  // Fallback to ratio-based
   const targetTop =
     (position.scrollTop / position.scrollHeight) * document.documentElement.scrollHeight;
   const targetLeft =
@@ -88,6 +102,12 @@ function handleScroll(event: Event) {
     if (!currentGroup || !currentGroup.isActive) return;
 
     const position = getScrollPosition();
+    let elementContext;
+
+    // If using element-based sync, export element context
+    if (currentGroup.syncMode === 'element') {
+      elementContext = exportCurrentElementContext();
+    }
 
     try {
       // Send scroll position to background
@@ -96,7 +116,7 @@ function handleScroll(event: Event) {
         'sync-scroll',
         {
           groupId: currentGroup.id,
-          position,
+          position: { ...position, elementContext },
         },
         'background',
       );

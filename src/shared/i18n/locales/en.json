@@ -1,0 +1,58 @@
+{
+  "extension": {
+    "name": "Tab Scroll Sync",
+    "description": "Synchronize scroll positions across browser tabs"
+  },
+  "popup": {
+    "title": "Tab Synchronization",
+    "selectTabs": "Select 2 or more tabs to synchronize their scroll positions",
+    "startSync": "Start Synchronization",
+    "stopSync": "Stop Synchronization",
+    "syncMode": {
+      "label": "Sync Mode",
+      "ratio": "Ratio Mode",
+      "element": "Element Mode"
+    },
+    "urlSync": {
+      "enabled": "URL sync enabled",
+      "disabled": "URL sync disabled"
+    },
+    "tabSelection": {
+      "minimum": "Select at least 2 tabs to start synchronization",
+      "noEligible": "No eligible tabs found",
+      "openPages": "Open some web pages to get started",
+      "restricted": "Restricted tabs (cannot be synchronized)"
+    },
+    "status": {
+      "syncing": "Syncing {{count}} tabs"
+    }
+  },
+  "controlPanel": {
+    "title": "Scroll Sync",
+    "minimize": "Minimize control panel",
+    "maximize": "Maximize control panel",
+    "stopSync": "Stop Sync",
+    "notSyncing": "Not syncing",
+    "usePopup": "Use extension popup to start",
+    "linkedSites": "Linked Sites ({{count}})",
+    "syncMode": {
+      "ratio": "Ratio",
+      "element": "Element"
+    },
+    "mode": "Mode"
+  },
+  "errors": {
+    "tabSwitch": "Failed to switch tab",
+    "syncStart": "Failed to start synchronization",
+    "syncStop": "Failed to stop synchronization",
+    "noTabs": "At least 2 tabs required for synchronization",
+    "groupNotFound": "Sync group not found"
+  },
+  "restrictions": {
+    "browser": "Browser internal pages cannot be accessed",
+    "viewSource": "View source pages cannot be synchronized",
+    "webStore": "Extension store pages are restricted",
+    "google": "Google services have security restrictions",
+    "restricted": "Restricted URL"
+  }
+}

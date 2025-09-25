@@ -17,6 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
+import { t } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
 
 import type { SyncTab, SyncGroup, SyncMode } from '~/shared/types';
@@ -157,14 +158,14 @@ export function TabList() {
     <div className="w-[400px] p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Tab Synchronization</h2>
+        <h2 className="text-lg font-semibold">{t('popup.title')}</h2>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Info className="h-4 w-4 text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent className="max-w-xs" side="left">
-              <p>Select 2 or more tabs to synchronize their scroll positions</p>
+              <p>{t('popup.selectTabs')}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -178,20 +179,20 @@ export function TabList() {
             value={syncMode}
             onValueChange={(value) => handleSyncModeChange(value as SyncMode)}
           >
-            <SelectTrigger aria-label="Sync mode" className="flex-1">
+            <SelectTrigger aria-label={t('popup.syncMode.label')} className="flex-1">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ratio">
                 <div className="flex items-center gap-2">
                   <Hash className="h-4 w-4" />
-                  <span>Ratio Mode</span>
+                  <span>{t('popup.syncMode.ratio')}</span>
                 </div>
               </SelectItem>
               <SelectItem value="element">
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4" />
-                  <span>Element Mode</span>
+                  <span>{t('popup.syncMode.element')}</span>
                 </div>
               </SelectItem>
             </SelectContent>
@@ -201,7 +202,7 @@ export function TabList() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  aria-label={urlSync ? 'URL sync enabled' : 'URL sync disabled'}
+                  aria-label={urlSync ? t('popup.urlSync.enabled') : t('popup.urlSync.disabled')}
                   disabled={isSyncing}
                   size="icon"
                   variant={urlSync ? 'default' : 'outline'}
@@ -211,7 +212,7 @@ export function TabList() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{urlSync ? 'URL sync enabled' : 'URL sync disabled'}</p>
+                <p>{urlSync ? t('popup.urlSync.enabled') : t('popup.urlSync.disabled')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -226,19 +227,19 @@ export function TabList() {
           {isSyncing ? (
             <>
               <Square className="mr-2 h-4 w-4" />
-              Stop Synchronization
+              {t('popup.stopSync')}
             </>
           ) : (
             <>
               <Play className="mr-2 h-4 w-4" />
-              Start Synchronization
+              {t('popup.startSync')}
             </>
           )}
         </Button>
 
         {!isSyncing && selectedTabs.size < 2 && (
           <p className="text-xs text-muted-foreground text-center">
-            Select at least 2 tabs to start synchronization
+            {t('popup.tabSelection.minimum')}
           </p>
         )}
       </div>
@@ -247,8 +248,8 @@ export function TabList() {
       <div className="space-y-2 max-h-[400px] overflow-y-auto">
         {eligibleTabs.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            <p>No eligible tabs found</p>
-            <p className="text-xs mt-2">Open some web pages to get started</p>
+            <p>{t('popup.tabSelection.noEligible')}</p>
+            <p className="text-xs mt-2">{t('popup.tabSelection.openPages')}</p>
           </div>
         ) : (
           eligibleTabs.map((tab) => (
@@ -266,7 +267,7 @@ export function TabList() {
         {tabs.filter((tab) => !tab.isEligible).length > 0 && (
           <div className="pt-4 border-t">
             <p className="text-xs text-muted-foreground mb-2">
-              Restricted tabs (cannot be synchronized):
+              {t('popup.tabSelection.restricted')}
             </p>
             {tabs
               .filter((tab) => !tab.isEligible)

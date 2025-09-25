@@ -1,0 +1,58 @@
+{
+  "extension": {
+    "name": "标签页滚动同步",
+    "description": "在浏览器标签页之间同步滚动位置"
+  },
+  "popup": {
+    "title": "标签页同步",
+    "selectTabs": "选择2个或更多标签页来同步滚动位置",
+    "startSync": "开始同步",
+    "stopSync": "停止同步",
+    "syncMode": {
+      "label": "同步模式",
+      "ratio": "比例模式",
+      "element": "元素模式"
+    },
+    "urlSync": {
+      "enabled": "URL同步已启用",
+      "disabled": "URL同步已禁用"
+    },
+    "tabSelection": {
+      "minimum": "至少选择2个标签页开始同步",
+      "noEligible": "未找到可用的标签页",
+      "openPages": "打开一些网页开始使用",
+      "restricted": "受限标签页（无法同步）"
+    },
+    "status": {
+      "syncing": "正在同步{{count}}个标签页"
+    }
+  },
+  "controlPanel": {
+    "title": "滚动同步",
+    "minimize": "最小化控制面板",
+    "maximize": "最大化控制面板",
+    "stopSync": "停止同步",
+    "notSyncing": "未同步",
+    "usePopup": "使用扩展弹窗开始",
+    "linkedSites": "已链接站点 ({{count}})",
+    "syncMode": {
+      "ratio": "比例",
+      "element": "元素"
+    },
+    "mode": "模式"
+  },
+  "errors": {
+    "tabSwitch": "切换标签页失败",
+    "syncStart": "启动同步失败",
+    "syncStop": "停止同步失败",
+    "noTabs": "同步需要至少2个标签页",
+    "groupNotFound": "未找到同步组"
+  },
+  "restrictions": {
+    "browser": "无法访问浏览器内部页面",
+    "viewSource": "查看源代码页面无法同步",
+    "webStore": "扩展商店页面受限",
+    "google": "Google服务有安全限制",
+    "restricted": "受限URL"
+  }
+}

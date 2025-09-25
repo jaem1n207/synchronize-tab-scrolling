@@ -28,6 +28,11 @@ export interface ScrollPosition {
   clientHeight: number;
   clientWidth: number;
   timestamp: number;
+  elementContext?: {
+    signature: unknown;
+    scrollTop: number;
+    pageHeight: number;
+  };
 }
 
 export interface SyncState {
@@ -91,22 +96,22 @@ export const RESTRICTED_URL_PATTERNS = [
   /^https:\/\/slides\.google\.com/,
 ];
 
-export function isRestrictedUrl(url: string): { restricted: boolean; reason?: string } {
-  if (!url) return { restricted: true, reason: 'No URL provided' };
+export function isRestrictedUrl(url: string): { restricted: boolean; reasonKey?: string } {
+  if (!url) return { restricted: true, reasonKey: 'restrictions.restricted' };
 
   for (const pattern of RESTRICTED_URL_PATTERNS) {
     if (pattern.test(url)) {
-      let reason = 'Restricted URL';
+      let reasonKey = 'restrictions.restricted';
       if (url.startsWith('chrome://') || url.startsWith('edge://') || url.startsWith('about:')) {
-        reason = 'Browser internal pages cannot be accessed';
+        reasonKey = 'restrictions.browser';
       } else if (url.startsWith('view-source:')) {
-        reason = 'View source pages cannot be synchronized';
+        reasonKey = 'restrictions.viewSource';
       } else if (url.includes('chrome.google.com/webstore') || url.includes('addons.mozilla.org')) {
-        reason = 'Extension store pages are restricted';
+        reasonKey = 'restrictions.webStore';
       } else if (url.includes('google.com')) {
-        reason = 'Google services have security restrictions';
+        reasonKey = 'restrictions.google';
       }
-      return { restricted: true, reason };
+      return { restricted: true, reasonKey };
     }
   }
 
