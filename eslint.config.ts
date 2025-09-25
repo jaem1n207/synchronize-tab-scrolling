@@ -8,11 +8,14 @@ import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tsEslint from 'typescript-eslint';
+import pluginQuery from '@tanstack/eslint-plugin-query';
 
 export default tsEslint.config(
   // 기본 설정
   jsEslint.configs.recommended,
   ...tsEslint.configs.recommended,
+
+  ...pluginQuery.configs['flat/recommended'],
 
   // JSX A11y, Import-X 설정
   jsxA11y.flatConfigs.recommended,

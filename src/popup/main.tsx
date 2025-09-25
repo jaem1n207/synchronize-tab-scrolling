@@ -1,11 +1,13 @@
 import { StrictMode } from 'react';
 
 import * as Sentry from '@sentry/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
 
-import { Button } from '~/shared/components/ui/button';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
+
+import { ScrollSyncPopup } from './components/ScrollSyncPopup';
 
 import '~/shared/styles';
 
@@ -14,18 +16,34 @@ initializeSentry();
 
 const logger = new ExtensionLogger({ scope: 'popup-page' });
 
-const container = document.getElementById('app');
+// TanStack Query 클라이언트 설정
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5분
+      gcTime: 1000 * 60 * 10, // 10분 (이전 cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
-if (container) {
+function init() {
+  const appContainer = document.getElementById('app');
+  if (!appContainer) {
+    throw new Error('Can not find #app element');
+  }
+
   // React 19+ 에러 훅과 Sentry 통합
-  const root = createRoot(container, {
+  const root = createRoot(appContainer, {
     onUncaughtError: Sentry.reactErrorHandler((error, errorInfo) => {
       logger.error(error, {
         context: 'React uncaught error in popup page',
         componentStack: errorInfo?.componentStack,
       });
-      // Sentry.captureException은 reactErrorHandler 내부에서 이미 호출될 수 있습니다.
-      // 중복 전송을 피하려면 Sentry 설정을 확인하거나, 여기서 추가적인 처리를 하지 않아도 됩니다.
     }),
     onCaughtError: Sentry.reactErrorHandler((error, errorInfo) => {
       logger.warn('Popup Page: React caught error (in ErrorBoundary)', error, {
@@ -40,19 +58,12 @@ if (container) {
   });
 
   root.render(
-    <StrictMode>
-      <div className="w-600px h-400px overflow-auto">
-        <h1>Popup</h1>
-        <Button
-          onClick={() => {
-            console.log('clicked');
-          }}
-        >
-          Click me!
-        </Button>
-      </div>
-    </StrictMode>,
+    <QueryClientProvider client={queryClient}>
+      <StrictMode>
+        <ScrollSyncPopup />
+      </StrictMode>
+    </QueryClientProvider>,
   );
-} else {
-  logger.error("Popup page 'app' container not found!");
 }
+
+init();

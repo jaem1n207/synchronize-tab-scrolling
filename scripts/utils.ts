@@ -14,7 +14,7 @@ const envVariables = z.object({
   EXTENSION: z.union([z.literal('firefox'), z.undefined()]).optional(),
 });
 
-const getEnvIssues = (): z.ZodIssue[] | void => {
+const getEnvIssues = (): z.core.$ZodIssue[] | void => {
   const result = envVariables.safeParse(process.env);
   if (!result.success) return result.error.issues;
 };
