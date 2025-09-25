@@ -83,6 +83,45 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
     }
   };
 
+  // Keyboard navigation for dragging
+  const handleKeyboardMove = (e: React.KeyboardEvent) => {
+    if (!panelRef.current) return;
+
+    const step = e.shiftKey ? 50 : 10; // Larger steps with shift
+    let newX = x.get();
+    let newY = y.get();
+
+    switch (e.key) {
+      case 'ArrowLeft':
+        newX -= step;
+        break;
+      case 'ArrowRight':
+        newX += step;
+        break;
+      case 'ArrowUp':
+        newY -= step;
+        break;
+      case 'ArrowDown':
+        newY += step;
+        break;
+      default:
+        return;
+    }
+
+    e.preventDefault();
+
+    // Apply boundary constraints
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const rect = panelRef.current.getBoundingClientRect();
+
+    newX = Math.max(20, Math.min(newX, windowWidth - rect.width - 20));
+    newY = Math.max(20, Math.min(newY, windowHeight - rect.height - 20));
+
+    animate(x, newX, { duration: 0.2 });
+    animate(y, newY, { duration: 0.2 });
+  };
+
   const handleStopSync = async () => {
     if (currentGroup) {
       await sendMessage('stop-sync', { groupId: currentGroup.id }, 'background');
@@ -102,17 +141,23 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
         ref={panelRef}
         drag
         animate={{ scale: 1 }}
+        aria-describedby="control-panel-keyboard-hint"
+        aria-label={t('controlPanel.title')}
         className="fixed w-[30px] h-[30px] bg-background border border-border rounded-lg shadow-lg flex items-center justify-center cursor-move hover:border-primary transition-colors"
         dragMomentum={false}
         initial={{ scale: 0 }}
+        role="region"
         style={{ x, y }}
+        tabIndex={0}
         transition={{
           duration: 0.25,
           ease: [0.16, 1, 0.3, 1], // ease-out-cubic
         }}
         onDragEnd={handleDragEnd}
+        onKeyDown={handleKeyboardMove}
       >
         <button
+          aria-expanded="false"
           aria-label={t('controlPanel.maximize')}
           className="w-full h-full flex items-center justify-center hover:bg-accent rounded-lg transition-colors"
           onClick={handleMinimizeToggle}
@@ -128,15 +173,20 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
       ref={panelRef}
       drag
       animate={{ opacity: 1, scale: 1 }}
+      aria-describedby="control-panel-keyboard-hint"
+      aria-label={t('controlPanel.title')}
       className="fixed bg-background border border-border rounded-lg shadow-xl"
       dragMomentum={false}
       initial={{ opacity: 0, scale: 0.95 }}
+      role="region"
       style={{ x, y }}
+      tabIndex={0}
       transition={{
         duration: 0.3,
         ease: [0.19, 1, 0.22, 1], // ease-out-expo
       }}
       onDragEnd={handleDragEnd}
+      onKeyDown={handleKeyboardMove}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border cursor-move">

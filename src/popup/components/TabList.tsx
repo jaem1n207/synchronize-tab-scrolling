@@ -155,10 +155,10 @@ export function TabList() {
   const canStartSync = selectedTabs.size >= 2 && !isSyncing;
 
   return (
-    <div className="w-[400px] p-4 space-y-4">
+    <div aria-label={t('popup.title')} className="w-[400px] p-4 space-y-4" role="application">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{t('popup.title')}</h2>
+        <h1 className="text-lg font-semibold">{t('popup.title')}</h1>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -245,7 +245,7 @@ export function TabList() {
       </div>
 
       {/* Tab List */}
-      <div className="space-y-2 max-h-[400px] overflow-y-auto">
+      <section aria-label="Available tabs" className="space-y-2 max-h-[400px] overflow-y-auto">
         {eligibleTabs.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <p>{t('popup.tabSelection.noEligible')}</p>
@@ -283,7 +283,7 @@ export function TabList() {
               ))}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

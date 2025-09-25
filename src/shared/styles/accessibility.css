@@ -1,0 +1,162 @@
+/* High contrast mode styles */
+.high-contrast {
+  /* Increase contrast for all text */
+  --foreground: hsl(0 0% 0%);
+  --background: hsl(0 0% 100%);
+  --primary: hsl(240 100% 30%);
+  --primary-foreground: hsl(0 0% 100%);
+  --muted: hsl(0 0% 80%);
+  --muted-foreground: hsl(0 0% 20%);
+  --accent: hsl(240 100% 90%);
+  --accent-foreground: hsl(0 0% 0%);
+  --destructive: hsl(0 100% 30%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(0 0% 20%);
+  --ring: hsl(240 100% 30%);
+}
+
+.dark.high-contrast {
+  --foreground: hsl(0 0% 100%);
+  --background: hsl(0 0% 0%);
+  --primary: hsl(60 100% 50%);
+  --primary-foreground: hsl(0 0% 0%);
+  --muted: hsl(0 0% 20%);
+  --muted-foreground: hsl(0 0% 80%);
+  --accent: hsl(60 100% 20%);
+  --accent-foreground: hsl(0 0% 100%);
+  --destructive: hsl(0 100% 60%);
+  --destructive-foreground: hsl(0 0% 0%);
+  --border: hsl(0 0% 80%);
+  --ring: hsl(60 100% 50%);
+}
+
+/* Enhanced focus indicators */
+.focus-visible *:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Ensure sufficient tap target size for mobile */
+button,
+a,
+input[type="checkbox"],
+input[type="radio"],
+[role="button"],
+[role="link"],
+[role="checkbox"],
+[role="radio"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ensure text is always readable */
+.high-contrast * {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.high-contrast button,
+.high-contrast a {
+  text-decoration: underline;
+}
+
+.high-contrast button:hover,
+.high-contrast a:hover {
+  text-decoration: none;
+  background-color: var(--accent);
+}
+
+/* Improved disabled states */
+.high-contrast [disabled],
+.high-contrast [aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Focus trap for modals */
+[data-focus-trap] {
+  position: relative;
+}
+
+[data-focus-trap]::before,
+[data-focus-trap]::after {
+  content: '';
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+[data-focus-trap]::before {
+  top: 0;
+  left: 0;
+}
+
+[data-focus-trap]::after {
+  bottom: 0;
+  right: 0;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Color blind friendly status indicators */
+.status-success::before {
+  content: '✓ ';
+  color: hsl(120 100% 25%);
+  font-weight: bold;
+}
+
+.status-error::before {
+  content: '✗ ';
+  color: hsl(0 100% 40%);
+  font-weight: bold;
+}
+
+.status-warning::before {
+  content: '⚠ ';
+  color: hsl(45 100% 35%);
+  font-weight: bold;
+}
+
+.status-info::before {
+  content: 'ℹ ';
+  color: hsl(200 100% 35%);
+  font-weight: bold;
+}

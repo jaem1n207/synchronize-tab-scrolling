@@ -2,7 +2,11 @@ import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 
-import { exportCurrentElementContext, applyElementBasedSync, type ElementSignature } from './elementSync';
+import {
+  exportCurrentElementContext,
+  applyElementBasedSync,
+  type ElementSignature,
+} from './elementSync';
 
 import type { ScrollPosition, SyncGroup, SyncMode } from '~/shared/types';
 
@@ -59,11 +63,13 @@ function applyScrollPosition(position: ScrollPosition, syncMode: SyncMode) {
 function applyElementBasedScroll(position: ScrollPosition & { elementContext?: unknown }) {
   // Try element-based sync first
   if (position.elementContext) {
-    const success = applyElementBasedSync(position.elementContext as {
-      signature: ElementSignature | null;
-      scrollTop: number;
-      pageHeight: number;
-    });
+    const success = applyElementBasedSync(
+      position.elementContext as {
+        signature: ElementSignature | null;
+        scrollTop: number;
+        pageHeight: number;
+      },
+    );
     if (success) {
       return;
     }

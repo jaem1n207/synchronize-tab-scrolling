@@ -4,10 +4,12 @@ import * as Sentry from '@sentry/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
 
+import { AccessibilityEnhancements } from '~/shared/components/AccessibilityEnhancements';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
-
 import '~/shared/styles';
+import '~/shared/styles/accessibility.css';
+
 import { TabList } from './components/TabList';
 
 // Sentry 초기화 실행
@@ -59,7 +61,10 @@ function init() {
   root.render(
     <QueryClientProvider client={queryClient}>
       <StrictMode>
-        <TabList />
+        <AccessibilityEnhancements />
+        <main id="main-content" tabIndex={-1}>
+          <TabList />
+        </main>
       </StrictMode>
     </QueryClientProvider>,
   );
