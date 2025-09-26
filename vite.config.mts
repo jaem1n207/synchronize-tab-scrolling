@@ -2,7 +2,6 @@
 
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import React from '@vitejs/plugin-react';
-import { dirname, relative } from 'node:path';
 import UnoCSS from 'unocss/vite';
 import AutoImport from 'unplugin-auto-import/vite';
 import Icons from 'unplugin-icons/vite';
@@ -39,11 +38,24 @@ export const sharedConfig: UserConfig = {
       enforce: 'post',
       apply: 'build',
       transformIndexHtml(html, { path }) {
-        html.replace(/"\/assets\//g, `"${relative(dirname(path), '/assets')}/`);
-        html = html.replace(
-          '</head>',
-          '<script type="module" crossorigin src="/dist/themeSync.js"></script></head>',
-        );
+        // Fix paths - popup is in /dist/popup/, assets are in /dist/assets/
+        // So from popup, we need to go up one level (..) to reach /dist/, then into assets/
+        if (path.includes('popup')) {
+          html = html.replace(/"\/dist\/assets\//g, '"../assets/');
+          html = html.replace(/"\/dist\/themeSync\.js"/g, '"../themeSync.js"');
+        } else if (path.includes('options')) {
+          html = html.replace(/"\/dist\/assets\//g, '"../assets/');
+          html = html.replace(/"\/dist\/themeSync\.js"/g, '"../themeSync.js"');
+        }
+
+        // Add themeSync script if not already present
+        if (!html.includes('themeSync.js')) {
+          html = html.replace(
+            '</head>',
+            '<script type="module" crossorigin src="../themeSync.js"></script></head>',
+          );
+        }
+
         return html;
       },
     },
@@ -88,6 +100,7 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       input: {
         options: r('src/options/index.html'),
+        popup: r('src/popup/index.html'),
       },
     },
   },

@@ -41,10 +41,20 @@ export function TabList() {
 
   const loadTabs = async () => {
     try {
+      logger.info('Sending get-tabs message to background...');
       const tabList = await sendMessage('get-tabs', undefined, 'background');
+      logger.info('Received tabs:', tabList);
       setTabs(tabList);
     } catch (error) {
       logger.error('Failed to load tabs', error);
+      // Log more details about the error
+      if (error instanceof Error) {
+        logger.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -52,7 +62,9 @@ export function TabList() {
 
   const loadSyncState = async () => {
     try {
+      logger.info('Sending get-sync-state message to background...');
       const state = await sendMessage('get-sync-state', undefined, 'background');
+      logger.info('Received sync state:', state);
       if (state.activeGroupId && state.groups.length > 0) {
         const activeGroup = state.groups.find((g) => g.id === state.activeGroupId);
         if (activeGroup) {
@@ -65,6 +77,13 @@ export function TabList() {
       }
     } catch (error) {
       logger.error('Failed to load sync state', error);
+      if (error instanceof Error) {
+        logger.error('Sync state error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        });
+      }
     }
   };
 

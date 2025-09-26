@@ -40,12 +40,12 @@
 /* Ensure sufficient tap target size for mobile */
 button,
 a,
-input[type="checkbox"],
-input[type="radio"],
-[role="button"],
-[role="link"],
-[role="checkbox"],
-[role="radio"] {
+input[type='checkbox'],
+input[type='radio'],
+[role='button'],
+[role='link'],
+[role='checkbox'],
+[role='radio'] {
   min-height: 44px;
   min-width: 44px;
 }
@@ -69,7 +69,7 @@ input[type="radio"],
 
 /* Improved disabled states */
 .high-contrast [disabled],
-.high-contrast [aria-disabled="true"] {
+.high-contrast [aria-disabled='true'] {
   opacity: 0.6;
   cursor: not-allowed;
   text-decoration: line-through;

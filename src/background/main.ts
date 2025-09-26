@@ -15,6 +15,9 @@ initializeSentry();
 
 const logger = new ExtensionLogger({ scope: 'background' });
 
+// Log that background script is starting
+logger.info('Background script initializing...');
+
 // Sync state management
 const syncState: SyncState = {
   groups: [],
@@ -41,18 +44,34 @@ browser.action.onClicked.addListener(() => {
 // Get all tabs and check eligibility
 async function getAllTabs(): Promise<SyncTab[]> {
   try {
+    logger.info('Querying browser tabs...');
     const tabs = await browser.tabs.query({});
+    logger.info(`Found ${tabs.length} tabs`);
+
     return tabs.map((tab) => {
-      const { restricted, reasonKey } = isRestrictedUrl(tab.url || '');
-      return {
-        id: tab.id!,
-        title: tab.title || 'Untitled',
-        url: tab.url || '',
-        favicon: tab.favIconUrl,
-        isEligible: !restricted && tab.id !== undefined,
-        ineligibilityReason: reasonKey ? t(reasonKey as TranslationKey) : undefined,
-        windowId: tab.windowId!,
-      };
+      try {
+        const { restricted, reasonKey } = isRestrictedUrl(tab.url || '');
+        return {
+          id: tab.id!,
+          title: tab.title || 'Untitled',
+          url: tab.url || '',
+          favicon: tab.favIconUrl,
+          isEligible: !restricted && tab.id !== undefined && tab.url !== undefined,
+          ineligibilityReason: reasonKey ? t(reasonKey as TranslationKey) : undefined,
+          windowId: tab.windowId!,
+        };
+      } catch (err) {
+        logger.error(`Error processing tab ${tab.id}:`, err);
+        return {
+          id: tab.id!,
+          title: tab.title || 'Untitled',
+          url: tab.url || '',
+          favicon: tab.favIconUrl,
+          isEligible: false,
+          ineligibilityReason: 'Error processing tab',
+          windowId: tab.windowId!,
+        };
+      }
     });
   } catch (error) {
     logger.error('Failed to get tabs', error);
@@ -62,10 +81,14 @@ async function getAllTabs(): Promise<SyncTab[]> {
 
 // Message handlers
 onMessage('get-tabs', async () => {
-  return getAllTabs();
+  logger.info('get-tabs message received');
+  const tabs = await getAllTabs();
+  logger.info(`Returning ${tabs.length} tabs`);
+  return tabs;
 });
 
 onMessage('get-sync-state', async () => {
+  logger.info('get-sync-state message received');
   return syncState;
 });
 
@@ -369,3 +392,6 @@ browser.runtime.onStartup.addListener(async () => {
     logger.error('Failed to restore state', error);
   }
 });
+
+// Log that all handlers are registered
+logger.info('Background script message handlers registered successfully');
