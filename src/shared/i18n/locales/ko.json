@@ -15,7 +15,9 @@
     },
     "urlSync": {
       "enabled": "URL 동기화 켜짐",
-      "disabled": "URL 동기화 꺼짐"
+      "disabled": "URL 동기화 꺼짐",
+      "enable": "URL 동기화 활성화",
+      "disable": "URL 동기화 비활성화"
     },
     "tabSelection": {
       "minimum": "동기화를 시작하려면 최소 2개의 탭을 선택하세요",
@@ -39,7 +41,14 @@
       "ratio": "비율",
       "element": "요소"
     },
-    "mode": "모드"
+    "mode": "모드",
+    "openPanel": "Open panel",
+    "close": "Close",
+    "searchActions": "Search actions...",
+    "noActionsFound": "No actions found",
+    "syncStatus": "Sync Status",
+    "syncOptions": "Sync Options",
+    "actions": "Actions"
   },
   "errors": {
     "tabSwitch": "탭 전환 실패",

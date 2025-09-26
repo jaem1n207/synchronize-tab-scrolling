@@ -1,9 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 
-import { ChevronDown, ChevronUp, Link, Maximize2, Minimize2, Monitor, Square } from 'lucide-react';
+import { Monitor, X } from 'lucide-react';
 import { motion, useMotionValue, animate } from 'motion/react';
-import { sendMessage } from 'webext-bridge/content-script';
+import { sendMessage, onMessage } from 'webext-bridge/content-script';
 
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '~/shared/components/ui/command';
 import { t } from '~/shared/i18n';
 
 import { getCurrentSyncGroup, isCurrentlySyncing } from '../features/scrollSync';
@@ -15,31 +24,92 @@ interface ControlPanelProps {
 }
 
 export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPanelProps) {
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [isLinkedSitesExpanded, setIsLinkedSitesExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [currentGroup, setCurrentGroup] = useState<SyncGroup | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [tabs, setTabs] = useState<Array<{ id: number; title: string }>>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const commandRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(initialPosition.x);
   const y = useMotionValue(initialPosition.y);
 
-  // Update state when sync status changes
+  // Initialize state from current sync status
   useEffect(() => {
-    const interval = setInterval(() => {
-      const group = getCurrentSyncGroup();
+    const group = getCurrentSyncGroup();
+    if (group && isCurrentlySyncing()) {
       setCurrentGroup(group);
-      setIsSyncing(isCurrentlySyncing());
-    }, 500);
+      setIsSyncing(true);
 
-    return () => clearInterval(interval);
+      // Get tab info immediately
+      if (group.tabs.length > 0) {
+        Promise.all(
+          group.tabs.map(async (tabId) => {
+            try {
+              const response = await sendMessage('get-tab-info', { tabId }, 'background');
+              return response as { id: number; title: string };
+            } catch {
+              return { id: tabId, title: `Tab ${tabId}` };
+            }
+          }),
+        ).then(setTabs);
+      }
+    } else {
+      // If no sync group or not syncing, ensure state is cleared
+      setCurrentGroup(null);
+      setIsSyncing(false);
+      setTabs([]);
+    }
   }, []);
 
-  // Edge snapping logic
-  const handleDragEnd = () => {
-    if (!panelRef.current) return;
+  // Listen for sync status changes
+  useEffect(() => {
+    const handleSyncStarted = ({
+      data,
+    }: {
+      data: { group: SyncGroup; showControlPanel?: boolean };
+    }) => {
+      // Update state based on the sync-started message
+      setCurrentGroup(data.group);
+      setIsSyncing(true);
 
-    const rect = panelRef.current.getBoundingClientRect();
+      // Get tab info
+      if (data.group.tabs.length > 0) {
+        Promise.all(
+          data.group.tabs.map(async (tabId) => {
+            try {
+              const response = await sendMessage('get-tab-info', { tabId }, 'background');
+              return response as { id: number; title: string };
+            } catch {
+              return { id: tabId, title: `Tab ${tabId}` };
+            }
+          }),
+        ).then(setTabs);
+      }
+    };
+
+    const handleSyncStopped = () => {
+      // Clear state when sync stops
+      setCurrentGroup(null);
+      setIsSyncing(false);
+      setTabs([]);
+    };
+
+    // Register listeners
+    onMessage('sync-started', handleSyncStarted);
+    onMessage('sync-stopped', handleSyncStopped);
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
+
+  // Handle edge snapping for drag
+  const handleDragEnd = () => {
+    if (!buttonRef.current) return;
+
+    const rect = buttonRef.current.getBoundingClientRect();
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
@@ -49,23 +119,20 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
     let targetX = rect.left;
     let targetY = rect.top;
 
-    // Snap to left edge
+    // Snap to edges
     if (rect.left < SNAP_DISTANCE) {
       targetX = EDGE_PADDING;
-    }
-    // Snap to right edge
-    else if (rect.right > windowWidth - SNAP_DISTANCE) {
+    } else if (rect.right > windowWidth - SNAP_DISTANCE) {
       targetX = windowWidth - rect.width - EDGE_PADDING;
     }
 
-    // Keep within vertical bounds
     if (rect.top < EDGE_PADDING) {
       targetY = EDGE_PADDING;
     } else if (rect.bottom > windowHeight - EDGE_PADDING) {
       targetY = windowHeight - rect.height - EDGE_PADDING;
     }
 
-    // Animate to snapped position with ease-out-quad
+    // Animate to snapped position
     animate(x, targetX, {
       duration: 0.2,
       ease: [0.25, 0.46, 0.45, 0.94], // ease-out-quad
@@ -76,211 +143,224 @@ export function ControlPanel({ initialPosition = { x: 20, y: 20 } }: ControlPane
     });
   };
 
-  const handleMinimizeToggle = () => {
-    setIsMinimized(!isMinimized);
-    if (isMinimized) {
-      setIsLinkedSitesExpanded(false);
-    }
-  };
-
-  // Keyboard navigation for dragging
-  const handleKeyboardMove = (e: React.KeyboardEvent) => {
-    if (!panelRef.current) return;
-
-    const step = e.shiftKey ? 50 : 10; // Larger steps with shift
-    let newX = x.get();
-    let newY = y.get();
-
-    switch (e.key) {
-      case 'ArrowLeft':
-        newX -= step;
-        break;
-      case 'ArrowRight':
-        newX += step;
-        break;
-      case 'ArrowUp':
-        newY -= step;
-        break;
-      case 'ArrowDown':
-        newY += step;
-        break;
-      default:
-        return;
-    }
-
-    e.preventDefault();
-
-    // Apply boundary constraints
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    const rect = panelRef.current.getBoundingClientRect();
-
-    newX = Math.max(20, Math.min(newX, windowWidth - rect.width - 20));
-    newY = Math.max(20, Math.min(newY, windowHeight - rect.height - 20));
-
-    animate(x, newX, { duration: 0.2 });
-    animate(y, newY, { duration: 0.2 });
-  };
-
   const handleStopSync = async () => {
     if (currentGroup) {
       await sendMessage('stop-sync', { groupId: currentGroup.id }, 'background');
+      setIsOpen(false);
     }
   };
 
   const handleSwitchTab = async (tabId: number) => {
-    // Switch to the selected tab
-    // Note: Content scripts cannot directly access tabs API
-    // We need to send a message to the background script
     await sendMessage('switch-tab', { tabId }, 'background');
   };
 
-  if (isMinimized) {
-    return (
-      <motion.div
-        ref={panelRef}
+  const handleToggleUrlSync = async () => {
+    if (currentGroup) {
+      await sendMessage(
+        'toggle-url-sync',
+        {
+          groupId: currentGroup.id,
+          enabled: !currentGroup.urlSync,
+        },
+        'background',
+      );
+    }
+  };
+
+  const handleChangeSyncMode = async (mode: 'ratio' | 'element') => {
+    if (currentGroup) {
+      await sendMessage(
+        'update-sync-mode',
+        {
+          groupId: currentGroup.id,
+          mode,
+        },
+        'background',
+      );
+    }
+  };
+
+  // Calculate command position based on button position
+  const getCommandPosition = () => {
+    if (!buttonRef.current) return { top: 50, left: 50 };
+
+    const rect = buttonRef.current.getBoundingClientRect();
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const commandWidth = 320;
+    const commandHeight = 400;
+
+    let commandX = rect.left;
+    let commandY = rect.bottom + 10;
+
+    // Adjust if it would go off screen
+    if (commandX + commandWidth > windowWidth) {
+      commandX = windowWidth - commandWidth - 20;
+    }
+    if (commandY + commandHeight > windowHeight) {
+      commandY = rect.top - commandHeight - 10;
+    }
+
+    return { left: commandX, top: commandY };
+  };
+
+  const commandPosition = getCommandPosition();
+
+  return (
+    <>
+      {/* Persistent Toggle Button */}
+      <motion.button
+        ref={buttonRef}
         drag
         animate={{ scale: 1 }}
-        aria-describedby="control-panel-keyboard-hint"
-        aria-label={t('controlPanel.title')}
-        className="fixed w-[30px] h-[30px] bg-background border border-border rounded-lg shadow-lg flex items-center justify-center cursor-move hover:border-primary transition-colors"
+        aria-label={isSyncing ? t('controlPanel.stopSync') : t('controlPanel.openPanel')}
+        className="fixed w-[30px] h-[30px] bg-background border border-border rounded-lg shadow-lg flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
         dragMomentum={false}
         initial={{ scale: 0 }}
-        role="region"
-        style={{ x, y }}
-        tabIndex={0}
+        style={{
+          x,
+          y,
+          pointerEvents: 'auto',
+        }}
         transition={{
           duration: 0.25,
           ease: [0.16, 1, 0.3, 1], // ease-out-cubic
         }}
-        onDragEnd={handleDragEnd}
-        onKeyDown={handleKeyboardMove}
+        onClick={() => {
+          if (!isDragging) {
+            setIsOpen(!isOpen);
+          }
+        }}
+        onDragEnd={() => {
+          handleDragEnd();
+          // Delay to prevent click after drag
+          setTimeout(() => setIsDragging(false), 100);
+        }}
+        onDragStart={() => setIsDragging(true)}
       >
-        <button
-          aria-expanded="false"
-          aria-label={t('controlPanel.maximize')}
-          className="w-full h-full flex items-center justify-center hover:bg-accent rounded-lg transition-colors"
-          onClick={handleMinimizeToggle}
-        >
-          <Maximize2 className="w-4 h-4" />
-        </button>
-      </motion.div>
-    );
-  }
+        {isSyncing ? (
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+        ) : (
+          <Monitor className="w-4 h-4" />
+        )}
+      </motion.button>
 
-  return (
-    <motion.div
-      ref={panelRef}
-      drag
-      animate={{ opacity: 1, scale: 1 }}
-      aria-describedby="control-panel-keyboard-hint"
-      aria-label={t('controlPanel.title')}
-      className="fixed bg-background border border-border rounded-lg shadow-xl"
-      dragMomentum={false}
-      initial={{ opacity: 0, scale: 0.95 }}
-      role="region"
-      style={{ x, y }}
-      tabIndex={0}
-      transition={{
-        duration: 0.3,
-        ease: [0.19, 1, 0.22, 1], // ease-out-expo
-      }}
-      onDragEnd={handleDragEnd}
-      onKeyDown={handleKeyboardMove}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border cursor-move">
-        <div className="flex items-center gap-2">
-          <Monitor className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold">{t('controlPanel.title')}</span>
-        </div>
-        <button
-          aria-label={t('controlPanel.minimize')}
-          className="p-1 hover:bg-accent rounded transition-colors"
-          onClick={handleMinimizeToggle}
+      {/* Command UI Panel */}
+      {isOpen && (
+        <motion.div
+          ref={commandRef}
+          animate={{ opacity: 1, scale: 1 }}
+          className="fixed bg-background border border-border rounded-lg shadow-xl w-[320px] max-h-[400px] overflow-hidden"
+          exit={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          style={{
+            ...commandPosition,
+            pointerEvents: 'auto',
+          }}
+          transition={{
+            duration: 0.2,
+            ease: [0.16, 1, 0.3, 1],
+          }}
         >
-          <Minimize2 className="w-3 h-3" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="p-3 space-y-3">
-        {/* Sync Status */}
-        {isSyncing && currentGroup ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {t('popup.status.syncing', { count: currentGroup.tabs.length })}
-              </span>
-              <div className="flex items-center gap-1">
-                {currentGroup.urlSync && (
-                  <Link aria-label={t('popup.urlSync.enabled')} className="w-3 h-3 text-primary" />
-                )}
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <Command className="rounded-lg border-none">
+            {/* Header */}
+            <div className="flex items-center justify-between p-3 border-b">
+              <div className="flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold">{t('controlPanel.title')}</span>
               </div>
+              <button
+                aria-label={t('controlPanel.close')}
+                className="p-1 hover:bg-accent rounded transition-colors"
+                onClick={() => setIsOpen(false)}
+              >
+                <X className="w-3 h-3" />
+              </button>
             </div>
 
-            <button
-              className="w-full px-3 py-1.5 bg-destructive text-destructive-foreground rounded-md text-xs font-medium hover:bg-destructive/90 transition-colors flex items-center justify-center gap-2"
-              onClick={handleStopSync}
-            >
-              <Square className="w-3 h-3" />
-              {t('controlPanel.stopSync')}
-            </button>
-          </div>
-        ) : (
-          <div className="text-center py-2">
-            <p className="text-xs text-muted-foreground">{t('controlPanel.notSyncing')}</p>
-            <p className="text-xs text-muted-foreground mt-1">{t('controlPanel.usePopup')}</p>
-          </div>
-        )}
+            {isSyncing && currentGroup ? (
+              <>
+                <CommandInput placeholder={t('controlPanel.searchActions')} />
+                <CommandList>
+                  <CommandEmpty>{t('controlPanel.noActionsFound')}</CommandEmpty>
 
-        {/* Linked Sites */}
-        {isSyncing && currentGroup && currentGroup.tabs.length > 0 && (
-          <div className="border-t border-border pt-2">
-            <button
-              className="w-full flex items-center justify-between text-xs font-medium hover:bg-accent rounded px-2 py-1 transition-colors"
-              onClick={() => setIsLinkedSitesExpanded(!isLinkedSitesExpanded)}
-            >
-              <span>{t('controlPanel.linkedSites', { count: currentGroup.tabs.length })}</span>
-              {isLinkedSitesExpanded ? (
-                <ChevronUp className="w-3 h-3" />
-              ) : (
-                <ChevronDown className="w-3 h-3" />
-              )}
-            </button>
+                  {/* Sync Status */}
+                  <CommandGroup heading={t('controlPanel.syncStatus')}>
+                    <CommandItem disabled>
+                      <Monitor className="mr-2 h-4 w-4" />
+                      <span className="text-xs">
+                        {t('popup.status.syncing', { count: currentGroup.tabs.length })}
+                      </span>
+                      <div className="ml-auto w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    </CommandItem>
+                  </CommandGroup>
 
-            {isLinkedSitesExpanded && (
-              <motion.div
-                animate={{ height: 'auto', opacity: 1 }}
-                className="mt-2 space-y-1 max-h-[200px] overflow-y-auto"
-                initial={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {currentGroup.tabs.map((tabId) => (
-                  <button
-                    key={tabId}
-                    className="w-full text-left px-2 py-1 text-xs hover:bg-accent rounded transition-colors truncate"
-                    onClick={() => handleSwitchTab(tabId)}
-                  >
-                    Tab {tabId}
-                  </button>
-                ))}
-              </motion.div>
+                  <CommandSeparator />
+
+                  {/* Linked Tabs */}
+                  <CommandGroup heading={t('controlPanel.linkedSites', { count: tabs.length })}>
+                    {tabs.map((tab) => (
+                      <CommandItem key={tab.id} onSelect={() => handleSwitchTab(tab.id)}>
+                        <span className="text-xs truncate">{tab.title}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+
+                  <CommandSeparator />
+
+                  {/* Sync Options */}
+                  <CommandGroup heading={t('controlPanel.syncOptions')}>
+                    <CommandItem onSelect={() => handleChangeSyncMode('ratio')}>
+                      <span
+                        className={`text-xs ${currentGroup.syncMode === 'ratio' ? 'font-semibold' : ''}`}
+                      >
+                        {t('controlPanel.syncMode.ratio')}
+                      </span>
+                      {currentGroup.syncMode === 'ratio' && (
+                        <span className="ml-auto text-xs text-primary">✓</span>
+                      )}
+                    </CommandItem>
+                    <CommandItem onSelect={() => handleChangeSyncMode('element')}>
+                      <span
+                        className={`text-xs ${currentGroup.syncMode === 'element' ? 'font-semibold' : ''}`}
+                      >
+                        {t('controlPanel.syncMode.element')}
+                      </span>
+                      {currentGroup.syncMode === 'element' && (
+                        <span className="ml-auto text-xs text-primary">✓</span>
+                      )}
+                    </CommandItem>
+                    <CommandItem onSelect={handleToggleUrlSync}>
+                      <span className="text-xs">
+                        {currentGroup.urlSync
+                          ? t('popup.urlSync.disable')
+                          : t('popup.urlSync.enable')}
+                      </span>
+                      {currentGroup.urlSync && (
+                        <span className="ml-auto text-xs text-primary">✓</span>
+                      )}
+                    </CommandItem>
+                  </CommandGroup>
+
+                  <CommandSeparator />
+
+                  {/* Actions */}
+                  <CommandGroup heading={t('controlPanel.actions')}>
+                    <CommandItem className="text-destructive" onSelect={handleStopSync}>
+                      <span className="text-xs font-medium">{t('controlPanel.stopSync')}</span>
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </>
+            ) : (
+              <div className="p-6 text-center">
+                <p className="text-sm text-muted-foreground mb-2">{t('controlPanel.notSyncing')}</p>
+                <p className="text-xs text-muted-foreground">{t('controlPanel.usePopup')}</p>
+              </div>
             )}
-          </div>
-        )}
-
-        {/* Sync Mode Indicator */}
-        {isSyncing && currentGroup && (
-          <div className="text-xs text-center text-muted-foreground border-t border-border pt-2">
-            {t('controlPanel.mode')}:{' '}
-            {currentGroup.syncMode === 'ratio'
-              ? t('controlPanel.syncMode.ratio')
-              : t('controlPanel.syncMode.element')}
-          </div>
-        )}
-      </div>
-    </motion.div>
+          </Command>
+        </motion.div>
+      )}
+    </>
   );
 }

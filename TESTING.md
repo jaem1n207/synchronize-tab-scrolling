@@ -3,6 +3,7 @@
 ## Installation
 
 ### Chrome/Edge/Brave
+
 1. Open your browser and go to:
    - Chrome: `chrome://extensions/`
    - Edge: `edge://extensions/`
@@ -13,6 +14,7 @@
 5. The extension icon should appear in your toolbar
 
 ### Firefox
+
 1. Open Firefox and go to `about:debugging`
 2. Click "This Firefox" in the sidebar
 3. Click "Load Temporary Add-on"
@@ -63,6 +65,7 @@
 ## Debug Logs
 
 Open browser DevTools console (F12) and look for logs prefixed with:
+
 - `[popup-tab-list]` - Popup component logs
 - `[background]` - Background script logs
 - `[content-script]` - Content script logs

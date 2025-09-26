@@ -8,7 +8,6 @@ import { initializeSentry } from '~/shared/lib/sentry_init';
 
 import '~/shared/styles';
 import { renderApp } from './render';
-import './features/scrollSync'; // Initialize scroll sync
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
 (() => {
@@ -16,7 +15,14 @@ import './features/scrollSync'; // Initialize scroll sync
   initializeSentry();
 
   const logger = new ExtensionLogger({ scope: 'content-script' });
+
+  // Initialize scroll sync
+  logger.info('📚 About to import scrollSync module...');
+  import('./features/scrollSync'); // Initialize scroll sync
+  logger.info('✅ ScrollSync import statement executed');
   logger.info('[dynamic-scrollbar-webext] Hello world from content script');
+
+  // Note: ping messages are now handled in scrollSync.ts via webext-bridge
 
   // communication example: send previous tab title from background page
   onMessage('tab-prev', ({ data }) => {
@@ -27,14 +33,28 @@ import './features/scrollSync'; // Initialize scroll sync
   try {
     const container = document.createElement('div');
     container.id = __NAME__;
+    container.style.setProperty('position', 'fixed', 'important');
+    container.style.setProperty('top', '0', 'important');
+    container.style.setProperty('left', '0', 'important');
+    container.style.setProperty('width', '100%', 'important');
+    container.style.setProperty('height', '100%', 'important');
     container.style.setProperty('z-index', '2147483647', 'important');
-    container.style.setProperty('position', 'relative', 'important');
+    container.style.setProperty('pointer-events', 'none', 'important');
     container.style.setProperty('color-scheme', 'normal', 'important');
     const rootElement = document.createElement('div');
+    rootElement.style.setProperty('position', 'absolute', 'important');
+    rootElement.style.setProperty('top', '0', 'important');
+    rootElement.style.setProperty('left', '0', 'important');
+    rootElement.style.setProperty('width', '100%', 'important');
+    rootElement.style.setProperty('height', '100%', 'important');
+    rootElement.style.setProperty('pointer-events', 'none', 'important');
     const styleEl = document.createElement('link');
     const shadowDOM = container.attachShadow?.({ mode: __DEV__ ? 'open' : 'closed' }) || container;
     styleEl.setAttribute('rel', 'stylesheet');
-    styleEl.setAttribute('href', browser.runtime.getURL('dist/contentScripts/style.css'));
+    styleEl.setAttribute(
+      'href',
+      browser.runtime.getURL('dist/contentScripts/synchronize-tab-scrolling.css'),
+    );
     shadowDOM.appendChild(styleEl);
     shadowDOM.appendChild(rootElement);
     document.body.appendChild(container);

@@ -15,7 +15,9 @@
     },
     "urlSync": {
       "enabled": "URL-Synchronisation aktiviert",
-      "disabled": "URL-Synchronisation deaktiviert"
+      "disabled": "URL-Synchronisation deaktiviert",
+      "enable": "URL-Synchronisation aktivieren",
+      "disable": "URL-Synchronisation deaktivieren"
     },
     "tabSelection": {
       "minimum": "Wähle mindestens 2 Tabs zum Starten",
@@ -39,7 +41,14 @@
       "ratio": "Verhältnis",
       "element": "Element"
     },
-    "mode": "Modus"
+    "mode": "Modus",
+    "openPanel": "Open panel",
+    "close": "Close",
+    "searchActions": "Search actions...",
+    "noActionsFound": "No actions found",
+    "syncStatus": "Sync Status",
+    "syncOptions": "Sync Options",
+    "actions": "Actions"
   },
   "errors": {
     "tabSwitch": "Tab-Wechsel fehlgeschlagen",

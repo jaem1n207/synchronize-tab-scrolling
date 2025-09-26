@@ -15,7 +15,9 @@
     },
     "urlSync": {
       "enabled": "URL sync enabled",
-      "disabled": "URL sync disabled"
+      "disabled": "URL sync disabled",
+      "enable": "Enable URL sync",
+      "disable": "Disable URL sync"
     },
     "tabSelection": {
       "minimum": "Select at least 2 tabs to start synchronization",
@@ -39,7 +41,14 @@
       "ratio": "Ratio",
       "element": "Element"
     },
-    "mode": "Mode"
+    "mode": "Mode",
+    "openPanel": "Open control panel",
+    "close": "Close",
+    "searchActions": "Search actions...",
+    "noActionsFound": "No actions found",
+    "syncStatus": "Sync Status",
+    "syncOptions": "Sync Options",
+    "actions": "Actions"
   },
   "errors": {
     "tabSwitch": "Failed to switch tab",

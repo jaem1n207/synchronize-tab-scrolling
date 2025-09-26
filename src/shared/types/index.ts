@@ -43,7 +43,7 @@ export interface SyncState {
 // Message types for webext-bridge
 export interface Messages {
   // Background -> Content Script
-  'sync-started': (data: { group: SyncGroup }) => void;
+  'sync-started': (data: { group: SyncGroup; showControlPanel?: boolean }) => void;
   'sync-stopped': (data: { groupId: string }) => void;
   'apply-scroll': (data: { position: ScrollPosition; syncMode: SyncMode }) => void;
   'sync-mode-changed': (data: { mode: SyncMode }) => void;
@@ -65,6 +65,7 @@ export interface Messages {
   'get-sync-state': () => SyncState;
   'get-current-tab': () => { title?: string };
   'switch-tab': (data: { tabId: number }) => void;
+  'get-tab-info': (data: { tabId: number }) => { id: number; title: string };
 }
 
 // Control panel states

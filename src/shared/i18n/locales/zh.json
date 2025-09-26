@@ -15,7 +15,9 @@
     },
     "urlSync": {
       "enabled": "URL同步已启用",
-      "disabled": "URL同步已禁用"
+      "disabled": "URL同步已禁用",
+      "enable": "启用URL同步",
+      "disable": "禁用URL同步"
     },
     "tabSelection": {
       "minimum": "至少选择2个标签页开始同步",
@@ -39,7 +41,14 @@
       "ratio": "比例",
       "element": "元素"
     },
-    "mode": "模式"
+    "mode": "模式",
+    "openPanel": "Open panel",
+    "close": "Close",
+    "searchActions": "Search actions...",
+    "noActionsFound": "No actions found",
+    "syncStatus": "Sync Status",
+    "syncOptions": "Sync Options",
+    "actions": "Actions"
   },
   "errors": {
     "tabSwitch": "切换标签页失败",

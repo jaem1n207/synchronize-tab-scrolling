@@ -6,16 +6,20 @@ import { ControlPanel } from '../components/ControlPanel';
 
 export const App = () => {
   const [showPanel, setShowPanel] = useState(false);
+  const [syncStarted, setSyncStarted] = useState(false);
 
   useEffect(() => {
     // Show panel when sync starts
     const handleSyncStarted = () => {
+      // Show the panel for all tabs in the sync group
       setShowPanel(true);
+      setSyncStarted(true);
     };
 
-    // Update when sync stops
+    // Keep panel visible even when sync stops
     const handleSyncStopped = () => {
       // Keep panel visible but show "not syncing" state
+      setSyncStarted(false);
     };
 
     // Register message listeners
@@ -33,9 +37,5 @@ export const App = () => {
     return null;
   }
 
-  return (
-    <div className="theme-slate">
-      <ControlPanel />
-    </div>
-  );
+  return <ControlPanel key={syncStarted ? 'syncing' : 'not-syncing'} />;
 };

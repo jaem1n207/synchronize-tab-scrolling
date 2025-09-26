@@ -1,115 +1,131 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Test Page for Tab Scroll Sync</title>
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .section {
-            margin-bottom: 40px;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            min-height: 400px;
-        }
-        .section:nth-child(2) { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .section:nth-child(3) { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .section:nth-child(4) { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-        .section:nth-child(5) { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-        .section:nth-child(6) { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
-        h1 { margin-top: 0; }
-        .info {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .section {
+        margin-bottom: 40px;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        min-height: 400px;
+      }
+      .section:nth-child(2) {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+      .section:nth-child(3) {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      }
+      .section:nth-child(4) {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      }
+      .section:nth-child(5) {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      }
+      .section:nth-child(6) {
+        background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .info {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 20px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="section">
-            <h1>Section 1: Top of Page</h1>
-            <p>This is a test page for the Synchronize Tab Scrolling extension.</p>
-            <p>Open this page in multiple tabs and use the extension popup to sync their scroll positions.</p>
-            <div class="info">
-                <strong>How to test:</strong>
-                <ol>
-                    <li>Open this file in 2-3 browser tabs</li>
-                    <li>Click the extension icon in your browser toolbar</li>
-                    <li>Select the tabs you want to sync</li>
-                    <li>Click "Start Sync"</li>
-                    <li>Scroll in any tab and watch the others follow!</li>
-                </ol>
-            </div>
+      <div class="section">
+        <h1>Section 1: Top of Page</h1>
+        <p>This is a test page for the Synchronize Tab Scrolling extension.</p>
+        <p>
+          Open this page in multiple tabs and use the extension popup to sync their scroll
+          positions.
+        </p>
+        <div class="info">
+          <strong>How to test:</strong>
+          <ol>
+            <li>Open this file in 2-3 browser tabs</li>
+            <li>Click the extension icon in your browser toolbar</li>
+            <li>Select the tabs you want to sync</li>
+            <li>Click "Start Sync"</li>
+            <li>Scroll in any tab and watch the others follow!</li>
+          </ol>
         </div>
+      </div>
 
-        <div class="section">
-            <h1>Section 2: Features</h1>
-            <p>The extension supports two sync modes:</p>
-            <ul>
-                <li><strong>Ratio-based sync:</strong> Syncs by scroll percentage</li>
-                <li><strong>Element-based sync:</strong> Syncs by matching DOM elements</li>
-            </ul>
-            <p>You can also enable URL synchronization to navigate tabs together.</p>
-        </div>
+      <div class="section">
+        <h1>Section 2: Features</h1>
+        <p>The extension supports two sync modes:</p>
+        <ul>
+          <li><strong>Ratio-based sync:</strong> Syncs by scroll percentage</li>
+          <li><strong>Element-based sync:</strong> Syncs by matching DOM elements</li>
+        </ul>
+        <p>You can also enable URL synchronization to navigate tabs together.</p>
+      </div>
 
-        <div class="section">
-            <h1>Section 3: Middle Content</h1>
-            <p>This section is in the middle of the page.</p>
-            <p>When you scroll here, other synced tabs will scroll to the same relative position.</p>
-            <p>The extension uses a 200ms debounce to ensure smooth scrolling.</p>
-        </div>
+      <div class="section">
+        <h1>Section 3: Middle Content</h1>
+        <p>This section is in the middle of the page.</p>
+        <p>When you scroll here, other synced tabs will scroll to the same relative position.</p>
+        <p>The extension uses a 200ms debounce to ensure smooth scrolling.</p>
+      </div>
 
-        <div class="section">
-            <h1>Section 4: Testing Area</h1>
-            <p>Try different scroll speeds and patterns:</p>
-            <ul>
-                <li>Slow scrolling</li>
-                <li>Fast scrolling</li>
-                <li>Page Up/Down keys</li>
-                <li>Home/End keys</li>
-                <li>Clicking scroll bar</li>
-            </ul>
-            <p>All methods should sync properly across tabs.</p>
-        </div>
+      <div class="section">
+        <h1>Section 4: Testing Area</h1>
+        <p>Try different scroll speeds and patterns:</p>
+        <ul>
+          <li>Slow scrolling</li>
+          <li>Fast scrolling</li>
+          <li>Page Up/Down keys</li>
+          <li>Home/End keys</li>
+          <li>Clicking scroll bar</li>
+        </ul>
+        <p>All methods should sync properly across tabs.</p>
+      </div>
 
-        <div class="section">
-            <h1>Section 5: Advanced Features</h1>
-            <p>The extension includes:</p>
-            <ul>
-                <li>Multi-language support (6 languages)</li>
-                <li>Accessibility features (WCAG 2.1 AA)</li>
-                <li>Draggable control panel in each tab</li>
-                <li>Keyboard shortcuts support</li>
-                <li>High contrast mode</li>
-            </ul>
-        </div>
+      <div class="section">
+        <h1>Section 5: Advanced Features</h1>
+        <p>The extension includes:</p>
+        <ul>
+          <li>Multi-language support (6 languages)</li>
+          <li>Accessibility features (WCAG 2.1 AA)</li>
+          <li>Draggable control panel in each tab</li>
+          <li>Keyboard shortcuts support</li>
+          <li>High contrast mode</li>
+        </ul>
+      </div>
 
-        <div class="section">
-            <h1>Section 6: Bottom of Page</h1>
-            <p>You've reached the bottom!</p>
-            <p>The extension should maintain sync even at the page boundaries.</p>
-            <div class="info">
-                <strong>Troubleshooting:</strong>
-                <ul>
-                    <li>If tabs aren't syncing, check that they're selected in the popup</li>
-                    <li>Some restricted pages (like chrome:// URLs) cannot be synced</li>
-                    <li>Refresh the extension if sync stops working</li>
-                </ul>
-            </div>
+      <div class="section">
+        <h1>Section 6: Bottom of Page</h1>
+        <p>You've reached the bottom!</p>
+        <p>The extension should maintain sync even at the page boundaries.</p>
+        <div class="info">
+          <strong>Troubleshooting:</strong>
+          <ul>
+            <li>If tabs aren't syncing, check that they're selected in the popup</li>
+            <li>Some restricted pages (like chrome:// URLs) cannot be synced</li>
+            <li>Refresh the extension if sync stops working</li>
+          </ul>
         </div>
+      </div>
     </div>
-</body>
+  </body>
 </html>

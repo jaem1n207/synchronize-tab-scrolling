@@ -15,7 +15,9 @@
     },
     "urlSync": {
       "enabled": "URL सिंक सक्षम",
-      "disabled": "URL सिंक अक्षम"
+      "disabled": "URL सिंक अक्षम",
+      "enable": "URL सिंक सक्षम करें",
+      "disable": "URL सिंक अक्षम करें"
     },
     "tabSelection": {
       "minimum": "शुरू करने के लिए कम से कम 2 टैब चुनें",
@@ -39,7 +41,14 @@
       "ratio": "अनुपात",
       "element": "एलिमेंट"
     },
-    "mode": "मोड"
+    "mode": "मोड",
+    "openPanel": "Open panel",
+    "close": "Close",
+    "searchActions": "Search actions...",
+    "noActionsFound": "No actions found",
+    "syncStatus": "Sync Status",
+    "syncOptions": "Sync Options",
+    "actions": "Actions"
   },
   "errors": {
     "tabSwitch": "टैब बदलना विफल",

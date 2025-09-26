@@ -15,7 +15,9 @@
     },
     "urlSync": {
       "enabled": "Synchronisation URL activée",
-      "disabled": "Synchronisation URL désactivée"
+      "disabled": "Synchronisation URL désactivée",
+      "enable": "Activer la synchronisation URL",
+      "disable": "Désactiver la synchronisation URL"
     },
     "tabSelection": {
       "minimum": "Sélectionnez au moins 2 onglets pour démarrer",
@@ -39,7 +41,14 @@
       "ratio": "Ratio",
       "element": "Élément"
     },
-    "mode": "Mode"
+    "mode": "Mode",
+    "openPanel": "Open panel",
+    "close": "Close",
+    "searchActions": "Search actions...",
+    "noActionsFound": "No actions found",
+    "syncStatus": "Sync Status",
+    "syncOptions": "Sync Options",
+    "actions": "Actions"
   },
   "errors": {
     "tabSwitch": "Échec du changement d'onglet",

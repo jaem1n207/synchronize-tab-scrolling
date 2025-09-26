@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scroll Sync Test Page</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      h1 {
+        color: #333;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+      }
+      .section {
+        margin: 40px 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        min-height: 400px;
+      }
+      .section:nth-child(even) {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+      .section:nth-child(3n) {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      }
+      .section:nth-child(4n) {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+      }
+      .scroll-indicator {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        z-index: 1000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scroll-indicator" id="scrollIndicator">Scroll: 0%</div>
+
+    <div class="container">
+      <h1>Scroll Sync Test Page</h1>
+      <p>
+        This page is designed to test the scroll synchronization extension. Open multiple tabs with
+        this page and start sync to test.
+      </p>
+
+      <div class="section">
+        <h2>Section 1 - Top</h2>
+        <p>
+          This is the first section. When you scroll here, other synced tabs should also be at the
+          top.
+        </p>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt
+          ut labore et dolore magna aliqua.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>Section 2 - 25%</h2>
+        <p>
+          You're now about 25% down the page. Check if other tabs are at the same relative position.
+        </p>
+        <p>
+          Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
+          commodo consequat.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>Section 3 - 50%</h2>
+        <p>
+          This is the middle of the page. All synced tabs should be at their respective middle
+          positions.
+        </p>
+        <p>
+          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat
+          nulla pariatur.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>Section 4 - 75%</h2>
+        <p>
+          Three quarters down the page. The scroll sync should maintain this ratio across all tabs.
+        </p>
+        <p>
+          Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit
+          anim id est laborum.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>Section 5 - Bottom</h2>
+        <p>
+          This is the last section. When you reach here, all synced tabs should be at their bottom.
+        </p>
+        <p>
+          Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque
+          laudantium.
+        </p>
+      </div>
+
+      <div class="section">
+        <h2>Extra Content</h2>
+        <p>Additional content to ensure there's enough scrollable area for testing.</p>
+        <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.</p>
+      </div>
+    </div>
+
+    <script>
+      // Update scroll indicator
+      function updateScrollIndicator() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollHeight = document.documentElement.scrollHeight;
+        const clientHeight = window.innerHeight;
+        const scrollableHeight = scrollHeight - clientHeight;
+        const scrollPercentage = scrollableHeight > 0 ? (scrollTop / scrollableHeight) * 100 : 0;
+
+        document.getElementById('scrollIndicator').textContent =
+          `Scroll: ${scrollPercentage.toFixed(1)}%`;
+
+        // Log to console for debugging
+        console.log('Scroll Info:', {
+          scrollTop,
+          scrollHeight,
+          clientHeight,
+          scrollableHeight,
+          percentage: scrollPercentage.toFixed(1) + '%',
+        });
+      }
+
+      window.addEventListener('scroll', updateScrollIndicator);
+      window.addEventListener('resize', updateScrollIndicator);
+      updateScrollIndicator();
+    </script>
+  </body>
+</html>
