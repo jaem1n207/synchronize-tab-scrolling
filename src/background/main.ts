@@ -1,17 +1,11 @@
-import { captureException, startInactiveSpan, startSpan } from '@sentry/react';
 import { onMessage, sendMessage } from 'webext-bridge/background';
-import browser, { type Tabs } from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 
 import { t, type TranslationKey } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { initializeSentry } from '~/shared/lib/sentry_init';
 import { isRestrictedUrl } from '~/shared/types';
 
-import type { Span } from '@sentry/react';
 import type { SyncTab, SyncGroup, SyncState } from '~/shared/types';
-
-// Sentry 초기화
-initializeSentry();
 
 const logger = new ExtensionLogger({ scope: 'background' });
 
@@ -32,14 +26,6 @@ if (import.meta.hot) {
   // load latest content script
   import('./contentScriptHMR');
 }
-
-browser.runtime.onInstalled.addListener((): void => {
-  logger.info('Extension installed');
-});
-
-browser.action.onClicked.addListener(() => {
-  browser.runtime.openOptionsPage();
-});
 
 // Get all tabs and check eligibility
 async function getAllTabs(): Promise<SyncTab[]> {
@@ -79,148 +65,178 @@ async function getAllTabs(): Promise<SyncTab[]> {
   }
 }
 
-// Message handlers
-onMessage('get-tabs', async () => {
-  logger.info('get-tabs message received');
-  const tabs = await getAllTabs();
-  logger.info(`Returning ${tabs.length} tabs`);
-  return tabs;
-});
+// Register message handlers immediately
+try {
+  // Message handlers
+  onMessage('get-tabs', async () => {
+    logger.info('get-tabs message received');
+    const tabs = await getAllTabs();
+    logger.info(`Returning ${tabs.length} tabs`);
+    return tabs;
+  });
 
-onMessage('get-sync-state', async () => {
-  logger.info('get-sync-state message received');
-  return syncState;
-});
+  onMessage('get-sync-state', async () => {
+    logger.info('get-sync-state message received');
+    return syncState;
+  });
 
-onMessage('create-sync-group', async ({ data }) => {
-  const { tabIds, syncMode, urlSync } = data;
+  onMessage('create-sync-group', async ({ data }) => {
+    const { tabIds, syncMode, urlSync } = data;
 
-  if (tabIds.length < 2) {
-    throw new Error(t('errors.noTabs'));
-  }
-
-  // Create new sync group
-  const group: SyncGroup = {
-    id: `sync-${Date.now()}`,
-    tabs: tabIds,
-    isActive: true,
-    syncMode,
-    urlSync,
-    createdAt: Date.now(),
-  };
-
-  // Deactivate other groups
-  syncState.groups.forEach((g) => (g.isActive = false));
-
-  // Add new group
-  syncState.groups.push(group);
-  syncState.activeGroupId = group.id;
-
-  // Notify all tabs in the group
-  for (const tabId of tabIds) {
-    try {
-      await sendMessage('sync-started', { group }, { context: 'content-script', tabId });
-    } catch (error) {
-      logger.error(`Failed to notify tab ${tabId}`, error);
+    if (tabIds.length < 2) {
+      throw new Error(t('errors.noTabs'));
     }
-  }
 
-  return group;
-});
+    // Create new sync group
+    const group: SyncGroup = {
+      id: `sync-${Date.now()}`,
+      tabs: tabIds,
+      isActive: true,
+      syncMode,
+      urlSync,
+      createdAt: Date.now(),
+    };
 
-onMessage('stop-sync', async ({ data }) => {
-  const { groupId } = data;
-  const group = syncState.groups.find((g) => g.id === groupId);
+    // Deactivate other groups
+    syncState.groups.forEach((g) => (g.isActive = false));
 
-  if (!group) {
-    throw new Error('Sync group not found');
-  }
+    // Add new group
+    syncState.groups.push(group);
+    syncState.activeGroupId = group.id;
 
-  group.isActive = false;
-  if (syncState.activeGroupId === groupId) {
-    syncState.activeGroupId = null;
-  }
-
-  // Notify all tabs in the group
-  for (const tabId of group.tabs) {
-    try {
-      await sendMessage('sync-stopped', { groupId }, { context: 'content-script', tabId });
-    } catch (error) {
-      logger.error(`Failed to notify tab ${tabId}`, error);
-    }
-  }
-});
-
-onMessage('sync-scroll', async ({ data, sender }) => {
-  const { groupId, position } = data;
-  // Use the actual sender's tab ID
-  const sourceTabId = sender.tabId;
-
-  if (!sourceTabId) {
-    logger.error('No tab ID found for sync-scroll message');
-    return;
-  }
-
-  const group = syncState.groups.find((g) => g.id === groupId);
-
-  if (!group || !group.isActive) {
-    return;
-  }
-
-  // Send scroll position to all other tabs in the group
-  for (const tabId of group.tabs) {
-    if (tabId !== sourceTabId) {
+    // Notify all tabs in the group
+    for (const tabId of tabIds) {
       try {
-        await sendMessage(
-          'apply-scroll',
-          { position, syncMode: group.syncMode },
-          { context: 'content-script', tabId },
-        );
+        await sendMessage('sync-started', { group }, { context: 'content-script', tabId });
       } catch (error) {
-        logger.error(`Failed to sync scroll to tab ${tabId}`, error);
+        logger.error(`Failed to notify tab ${tabId}`, error);
       }
     }
-  }
-});
 
-onMessage('update-sync-mode', async ({ data }) => {
-  const { groupId, mode } = data;
-  const group = syncState.groups.find((g) => g.id === groupId);
+    return group;
+  });
 
-  if (group) {
-    group.syncMode = mode;
+  onMessage('stop-sync', async ({ data }) => {
+    const { groupId } = data;
+    const group = syncState.groups.find((g) => g.id === groupId);
 
-    // Notify all tabs about mode change
+    if (!group) {
+      throw new Error('Sync group not found');
+    }
+
+    group.isActive = false;
+    if (syncState.activeGroupId === groupId) {
+      syncState.activeGroupId = null;
+    }
+
+    // Notify all tabs in the group
     for (const tabId of group.tabs) {
       try {
-        await sendMessage('sync-mode-changed', { mode }, { context: 'content-script', tabId });
+        await sendMessage('sync-stopped', { groupId }, { context: 'content-script', tabId });
       } catch (error) {
-        logger.error(`Failed to notify tab ${tabId} about mode change`, error);
+        logger.error(`Failed to notify tab ${tabId}`, error);
       }
     }
-  }
-});
+  });
 
-onMessage('toggle-url-sync', async ({ data }) => {
-  const { groupId, enabled } = data;
-  const group = syncState.groups.find((g) => g.id === groupId);
+  onMessage('sync-scroll', async ({ data, sender }) => {
+    const { groupId, position } = data;
+    // Use the actual sender's tab ID
+    const sourceTabId = sender.tabId;
 
-  if (group) {
-    group.urlSync = enabled;
-  }
-});
-
-onMessage('switch-tab', async ({ data }) => {
-  const { tabId } = data;
-  try {
-    await browser.tabs.update(tabId, { active: true });
-    const tab = await browser.tabs.get(tabId);
-    if (tab.windowId) {
-      await browser.windows.update(tab.windowId, { focused: true });
+    if (!sourceTabId) {
+      logger.error('No tab ID found for sync-scroll message');
+      return;
     }
-  } catch (error) {
-    logger.error('Failed to switch tab', error);
-  }
+
+    const group = syncState.groups.find((g) => g.id === groupId);
+
+    if (!group || !group.isActive) {
+      return;
+    }
+
+    // Send scroll position to all other tabs in the group
+    for (const tabId of group.tabs) {
+      if (tabId !== sourceTabId) {
+        try {
+          await sendMessage(
+            'apply-scroll',
+            { position, syncMode: group.syncMode },
+            { context: 'content-script', tabId },
+          );
+        } catch (error) {
+          logger.error(`Failed to sync scroll to tab ${tabId}`, error);
+        }
+      }
+    }
+  });
+
+  onMessage('update-sync-mode', async ({ data }) => {
+    const { groupId, mode } = data;
+    const group = syncState.groups.find((g) => g.id === groupId);
+
+    if (group) {
+      group.syncMode = mode;
+
+      // Notify all tabs about mode change
+      for (const tabId of group.tabs) {
+        try {
+          await sendMessage('sync-mode-changed', { mode }, { context: 'content-script', tabId });
+        } catch (error) {
+          logger.error(`Failed to notify tab ${tabId} about mode change`, error);
+        }
+      }
+    }
+  });
+
+  onMessage('toggle-url-sync', async ({ data }) => {
+    const { groupId, enabled } = data;
+    const group = syncState.groups.find((g) => g.id === groupId);
+
+    if (group) {
+      group.urlSync = enabled;
+    }
+  });
+
+  onMessage('switch-tab', async ({ data }) => {
+    const { tabId } = data;
+    try {
+      await browser.tabs.update(tabId, { active: true });
+      const tab = await browser.tabs.get(tabId);
+      if (tab.windowId) {
+        await browser.windows.update(tab.windowId, { focused: true });
+      }
+    } catch (error) {
+      logger.error('Failed to switch tab', error);
+    }
+  });
+
+  onMessage('get-current-tab', async () => {
+    try {
+      const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
+      return {
+        title: activeTab?.title,
+      };
+    } catch (error) {
+      logger.error('Failed to get current tab', error);
+      return {
+        title: undefined,
+      };
+    }
+  });
+
+  logger.info('All message handlers registered successfully');
+} catch (error) {
+  logger.error('Failed to register message handlers:', error);
+}
+
+// Browser event listeners
+browser.runtime.onInstalled.addListener((): void => {
+  logger.info('Extension installed');
+});
+
+browser.action.onClicked.addListener(() => {
+  browser.runtime.openOptionsPage();
 });
 
 // Handle tab removal
@@ -265,106 +281,30 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   }
 });
 
+// Track previous tab for tab-prev functionality
 let previousTabId = 0;
 
 browser.tabs.onActivated.addListener(async ({ tabId }) => {
-  startSpan(
-    {
-      name: 'Tab Activated',
-      op: 'ui.action',
-      attributes: { tabId },
-    },
-    async (span: Span | undefined) => {
-      if (!span) {
-        logger.error('Failed to create Sentry span for Tab Activated');
-        return;
-      }
+  if (!previousTabId) {
+    previousTabId = tabId;
+    return;
+  }
 
-      const getTabSpan = startInactiveSpan({
-        name: 'browser.tabs.get',
-        op: 'browser.api.call',
-      });
+  try {
+    const tab = await browser.tabs.get(previousTabId);
+    previousTabId = tabId;
 
-      if (!previousTabId) {
-        previousTabId = tabId;
-        getTabSpan.setAttribute('action', 'set_initial_previousTabId');
-        getTabSpan.end();
-        return;
-      }
-
-      let tab: Tabs.Tab | undefined;
-
+    if (tab && tab.title) {
+      logger.info('Previous tab:', tab.title);
       try {
-        tab = await browser.tabs.get(previousTabId);
-        previousTabId = tabId;
-        if (tab) {
-          getTabSpan.setAttribute('tab.id', tab.id);
-          getTabSpan.setAttribute('tab.title', tab.title);
-          span.setAttribute('previousTab.id', tab.id);
-          span.setAttribute('previousTab.title', tab.title);
-        }
-        getTabSpan.setStatus({ code: 1 });
-      } catch (error) {
-        logger.error('Failed to get previous tab', error);
-        captureException(error, { tags: { scope: 'background-tabs-onActivated-getTab' } });
-        getTabSpan.setStatus({ code: 2, message: 'internal_error' });
-        if (error instanceof Error) {
-          getTabSpan.setAttribute('error.message', error.message);
-        }
-        span.setStatus({ code: 2, message: 'internal_error' });
-      } finally {
-        getTabSpan.end();
+        await sendMessage('tab-prev', { title: tab.title }, { context: 'content-script', tabId });
+      } catch (e) {
+        logger.error('Failed to send tab-prev message', e);
       }
-
-      if (tab && tab.title) {
-        logger.info('previous tab', { title: tab.title });
-        const sendMessageSpan = startInactiveSpan({
-          name: 'sendMessage: tab-prev',
-          op: 'message.send',
-        });
-        try {
-          await sendMessage('tab-prev', { title: tab.title }, { context: 'content-script', tabId });
-          sendMessageSpan.setStatus({ code: 1 });
-        } catch (e) {
-          sendMessageSpan.setStatus({ code: 2, message: 'internal_error' });
-          logger.error('Failed to send message', e);
-          captureException(e, { tags: { scope: 'background-tabs-onActivated-sendMessage' } });
-          span.setStatus({ code: 2, message: 'internal_error' });
-        } finally {
-          sendMessageSpan.end();
-        }
-      }
-    },
-  );
-});
-
-onMessage('get-current-tab', async () => {
-  return startSpan(
-    { name: 'Get Current Tab', op: 'message.handler' },
-    async (span: Span | undefined) => {
-      try {
-        const tab = await browser.tabs.get(previousTabId);
-        if (tab) {
-          span?.setAttribute('tab.id', tab.id);
-          span?.setAttribute('tab.title', tab.title);
-        }
-        span?.setStatus({ code: 1 });
-        return {
-          title: tab?.title,
-        };
-      } catch (error) {
-        logger.error('Failed to get current tab', error);
-        captureException(error, { tags: { scope: 'background-onMessage-get-current-tab' } });
-        span?.setStatus({ code: 2, message: 'internal_error' });
-        if (error instanceof Error && span) {
-          span.setAttribute('error.message', error.message);
-        }
-        return {
-          title: undefined,
-        };
-      }
-    },
-  );
+    }
+  } catch (error) {
+    logger.error('Failed to get previous tab', error);
+  }
 });
 
 // Initialize storage
@@ -394,4 +334,4 @@ browser.runtime.onStartup.addListener(async () => {
 });
 
 // Log that all handlers are registered
-logger.info('Background script message handlers registered successfully');
+logger.info('Background script initialization complete');

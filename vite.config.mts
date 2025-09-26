@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 
-import { sentryVitePlugin } from '@sentry/vite-plugin';
+// import { sentryVitePlugin } from '@sentry/vite-plugin';
 import React from '@vitejs/plugin-react';
 import UnoCSS from 'unocss/vite';
 import AutoImport from 'unplugin-auto-import/vite';
@@ -59,19 +59,19 @@ export const sharedConfig: UserConfig = {
         return html;
       },
     },
-    sentryVitePlugin({
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-      org: 'jaemin',
-      project: 'synchronize-tab-scrolling',
-      sourcemaps: {
-        assets: ['./extension/dist/**'],
-        filesToDeleteAfterUpload: ['./extension/dist/**/*.map'],
-      },
-      release: {
-        name: `synchronize-tab-scrolling@${packageJson.version}`,
-      },
-      telemetry: false,
-    }),
+    // sentryVitePlugin({
+    //   authToken: process.env.SENTRY_AUTH_TOKEN,
+    //   org: 'jaemin',
+    //   project: 'synchronize-tab-scrolling',
+    //   sourcemaps: {
+    //     assets: ['./extension/dist/**'],
+    //     filesToDeleteAfterUpload: ['./extension/dist/**/*.map'],
+    //   },
+    //   release: {
+    //     name: `synchronize-tab-scrolling@${packageJson.version}`,
+    //   },
+    //   telemetry: false,
+    // }),
   ],
   optimizeDeps: {
     include: ['react', 'webextension-polyfill'],
