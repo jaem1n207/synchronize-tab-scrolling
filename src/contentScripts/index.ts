@@ -8,6 +8,7 @@ import { initializeSentry } from '~/shared/lib/sentry_init';
 
 import '~/shared/styles';
 import { renderApp } from './render';
+import { initScrollSync } from './scrollSync';
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
 (() => {
@@ -15,11 +16,14 @@ import { renderApp } from './render';
   initializeSentry();
 
   const logger = new ExtensionLogger({ scope: 'content-script' });
-  logger.info('[dynamic-scrollbar-webext] Hello world from content script');
+  logger.info('[scroll-sync] Content script loaded');
+
+  // Initialize scroll synchronization system
+  initScrollSync();
 
   // communication example: send previous tab title from background page
   onMessage('tab-prev', ({ data }) => {
-    logger.info(`[dynamic-scrollbar-webext] Navigate from page "${data.title}"`, { data });
+    logger.info(`[scroll-sync] Navigate from page "${data.title}"`, { data });
   });
 
   // mount component to context window
