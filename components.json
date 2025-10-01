@@ -14,5 +14,12 @@
     "components": "~/shared/components",
     "utils": "~/shared/lib/utils",
     "ui": "~/shared/components/ui"
+  },
+  "registries": {
+    "@aceternity": "https://ui.aceternity.com/registry/{name}.json",
+    "@originui": "https://originui.com/r/{name}.json",
+    "@cult": "https://cult-ui.com/r/{name}.json",
+    "@kibo": "https://www.kibo-ui.com/r/{name}.json",
+    "@reui": "https://reui.io/r/{name}.json"
   }
 }
