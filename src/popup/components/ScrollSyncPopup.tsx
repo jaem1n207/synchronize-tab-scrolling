@@ -1,5 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 
+import * as Browser from 'webextension-polyfill';
+
+import { isForbiddenUrl } from '~/shared/lib/url-utils';
+
 import { DraggableControlPanel } from './DraggableControlPanel';
 import { LinkedSitesPanel } from './LinkedSitesPanel';
 import { SyncControlButtons } from './SyncControlButtons';
@@ -20,39 +24,63 @@ export function ScrollSyncPopup() {
 
   useEffect(() => {
     const fetchTabs = async () => {
-      const mockTabs: Array<TabInfo> = [
-        {
-          id: 1,
-          title: 'Example Document - Translation',
-          url: 'https://example.com/doc1',
-          favIconUrl: 'https://example.com/favicon.ico',
-          eligible: true,
-        },
-        {
-          id: 2,
-          title: 'Example Document - Original',
-          url: 'https://example.com/doc2',
-          favIconUrl: 'https://example.com/favicon.ico',
-          eligible: true,
-        },
-        {
-          id: 3,
-          title: 'Chrome Web Store',
-          url: 'https://chrome.google.com/webstore',
-          eligible: false,
-          ineligibleReason: 'Web store pages cannot be synchronized due to security restrictions',
-        },
-        {
-          id: 4,
-          title: 'Google Drive',
-          url: 'https://drive.google.com',
-          eligible: false,
-          ineligibleReason: 'Google services pages have restrictions that prevent synchronization',
-        },
-      ];
+      try {
+        // Get all tabs in current window
+        const browserTabs = await Browser.tabs.query({ currentWindow: true });
 
-      setTabs(mockTabs);
-      setCurrentTabId(1);
+        // Get current active tab
+        const [currentTab] = await Browser.tabs.query({ active: true, currentWindow: true });
+        if (currentTab?.id) {
+          setCurrentTabId(currentTab.id);
+        }
+
+        // Convert browser tabs to TabInfo format with eligibility check
+        const tabInfos: Array<TabInfo> = browserTabs
+          .filter((tab) => tab.id !== undefined)
+          .map((tab) => {
+            const url = tab.url || '';
+            const isForbidden = isForbiddenUrl(url);
+
+            let ineligibleReason: string | undefined;
+            if (isForbidden) {
+              if (
+                url.includes('chrome.google.com/webstore') ||
+                url.includes('microsoftedge.microsoft.com/addons') ||
+                url.includes('addons.mozilla.org')
+              ) {
+                ineligibleReason =
+                  'Web store pages cannot be synchronized due to security restrictions';
+              } else if (url.match(/^https?:\/\/(drive|docs|sheets|mail)\.google\.com/)) {
+                ineligibleReason =
+                  'Google services pages have restrictions that prevent synchronization';
+              } else if (
+                url.match(/^(chrome|edge|about|firefox|moz-extension|chrome-extension):/)
+              ) {
+                ineligibleReason =
+                  'Browser internal pages cannot be synchronized due to security restrictions';
+              } else if (url.match(/^(view-source|data|javascript|file|blob):/)) {
+                ineligibleReason = 'Special protocol pages cannot be synchronized';
+              } else {
+                ineligibleReason = 'This page cannot be synchronized due to security restrictions';
+              }
+            }
+
+            return {
+              id: tab.id!,
+              title: tab.title || 'Untitled',
+              url,
+              favIconUrl: tab.favIconUrl,
+              eligible: !isForbidden,
+              ineligibleReason,
+            };
+          });
+
+        setTabs(tabInfos);
+      } catch (error) {
+        console.error('Failed to fetch tabs:', error);
+        // Fallback to empty list on error
+        setTabs([]);
+      }
     };
 
     fetchTabs();
@@ -104,10 +132,13 @@ export function ScrollSyncPopup() {
     }));
   }, [syncStatus.connectionStatuses]);
 
-  const handleSwitchToTab = useCallback((tabId: number) => {
-    // TODO: Implement tab switching via browser API
-    // browser.tabs.update(tabId, { active: true });
-    console.log('Switch to tab:', tabId);
+  const handleSwitchToTab = useCallback(async (tabId: number) => {
+    try {
+      await Browser.tabs.update(tabId, { active: true });
+      setCurrentTabId(tabId);
+    } catch (error) {
+      console.error('Failed to switch to tab:', tabId, error);
+    }
   }, []);
 
   const linkedTabs = tabs.filter((tab) => syncStatus.connectedTabs.includes(tab.id));
