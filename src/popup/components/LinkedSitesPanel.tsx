@@ -10,7 +10,7 @@ import { StatusIndicator } from './StatusIndicator';
 import type { TabInfo, ConnectionStatus } from '../types';
 
 interface LinkedSitesPanelProps {
-  linkedTabs: TabInfo[];
+  linkedTabs: Array<TabInfo>;
   connectionStatuses: Record<number, ConnectionStatus>;
   currentTabId?: number;
   onSwitchToTab: (tabId: number) => void;

@@ -14,8 +14,8 @@ import { cn } from '~/shared/lib/utils';
 import type { TabInfo } from '../types';
 
 interface TabSelectionListProps {
-  tabs: TabInfo[];
-  selectedTabIds: number[];
+  tabs: Array<TabInfo>;
+  selectedTabIds: Array<number>;
   onToggleTab: (tabId: number) => void;
 }
 

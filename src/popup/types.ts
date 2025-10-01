@@ -9,7 +9,7 @@ export interface TabInfo {
 
 export interface SyncStatus {
   isActive: boolean;
-  connectedTabs: number[];
+  connectedTabs: Array<number>;
   connectionStatuses: Record<number, ConnectionStatus>;
 }
 

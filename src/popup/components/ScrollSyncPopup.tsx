@@ -9,8 +9,8 @@ import type { TabInfo, SyncStatus, ConnectionStatus } from '../types';
 
 export function ScrollSyncPopup() {
   const [isMinimized, setIsMinimized] = useState(false);
-  const [selectedTabIds, setSelectedTabIds] = useState<number[]>([]);
-  const [tabs, setTabs] = useState<TabInfo[]>([]);
+  const [selectedTabIds, setSelectedTabIds] = useState<Array<number>>([]);
+  const [tabs, setTabs] = useState<Array<TabInfo>>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     isActive: false,
     connectedTabs: [],
@@ -20,7 +20,7 @@ export function ScrollSyncPopup() {
 
   useEffect(() => {
     const fetchTabs = async () => {
-      const mockTabs: TabInfo[] = [
+      const mockTabs: Array<TabInfo> = [
         {
           id: 1,
           title: 'Example Document - Translation',
