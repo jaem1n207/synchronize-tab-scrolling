@@ -206,3 +206,22 @@ onMessage('scroll:manual', async ({ data }) => {
 
   await Promise.all(promises);
 });
+
+onMessage('url:sync', async ({ data }) => {
+  const payload = data as { url: string; sourceTabId: number };
+  logger.info('Relaying URL sync message', { payload });
+
+  // Broadcast to all tabs except the source
+  const tabs = await browser.tabs.query({ currentWindow: true });
+  const promises = tabs
+    .filter((tab) => tab.id && tab.id !== payload.sourceTabId)
+    .map((tab) =>
+      sendMessage('url:sync', data, { context: 'content-script', tabId: tab.id! }).catch(
+        (error) => {
+          logger.debug(`Failed to relay URL sync to tab ${tab.id}`, { error });
+        },
+      ),
+    );
+
+  await Promise.all(promises);
+});

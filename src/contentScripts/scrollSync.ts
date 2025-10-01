@@ -3,6 +3,7 @@
  * Implements P0: Basic Scroll Synchronization (<100ms delay)
  * Implements P1: Element-Based Synchronization Mode
  * Implements P1: Manual Adjustment Controls
+ * Implements P1: URL Navigation Synchronization
  */
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
@@ -19,7 +20,12 @@ let isSyncActive = false;
 let currentMode: SyncMode = 'ratio';
 let isManualScrollEnabled = false;
 let lastScrollTime = 0;
+let lastNavigationUrl = window.location.href;
 const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
+
+// URL monitoring
+let urlObserver: MutationObserver | null = null;
+let popstateHandler: (() => void) | null = null;
 
 // Get current tab ID
 let currentTabId = 0;
@@ -172,6 +178,78 @@ function handleScroll() {
 }
 
 /**
+ * Broadcast URL change to other tabs (P1)
+ */
+function broadcastUrlChange(url: string) {
+  logger.info('URL changed, broadcasting to other tabs', { url });
+
+  sendMessage(
+    'url:sync',
+    {
+      url,
+      sourceTabId: currentTabId,
+    },
+    'background',
+  ).catch((error) => {
+    logger.error('Failed to send URL sync message', { error });
+  });
+}
+
+/**
+ * Start URL monitoring (P1)
+ */
+function startUrlMonitoring() {
+  // Stop any existing monitoring
+  stopUrlMonitoring();
+
+  lastNavigationUrl = window.location.href;
+
+  // Use MutationObserver to detect URL changes (for SPA navigation)
+  urlObserver = new MutationObserver(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastNavigationUrl) {
+      lastNavigationUrl = currentUrl;
+      broadcastUrlChange(currentUrl);
+    }
+  });
+
+  urlObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+
+  // Also listen for popstate events (browser back/forward)
+  popstateHandler = () => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastNavigationUrl) {
+      lastNavigationUrl = currentUrl;
+      broadcastUrlChange(currentUrl);
+    }
+  };
+
+  window.addEventListener('popstate', popstateHandler);
+
+  logger.info('URL monitoring started');
+}
+
+/**
+ * Stop URL monitoring (P1)
+ */
+function stopUrlMonitoring() {
+  if (urlObserver) {
+    urlObserver.disconnect();
+    urlObserver = null;
+  }
+
+  if (popstateHandler) {
+    window.removeEventListener('popstate', popstateHandler);
+    popstateHandler = null;
+  }
+
+  logger.info('URL monitoring stopped');
+}
+
+/**
  * Initialize scroll sync system
  */
 export function initScrollSync() {
@@ -185,6 +263,9 @@ export function initScrollSync() {
     // Add scroll listener
     window.addEventListener('scroll', handleScroll, { passive: true });
 
+    // Start URL monitoring (P1)
+    startUrlMonitoring();
+
     return { success: true, tabId: currentTabId };
   });
 
@@ -195,6 +276,9 @@ export function initScrollSync() {
 
     // Remove scroll listener
     window.removeEventListener('scroll', handleScroll);
+
+    // Stop URL monitoring (P1)
+    stopUrlMonitoring();
 
     return { success: true, tabId: currentTabId };
   });
@@ -238,6 +322,21 @@ export function initScrollSync() {
     logger.info('Manual scroll mode toggled', { data });
     const payload = data as { tabId: number; enabled: boolean };
     isManualScrollEnabled = payload.enabled;
+  });
+
+  // Listen for URL sync from other tabs (P1)
+  onMessage('url:sync', ({ data }) => {
+    if (!isSyncActive) return;
+
+    const payload = data as { url: string; sourceTabId: number };
+
+    // Don't navigate if this is the source tab
+    if (payload.sourceTabId === currentTabId) return;
+
+    logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
+
+    // Navigate to the new URL
+    window.location.href = payload.url;
   });
 
   logger.info('Scroll sync initialized');
