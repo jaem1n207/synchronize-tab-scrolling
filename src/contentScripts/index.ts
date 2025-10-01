@@ -23,13 +23,16 @@ import { initScrollSync } from './scrollSync';
   initScrollSync();
 
   // Initialize keyboard handler for manual scroll adjustment
-  browser.tabs.getCurrent().then((tab) => {
-    if (tab?.id) {
-      initKeyboardHandler(tab.id);
-    }
-  }).catch((error) => {
-    logger.warn('Could not get current tab for keyboard handler', { error });
-  });
+  browser.tabs
+    .getCurrent()
+    .then((tab) => {
+      if (tab?.id) {
+        initKeyboardHandler(tab.id);
+      }
+    })
+    .catch((error) => {
+      logger.warn('Could not get current tab for keyboard handler', { error });
+    });
 
   // communication example: send previous tab title from background page
   onMessage('tab-prev', ({ data }) => {

@@ -3,6 +3,12 @@ import { useState, useCallback, useEffect } from 'react';
 import { sendMessage } from 'webext-bridge/popup';
 import * as Browser from 'webextension-polyfill';
 
+import {
+  loadPanelMinimized,
+  loadSelectedTabIds,
+  savePanelMinimized,
+  saveSelectedTabIds,
+} from '~/shared/lib/storage';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
 import { DraggableControlPanel } from './DraggableControlPanel';
@@ -24,8 +30,16 @@ export function ScrollSyncPopup() {
   const [currentTabId, setCurrentTabId] = useState<number>();
 
   useEffect(() => {
-    const fetchTabs = async () => {
+    const initialize = async () => {
       try {
+        // Load saved state
+        const [savedMinimized, savedTabIds] = await Promise.all([
+          loadPanelMinimized(),
+          loadSelectedTabIds(),
+        ]);
+
+        setIsMinimized(savedMinimized);
+
         // Get all tabs in current window
         const browserTabs = await Browser.tabs.query({ currentWindow: true });
 
@@ -77,24 +91,43 @@ export function ScrollSyncPopup() {
           });
 
         setTabs(tabInfos);
+
+        // Restore previously selected tabs if they still exist
+        const validTabIds = tabInfos.map((tab) => tab.id);
+        const restoredSelection = savedTabIds.filter((id) => validTabIds.includes(id));
+        if (restoredSelection.length > 0) {
+          setSelectedTabIds(restoredSelection);
+        }
       } catch (error) {
-        console.error('Failed to fetch tabs:', error);
+        console.error('Failed to initialize popup:', error);
         // Fallback to empty list on error
         setTabs([]);
       }
     };
 
-    fetchTabs();
+    initialize();
   }, []);
 
   const handleToggleTab = useCallback((tabId: number) => {
-    setSelectedTabIds((prev) =>
-      prev.includes(tabId) ? prev.filter((id) => id !== tabId) : [...prev, tabId],
-    );
+    setSelectedTabIds((prev) => {
+      const newSelection = prev.includes(tabId)
+        ? prev.filter((id) => id !== tabId)
+        : [...prev, tabId];
+
+      // Save to storage
+      saveSelectedTabIds(newSelection);
+
+      return newSelection;
+    });
   }, []);
 
   const handleToggleMinimize = useCallback(() => {
-    setIsMinimized((prev) => !prev);
+    setIsMinimized((prev) => {
+      const newValue = !prev;
+      // Save to storage
+      savePanelMinimized(newValue);
+      return newValue;
+    });
   }, []);
 
   const handleStart = useCallback(async () => {

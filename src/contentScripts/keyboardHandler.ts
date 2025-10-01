@@ -59,7 +59,7 @@ function handleKeyDown(event: KeyboardEvent) {
  */
 function handleKeyUp(event: KeyboardEvent) {
   // Check if Option/Alt key was released
-  if ((!event.altKey && !event.metaKey) && isManualModeActive) {
+  if (!event.altKey && !event.metaKey && isManualModeActive) {
     disableManualMode();
   }
 }
