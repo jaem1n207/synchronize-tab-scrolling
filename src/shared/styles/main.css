@@ -24,4 +24,13 @@
   .dark {
     color-scheme: dark only;
   }
+
+  /* Manual scroll mode indicator (P1 requirement) */
+  html.scroll-sync-manual-mode {
+    cursor: ns-resize !important;
+  }
+
+  html.scroll-sync-manual-mode * {
+    cursor: ns-resize !important;
+  }
 }

@@ -23,13 +23,16 @@ const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
 
 // Get current tab ID
 let currentTabId = 0;
-Browser.tabs.getCurrent().then((tab) => {
-  if (tab?.id) {
-    currentTabId = tab.id;
-  }
-}).catch(() => {
-  // Ignore error in content script context
-});
+Browser.tabs
+  .getCurrent()
+  .then((tab) => {
+    if (tab?.id) {
+      currentTabId = tab.id;
+    }
+  })
+  .catch(() => {
+    // Ignore error in content script context
+  });
 
 /**
  * Get current scroll information

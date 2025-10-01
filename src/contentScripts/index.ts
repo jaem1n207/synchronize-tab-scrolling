@@ -7,6 +7,7 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
 
 import '~/shared/styles';
+import { initKeyboardHandler } from './keyboardHandler';
 import { renderApp } from './render';
 import { initScrollSync } from './scrollSync';
 
@@ -20,6 +21,15 @@ import { initScrollSync } from './scrollSync';
 
   // Initialize scroll synchronization system
   initScrollSync();
+
+  // Initialize keyboard handler for manual scroll adjustment
+  browser.tabs.getCurrent().then((tab) => {
+    if (tab?.id) {
+      initKeyboardHandler(tab.id);
+    }
+  }).catch((error) => {
+    logger.warn('Could not get current tab for keyboard handler', { error });
+  });
 
   // communication example: send previous tab title from background page
   onMessage('tab-prev', ({ data }) => {
