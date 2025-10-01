@@ -130,3 +130,79 @@ onMessage('get-current-tab', async () => {
     },
   );
 });
+
+// Scroll synchronization message handlers
+onMessage('scroll:start', async ({ data }) => {
+  logger.info('Starting scroll sync for tabs', { data });
+  const payload = data as { tabIds: Array<number>; mode: string };
+
+  // Broadcast start message to all selected tabs
+  const promises = payload.tabIds.map((tabId) =>
+    sendMessage('scroll:start', data, { context: 'content-script', tabId }).catch((error) => {
+      logger.error(`Failed to send start message to tab ${tabId}`, { error });
+    }),
+  );
+
+  await Promise.all(promises);
+  return { success: true };
+});
+
+onMessage('scroll:stop', async ({ data }) => {
+  logger.info('Stopping scroll sync for tabs', { data });
+  const payload = data as { tabIds: Array<number> };
+
+  // Broadcast stop message to all selected tabs
+  const promises = payload.tabIds.map((tabId) =>
+    sendMessage('scroll:stop', data, { context: 'content-script', tabId }).catch((error) => {
+      logger.error(`Failed to send stop message to tab ${tabId}`, { error });
+    }),
+  );
+
+  await Promise.all(promises);
+  return { success: true };
+});
+
+onMessage('scroll:sync', async ({ data, sender }) => {
+  const payload = data as {
+    scrollTop: number;
+    scrollHeight: number;
+    clientHeight: number;
+    sourceTabId: number;
+    mode: string;
+    timestamp: number;
+  };
+
+  logger.debug('Relaying scroll sync message', { payload, sender });
+
+  // Broadcast to all tabs except the source
+  const tabs = await browser.tabs.query({ currentWindow: true });
+  const promises = tabs
+    .filter((tab) => tab.id && tab.id !== payload.sourceTabId)
+    .map((tab) =>
+      sendMessage('scroll:sync', data, { context: 'content-script', tabId: tab.id! }).catch(
+        (error) => {
+          logger.debug(`Failed to relay scroll sync to tab ${tab.id}`, { error });
+        },
+      ),
+    );
+
+  await Promise.all(promises);
+});
+
+onMessage('scroll:manual', async ({ data }) => {
+  logger.debug('Manual scroll mode toggled', { data });
+
+  // Broadcast manual mode change to all tabs
+  const tabs = await browser.tabs.query({ currentWindow: true });
+  const promises = tabs
+    .filter((tab) => tab.id)
+    .map((tab) =>
+      sendMessage('scroll:manual', data, { context: 'content-script', tabId: tab.id! }).catch(
+        (error) => {
+          logger.debug(`Failed to send manual mode to tab ${tab.id}`, { error });
+        },
+      ),
+    );
+
+  await Promise.all(promises);
+});

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 
+import { sendMessage } from 'webext-bridge/popup';
 import * as Browser from 'webextension-polyfill';
 
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
@@ -96,26 +97,60 @@ export function ScrollSyncPopup() {
     setIsMinimized((prev) => !prev);
   }, []);
 
-  const handleStart = useCallback(() => {
-    const statuses: Record<number, ConnectionStatus> = {};
-    selectedTabIds.forEach((id) => {
-      statuses[id] = 'connected';
-    });
+  const handleStart = useCallback(async () => {
+    try {
+      // Send start message to background script
+      await sendMessage(
+        'scroll:start',
+        {
+          tabIds: selectedTabIds,
+          mode: 'ratio', // Default to ratio mode, can be made configurable later
+        },
+        'background',
+      );
 
-    setSyncStatus({
-      isActive: true,
-      connectedTabs: selectedTabIds,
-      connectionStatuses: statuses,
-    });
+      const statuses: Record<number, ConnectionStatus> = {};
+      selectedTabIds.forEach((id) => {
+        statuses[id] = 'connected';
+      });
+
+      setSyncStatus({
+        isActive: true,
+        connectedTabs: selectedTabIds,
+        connectionStatuses: statuses,
+      });
+    } catch (error) {
+      console.error('Failed to start sync:', error);
+      // TODO: Show error to user
+    }
   }, [selectedTabIds]);
 
-  const handleStop = useCallback(() => {
-    setSyncStatus({
-      isActive: false,
-      connectedTabs: [],
-      connectionStatuses: {},
-    });
-  }, []);
+  const handleStop = useCallback(async () => {
+    try {
+      // Send stop message to background script
+      await sendMessage(
+        'scroll:stop',
+        {
+          tabIds: syncStatus.connectedTabs,
+        },
+        'background',
+      );
+
+      setSyncStatus({
+        isActive: false,
+        connectedTabs: [],
+        connectionStatuses: {},
+      });
+    } catch (error) {
+      console.error('Failed to stop sync:', error);
+      // Still update local state even if message fails
+      setSyncStatus({
+        isActive: false,
+        connectedTabs: [],
+        connectionStatuses: {},
+      });
+    }
+  }, [syncStatus.connectedTabs]);
 
   const handleResync = useCallback(() => {
     const newStatuses = { ...syncStatus.connectionStatuses };
