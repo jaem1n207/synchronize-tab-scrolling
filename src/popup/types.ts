@@ -20,3 +20,15 @@ export interface PanelPosition {
   y: number;
   snapped: boolean;
 }
+
+export type ErrorSeverity = 'info' | 'warning' | 'error';
+
+export interface ErrorState {
+  message: string;
+  severity: ErrorSeverity;
+  timestamp: number;
+  action?: {
+    label: string;
+    handler: () => void;
+  };
+}

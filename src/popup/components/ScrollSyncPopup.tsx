@@ -12,11 +12,12 @@ import {
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
 import { DraggableControlPanel } from './DraggableControlPanel';
+import { ErrorNotification } from './ErrorNotification';
 import { LinkedSitesPanel } from './LinkedSitesPanel';
 import { SyncControlButtons } from './SyncControlButtons';
 import { TabSelectionList } from './TabSelectionList';
 
-import type { TabInfo, SyncStatus, ConnectionStatus } from '../types';
+import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 
 export function ScrollSyncPopup() {
   const [isMinimized, setIsMinimized] = useState(false);
@@ -28,6 +29,7 @@ export function ScrollSyncPopup() {
     connectionStatuses: {},
   });
   const [currentTabId, setCurrentTabId] = useState<number>();
+  const [error, setError] = useState<ErrorState | null>(null);
 
   useEffect(() => {
     const initialize = async () => {
@@ -100,6 +102,18 @@ export function ScrollSyncPopup() {
         }
       } catch (error) {
         console.error('Failed to initialize popup:', error);
+        setError({
+          message: 'Failed to load tabs. Please refresh the extension.',
+          severity: 'error',
+          timestamp: Date.now(),
+          action: {
+            label: 'Retry',
+            handler: () => {
+              setError(null);
+              initialize();
+            },
+          },
+        });
         // Fallback to empty list on error
         setTabs([]);
       }
@@ -131,6 +145,19 @@ export function ScrollSyncPopup() {
   }, []);
 
   const handleStart = useCallback(async () => {
+    // Clear any existing errors
+    setError(null);
+
+    // Validation: Check if at least 2 tabs are selected
+    if (selectedTabIds.length < 2) {
+      setError({
+        message: 'Please select at least 2 tabs to synchronize.',
+        severity: 'warning',
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
     try {
       // Send start message to background script
       await sendMessage(
@@ -152,13 +179,29 @@ export function ScrollSyncPopup() {
         connectedTabs: selectedTabIds,
         connectionStatuses: statuses,
       });
+
+      setError({
+        message: `Successfully started synchronization for ${selectedTabIds.length} tabs.`,
+        severity: 'info',
+        timestamp: Date.now(),
+      });
     } catch (error) {
       console.error('Failed to start sync:', error);
-      // TODO: Show error to user
+      setError({
+        message: 'Failed to start synchronization. Please try again.',
+        severity: 'error',
+        timestamp: Date.now(),
+        action: {
+          label: 'Retry',
+          handler: handleStart,
+        },
+      });
     }
   }, [selectedTabIds]);
 
   const handleStop = useCallback(async () => {
+    setError(null);
+
     try {
       // Send stop message to background script
       await sendMessage(
@@ -174,8 +217,19 @@ export function ScrollSyncPopup() {
         connectedTabs: [],
         connectionStatuses: {},
       });
+
+      setError({
+        message: 'Synchronization stopped successfully.',
+        severity: 'info',
+        timestamp: Date.now(),
+      });
     } catch (error) {
       console.error('Failed to stop sync:', error);
+      setError({
+        message: 'Warning: Failed to properly stop sync. Local state has been cleared.',
+        severity: 'warning',
+        timestamp: Date.now(),
+      });
       // Still update local state even if message fails
       setSyncStatus({
         isActive: false,
@@ -206,7 +260,16 @@ export function ScrollSyncPopup() {
       setCurrentTabId(tabId);
     } catch (error) {
       console.error('Failed to switch to tab:', tabId, error);
+      setError({
+        message: 'Failed to switch to tab. The tab may have been closed.',
+        severity: 'error',
+        timestamp: Date.now(),
+      });
     }
+  }, []);
+
+  const handleDismissError = useCallback(() => {
+    setError(null);
   }, []);
 
   const linkedTabs = tabs.filter((tab) => syncStatus.connectedTabs.includes(tab.id));
@@ -217,6 +280,7 @@ export function ScrollSyncPopup() {
   return (
     <DraggableControlPanel isMinimized={isMinimized} onToggleMinimize={handleToggleMinimize}>
       <div className="space-y-4">
+        {error && <ErrorNotification error={error} onDismiss={handleDismissError} />}
         <section aria-labelledby="tab-selection-heading">
           <h3 className="text-sm font-medium mb-2" id="tab-selection-heading">
             Select Tabs to Sync
