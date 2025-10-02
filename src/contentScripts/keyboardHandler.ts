@@ -6,17 +6,26 @@
 import { sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { saveManualScrollOffset } from '~/shared/lib/storage';
 
 const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
 let isManualModeActive = false;
 let currentTabId = 0;
+let baselineSyncedRatio = 0; // Store the synced ratio when manual mode is activated
+let getScrollInfoCallback: (() => { currentRatio: number; lastSyncedRatio: number }) | null = null;
 
 /**
  * Initialize keyboard handler
+ * @param tabId - Current tab ID
+ * @param getScrollInfo - Callback to get current scroll ratio and last synced ratio
  */
-export function initKeyboardHandler(tabId: number) {
+export function initKeyboardHandler(
+  tabId: number,
+  getScrollInfo?: () => { currentRatio: number; lastSyncedRatio: number },
+) {
   currentTabId = tabId;
+  getScrollInfoCallback = getScrollInfo || null;
 
   // Listen for Option/Alt key press
   window.addEventListener('keydown', handleKeyDown, { passive: true });
@@ -36,6 +45,15 @@ function handleKeyDown(event: KeyboardEvent) {
   if ((event.altKey || event.metaKey) && !isManualModeActive) {
     isManualModeActive = true;
     logger.debug('Manual scroll mode enabled');
+
+    // Store the baseline synced ratio at the moment manual mode is activated
+    if (getScrollInfoCallback) {
+      const { lastSyncedRatio } = getScrollInfoCallback();
+      baselineSyncedRatio = lastSyncedRatio;
+      logger.debug('Stored baseline synced ratio for offset calculation', {
+        baseline: baselineSyncedRatio,
+      });
+    }
 
     // Notify content script to disable scroll sync
     sendMessage(
@@ -76,9 +94,30 @@ function handleBlur() {
 /**
  * Disable manual scroll mode
  */
-function disableManualMode() {
+async function disableManualMode() {
   isManualModeActive = false;
   logger.debug('Manual scroll mode disabled');
+
+  // Calculate and save manual scroll offset using baseline
+  if (getScrollInfoCallback) {
+    try {
+      const { currentRatio } = getScrollInfoCallback();
+      // Use the baseline ratio stored when manual mode was activated
+      const offset = currentRatio - baselineSyncedRatio;
+
+      logger.debug('Calculating manual scroll offset', {
+        currentRatio,
+        baselineSyncedRatio,
+        offset,
+      });
+
+      // Save the offset for this tab
+      await saveManualScrollOffset(currentTabId, offset);
+      logger.info('Manual scroll offset saved', { tabId: currentTabId, offset });
+    } catch (error) {
+      logger.error('Failed to save manual scroll offset', { error });
+    }
+  }
 
   // Notify content script to re-enable scroll sync
   sendMessage(
