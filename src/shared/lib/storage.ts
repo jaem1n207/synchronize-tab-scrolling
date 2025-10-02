@@ -3,7 +3,7 @@
  * Implements requirement: State persistence with browser.storage
  */
 
-import * as Browser from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 
 import type { PanelPosition } from '~/popup/types';
 import type { SyncMode } from '~/shared/types/messages';
@@ -23,7 +23,7 @@ const STORAGE_KEYS = {
  */
 export async function savePanelPosition(position: PanelPosition): Promise<void> {
   try {
-    await Browser.storage.local.set({
+    await browser.storage.local.set({
       [STORAGE_KEYS.PANEL_POSITION]: position,
     });
   } catch (error) {
@@ -36,7 +36,7 @@ export async function savePanelPosition(position: PanelPosition): Promise<void> 
  */
 export async function loadPanelPosition(): Promise<PanelPosition | null> {
   try {
-    const result = await Browser.storage.local.get(STORAGE_KEYS.PANEL_POSITION);
+    const result = await browser.storage.local.get(STORAGE_KEYS.PANEL_POSITION);
     return (result[STORAGE_KEYS.PANEL_POSITION] as PanelPosition) || null;
   } catch (error) {
     console.error('Failed to load panel position:', error);
@@ -49,7 +49,7 @@ export async function loadPanelPosition(): Promise<PanelPosition | null> {
  */
 export async function saveSyncMode(mode: SyncMode): Promise<void> {
   try {
-    await Browser.storage.local.set({
+    await browser.storage.local.set({
       [STORAGE_KEYS.SYNC_MODE]: mode,
     });
   } catch (error) {
@@ -62,7 +62,7 @@ export async function saveSyncMode(mode: SyncMode): Promise<void> {
  */
 export async function loadSyncMode(): Promise<SyncMode> {
   try {
-    const result = await Browser.storage.local.get(STORAGE_KEYS.SYNC_MODE);
+    const result = await browser.storage.local.get(STORAGE_KEYS.SYNC_MODE);
     return (result[STORAGE_KEYS.SYNC_MODE] as SyncMode) || 'ratio';
   } catch (error) {
     console.error('Failed to load sync mode:', error);
@@ -75,7 +75,7 @@ export async function loadSyncMode(): Promise<SyncMode> {
  */
 export async function savePanelMinimized(isMinimized: boolean): Promise<void> {
   try {
-    await Browser.storage.local.set({
+    await browser.storage.local.set({
       [STORAGE_KEYS.IS_PANEL_MINIMIZED]: isMinimized,
     });
   } catch (error) {
@@ -88,7 +88,7 @@ export async function savePanelMinimized(isMinimized: boolean): Promise<void> {
  */
 export async function loadPanelMinimized(): Promise<boolean> {
   try {
-    const result = await Browser.storage.local.get(STORAGE_KEYS.IS_PANEL_MINIMIZED);
+    const result = await browser.storage.local.get(STORAGE_KEYS.IS_PANEL_MINIMIZED);
     return (result[STORAGE_KEYS.IS_PANEL_MINIMIZED] as boolean) || false;
   } catch (error) {
     console.error('Failed to load panel minimized state:', error);
@@ -101,7 +101,7 @@ export async function loadPanelMinimized(): Promise<boolean> {
  */
 export async function saveSelectedTabIds(tabIds: Array<number>): Promise<void> {
   try {
-    await Browser.storage.local.set({
+    await browser.storage.local.set({
       [STORAGE_KEYS.SELECTED_TAB_IDS]: tabIds,
     });
   } catch (error) {
@@ -114,7 +114,7 @@ export async function saveSelectedTabIds(tabIds: Array<number>): Promise<void> {
  */
 export async function loadSelectedTabIds(): Promise<Array<number>> {
   try {
-    const result = await Browser.storage.local.get(STORAGE_KEYS.SELECTED_TAB_IDS);
+    const result = await browser.storage.local.get(STORAGE_KEYS.SELECTED_TAB_IDS);
     return (result[STORAGE_KEYS.SELECTED_TAB_IDS] as Array<number>) || [];
   } catch (error) {
     console.error('Failed to load selected tab IDs:', error);
@@ -127,7 +127,7 @@ export async function loadSelectedTabIds(): Promise<Array<number>> {
  */
 export async function clearStorage(): Promise<void> {
   try {
-    await Browser.storage.local.clear();
+    await browser.storage.local.clear();
   } catch (error) {
     console.error('Failed to clear storage:', error);
   }

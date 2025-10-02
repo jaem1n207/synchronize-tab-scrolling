@@ -40,7 +40,8 @@ export const de: Translations = {
 
   errors: {
     loadTabsFailed: 'Tabs konnten nicht geladen werden. Bitte aktualisieren Sie die Erweiterung.',
-    startSyncFailed: 'Synchronisation konnte nicht gestartet werden. Bitte versuchen Sie es erneut.',
+    startSyncFailed:
+      'Synchronisation konnte nicht gestartet werden. Bitte versuchen Sie es erneut.',
     stopSyncFailed:
       'Warnung: Synchronisation konnte nicht ordnungsgemäß gestoppt werden. Lokaler Status wurde gelöscht.',
     switchTabFailed: 'Tab-Wechsel fehlgeschlagen. Der Tab wurde möglicherweise geschlossen.',

@@ -1,0 +1,137 @@
+{
+  "extName": {
+    "message": "同步标签页滚动"
+  },
+  "extDescription": {
+    "message": "允许您同步多个浏览器标签页的滚动位置的浏览器扩展"
+  },
+  "searchPlaceholder": {
+    "message": "搜索标签页"
+  },
+  "noSearchFound": {
+    "message": "找不到与您的搜索匹配的标签页"
+  },
+  "noTabsFound": {
+    "message": "未找到可同步的标签页"
+  },
+  "startSync": {
+    "message": "开始同步"
+  },
+  "stopSync": {
+    "message": "停止同步"
+  },
+  "syncValidationError": {
+    "message": "请至少选择2个标签页"
+  },
+  "loading": {
+    "message": "加载中..."
+  },
+  "error": {
+    "message": "发生错误"
+  },
+  "backgroundUpdate": {
+    "message": "后台更新中..."
+  },
+  "tabs": {
+    "message": "标签页"
+  },
+  "changeTheme": {
+    "message": "更改主题"
+  },
+  "light": {
+    "message": "浅色"
+  },
+  "dark": {
+    "message": "深色"
+  },
+  "system": {
+    "message": "系统"
+  },
+  "noTitle": {
+    "message": "无标题"
+  },
+  "tabSelectionHeading": {
+    "message": "选择要同步的标签页"
+  },
+  "selectedCount": {
+    "message": "已选择$COUNT$个",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "重新同步"
+  },
+  "minimize": {
+    "message": "最小化"
+  },
+  "maximize": {
+    "message": "最大化"
+  },
+  "linkedTabs": {
+    "message": "已链接的标签页"
+  },
+  "currentTab": {
+    "message": "当前"
+  },
+  "switchToTab": {
+    "message": "切换到此标签页"
+  },
+  "connected": {
+    "message": "已连接"
+  },
+  "disconnected": {
+    "message": "已断开"
+  },
+  "errorLoadTabsFailed": {
+    "message": "加载标签页失败。请刷新扩展。"
+  },
+  "errorStartSyncFailed": {
+    "message": "启动同步失败。请重试。"
+  },
+  "errorStopSyncFailed": {
+    "message": "警告：未能正确停止同步。本地状态已清除。"
+  },
+  "errorSwitchTabFailed": {
+    "message": "切换标签页失败。该标签页可能已关闭。"
+  },
+  "errorMinTabsRequired": {
+    "message": "请至少选择2个标签页进行同步。"
+  },
+  "successSyncStarted": {
+    "message": "已成功开始同步$COUNT$个标签页。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "同步已成功停止。"
+  },
+  "retry": {
+    "message": "重试"
+  },
+  "dismiss": {
+    "message": "关闭"
+  },
+  "ineligibleWebStore": {
+    "message": "由于安全限制，无法同步网上应用店页面"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google服务页面存在阻止同步的限制"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "由于安全限制，无法同步浏览器内部页面"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "无法同步特殊协议页面"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "由于安全限制，无法同步此页面"
+  }
+}

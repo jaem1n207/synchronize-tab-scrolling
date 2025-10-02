@@ -49,5 +49,89 @@
   },
   "noTitle": {
     "message": "제목 없음"
+  },
+  "tabSelectionHeading": {
+    "message": "동기화할 탭 선택"
+  },
+  "selectedCount": {
+    "message": "$COUNT$개 선택됨",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "재동기화"
+  },
+  "minimize": {
+    "message": "최소화"
+  },
+  "maximize": {
+    "message": "최대화"
+  },
+  "linkedTabs": {
+    "message": "연결된 탭"
+  },
+  "currentTab": {
+    "message": "현재"
+  },
+  "switchToTab": {
+    "message": "이 탭으로 전환"
+  },
+  "connected": {
+    "message": "연결됨"
+  },
+  "disconnected": {
+    "message": "연결 끊김"
+  },
+  "errorLoadTabsFailed": {
+    "message": "탭을 불러오지 못했습니다. 확장 프로그램을 새로고침해주세요."
+  },
+  "errorStartSyncFailed": {
+    "message": "동기화를 시작하지 못했습니다. 다시 시도해주세요."
+  },
+  "errorStopSyncFailed": {
+    "message": "경고: 동기화를 제대로 중지하지 못했습니다. 로컬 상태는 초기화되었습니다."
+  },
+  "errorSwitchTabFailed": {
+    "message": "탭 전환에 실패했습니다. 탭이 닫혔을 수 있습니다."
+  },
+  "errorMinTabsRequired": {
+    "message": "동기화하려면 최소 2개의 탭을 선택하세요."
+  },
+  "successSyncStarted": {
+    "message": "$COUNT$개 탭에 대한 동기화를 성공적으로 시작했습니다.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "동기화가 성공적으로 중지되었습니다."
+  },
+  "retry": {
+    "message": "다시 시도"
+  },
+  "dismiss": {
+    "message": "닫기"
+  },
+  "ineligibleWebStore": {
+    "message": "웹 스토어 페이지는 보안 제한으로 인해 동기화할 수 없습니다"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google 서비스 페이지는 동기화를 방지하는 제한이 있습니다"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "브라우저 내부 페이지는 보안 제한으로 인해 동기화할 수 없습니다"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "특수 프로토콜 페이지는 동기화할 수 없습니다"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "이 페이지는 보안 제한으로 인해 동기화할 수 없습니다"
   }
 }

@@ -39,8 +39,7 @@ export const fr: Translations = {
   },
 
   errors: {
-    loadTabsFailed:
-      "Échec du chargement des onglets. Veuillez actualiser l'extension.",
+    loadTabsFailed: "Échec du chargement des onglets. Veuillez actualiser l'extension.",
     startSyncFailed: 'Échec du démarrage de la synchronisation. Veuillez réessayer.',
     stopSyncFailed:
       "Avertissement : Échec de l'arrêt correct de la synchronisation. L'état local a été effacé.",

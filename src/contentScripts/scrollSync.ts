@@ -7,7 +7,7 @@
  */
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
-import * as Browser from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 
@@ -29,7 +29,7 @@ let popstateHandler: (() => void) | null = null;
 
 // Get current tab ID
 let currentTabId = 0;
-Browser.tabs
+browser.tabs
   .getCurrent()
   .then((tab) => {
     if (tab?.id) {

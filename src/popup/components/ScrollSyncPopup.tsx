@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
 import { sendMessage } from 'webext-bridge/popup';
-import * as Browser from 'webextension-polyfill';
+import browser from 'webextension-polyfill';
 
 import {
   loadPanelMinimized,
@@ -43,10 +43,10 @@ export function ScrollSyncPopup() {
         setIsMinimized(savedMinimized);
 
         // Get all tabs in current window
-        const browserTabs = await Browser.tabs.query({ currentWindow: true });
+        const browserTabs = await browser.tabs.query({ currentWindow: true });
 
         // Get current active tab
-        const [currentTab] = await Browser.tabs.query({ active: true, currentWindow: true });
+        const [currentTab] = await browser.tabs.query({ active: true, currentWindow: true });
         if (currentTab?.id) {
           setCurrentTabId(currentTab.id);
         }
@@ -256,7 +256,7 @@ export function ScrollSyncPopup() {
 
   const handleSwitchToTab = useCallback(async (tabId: number) => {
     try {
-      await Browser.tabs.update(tabId, { active: true });
+      await browser.tabs.update(tabId, { active: true });
       setCurrentTabId(tabId);
     } catch (error) {
       console.error('Failed to switch to tab:', tabId, error);

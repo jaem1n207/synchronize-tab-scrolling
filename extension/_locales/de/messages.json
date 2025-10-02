@@ -1,0 +1,137 @@
+{
+  "extName": {
+    "message": "Tab-Scroll-Synchronisation"
+  },
+  "extDescription": {
+    "message": "Browser-Erweiterung, mit der Sie die Scrollposition mehrerer Tabs synchronisieren können"
+  },
+  "searchPlaceholder": {
+    "message": "Tabs durchsuchen"
+  },
+  "noSearchFound": {
+    "message": "Es wurden keine Tabs gefunden, die Ihrer Suche entsprechen"
+  },
+  "noTabsFound": {
+    "message": "Keine synchronisierbaren Tabs gefunden"
+  },
+  "startSync": {
+    "message": "Synchronisation starten"
+  },
+  "stopSync": {
+    "message": "Synchronisation stoppen"
+  },
+  "syncValidationError": {
+    "message": "Bitte wählen Sie mindestens 2 Tabs aus"
+  },
+  "loading": {
+    "message": "Wird geladen..."
+  },
+  "error": {
+    "message": "Ein Fehler ist aufgetreten"
+  },
+  "backgroundUpdate": {
+    "message": "Hintergrundaktualisierung..."
+  },
+  "tabs": {
+    "message": "Tabs"
+  },
+  "changeTheme": {
+    "message": "Design ändern"
+  },
+  "light": {
+    "message": "Hell"
+  },
+  "dark": {
+    "message": "Dunkel"
+  },
+  "system": {
+    "message": "System"
+  },
+  "noTitle": {
+    "message": "Kein Titel"
+  },
+  "tabSelectionHeading": {
+    "message": "Tabs zum Synchronisieren auswählen"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ ausgewählt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "Neu synchronisieren"
+  },
+  "minimize": {
+    "message": "Minimieren"
+  },
+  "maximize": {
+    "message": "Maximieren"
+  },
+  "linkedTabs": {
+    "message": "Verknüpfte Tabs"
+  },
+  "currentTab": {
+    "message": "Aktuell"
+  },
+  "switchToTab": {
+    "message": "Zu diesem Tab wechseln"
+  },
+  "connected": {
+    "message": "Verbunden"
+  },
+  "disconnected": {
+    "message": "Getrennt"
+  },
+  "errorLoadTabsFailed": {
+    "message": "Tabs konnten nicht geladen werden. Bitte aktualisieren Sie die Erweiterung."
+  },
+  "errorStartSyncFailed": {
+    "message": "Synchronisation konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
+  },
+  "errorStopSyncFailed": {
+    "message": "Warnung: Synchronisation konnte nicht ordnungsgemäß gestoppt werden. Lokaler Status wurde gelöscht."
+  },
+  "errorSwitchTabFailed": {
+    "message": "Tab-Wechsel fehlgeschlagen. Der Tab wurde möglicherweise geschlossen."
+  },
+  "errorMinTabsRequired": {
+    "message": "Bitte wählen Sie mindestens 2 Tabs zum Synchronisieren aus."
+  },
+  "successSyncStarted": {
+    "message": "Synchronisation für $COUNT$ Tabs erfolgreich gestartet.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "Synchronisation erfolgreich gestoppt."
+  },
+  "retry": {
+    "message": "Erneut versuchen"
+  },
+  "dismiss": {
+    "message": "Schließen"
+  },
+  "ineligibleWebStore": {
+    "message": "Webstore-Seiten können aufgrund von Sicherheitsbeschränkungen nicht synchronisiert werden"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google-Dienste-Seiten haben Einschränkungen, die eine Synchronisierung verhindern"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "Browser-interne Seiten können aufgrund von Sicherheitsbeschränkungen nicht synchronisiert werden"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "Spezielle Protokollseiten können nicht synchronisiert werden"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "Diese Seite kann aufgrund von Sicherheitsbeschränkungen nicht synchronisiert werden"
+  }
+}
