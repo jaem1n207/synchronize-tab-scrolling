@@ -49,5 +49,89 @@
   },
   "noTitle": {
     "message": "No Title"
+  },
+  "tabSelectionHeading": {
+    "message": "Select Tabs to Sync"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ selected",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "Resync"
+  },
+  "minimize": {
+    "message": "Minimize"
+  },
+  "maximize": {
+    "message": "Maximize"
+  },
+  "linkedTabs": {
+    "message": "Linked Tabs"
+  },
+  "currentTab": {
+    "message": "Current"
+  },
+  "switchToTab": {
+    "message": "Switch to this tab"
+  },
+  "connected": {
+    "message": "Connected"
+  },
+  "disconnected": {
+    "message": "Disconnected"
+  },
+  "errorLoadTabsFailed": {
+    "message": "Failed to load tabs. Please refresh the extension."
+  },
+  "errorStartSyncFailed": {
+    "message": "Failed to start synchronization. Please try again."
+  },
+  "errorStopSyncFailed": {
+    "message": "Warning: Failed to properly stop sync. Local state has been cleared."
+  },
+  "errorSwitchTabFailed": {
+    "message": "Failed to switch to tab. The tab may have been closed."
+  },
+  "errorMinTabsRequired": {
+    "message": "Please select at least 2 tabs to synchronize."
+  },
+  "successSyncStarted": {
+    "message": "Successfully started synchronization for $COUNT$ tabs.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "Synchronization stopped successfully."
+  },
+  "retry": {
+    "message": "Retry"
+  },
+  "dismiss": {
+    "message": "Dismiss"
+  },
+  "ineligibleWebStore": {
+    "message": "Web store pages cannot be synchronized due to security restrictions"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google services pages have restrictions that prevent synchronization"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "Browser internal pages cannot be synchronized due to security restrictions"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "Special protocol pages cannot be synchronized"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "This page cannot be synchronized due to security restrictions"
   }
 }

@@ -1,0 +1,137 @@
+{
+  "extName": {
+    "message": "टैब स्क्रॉल सिंक्रनाइज़ेशन"
+  },
+  "extDescription": {
+    "message": "ब्राउज़र एक्सटेंशन जो आपको कई टैब की स्क्रॉल स्थिति को सिंक्रनाइज़ करने देता है"
+  },
+  "searchPlaceholder": {
+    "message": "टैब खोजें"
+  },
+  "noSearchFound": {
+    "message": "आपकी खोज से मेल खाने वाले कोई टैब नहीं मिले"
+  },
+  "noTabsFound": {
+    "message": "कोई सिंक करने योग्य टैब नहीं मिले"
+  },
+  "startSync": {
+    "message": "सिंक शुरू करें"
+  },
+  "stopSync": {
+    "message": "सिंक बंद करें"
+  },
+  "syncValidationError": {
+    "message": "कृपया कम से कम 2 टैब चुनें"
+  },
+  "loading": {
+    "message": "लोड हो रहा है..."
+  },
+  "error": {
+    "message": "एक त्रुटि हुई"
+  },
+  "backgroundUpdate": {
+    "message": "पृष्ठभूमि अपडेट हो रहा है..."
+  },
+  "tabs": {
+    "message": "टैब"
+  },
+  "changeTheme": {
+    "message": "थीम बदलें"
+  },
+  "light": {
+    "message": "हल्का"
+  },
+  "dark": {
+    "message": "गहरा"
+  },
+  "system": {
+    "message": "सिस्टम"
+  },
+  "noTitle": {
+    "message": "कोई शीर्षक नहीं"
+  },
+  "tabSelectionHeading": {
+    "message": "सिंक करने के लिए टैब चुनें"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ चयनित",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "फिर से सिंक करें"
+  },
+  "minimize": {
+    "message": "छोटा करें"
+  },
+  "maximize": {
+    "message": "बड़ा करें"
+  },
+  "linkedTabs": {
+    "message": "लिंक किए गए टैब"
+  },
+  "currentTab": {
+    "message": "वर्तमान"
+  },
+  "switchToTab": {
+    "message": "इस टैब पर स्विच करें"
+  },
+  "connected": {
+    "message": "कनेक्टेड"
+  },
+  "disconnected": {
+    "message": "डिस्कनेक्टेड"
+  },
+  "errorLoadTabsFailed": {
+    "message": "टैब लोड करने में विफल। कृपया एक्सटेंशन को रीफ्रेश करें।"
+  },
+  "errorStartSyncFailed": {
+    "message": "सिंक्रनाइज़ेशन शुरू करने में विफल। कृपया पुनः प्रयास करें।"
+  },
+  "errorStopSyncFailed": {
+    "message": "चेतावनी: सिंक को ठीक से बंद करने में विफल। स्थानीय स्थिति साफ़ कर दी गई है।"
+  },
+  "errorSwitchTabFailed": {
+    "message": "टैब स्विच करने में विफल। टैब बंद हो गया हो सकता है।"
+  },
+  "errorMinTabsRequired": {
+    "message": "कृपया सिंक्रनाइज़ करने के लिए कम से कम 2 टैब चुनें।"
+  },
+  "successSyncStarted": {
+    "message": "$COUNT$ टैब के लिए सिंक्रनाइज़ेशन सफलतापूर्वक शुरू हुआ।",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "सिंक्रनाइज़ेशन सफलतापूर्वक बंद हुआ।"
+  },
+  "retry": {
+    "message": "पुनः प्रयास करें"
+  },
+  "dismiss": {
+    "message": "बंद करें"
+  },
+  "ineligibleWebStore": {
+    "message": "सुरक्षा प्रतिबंधों के कारण वेब स्टोर पेज सिंक्रनाइज़ नहीं किए जा सकते"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google सेवाओं के पेजों में प्रतिबंध हैं जो सिंक्रनाइज़ेशन को रोकते हैं"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "सुरक्षा प्रतिबंधों के कारण ब्राउज़र आंतरिक पेज सिंक्रनाइज़ नहीं किए जा सकते"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "विशेष प्रोटोकॉल पेज सिंक्रनाइज़ नहीं किए जा सकते"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "सुरक्षा प्रतिबंधों के कारण यह पेज सिंक्रनाइज़ नहीं किया जा सकता"
+  }
+}

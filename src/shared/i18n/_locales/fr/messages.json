@@ -1,0 +1,137 @@
+{
+  "extName": {
+    "message": "Synchronisation du défilement des onglets"
+  },
+  "extDescription": {
+    "message": "Extension de navigateur qui vous permet de synchroniser la position de défilement de plusieurs onglets"
+  },
+  "searchPlaceholder": {
+    "message": "Rechercher des onglets"
+  },
+  "noSearchFound": {
+    "message": "Impossible de trouver des onglets correspondant à votre recherche"
+  },
+  "noTabsFound": {
+    "message": "Aucun onglet synchronisable trouvé"
+  },
+  "startSync": {
+    "message": "Démarrer la synchronisation"
+  },
+  "stopSync": {
+    "message": "Arrêter la synchronisation"
+  },
+  "syncValidationError": {
+    "message": "Veuillez sélectionner au moins 2 onglets"
+  },
+  "loading": {
+    "message": "Chargement..."
+  },
+  "error": {
+    "message": "Une erreur s'est produite"
+  },
+  "backgroundUpdate": {
+    "message": "Mise à jour en arrière-plan..."
+  },
+  "tabs": {
+    "message": "Onglets"
+  },
+  "changeTheme": {
+    "message": "Changer le thème"
+  },
+  "light": {
+    "message": "Clair"
+  },
+  "dark": {
+    "message": "Sombre"
+  },
+  "system": {
+    "message": "Système"
+  },
+  "noTitle": {
+    "message": "Sans titre"
+  },
+  "tabSelectionHeading": {
+    "message": "Sélectionner les onglets à synchroniser"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ sélectionné(s)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "Resynchroniser"
+  },
+  "minimize": {
+    "message": "Réduire"
+  },
+  "maximize": {
+    "message": "Agrandir"
+  },
+  "linkedTabs": {
+    "message": "Onglets liés"
+  },
+  "currentTab": {
+    "message": "Actuel"
+  },
+  "switchToTab": {
+    "message": "Basculer vers cet onglet"
+  },
+  "connected": {
+    "message": "Connecté"
+  },
+  "disconnected": {
+    "message": "Déconnecté"
+  },
+  "errorLoadTabsFailed": {
+    "message": "Échec du chargement des onglets. Veuillez actualiser l'extension."
+  },
+  "errorStartSyncFailed": {
+    "message": "Échec du démarrage de la synchronisation. Veuillez réessayer."
+  },
+  "errorStopSyncFailed": {
+    "message": "Avertissement : Échec de l'arrêt correct de la synchronisation. L'état local a été effacé."
+  },
+  "errorSwitchTabFailed": {
+    "message": "Échec du basculement vers l'onglet. L'onglet a peut-être été fermé."
+  },
+  "errorMinTabsRequired": {
+    "message": "Veuillez sélectionner au moins 2 onglets à synchroniser."
+  },
+  "successSyncStarted": {
+    "message": "Synchronisation démarrée avec succès pour $COUNT$ onglets.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "Synchronisation arrêtée avec succès."
+  },
+  "retry": {
+    "message": "Réessayer"
+  },
+  "dismiss": {
+    "message": "Fermer"
+  },
+  "ineligibleWebStore": {
+    "message": "Les pages des boutiques en ligne ne peuvent pas être synchronisées en raison de restrictions de sécurité"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Les pages des services Google ont des restrictions qui empêchent la synchronisation"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "Les pages internes du navigateur ne peuvent pas être synchronisées en raison de restrictions de sécurité"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "Les pages de protocole spécial ne peuvent pas être synchronisées"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "Cette page ne peut pas être synchronisée en raison de restrictions de sécurité"
+  }
+}

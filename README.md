@@ -41,6 +41,7 @@ Synchronize Tab Scrolling is a powerful cross-browser extension that automatical
 ## ✨ Features
 
 ### Core Synchronization
+
 - **Real-time Scroll Sync**: <100ms synchronization delay between tabs with proportional positioning
 - **Intelligent Element Matching**: DOM structure analysis for content-aware synchronization
 - **Manual Scroll Control**: Hold Option/Alt key to temporarily scroll individual tabs
@@ -49,6 +50,7 @@ Synchronize Tab Scrolling is a powerful cross-browser extension that automatical
 - **Security Compliant**: Automatic handling of restricted URLs
 
 ### User Experience
+
 - **Draggable Control Panel**: Smooth edge-snapping with minimize/maximize animations
 - **Connection Status**: Visual indicators for sync state and tab eligibility
 - **Hardware Accelerated**: Smooth 200ms animations using CSS transforms
@@ -88,23 +90,30 @@ To stop synchronizing, click "Stop Sync" button or close the popup. Your tab sel
 ### Advanced Features
 
 #### 📍 Manual Scroll Mode
+
 Hold **Option** (Mac) or **Alt** (Windows/Linux) while scrolling to temporarily disable synchronization for the current tab. Release the key to re-enable sync.
 
 #### 🎯 Element-Based Synchronization
+
 The extension automatically detects semantic elements (headings, paragraphs, sections) and matches content across tabs for more accurate synchronization on similar documents. This works especially well when comparing:
+
 - Original and translated documents with similar structure
 - Different versions of the same document
 - Side-by-side code comparisons
 
 #### 🔗 URL Navigation Sync
+
 When sync is active, navigating to a new URL in any linked tab will automatically navigate all other linked tabs to the same URL. This includes:
+
 - Clicking links in the page
 - Browser back/forward buttons
 - Single Page Application (SPA) navigation
 - Direct URL changes
 
 #### 💾 State Persistence
+
 Your preferences are automatically saved:
+
 - Selected tabs (restored if tabs still exist)
 - Panel minimized/maximized state
 - Panel position (when dragged)
@@ -113,6 +122,7 @@ Your preferences are automatically saved:
 ### Tab Eligibility
 
 Some pages cannot be synchronized due to browser security restrictions:
+
 - ❌ Browser internal pages (chrome://, about:, etc.)
 - ❌ Extension store pages
 - ❌ Google services (Drive, Docs, Gmail, etc.)
@@ -181,18 +191,18 @@ pnpm pack
 
 ### Development Commands
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start development server for Chrome/Edge/Brave |
-| `pnpm dev-firefox` | Start development server for Firefox |
-| `pnpm build` | Build production version |
-| `pnpm typecheck` | Run TypeScript type checking |
-| `pnpm lint:fix` | Lint and auto-fix code issues |
-| `pnpm format:fix` | Format code with Prettier |
-| `pnpm test` | Run test suite |
-| `pnpm pack` | Package extension for distribution |
-| `pnpm start:chromium` | Launch extension in Chrome/Edge/Brave |
-| `pnpm start:firefox` | Launch extension in Firefox |
+| Command               | Description                                    |
+| --------------------- | ---------------------------------------------- |
+| `pnpm dev`            | Start development server for Chrome/Edge/Brave |
+| `pnpm dev-firefox`    | Start development server for Firefox           |
+| `pnpm build`          | Build production version                       |
+| `pnpm typecheck`      | Run TypeScript type checking                   |
+| `pnpm lint:fix`       | Lint and auto-fix code issues                  |
+| `pnpm format:fix`     | Format code with Prettier                      |
+| `pnpm test`           | Run test suite                                 |
+| `pnpm pack`           | Package extension for distribution             |
+| `pnpm start:chromium` | Launch extension in Chrome/Edge/Brave          |
+| `pnpm start:firefox`  | Launch extension in Firefox                    |
 
 ### Project Structure
 
@@ -243,12 +253,14 @@ Content Scripts (All Tabs)
 #### Synchronization Algorithms
 
 **Ratio-Based (Default)**:
+
 ```typescript
-ratio = scrollTop / (scrollHeight - clientHeight)
-targetScrollTop = ratio * (targetScrollHeight - targetClientHeight)
+ratio = scrollTop / (scrollHeight - clientHeight);
+targetScrollTop = ratio * (targetScrollHeight - targetClientHeight);
 ```
 
 **Element-Based (Advanced)**:
+
 1. Detect semantic elements (h1-h6, article, section, p, etc.)
 2. Find nearest element to current scroll position
 3. Match element index across tabs
@@ -275,6 +287,7 @@ I use it myself to improve usability and catch bugs, but if you encounter any is
 ## 🗺️ Roadmap
 
 ### Completed ✅
+
 - [x] Basic scroll synchronization with <100ms delay
 - [x] Element-based synchronization mode
 - [x] Manual scroll adjustment with modifier keys
@@ -285,11 +298,13 @@ I use it myself to improve usability and catch bugs, but if you encounter any is
 - [x] Security compliance for restricted URLs
 
 ### In Progress 🚧
+
 - [ ] Multi-language support (i18n)
 - [ ] Error handling and recovery mechanisms
 - [ ] Performance monitoring dashboard
 
 ### Planned 📋
+
 - [ ] Sync mode preferences (ratio vs element-based)
 - [ ] Advanced UI customization options
 - [ ] Automatic scroll speed adjustment
