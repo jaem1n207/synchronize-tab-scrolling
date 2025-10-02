@@ -136,9 +136,9 @@ onMessage('scroll:start', async ({ data }) => {
   logger.info('Starting scroll sync for tabs', { data });
   const payload = data as { tabIds: Array<number>; mode: string };
 
-  // Broadcast start message to all selected tabs
+  // Broadcast start message to all selected tabs with their tab IDs
   const promises = payload.tabIds.map((tabId) =>
-    sendMessage('scroll:start', data, { context: 'content-script', tabId }).catch((error) => {
+    sendMessage('scroll:start', { ...payload, currentTabId: tabId }, { context: 'content-script', tabId }).catch((error) => {
       logger.error(`Failed to send start message to tab ${tabId}`, { error });
     }),
   );

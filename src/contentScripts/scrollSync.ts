@@ -7,7 +7,6 @@
  */
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
-import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 
@@ -27,18 +26,8 @@ const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
 let urlObserver: MutationObserver | null = null;
 let popstateHandler: (() => void) | null = null;
 
-// Get current tab ID
+// Current tab ID - will be set when sync starts
 let currentTabId = 0;
-browser.tabs
-  .getCurrent()
-  .then((tab) => {
-    if (tab?.id) {
-      currentTabId = tab.id;
-    }
-  })
-  .catch(() => {
-    // Ignore error in content script context
-  });
 
 /**
  * Get current scroll information
@@ -256,9 +245,10 @@ export function initScrollSync() {
   // Listen for start sync message
   onMessage('scroll:start', ({ data }) => {
     logger.info('Starting scroll sync', { data });
-    const payload = data as { tabIds: Array<number>; mode: SyncMode };
+    const payload = data as { tabIds: Array<number>; mode: SyncMode; currentTabId: number };
     isSyncActive = true;
     currentMode = payload.mode;
+    currentTabId = payload.currentTabId; // Set the tab ID from background script
 
     // Add scroll listener
     window.addEventListener('scroll', handleScroll, { passive: true });
