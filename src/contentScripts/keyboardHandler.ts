@@ -12,7 +12,7 @@ const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
 let isManualModeActive = false;
 let currentTabId = 0;
-let baselineScrollTop = 0; // Store the scroll position (in pixels) when manual mode is activated
+let baselineSyncedScrollTop = 0; // Store the synced scroll position (in pixels) when manual mode is activated
 let getScrollInfoCallback: (() => { currentScrollTop: number; lastSyncedRatio: number }) | null =
   null;
 
@@ -47,12 +47,16 @@ function handleKeyDown(event: KeyboardEvent) {
     isManualModeActive = true;
     logger.debug('Manual scroll mode enabled');
 
-    // Store the baseline scroll position at the moment manual mode is activated
+    // Store the synced scroll position (where we "should be") at the moment manual mode is activated
     if (getScrollInfoCallback) {
-      const { currentScrollTop } = getScrollInfoCallback();
-      baselineScrollTop = currentScrollTop;
-      logger.debug('Stored baseline scroll position for offset calculation', {
-        baselineScrollTop,
+      const { lastSyncedRatio } = getScrollInfoCallback();
+      const myMaxScroll =
+        document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      baselineSyncedScrollTop = lastSyncedRatio * myMaxScroll;
+      logger.debug('Stored baseline synced scroll position for offset calculation', {
+        lastSyncedRatio,
+        myMaxScroll,
+        baselineSyncedScrollTop,
       });
     }
 
@@ -99,16 +103,16 @@ async function disableManualMode() {
   isManualModeActive = false;
   logger.debug('Manual scroll mode disabled');
 
-  // Calculate and save manual scroll offset in pixels using baseline
+  // Calculate and save manual scroll offset in pixels using baseline synced position
   if (getScrollInfoCallback) {
     try {
       const { currentScrollTop } = getScrollInfoCallback();
-      // Calculate pixel offset: current position - baseline position
-      const offsetPx = currentScrollTop - baselineScrollTop;
+      // Calculate pixel offset: current position - where we "should be" according to sync
+      const offsetPx = currentScrollTop - baselineSyncedScrollTop;
 
       logger.debug('Calculating manual scroll offset', {
         currentScrollTop,
-        baselineScrollTop,
+        baselineSyncedScrollTop,
         offsetPx,
       });
 

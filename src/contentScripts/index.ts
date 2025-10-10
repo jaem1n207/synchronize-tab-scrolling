@@ -7,7 +7,6 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
 
 import '~/shared/styles';
-import { initKeyboardHandler } from './keyboardHandler';
 import { renderApp } from './render';
 import { initScrollSync } from './scrollSync';
 
@@ -18,21 +17,15 @@ import { initScrollSync } from './scrollSync';
 
   const logger = new ExtensionLogger({ scope: 'content-script' });
   logger.info('[scroll-sync] Content script loaded');
+  console.log('[content-script] Content script loaded', { url: window.location.href });
 
   // Initialize scroll synchronization system
+  console.log('[content-script] Initializing scroll sync');
   initScrollSync();
+  console.log('[content-script] Scroll sync initialized');
 
-  // Initialize keyboard handler for manual scroll adjustment
-  browser.tabs
-    .getCurrent()
-    .then((tab) => {
-      if (tab?.id) {
-        initKeyboardHandler(tab.id);
-      }
-    })
-    .catch((error) => {
-      logger.warn('Could not get current tab for keyboard handler', { error });
-    });
+  // Note: Keyboard handler requires tab ID which will be provided when sync starts
+  // Cannot use browser.tabs.getCurrent() in content scripts due to Chrome restrictions
 
   // communication example: send previous tab title from background page
   onMessage('tab-prev', ({ data }) => {
@@ -50,7 +43,10 @@ import { initScrollSync } from './scrollSync';
     const styleEl = document.createElement('link');
     const shadowDOM = container.attachShadow?.({ mode: __DEV__ ? 'open' : 'closed' }) || container;
     styleEl.setAttribute('rel', 'stylesheet');
-    styleEl.setAttribute('href', browser.runtime.getURL('dist/contentScripts/style.css'));
+    styleEl.setAttribute(
+      'href',
+      browser.runtime.getURL('dist/contentScripts/synchronize-tab-scrolling.css'),
+    );
     shadowDOM.appendChild(styleEl);
     shadowDOM.appendChild(rootElement);
     document.body.appendChild(container);
