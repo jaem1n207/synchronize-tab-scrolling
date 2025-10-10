@@ -119,7 +119,7 @@ function findNearestElement(): { index: number; ratio: number } | null {
 /**
  * Handle scroll event with throttling
  */
-function handleScroll() {
+async function handleScroll() {
   if (!isSyncActive || isManualScrollEnabled) return;
 
   const now = Date.now();
@@ -138,12 +138,25 @@ function handleScroll() {
 
   const scrollInfo = getScrollInfo();
 
+  // Remove offset from scrollTop before broadcasting
+  // This ensures we send the "pure" scroll position without offset applied
+  const offsetPx = await getManualScrollOffset(currentTabId);
+  const pureScrollTop = scrollInfo.scrollTop - offsetPx;
+
   const message = {
-    ...scrollInfo,
+    scrollTop: pureScrollTop,
+    scrollHeight: scrollInfo.scrollHeight,
+    clientHeight: scrollInfo.clientHeight,
     sourceTabId: currentTabId,
     mode: currentMode,
     timestamp: now,
   };
+
+  logger.debug('Broadcasting scroll (offset removed)', {
+    actualScrollTop: scrollInfo.scrollTop,
+    offsetPx,
+    pureScrollTop,
+  });
 
   // Broadcast to other tabs via background script
   sendMessage('scroll:sync', message, 'background').catch((error) => {
