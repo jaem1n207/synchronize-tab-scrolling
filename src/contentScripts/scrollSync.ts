@@ -25,7 +25,9 @@ let isManualScrollEnabled = false;
 let lastScrollTime = 0;
 let lastNavigationUrl = window.location.href;
 let lastSyncedRatio = 0; // Track the last synced ratio for offset calculation
+let lastProgrammaticScrollTime = 0; // Track programmatic scrolls to prevent infinite loops
 const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
+const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 100; // ms - ignore user scrolls shortly after programmatic scroll
 
 // URL monitoring
 let urlObserver: MutationObserver | null = null;
@@ -58,6 +60,9 @@ function getScrollRatio(): number {
  * Set scroll position by ratio (P0: Ratio-based synchronization)
  */
 function setScrollByRatio(ratio: number) {
+  // Mark as programmatic scroll to prevent infinite loops
+  lastProgrammaticScrollTime = Date.now();
+
   const { scrollHeight, clientHeight } = getScrollInfo();
   const maxScroll = scrollHeight - clientHeight;
   const targetScrollTop = Math.max(0, Math.min(maxScroll, ratio * maxScroll));
@@ -132,6 +137,9 @@ function findNearestElement(): { index: number; ratio: number } | null {
  * Scroll to element by index with ratio adjustment (P1)
  */
 function scrollToElement(index: number, ratio: number) {
+  // Mark as programmatic scroll to prevent infinite loops
+  lastProgrammaticScrollTime = Date.now();
+
   const elements = findSemanticElements();
   if (index >= elements.length) {
     // Fallback to ratio-based
@@ -153,6 +161,16 @@ function handleScroll() {
   if (!isSyncActive || isManualScrollEnabled) return;
 
   const now = Date.now();
+
+  // Ignore scroll events that occur shortly after programmatic scrolls
+  // This prevents infinite loops when tabs sync each other
+  if (now - lastProgrammaticScrollTime < PROGRAMMATIC_SCROLL_GRACE_PERIOD) {
+    logger.debug('Ignoring scroll event - programmatic scroll detected', {
+      timeSinceProgrammatic: now - lastProgrammaticScrollTime,
+    });
+    return;
+  }
+
   if (now - lastScrollTime < THROTTLE_DELAY) return;
   lastScrollTime = now;
 
