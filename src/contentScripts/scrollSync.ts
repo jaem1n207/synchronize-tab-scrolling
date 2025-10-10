@@ -9,6 +9,10 @@
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { getManualScrollOffset } from '~/shared/lib/storage';
+
+import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
+import { hidePanel, showPanel } from './panel';
 
 import type { SyncMode } from '~/shared/types/messages';
 
@@ -20,6 +24,7 @@ let currentMode: SyncMode = 'ratio';
 let isManualScrollEnabled = false;
 let lastScrollTime = 0;
 let lastNavigationUrl = window.location.href;
+let lastSyncedRatio = 0; // Track the last synced ratio for offset calculation
 const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
 
 // URL monitoring
@@ -242,19 +247,37 @@ function stopUrlMonitoring() {
  * Initialize scroll sync system
  */
 export function initScrollSync() {
+  logger.info('Registering scroll sync message handlers');
+  console.log('[scrollSync] Registering scroll sync message handlers');
+
   // Listen for start sync message
   onMessage('scroll:start', ({ data }) => {
-    logger.info('Starting scroll sync', { data });
+    console.log('[scrollSync] Received scroll:start message', data);
+    logger.info('Received scroll:start message', { data });
     const payload = data as { tabIds: Array<number>; mode: SyncMode; currentTabId: number };
     isSyncActive = true;
     currentMode = payload.mode;
     currentTabId = payload.currentTabId; // Set the tab ID from background script
 
+    logger.info(`Sync activated for tab ${currentTabId}`, { mode: currentMode });
+
     // Add scroll listener
     window.addEventListener('scroll', handleScroll, { passive: true });
+    logger.debug('Scroll listener added');
 
     // Start URL monitoring (P1)
     startUrlMonitoring();
+
+    // Initialize keyboard handler with tab ID and scroll info callback
+    initKeyboardHandler(currentTabId, () => ({
+      currentRatio: getScrollRatio(),
+      lastSyncedRatio,
+    }));
+    logger.debug('Keyboard handler initialized');
+
+    // Show draggable control panel
+    showPanel();
+    logger.debug('Panel shown');
 
     return { success: true, tabId: currentTabId };
   });
@@ -270,11 +293,17 @@ export function initScrollSync() {
     // Stop URL monitoring (P1)
     stopUrlMonitoring();
 
+    // Cleanup keyboard handler
+    cleanupKeyboardHandler();
+
+    // Hide draggable control panel
+    hidePanel();
+
     return { success: true, tabId: currentTabId };
   });
 
   // Listen for scroll sync from other tabs
-  onMessage('scroll:sync', ({ data }) => {
+  onMessage('scroll:sync', async ({ data }) => {
     if (!isSyncActive) return;
 
     const payload = data as {
@@ -291,27 +320,68 @@ export function initScrollSync() {
 
     logger.debug('Receiving scroll sync', { data });
 
+    // Calculate the synced ratio
+    const syncedRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
+    lastSyncedRatio = syncedRatio;
+
+    // If in manual mode, store the synced ratio but don't apply it
+    if (isManualScrollEnabled) {
+      logger.debug('Manual mode active, storing synced ratio but not applying', { syncedRatio });
+      return;
+    }
+
+    // Load manual scroll offset for this tab
+    const offset = await getManualScrollOffset(currentTabId);
+
+    // Calculate final ratio with offset applied
+    let finalRatio = syncedRatio + offset;
+
+    // Clamp to valid range [0, 1]
+    finalRatio = Math.max(0, Math.min(1, finalRatio));
+
+    logger.debug('Applying scroll with offset', { syncedRatio, offset, finalRatio });
+
     if (payload.mode === 'element') {
       // Element-based sync (P1)
       const nearest = findNearestElement();
       if (nearest) {
-        scrollToElement(nearest.index, payload.scrollTop / payload.scrollHeight);
+        scrollToElement(nearest.index, finalRatio);
       } else {
         // Fallback to ratio
-        setScrollByRatio(payload.scrollTop / (payload.scrollHeight - payload.clientHeight));
+        setScrollByRatio(finalRatio);
       }
     } else {
       // Ratio-based sync (P0)
-      const ratio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
-      setScrollByRatio(ratio);
+      setScrollByRatio(finalRatio);
     }
   });
 
   // Listen for manual scroll toggle (P1)
-  onMessage('scroll:manual', ({ data }) => {
+  onMessage('scroll:manual', async ({ data }) => {
     logger.info('Manual scroll mode toggled', { data });
     const payload = data as { tabId: number; enabled: boolean };
+
+    // Only apply to this specific tab
+    if (payload.tabId !== currentTabId) {
+      return;
+    }
+
     isManualScrollEnabled = payload.enabled;
+
+    // When manual mode is deactivated, immediately apply sync with offset
+    if (!payload.enabled) {
+      const offset = await getManualScrollOffset(currentTabId);
+      let finalRatio = lastSyncedRatio + offset;
+      finalRatio = Math.max(0, Math.min(1, finalRatio));
+
+      logger.info('Manual mode deactivated, applying immediate sync', {
+        lastSyncedRatio,
+        offset,
+        finalRatio,
+      });
+
+      setScrollByRatio(finalRatio);
+    }
   });
 
   // Listen for URL sync from other tabs (P1)
