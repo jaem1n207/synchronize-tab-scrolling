@@ -48,7 +48,7 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
     ],
     web_accessible_resources: [
       {
-        resources: ['dist/contentScripts/style.css', 'dist/sidebar/index.html'],
+        resources: ['dist/contentScripts/synchronize-tab-scrolling.css', 'dist/sidebar/index.html'],
         matches: ['<all_urls>'],
       },
     ],

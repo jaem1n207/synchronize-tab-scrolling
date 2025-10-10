@@ -151,7 +151,7 @@ export function DraggableControlPanel({
       aria-label="Scroll synchronization control panel"
       className={cn(
         'fixed top-4 left-4 bg-background border rounded-lg shadow-lg',
-        'will-change-transform',
+        'will-change-transform pointer-events-auto',
         isDragging && 'cursor-grabbing select-none',
       )}
       role="region"

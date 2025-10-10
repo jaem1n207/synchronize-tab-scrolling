@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 
 import { Button } from '~/shared/components/ui/button';
+import { loadManualScrollOffsets, clearManualScrollOffset } from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
 
 import { StatusIndicator } from './StatusIndicator';
@@ -23,9 +24,27 @@ export function LinkedSitesPanel({
   onSwitchToTab,
 }: LinkedSitesPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [manualOffsets, setManualOffsets] = useState<Record<number, number>>({});
+
+  // Load manual scroll offsets on mount and when linked tabs change
+  useEffect(() => {
+    const loadOffsets = async () => {
+      const offsets = await loadManualScrollOffsets();
+      setManualOffsets(offsets);
+    };
+    loadOffsets();
+  }, [linkedTabs]);
 
   const handleToggle = useCallback(() => {
     setIsExpanded((prev) => !prev);
+  }, []);
+
+  const handleResetOffset = useCallback(async (tabId: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent tab switch
+    await clearManualScrollOffset(tabId);
+    // Reload offsets
+    const offsets = await loadManualScrollOffsets();
+    setManualOffsets(offsets);
   }, []);
 
   const handleKeyDown = useCallback(
@@ -70,31 +89,53 @@ export function LinkedSitesPanel({
           {linkedTabs.map((tab) => {
             const status = connectionStatuses[tab.id] || 'disconnected';
             const isCurrent = tab.id === currentTabId;
+            const offset = manualOffsets[tab.id];
+            const hasOffset = offset !== undefined && offset !== 0;
 
             return (
-              <Button
-                key={tab.id}
-                aria-current={isCurrent ? 'page' : undefined}
-                aria-label={`${tab.title} - ${status}${isCurrent ? ' (current tab)' : ''}`}
-                className={cn(
-                  'w-full justify-start gap-3 h-auto py-2 px-3 transition-colors duration-200',
-                  isCurrent && 'bg-accent',
-                )}
-                disabled={isCurrent}
-                variant="ghost"
-                onClick={() => !isCurrent && onSwitchToTab(tab.id)}
-              >
-                <StatusIndicator status={status} />
-                {tab.favIconUrl && (
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    className="w-4 h-4 shrink-0"
-                    src={tab.favIconUrl}
-                  />
-                )}
-                <span className="flex-1 text-left truncate text-sm">{tab.title}</span>
-              </Button>
+              <div key={tab.id} className="relative">
+                <Button
+                  aria-current={isCurrent ? 'page' : undefined}
+                  aria-label={`${tab.title} - ${status}${isCurrent ? ' (current tab)' : ''}${hasOffset ? ` - offset: ${offset > 0 ? '+' : ''}${Math.round(offset)}px` : ''}`}
+                  className={cn(
+                    'w-full justify-start gap-3 h-auto py-2 px-3 transition-colors duration-200',
+                    isCurrent && 'bg-accent',
+                  )}
+                  disabled={isCurrent}
+                  variant="ghost"
+                  onClick={() => !isCurrent && onSwitchToTab(tab.id)}
+                >
+                  <StatusIndicator status={status} />
+                  {tab.favIconUrl && (
+                    <img
+                      alt=""
+                      aria-hidden="true"
+                      className="w-4 h-4 shrink-0"
+                      src={tab.favIconUrl}
+                    />
+                  )}
+                  <div className="flex-1 flex flex-col items-start gap-1">
+                    <span className="text-left truncate text-sm w-full">{tab.title}</span>
+                    {hasOffset && (
+                      <span className="text-xs text-muted-foreground">
+                        Offset: {offset > 0 ? '+' : ''}
+                        {Math.round(offset)}px
+                      </span>
+                    )}
+                  </div>
+                  {hasOffset && (
+                    <Button
+                      aria-label={`Reset scroll offset for ${tab.title}`}
+                      className="h-6 w-6 p-0 shrink-0"
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => handleResetOffset(tab.id, e)}
+                    >
+                      <RotateCcw aria-hidden="true" className="h-3 w-3" />
+                    </Button>
+                  )}
+                </Button>
+              </div>
             );
           })}
         </div>

@@ -3,24 +3,16 @@ import { useState, useCallback, useEffect } from 'react';
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
 
-import {
-  loadPanelMinimized,
-  loadSelectedTabIds,
-  savePanelMinimized,
-  saveSelectedTabIds,
-} from '~/shared/lib/storage';
+import { loadSelectedTabIds, saveSelectedTabIds } from '~/shared/lib/storage';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
-import { DraggableControlPanel } from './DraggableControlPanel';
 import { ErrorNotification } from './ErrorNotification';
-import { LinkedSitesPanel } from './LinkedSitesPanel';
 import { SyncControlButtons } from './SyncControlButtons';
-import { TabSelectionList } from './TabSelectionList';
+import { TabCommandPalette } from './TabCommandPalette';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 
 export function ScrollSyncPopup() {
-  const [isMinimized, setIsMinimized] = useState(false);
   const [selectedTabIds, setSelectedTabIds] = useState<Array<number>>([]);
   const [tabs, setTabs] = useState<Array<TabInfo>>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
@@ -34,13 +26,32 @@ export function ScrollSyncPopup() {
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Load saved state
-        const [savedMinimized, savedTabIds] = await Promise.all([
-          loadPanelMinimized(),
-          loadSelectedTabIds(),
-        ]);
+        // Query background for current sync status
+        let hasActiveSync = false;
+        try {
+          const syncStatusResponse = await sendMessage('sync:get-status', {}, 'background');
+          const response = syncStatusResponse as {
+            success: boolean;
+            isActive: boolean;
+            connectedTabs?: Array<number>;
+            connectionStatuses?: Record<number, ConnectionStatus>;
+          };
+          if (response?.isActive) {
+            console.log('[ScrollSyncPopup] Restoring sync state from background:', response);
+            hasActiveSync = true;
+            setSyncStatus({
+              isActive: true,
+              connectedTabs: response.connectedTabs || [],
+              connectionStatuses: response.connectionStatuses || {},
+            });
+            setSelectedTabIds(response.connectedTabs || []);
+          }
+        } catch (error) {
+          console.log('[ScrollSyncPopup] No active sync to restore:', error);
+        }
 
-        setIsMinimized(savedMinimized);
+        // Load saved state
+        const savedTabIds = await loadSelectedTabIds();
 
         // Get all tabs in current window
         const browserTabs = await browser.tabs.query({ currentWindow: true });
@@ -92,13 +103,19 @@ export function ScrollSyncPopup() {
             };
           });
 
+        console.log(
+          '[ScrollSyncPopup] Loaded tabs:',
+          tabInfos.map((t) => ({ id: t.id, title: t.title })),
+        );
         setTabs(tabInfos);
 
-        // Restore previously selected tabs if they still exist
-        const validTabIds = tabInfos.map((tab) => tab.id);
-        const restoredSelection = savedTabIds.filter((id) => validTabIds.includes(id));
-        if (restoredSelection.length > 0) {
-          setSelectedTabIds(restoredSelection);
+        // Restore previously selected tabs only if not already syncing
+        if (!hasActiveSync) {
+          const validTabIds = tabInfos.map((tab) => tab.id);
+          const restoredSelection = savedTabIds.filter((id) => validTabIds.includes(id));
+          if (restoredSelection.length > 0) {
+            setSelectedTabIds(restoredSelection);
+          }
         }
       } catch (error) {
         console.error('Failed to initialize popup:', error);
@@ -135,15 +152,6 @@ export function ScrollSyncPopup() {
     });
   }, []);
 
-  const handleToggleMinimize = useCallback(() => {
-    setIsMinimized((prev) => {
-      const newValue = !prev;
-      // Save to storage
-      savePanelMinimized(newValue);
-      return newValue;
-    });
-  }, []);
-
   const handleStart = useCallback(async () => {
     // Clear any existing errors
     setError(null);
@@ -159,6 +167,8 @@ export function ScrollSyncPopup() {
     }
 
     try {
+      console.log('[ScrollSyncPopup] Starting sync with tab IDs:', selectedTabIds);
+
       // Send start message to background script
       await sendMessage(
         'scroll:start',
@@ -254,65 +264,35 @@ export function ScrollSyncPopup() {
     }));
   }, [syncStatus.connectionStatuses]);
 
-  const handleSwitchToTab = useCallback(async (tabId: number) => {
-    try {
-      await browser.tabs.update(tabId, { active: true });
-      setCurrentTabId(tabId);
-    } catch (error) {
-      console.error('Failed to switch to tab:', tabId, error);
-      setError({
-        message: 'Failed to switch to tab. The tab may have been closed.',
-        severity: 'error',
-        timestamp: Date.now(),
-      });
-    }
-  }, []);
-
   const handleDismissError = useCallback(() => {
     setError(null);
   }, []);
 
-  const linkedTabs = tabs.filter((tab) => syncStatus.connectedTabs.includes(tab.id));
   const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(
     (status) => status === 'disconnected' || status === 'error',
   );
 
   return (
-    <DraggableControlPanel isMinimized={isMinimized} onToggleMinimize={handleToggleMinimize}>
-      <div className="space-y-4">
-        {error && <ErrorNotification error={error} onDismiss={handleDismissError} />}
-        <section aria-labelledby="tab-selection-heading">
-          <h3 className="text-sm font-medium mb-2" id="tab-selection-heading">
-            Select Tabs to Sync
-            {selectedTabIds.length > 0 && (
-              <span className="ml-2 text-muted-foreground">({selectedTabIds.length} selected)</span>
-            )}
-          </h3>
-          <TabSelectionList
-            selectedTabIds={selectedTabIds}
-            tabs={tabs}
-            onToggleTab={handleToggleTab}
-          />
-        </section>
+    <div className="w-480px p-4 space-y-4">
+      {error && <ErrorNotification error={error} onDismiss={handleDismissError} />}
 
-        <SyncControlButtons
-          hasConnectionError={hasConnectionError}
-          isActive={syncStatus.isActive}
-          selectedCount={selectedTabIds.length}
-          onResync={handleResync}
-          onStart={handleStart}
-          onStop={handleStop}
+      <section aria-labelledby="tab-selection-heading">
+        <TabCommandPalette
+          currentTabId={currentTabId}
+          selectedTabIds={selectedTabIds}
+          tabs={tabs}
+          onToggleTab={handleToggleTab}
         />
+      </section>
 
-        {syncStatus.isActive && (
-          <LinkedSitesPanel
-            connectionStatuses={syncStatus.connectionStatuses}
-            currentTabId={currentTabId}
-            linkedTabs={linkedTabs}
-            onSwitchToTab={handleSwitchToTab}
-          />
-        )}
-      </div>
-    </DraggableControlPanel>
+      <SyncControlButtons
+        hasConnectionError={hasConnectionError}
+        isActive={syncStatus.isActive}
+        selectedCount={selectedTabIds.length}
+        onResync={handleResync}
+        onStart={handleStart}
+        onStop={handleStop}
+      />
+    </div>
   );
 }

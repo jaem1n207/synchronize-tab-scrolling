@@ -57,23 +57,6 @@ function getScrollRatio(): number {
 }
 
 /**
- * Set scroll position by ratio (P0: Ratio-based synchronization)
- */
-function setScrollByRatio(ratio: number) {
-  // Mark as programmatic scroll to prevent infinite loops
-  lastProgrammaticScrollTime = Date.now();
-
-  const { scrollHeight, clientHeight } = getScrollInfo();
-  const maxScroll = scrollHeight - clientHeight;
-  const targetScrollTop = Math.max(0, Math.min(maxScroll, ratio * maxScroll));
-
-  window.scrollTo({
-    top: targetScrollTop,
-    behavior: 'auto', // Instant scroll for synchronization
-  });
-}
-
-/**
  * Find semantic elements for element-based sync (P1)
  */
 function findSemanticElements(): Array<{ element: Element; scrollTop: number }> {
@@ -131,27 +114,6 @@ function findNearestElement(): { index: number; ratio: number } | null {
   const ratio = getScrollRatio();
 
   return { index: nearestIndex, ratio };
-}
-
-/**
- * Scroll to element by index with ratio adjustment (P1)
- */
-function scrollToElement(index: number, ratio: number) {
-  // Mark as programmatic scroll to prevent infinite loops
-  lastProgrammaticScrollTime = Date.now();
-
-  const elements = findSemanticElements();
-  if (index >= elements.length) {
-    // Fallback to ratio-based
-    setScrollByRatio(ratio);
-    return;
-  }
-
-  const targetElement = elements[index];
-  window.scrollTo({
-    top: targetElement.scrollTop,
-    behavior: 'auto',
-  });
 }
 
 /**
@@ -288,7 +250,7 @@ export function initScrollSync() {
 
     // Initialize keyboard handler with tab ID and scroll info callback
     initKeyboardHandler(currentTabId, () => ({
-      currentRatio: getScrollRatio(),
+      currentScrollTop: window.scrollY,
       lastSyncedRatio,
     }));
     logger.debug('Keyboard handler initialized');
@@ -338,39 +300,73 @@ export function initScrollSync() {
 
     logger.debug('Receiving scroll sync', { data });
 
-    // Calculate the synced ratio
-    const syncedRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
-    lastSyncedRatio = syncedRatio;
+    // Calculate the synced ratio from source tab
+    const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
+    lastSyncedRatio = sourceRatio;
 
     // If in manual mode, store the synced ratio but don't apply it
     if (isManualScrollEnabled) {
-      logger.debug('Manual mode active, storing synced ratio but not applying', { syncedRatio });
+      logger.debug('Manual mode active, storing synced ratio but not applying', {
+        syncedRatio: sourceRatio,
+      });
       return;
     }
 
-    // Load manual scroll offset for this tab
-    const offset = await getManualScrollOffset(currentTabId);
+    // Get my document dimensions
+    const myScrollInfo = getScrollInfo();
+    const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
 
-    // Calculate final ratio with offset applied
-    let finalRatio = syncedRatio + offset;
+    // Convert source ratio to my document's pixel position
+    const targetBaseScrollTop = sourceRatio * myMaxScroll;
 
-    // Clamp to valid range [0, 1]
-    finalRatio = Math.max(0, Math.min(1, finalRatio));
+    // Load manual scroll offset (in pixels) for this tab
+    const offsetPx = await getManualScrollOffset(currentTabId);
 
-    logger.debug('Applying scroll with offset', { syncedRatio, offset, finalRatio });
+    // Apply pixel offset
+    const finalScrollTop = targetBaseScrollTop + offsetPx;
+
+    // Clamp to valid range [0, myMaxScroll]
+    const clampedScrollTop = Math.max(0, Math.min(myMaxScroll, finalScrollTop));
+
+    logger.debug('Applying scroll with pixel offset', {
+      sourceRatio,
+      targetBaseScrollTop,
+      offsetPx,
+      finalScrollTop,
+      clampedScrollTop,
+    });
+
+    // Mark as programmatic scroll to prevent infinite loops
+    lastProgrammaticScrollTime = Date.now();
 
     if (payload.mode === 'element') {
-      // Element-based sync (P1)
+      // Element-based sync (P1) - not commonly used with manual offsets
       const nearest = findNearestElement();
       if (nearest) {
-        scrollToElement(nearest.index, finalRatio);
+        const elements = findSemanticElements();
+        if (nearest.index < elements.length) {
+          window.scrollTo({
+            top: elements[nearest.index].scrollTop,
+            behavior: 'auto',
+          });
+        } else {
+          window.scrollTo({
+            top: clampedScrollTop,
+            behavior: 'auto',
+          });
+        }
       } else {
-        // Fallback to ratio
-        setScrollByRatio(finalRatio);
+        window.scrollTo({
+          top: clampedScrollTop,
+          behavior: 'auto',
+        });
       }
     } else {
-      // Ratio-based sync (P0)
-      setScrollByRatio(finalRatio);
+      // Ratio-based sync (P0) with pixel offset
+      window.scrollTo({
+        top: clampedScrollTop,
+        behavior: 'auto',
+      });
     }
   });
 
@@ -386,19 +382,35 @@ export function initScrollSync() {
 
     isManualScrollEnabled = payload.enabled;
 
-    // When manual mode is deactivated, immediately apply sync with offset
+    // When manual mode is deactivated, immediately apply sync with pixel offset
     if (!payload.enabled) {
-      const offset = await getManualScrollOffset(currentTabId);
-      let finalRatio = lastSyncedRatio + offset;
-      finalRatio = Math.max(0, Math.min(1, finalRatio));
+      const myScrollInfo = getScrollInfo();
+      const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
+
+      // Convert last synced ratio to pixel position
+      const targetBaseScrollTop = lastSyncedRatio * myMaxScroll;
+
+      // Load pixel offset
+      const offsetPx = await getManualScrollOffset(currentTabId);
+
+      // Apply pixel offset
+      const finalScrollTop = targetBaseScrollTop + offsetPx;
+      const clampedScrollTop = Math.max(0, Math.min(myMaxScroll, finalScrollTop));
 
       logger.info('Manual mode deactivated, applying immediate sync', {
         lastSyncedRatio,
-        offset,
-        finalRatio,
+        targetBaseScrollTop,
+        offsetPx,
+        finalScrollTop: clampedScrollTop,
       });
 
-      setScrollByRatio(finalRatio);
+      // Mark as programmatic scroll to prevent infinite loops
+      lastProgrammaticScrollTime = Date.now();
+
+      window.scrollTo({
+        top: clampedScrollTop,
+        behavior: 'auto',
+      });
     }
   });
 

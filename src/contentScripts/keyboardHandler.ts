@@ -12,17 +12,18 @@ const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
 let isManualModeActive = false;
 let currentTabId = 0;
-let baselineSyncedRatio = 0; // Store the synced ratio when manual mode is activated
-let getScrollInfoCallback: (() => { currentRatio: number; lastSyncedRatio: number }) | null = null;
+let baselineScrollTop = 0; // Store the scroll position (in pixels) when manual mode is activated
+let getScrollInfoCallback: (() => { currentScrollTop: number; lastSyncedRatio: number }) | null =
+  null;
 
 /**
  * Initialize keyboard handler
  * @param tabId - Current tab ID
- * @param getScrollInfo - Callback to get current scroll ratio and last synced ratio
+ * @param getScrollInfo - Callback to get current scroll position and last synced ratio
  */
 export function initKeyboardHandler(
   tabId: number,
-  getScrollInfo?: () => { currentRatio: number; lastSyncedRatio: number },
+  getScrollInfo?: () => { currentScrollTop: number; lastSyncedRatio: number },
 ) {
   currentTabId = tabId;
   getScrollInfoCallback = getScrollInfo || null;
@@ -46,12 +47,12 @@ function handleKeyDown(event: KeyboardEvent) {
     isManualModeActive = true;
     logger.debug('Manual scroll mode enabled');
 
-    // Store the baseline synced ratio at the moment manual mode is activated
+    // Store the baseline scroll position at the moment manual mode is activated
     if (getScrollInfoCallback) {
-      const { lastSyncedRatio } = getScrollInfoCallback();
-      baselineSyncedRatio = lastSyncedRatio;
-      logger.debug('Stored baseline synced ratio for offset calculation', {
-        baseline: baselineSyncedRatio,
+      const { currentScrollTop } = getScrollInfoCallback();
+      baselineScrollTop = currentScrollTop;
+      logger.debug('Stored baseline scroll position for offset calculation', {
+        baselineScrollTop,
       });
     }
 
@@ -98,22 +99,22 @@ async function disableManualMode() {
   isManualModeActive = false;
   logger.debug('Manual scroll mode disabled');
 
-  // Calculate and save manual scroll offset using baseline
+  // Calculate and save manual scroll offset in pixels using baseline
   if (getScrollInfoCallback) {
     try {
-      const { currentRatio } = getScrollInfoCallback();
-      // Use the baseline ratio stored when manual mode was activated
-      const offset = currentRatio - baselineSyncedRatio;
+      const { currentScrollTop } = getScrollInfoCallback();
+      // Calculate pixel offset: current position - baseline position
+      const offsetPx = currentScrollTop - baselineScrollTop;
 
       logger.debug('Calculating manual scroll offset', {
-        currentRatio,
-        baselineSyncedRatio,
-        offset,
+        currentScrollTop,
+        baselineScrollTop,
+        offsetPx,
       });
 
-      // Save the offset for this tab
-      await saveManualScrollOffset(currentTabId, offset);
-      logger.info('Manual scroll offset saved', { tabId: currentTabId, offset });
+      // Save the pixel offset for this tab
+      await saveManualScrollOffset(currentTabId, offsetPx);
+      logger.info('Manual scroll offset saved', { tabId: currentTabId, offsetPx });
     } catch (error) {
       logger.error('Failed to save manual scroll offset', { error });
     }

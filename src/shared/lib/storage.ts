@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   SYNC_MODE: 'syncMode',
   IS_PANEL_MINIMIZED: 'isPanelMinimized',
   SELECTED_TAB_IDS: 'selectedTabIds',
+  MANUAL_SCROLL_OFFSETS: 'manualScrollOffsets',
 } as const;
 
 /**
@@ -119,6 +120,80 @@ export async function loadSelectedTabIds(): Promise<Array<number>> {
   } catch (error) {
     console.error('Failed to load selected tab IDs:', error);
     return [];
+  }
+}
+
+/**
+ * Load manual scroll offsets for all tabs
+ */
+export async function loadManualScrollOffsets(): Promise<Record<number, number>> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.MANUAL_SCROLL_OFFSETS);
+    return (result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS] as Record<number, number>) || {};
+  } catch (error) {
+    console.error('Failed to load manual scroll offsets:', error);
+    return {};
+  }
+}
+
+/**
+ * Save manual scroll offset for a specific tab
+ * @param tabId - The tab ID
+ * @param offset - The scroll offset as a ratio (-1 to 1, where 0 means no offset)
+ */
+export async function saveManualScrollOffset(tabId: number, offset: number): Promise<void> {
+  try {
+    const offsets = await loadManualScrollOffsets();
+    offsets[tabId] = offset;
+    await browser.storage.local.set({
+      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
+    });
+  } catch (error) {
+    console.error('Failed to save manual scroll offset:', error);
+  }
+}
+
+/**
+ * Get manual scroll offset for a specific tab
+ * @param tabId - The tab ID
+ * @returns The scroll offset ratio, or 0 if no offset exists
+ */
+export async function getManualScrollOffset(tabId: number): Promise<number> {
+  try {
+    const offsets = await loadManualScrollOffsets();
+    return offsets[tabId] || 0;
+  } catch (error) {
+    console.error('Failed to get manual scroll offset:', error);
+    return 0;
+  }
+}
+
+/**
+ * Clear manual scroll offset for a specific tab
+ * @param tabId - The tab ID
+ */
+export async function clearManualScrollOffset(tabId: number): Promise<void> {
+  try {
+    const offsets = await loadManualScrollOffsets();
+    delete offsets[tabId];
+    await browser.storage.local.set({
+      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
+    });
+  } catch (error) {
+    console.error('Failed to clear manual scroll offset:', error);
+  }
+}
+
+/**
+ * Clear all manual scroll offsets
+ */
+export async function clearAllManualScrollOffsets(): Promise<void> {
+  try {
+    await browser.storage.local.set({
+      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: {},
+    });
+  } catch (error) {
+    console.error('Failed to clear all manual scroll offsets:', error);
   }
 }
 
