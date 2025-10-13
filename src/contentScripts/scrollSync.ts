@@ -314,7 +314,6 @@ function hideReconnectionPrompt() {
   });
 }
 
-
 /**
  * Initialize scroll sync system
  */

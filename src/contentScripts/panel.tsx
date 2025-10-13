@@ -21,6 +21,8 @@ function PanelApp() {
     {},
   );
   const [currentTabId, setCurrentTabId] = useState<number>();
+  const [showReconnectPrompt, setShowReconnectPrompt] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   useEffect(() => {
     // Load minimized state
@@ -43,9 +45,32 @@ function PanelApp() {
     }
   }, []);
 
+  const handleReconnect = useCallback(async () => {
+    if (!currentTabId) return;
+
+    setIsReconnecting(true);
+    try {
+      // Send ping message to test connection
+      const response = await sendMessage(
+        'scroll:ping',
+        { tabId: currentTabId, timestamp: Date.now() },
+        'background',
+      );
+
+      if (response) {
+        setShowReconnectPrompt(false);
+        console.log('Reconnection successful');
+      }
+    } catch (error) {
+      console.error('Reconnection failed:', error);
+    } finally {
+      setIsReconnecting(false);
+    }
+  }, [currentTabId]);
+
   useEffect(() => {
     // Listen for sync status updates from background
-    const unsubscribe = onMessage('sync:status', ({ data }) => {
+    const unsubscribeSyncStatus = onMessage('sync:status', ({ data }) => {
       // Type guard to validate payload structure
       if (
         typeof data === 'object' &&
@@ -66,14 +91,80 @@ function PanelApp() {
       }
     });
 
+    // Listen for connection health messages
+    const unsubscribeConnectionLost = onMessage('connection:lost', () => {
+      setShowReconnectPrompt(true);
+    });
+
+    const unsubscribeConnectionRestored = onMessage('connection:restored', () => {
+      setShowReconnectPrompt(false);
+    });
+
     // Request initial sync status
     sendMessage('sync:get-status', {}, 'background').catch(console.error);
 
-    return unsubscribe;
+    return () => {
+      unsubscribeSyncStatus();
+      unsubscribeConnectionLost();
+      unsubscribeConnectionRestored();
+    };
   }, []);
 
   return (
     <DraggableControlPanel isMinimized={isMinimized} onToggleMinimize={handleToggleMinimize}>
+      {showReconnectPrompt && (
+        <div
+          style={{
+            padding: '12px',
+            backgroundColor: '#fef3c7',
+            borderBottom: '1px solid #f59e0b',
+            borderRadius: '8px 8px 0 0',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z"
+                stroke="#f59e0b"
+                strokeWidth="2"
+              />
+              <path d="M10 6V10" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="10" cy="14" r="1" fill="#f59e0b" />
+            </svg>
+            <span style={{ fontSize: '14px', fontWeight: '500', color: '#92400e' }}>
+              {browser.i18n.getMessage('connectionLost')}
+            </span>
+          </div>
+          <button
+            onClick={handleReconnect}
+            disabled={isReconnecting}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: isReconnecting ? 'not-allowed' : 'pointer',
+              opacity: isReconnecting ? 0.6 : 1,
+              pointerEvents: 'auto',
+            }}
+            type="button"
+          >
+            {isReconnecting
+              ? browser.i18n.getMessage('reconnecting')
+              : browser.i18n.getMessage('reconnect')}
+          </button>
+        </div>
+      )}
       <LinkedSitesPanel
         connectionStatuses={connectionStatuses}
         currentTabId={currentTabId}
@@ -156,4 +247,15 @@ export function destroyPanel() {
     panelContainer.remove();
     panelContainer = null;
   }
+}
+
+// Export functions for connection health management (used by scrollSync.ts)
+export function showReconnectionPrompt() {
+  // Message will be handled by PanelApp's onMessage listener
+  // This is a no-op but kept for API consistency
+}
+
+export function hideReconnectionPrompt() {
+  // Message will be handled by PanelApp's onMessage listener
+  // This is a no-op but kept for API consistency
 }
