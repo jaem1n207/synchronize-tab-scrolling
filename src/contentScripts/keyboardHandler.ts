@@ -12,7 +12,6 @@ const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
 let isManualModeActive = false;
 let currentTabId = 0;
-let baselineSyncedScrollTop = 0; // Store the synced scroll position (in pixels) when manual mode is activated
 let getScrollInfoCallback: (() => { currentScrollTop: number; lastSyncedRatio: number }) | null =
   null;
 
@@ -46,19 +45,6 @@ function handleKeyDown(event: KeyboardEvent) {
   if ((event.altKey || event.metaKey) && !isManualModeActive) {
     isManualModeActive = true;
     logger.debug('Manual scroll mode enabled');
-
-    // Store the synced scroll position (where we "should be") at the moment manual mode is activated
-    if (getScrollInfoCallback) {
-      const { lastSyncedRatio } = getScrollInfoCallback();
-      const myMaxScroll =
-        document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      baselineSyncedScrollTop = lastSyncedRatio * myMaxScroll;
-      logger.debug('Stored baseline synced scroll position for offset calculation', {
-        lastSyncedRatio,
-        myMaxScroll,
-        baselineSyncedScrollTop,
-      });
-    }
 
     // Notify content script to disable scroll sync
     sendMessage(
@@ -103,12 +89,18 @@ async function disableManualMode() {
   isManualModeActive = false;
   logger.debug('Manual scroll mode disabled');
 
-  // Calculate and save manual scroll offset in pixels using baseline synced position
+  // Calculate and save manual scroll offset in pixels using latest synced position
   if (getScrollInfoCallback) {
     try {
-      const { currentScrollTop } = getScrollInfoCallback();
-      // Calculate pixel offset: current position - where we "should be" according to sync
-      const offsetPx = currentScrollTop - baselineSyncedScrollTop;
+      const { currentScrollTop, lastSyncedRatio } = getScrollInfoCallback();
+
+      // Use the LATEST lastSyncedRatio (which may have been updated during manual mode)
+      const myMaxScroll =
+        document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const currentBaselineScrollTop = lastSyncedRatio * myMaxScroll;
+
+      // Calculate pixel offset: current position - where we "should be" according to latest sync
+      const offsetPx = currentScrollTop - currentBaselineScrollTop;
 
       // Validate offset is within reasonable range (±50% of viewport height)
       const viewportHeight = window.innerHeight;
@@ -119,7 +111,8 @@ async function disableManualMode() {
           offsetPx,
           maxReasonableOffset,
           currentScrollTop,
-          baselineSyncedScrollTop,
+          currentBaselineScrollTop,
+          lastSyncedRatio,
         });
       }
 
@@ -131,7 +124,8 @@ async function disableManualMode() {
 
       logger.debug('Calculating manual scroll offset', {
         currentScrollTop,
-        baselineSyncedScrollTop,
+        lastSyncedRatio,
+        currentBaselineScrollTop,
         offsetPx,
         clampedOffsetPx,
       });
