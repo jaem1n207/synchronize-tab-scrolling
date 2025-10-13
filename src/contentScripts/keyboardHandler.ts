@@ -110,15 +110,35 @@ async function disableManualMode() {
       // Calculate pixel offset: current position - where we "should be" according to sync
       const offsetPx = currentScrollTop - baselineSyncedScrollTop;
 
+      // Validate offset is within reasonable range (±50% of viewport height)
+      const viewportHeight = window.innerHeight;
+      const maxReasonableOffset = viewportHeight * 0.5;
+
+      if (Math.abs(offsetPx) > maxReasonableOffset) {
+        logger.warn('Offset exceeds reasonable range, clamping', {
+          offsetPx,
+          maxReasonableOffset,
+          currentScrollTop,
+          baselineSyncedScrollTop,
+        });
+      }
+
+      // Clamp offset to reasonable range
+      const clampedOffsetPx = Math.max(
+        -maxReasonableOffset,
+        Math.min(maxReasonableOffset, offsetPx),
+      );
+
       logger.debug('Calculating manual scroll offset', {
         currentScrollTop,
         baselineSyncedScrollTop,
         offsetPx,
+        clampedOffsetPx,
       });
 
-      // Save the pixel offset for this tab
-      await saveManualScrollOffset(currentTabId, offsetPx);
-      logger.info('Manual scroll offset saved', { tabId: currentTabId, offsetPx });
+      // Save the clamped pixel offset for this tab
+      await saveManualScrollOffset(currentTabId, clampedOffsetPx);
+      logger.info('Manual scroll offset saved', { tabId: currentTabId, offsetPx: clampedOffsetPx });
     } catch (error) {
       logger.error('Failed to save manual scroll offset', { error });
     }

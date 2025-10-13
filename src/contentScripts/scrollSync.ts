@@ -141,7 +141,10 @@ async function handleScroll() {
   // Remove offset from scrollTop before broadcasting
   // This ensures we send the "pure" scroll position without offset applied
   const offsetPx = await getManualScrollOffset(currentTabId);
-  const pureScrollTop = scrollInfo.scrollTop - offsetPx;
+  const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
+
+  // Clamp pureScrollTop to valid range to prevent negative or overflow values
+  const pureScrollTop = Math.max(0, Math.min(myMaxScroll, scrollInfo.scrollTop - offsetPx));
 
   const message = {
     scrollTop: pureScrollTop,
@@ -156,6 +159,7 @@ async function handleScroll() {
     actualScrollTop: scrollInfo.scrollTop,
     offsetPx,
     pureScrollTop,
+    clamped: pureScrollTop !== scrollInfo.scrollTop - offsetPx,
   });
 
   // Broadcast to other tabs via background script
@@ -252,7 +256,13 @@ export function initScrollSync() {
     currentMode = payload.mode;
     currentTabId = payload.currentTabId; // Set the tab ID from background script
 
-    logger.info(`Sync activated for tab ${currentTabId}`, { mode: currentMode });
+    // Initialize lastSyncedRatio with current scroll position to prevent offset calculation errors
+    lastSyncedRatio = getScrollRatio();
+
+    logger.info(`Sync activated for tab ${currentTabId}`, {
+      mode: currentMode,
+      initialRatio: lastSyncedRatio,
+    });
 
     // Add scroll listener
     window.addEventListener('scroll', handleScroll, { passive: true });
