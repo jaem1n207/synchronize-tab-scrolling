@@ -36,6 +36,13 @@ let popstateHandler: (() => void) | null = null;
 // Current tab ID - will be set when sync starts
 let currentTabId = 0;
 
+// Connection health monitoring
+let connectionHealthCheckInterval: number | null = null;
+let lastSuccessfulSync = Date.now();
+let isConnectionHealthy = true;
+const CONNECTION_CHECK_INTERVAL = 30000; // Check every 30 seconds
+const CONNECTION_TIMEOUT_THRESHOLD = 60000; // Consider disconnected after 60 seconds
+
 /**
  * Get current scroll information
  */
@@ -241,6 +248,74 @@ function stopUrlMonitoring() {
 }
 
 /**
+ * Start connection health monitoring
+ */
+function startConnectionHealthCheck() {
+  // Clear any existing interval
+  stopConnectionHealthCheck();
+
+  connectionHealthCheckInterval = window.setInterval(() => {
+    const now = Date.now();
+    const timeSinceLastSync = now - lastSuccessfulSync;
+
+    if (timeSinceLastSync > CONNECTION_TIMEOUT_THRESHOLD) {
+      if (isConnectionHealthy) {
+        isConnectionHealthy = false;
+        logger.warn('Connection appears to be lost', {
+          timeSinceLastSync,
+          threshold: CONNECTION_TIMEOUT_THRESHOLD,
+        });
+
+        // Show reconnection UI
+        showReconnectionPrompt();
+      }
+    } else {
+      if (!isConnectionHealthy) {
+        isConnectionHealthy = true;
+        logger.info('Connection restored');
+        hideReconnectionPrompt();
+      }
+    }
+  }, CONNECTION_CHECK_INTERVAL);
+
+  logger.info('Connection health check started');
+}
+
+/**
+ * Stop connection health monitoring
+ */
+function stopConnectionHealthCheck() {
+  if (connectionHealthCheckInterval) {
+    clearInterval(connectionHealthCheckInterval);
+    connectionHealthCheckInterval = null;
+    logger.info('Connection health check stopped');
+  }
+}
+
+/**
+ * Show reconnection prompt to user
+ */
+function showReconnectionPrompt() {
+  logger.info('Showing reconnection prompt');
+  // Send message to panel to show reconnection UI
+  sendMessage('connection:lost', {}, 'content-script').catch((error) => {
+    logger.error('Failed to send connection lost message', { error });
+  });
+}
+
+/**
+ * Hide reconnection prompt
+ */
+function hideReconnectionPrompt() {
+  logger.info('Hiding reconnection prompt');
+  // Send message to panel to hide reconnection UI
+  sendMessage('connection:restored', {}, 'content-script').catch((error) => {
+    logger.error('Failed to send connection restored message', { error });
+  });
+}
+
+
+/**
  * Initialize scroll sync system
  */
 export function initScrollSync() {
@@ -282,6 +357,10 @@ export function initScrollSync() {
     showPanel();
     logger.debug('Panel shown');
 
+    // Start connection health monitoring
+    startConnectionHealthCheck();
+    lastSuccessfulSync = Date.now();
+
     return { success: true, tabId: currentTabId };
   });
 
@@ -289,6 +368,9 @@ export function initScrollSync() {
   onMessage('scroll:stop', ({ data }) => {
     logger.info('Stopping scroll sync', { data });
     isSyncActive = false;
+
+    // Stop connection health check
+    stopConnectionHealthCheck();
 
     // Remove scroll listener
     window.removeEventListener('scroll', handleScroll);
@@ -320,6 +402,9 @@ export function initScrollSync() {
 
     // Don't sync if this is the source tab
     if (payload.sourceTabId === currentTabId) return;
+
+    // Update last successful sync time for connection health monitoring
+    lastSuccessfulSync = Date.now();
 
     logger.debug('Receiving scroll sync', { data });
 
@@ -405,34 +490,13 @@ export function initScrollSync() {
 
     isManualScrollEnabled = payload.enabled;
 
-    // When manual mode is deactivated, immediately apply sync with pixel offset
+    // When manual mode is deactivated, the saved offset will be applied on the next scroll:sync
+    // We do NOT programmatically scroll here to avoid jarring movements
+    // The tab will smoothly sync to the correct position (with offset) when other tabs scroll
     if (!payload.enabled) {
-      const myScrollInfo = getScrollInfo();
-      const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
-
-      // Convert last synced ratio to pixel position
-      const targetBaseScrollTop = lastSyncedRatio * myMaxScroll;
-
-      // Load pixel offset
-      const offsetPx = await getManualScrollOffset(currentTabId);
-
-      // Apply pixel offset
-      const finalScrollTop = targetBaseScrollTop + offsetPx;
-      const clampedScrollTop = Math.max(0, Math.min(myMaxScroll, finalScrollTop));
-
-      logger.info('Manual mode deactivated, applying immediate sync', {
+      logger.info('Manual mode deactivated, offset will be applied on next sync', {
         lastSyncedRatio,
-        targetBaseScrollTop,
-        offsetPx,
-        finalScrollTop: clampedScrollTop,
-      });
-
-      // Mark as programmatic scroll to prevent infinite loops
-      lastProgrammaticScrollTime = Date.now();
-
-      window.scrollTo({
-        top: clampedScrollTop,
-        behavior: 'auto',
+        currentTabId,
       });
     }
   });

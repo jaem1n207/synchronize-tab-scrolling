@@ -438,6 +438,15 @@ onMessage('url:sync', async ({ data }) => {
   return { success: true };
 });
 
+// Handler for connection health check ping
+onMessage('scroll:ping', async ({ data }) => {
+  const payload = data as { tabId: number; timestamp: number };
+  logger.debug('Received connection health ping', { payload });
+
+  // Respond to indicate connection is alive
+  return { success: true, timestamp: Date.now(), tabId: payload.tabId };
+});
+
 logger.info('All message handlers registered successfully');
 
 // Tab event listeners for sync persistence
