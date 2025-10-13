@@ -124,10 +124,10 @@ function PanelApp() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <svg
-              width="20"
+              fill="none"
               height="20"
               viewBox="0 0 20 20"
-              fill="none"
+              width="20"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
@@ -135,15 +135,14 @@ function PanelApp() {
                 stroke="#f59e0b"
                 strokeWidth="2"
               />
-              <path d="M10 6V10" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="10" cy="14" r="1" fill="#f59e0b" />
+              <path d="M10 6V10" stroke="#f59e0b" strokeLinecap="round" strokeWidth="2" />
+              <circle cx="10" cy="14" fill="#f59e0b" r="1" />
             </svg>
             <span style={{ fontSize: '14px', fontWeight: '500', color: '#92400e' }}>
               {browser.i18n.getMessage('connectionLost')}
             </span>
           </div>
           <button
-            onClick={handleReconnect}
             disabled={isReconnecting}
             style={{
               padding: '6px 12px',
@@ -158,6 +157,7 @@ function PanelApp() {
               pointerEvents: 'auto',
             }}
             type="button"
+            onClick={handleReconnect}
           >
             {isReconnecting
               ? browser.i18n.getMessage('reconnecting')
