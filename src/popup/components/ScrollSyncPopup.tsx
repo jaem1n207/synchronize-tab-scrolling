@@ -314,22 +314,25 @@ export function ScrollSyncPopup() {
   }, []);
 
   // Actions Menu open state handler with focus management
-  const handleActionsMenuOpenChange = useCallback((open: boolean) => {
-    if (open) {
-      // Store currently focused element when opening
-      const activeEl = document.activeElement as HTMLElement;
-      setLastFocusedElement(activeEl);
-    } else {
-      // Restore focus when closing
-      if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
-        // Use setTimeout to ensure the menu is fully closed before refocusing
-        setTimeout(() => {
-          lastFocusedElement.focus();
-        }, 0);
+  const handleActionsMenuOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) {
+        // Store currently focused element when opening
+        const activeEl = document.activeElement as HTMLElement;
+        setLastFocusedElement(activeEl);
+      } else {
+        // Restore focus when closing
+        if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+          // Use setTimeout to ensure the menu is fully closed before refocusing
+          setTimeout(() => {
+            lastFocusedElement.focus();
+          }, 0);
+        }
       }
-    }
-    setActionsMenuOpen(open);
-  }, [lastFocusedElement]);
+      setActionsMenuOpen(open);
+    },
+    [lastFocusedElement],
+  );
 
   // Actions Menu handlers
   const handleSelectAll = useCallback(() => {
@@ -414,14 +417,14 @@ export function ScrollSyncPopup() {
   );
 
   return (
-    <div className="w-480px flex flex-col h-full">
+    <div className="w-480px h-600px flex flex-col">
       {error && (
         <div className="p-4">
           <ErrorNotification error={error} onDismiss={handleDismissError} />
         </div>
       )}
 
-      <div className="flex-1 p-4 space-y-4 overflow-hidden flex flex-col">
+      <div className="flex-1 p-4 space-y-4 overflow-hidden flex flex-col min-h-0">
         {/* Sync Status Header */}
         <SyncStatusHeader
           connectedTabs={syncStatus.connectedTabs}
