@@ -19,7 +19,6 @@ import { ActionsMenu } from './ActionsMenu';
 import { ErrorNotification } from './ErrorNotification';
 import { FooterInfo } from './FooterInfo';
 import { SyncControlButtons } from './SyncControlButtons';
-import { SyncStatusHeader } from './SyncStatusHeader';
 import { TabCommandPalette } from './TabCommandPalette';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
@@ -425,14 +424,6 @@ export function ScrollSyncPopup() {
       )}
 
       <div className="flex-1 p-4 space-y-4 overflow-hidden flex flex-col min-h-0">
-        {/* Sync Status Header */}
-        <SyncStatusHeader
-          connectedTabs={syncStatus.connectedTabs}
-          connectionStatuses={syncStatus.connectionStatuses}
-          isActive={syncStatus.isActive}
-          tabs={tabs}
-        />
-
         {/* Tab Selection */}
         <section aria-labelledby="tab-selection-heading" className="flex-1 flex flex-col min-h-0">
           <TabCommandPalette
@@ -445,7 +436,7 @@ export function ScrollSyncPopup() {
         </section>
 
         {/* Control Buttons and Actions Menu */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           <SyncControlButtons
             hasConnectionError={hasConnectionError}
             isActive={syncStatus.isActive}

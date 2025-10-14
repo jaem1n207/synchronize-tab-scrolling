@@ -41,11 +41,7 @@ export function SyncControlButtons({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div
-        aria-label="Sync controls"
-        className="flex items-center gap-2 border-t pt-3"
-        role="group"
-      >
+      <div aria-label="Sync controls" className="flex items-center gap-2" role="group">
         {!isActive ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -55,8 +51,9 @@ export function SyncControlButtons({
                     ? 'Start synchronization'
                     : `Select at least 2 tabs to start (${selectedCount} selected)`
                 }
-                className="flex-1 gap-2"
+                className="gap-2"
                 disabled={!canStart}
+                size="sm"
                 onClick={onStart}
                 onKeyDown={(e) => handleKeyDown(e, onStart, !canStart)}
               >
@@ -73,7 +70,8 @@ export function SyncControlButtons({
         ) : (
           <Button
             aria-label="Stop synchronization"
-            className="flex-1 gap-2"
+            className="gap-2"
+            size="sm"
             variant="destructive"
             onClick={onStop}
             onKeyDown={(e) => handleKeyDown(e, onStop, false)}
@@ -88,7 +86,7 @@ export function SyncControlButtons({
             <TooltipTrigger asChild>
               <Button
                 aria-label="Re-sync disconnected tabs"
-                size="icon"
+                size="sm"
                 variant="outline"
                 onClick={onResync}
                 onKeyDown={(e) => handleKeyDown(e, onResync, false)}
