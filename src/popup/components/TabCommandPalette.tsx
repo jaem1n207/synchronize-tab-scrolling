@@ -100,20 +100,22 @@ export function TabCommandPalette({
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex flex-col gap-2">
-        <div
-          aria-live="polite"
-          aria-relevant="text"
-          className="flex items-center justify-between px-1"
-        >
-          <h2 className="text-sm font-medium" id="tab-selection-heading">
-            Select Tabs to Sync
-          </h2>
-          {selectedCount > 0 && (
-            <Badge aria-label={`${selectedCount} tabs selected`} className="ml-2" variant="default">
-              {selectedCount} selected
-            </Badge>
-          )}
-        </div>
+        {!isSyncActive && (
+          <div
+            aria-live="polite"
+            aria-relevant="text"
+            className="flex items-center justify-between px-1"
+          >
+            <h2 className="text-sm font-medium" id="tab-selection-heading">
+              Select Tabs to Sync
+            </h2>
+            {selectedCount > 0 && (
+              <Badge aria-label={`${selectedCount} tabs selected`} className="ml-2" variant="default">
+                {selectedCount} selected
+              </Badge>
+            )}
+          </div>
+        )}
 
         <SelectedTabsChips
           isSyncActive={isSyncActive}
