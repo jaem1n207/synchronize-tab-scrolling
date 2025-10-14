@@ -80,6 +80,7 @@
     "cmdk": "^1.1.1",
     "es-hangul": "^2.3.8",
     "lucide-react": "^0.524.0",
+    "motion": "^12.23.24",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.3.1",

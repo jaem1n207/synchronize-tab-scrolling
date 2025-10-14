@@ -1,5 +1,14 @@
 import { useEffect } from 'react';
 
+import { motion, AnimatePresence } from 'motion/react';
+
+import {
+  ANIMATION_DURATIONS,
+  EASING_FUNCTIONS,
+  getMotionTransition,
+  motionVariants,
+} from '~/shared/lib/animations';
+
 import type { ErrorState } from '../types';
 
 interface ErrorNotificationProps {
@@ -23,8 +32,6 @@ export function ErrorNotification({
     return () => clearTimeout(timer);
   }, [error, onDismiss, autoDismissDelay]);
 
-  if (!error) return null;
-
   const severityStyles = {
     info: 'bg-blue-50 border-blue-200 text-blue-800',
     warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
@@ -32,40 +39,48 @@ export function ErrorNotification({
   };
 
   const severityIcons = {
-    info: '󰋼',
-    warning: '',
-    error: '',
+    info: 'ℹ',
+    warning: '⚠',
+    error: '✕',
   };
 
   return (
-    <div
-      aria-live="polite"
-      className={`flex items-start gap-3 rounded-lg border p-3 shadow-sm transition-all ${severityStyles[error.severity]}`}
-      role="alert"
-    >
-      <span aria-hidden="true" className="text-lg">
-        {severityIcons[error.severity]}
-      </span>
-      <div className="flex-1">
-        <p className="text-sm font-medium">{error.message}</p>
-        {error.action && (
+    <AnimatePresence>
+      {error && (
+        <motion.div
+          animate={motionVariants.slideDown.animate}
+          aria-live="polite"
+          className={`flex items-start gap-3 rounded-lg border p-3 shadow-sm ${severityStyles[error.severity]}`}
+          exit={motionVariants.slideDown.exit}
+          initial={motionVariants.slideDown.initial}
+          role="alert"
+          transition={getMotionTransition(ANIMATION_DURATIONS.normal, EASING_FUNCTIONS.easeOut)}
+        >
+          <span aria-hidden="true" className="text-lg">
+            {severityIcons[error.severity]}
+          </span>
+          <div className="flex-1">
+            <p className="text-sm font-medium">{error.message}</p>
+            {error.action && (
+              <button
+                className="mt-2 text-sm font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-offset-2"
+                type="button"
+                onClick={error.action.handler}
+              >
+                {error.action.label}
+              </button>
+            )}
+          </div>
           <button
-            className="mt-2 text-sm font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-offset-2"
+            aria-label="Dismiss notification"
+            className="text-current opacity-60 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2"
             type="button"
-            onClick={error.action.handler}
+            onClick={onDismiss}
           >
-            {error.action.label}
+            <span aria-hidden="true">✕</span>
           </button>
-        )}
-      </div>
-      <button
-        aria-label="Dismiss notification"
-        className="text-current opacity-60 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2"
-        type="button"
-        onClick={onDismiss}
-      >
-        <span aria-hidden="true">✕</span>
-      </button>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
