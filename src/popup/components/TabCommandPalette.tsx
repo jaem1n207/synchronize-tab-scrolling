@@ -19,7 +19,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
+import { matchesKoreanSearch } from '~/shared/lib/korean-search';
 import { cn } from '~/shared/lib/utils';
+
+import { SelectedTabsChips } from './SelectedTabsChips';
 
 import type { TabInfo } from '../types';
 
@@ -37,6 +40,13 @@ export function TabCommandPalette({
   onToggleTab,
 }: TabCommandPaletteProps) {
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Callback ref for auto-focus on search input (avoiding useEffect)
+  const searchInputRef = useCallback((node: HTMLInputElement | null) => {
+    if (node) {
+      node.focus();
+    }
+  }, []);
 
   const handleToggle = useCallback(
     (tabId: number, eligible: boolean) => {
@@ -57,7 +67,7 @@ export function TabCommandPalette({
     [handleToggle],
   );
 
-  // Separate eligible and ineligible tabs
+  // Separate eligible and ineligible tabs without sorting
   const { eligibleTabs, ineligibleTabs } = useMemo(() => {
     return tabs.reduce(
       (acc, tab) => {
@@ -74,6 +84,9 @@ export function TabCommandPalette({
 
   // Count selected tabs
   const selectedCount = selectedTabIds.length;
+
+  // Get selected tabs info
+  const selectedTabsInfo = tabs.filter((tab) => selectedTabIds.includes(tab.id));
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -93,19 +106,22 @@ export function TabCommandPalette({
           )}
         </div>
 
+        <SelectedTabsChips tabs={selectedTabsInfo} onRemoveTab={onToggleTab} />
+
         <Command
           aria-labelledby="tab-selection-heading"
           className="rounded-lg border shadow-sm"
           shouldFilter={false}
         >
           <CommandInput
+            ref={searchInputRef}
             aria-label="Search tabs"
             placeholder="Search tabs by title or URL..."
             value={searchQuery}
             onValueChange={setSearchQuery}
           />
           <CommandList asChild>
-            <ScrollArea className="max-h-[400px]">
+            <ScrollArea className="max-h-[300px]">
               <CommandEmpty>
                 <div className="py-6 text-center text-sm text-muted-foreground">
                   <p>No tabs found matching &quot;{searchQuery}&quot;</p>
@@ -118,8 +134,8 @@ export function TabCommandPalette({
                     .filter(
                       (tab) =>
                         !searchQuery ||
-                        tab.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        tab.url.toLowerCase().includes(searchQuery.toLowerCase()),
+                        matchesKoreanSearch(tab.title, searchQuery) ||
+                        matchesKoreanSearch(tab.url, searchQuery),
                     )
                     .map((tab) => {
                       const isSelected = selectedTabIds.includes(tab.id);
@@ -190,8 +206,8 @@ export function TabCommandPalette({
                     .filter(
                       (tab) =>
                         !searchQuery ||
-                        tab.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        tab.url.toLowerCase().includes(searchQuery.toLowerCase()),
+                        matchesKoreanSearch(tab.title, searchQuery) ||
+                        matchesKoreanSearch(tab.url, searchQuery),
                     )
                     .map((tab) => {
                       const isCurrentTab = currentTabId === tab.id;
