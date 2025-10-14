@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
 import { matchesKoreanSearch } from '~/shared/lib/korean-search';
+import { sortTabsBySimilarity } from '~/shared/lib/tab-similarity';
 import { cn } from '~/shared/lib/utils';
 
 import { SelectedTabsChips } from './SelectedTabsChips';
@@ -67,9 +68,9 @@ export function TabCommandPalette({
     [handleToggle],
   );
 
-  // Separate eligible and ineligible tabs without sorting
+  // Separate eligible and ineligible tabs, then sort by similarity to current tab
   const { eligibleTabs, ineligibleTabs } = useMemo(() => {
-    return tabs.reduce(
+    const separated = tabs.reduce(
       (acc, tab) => {
         if (tab.eligible) {
           acc.eligibleTabs.push(tab);
@@ -80,7 +81,13 @@ export function TabCommandPalette({
       },
       { eligibleTabs: [] as Array<TabInfo>, ineligibleTabs: [] as Array<TabInfo> },
     );
-  }, [tabs]);
+
+    // Sort both lists by similarity to current tab (current tab will be first)
+    return {
+      eligibleTabs: sortTabsBySimilarity(separated.eligibleTabs, currentTabId),
+      ineligibleTabs: sortTabsBySimilarity(separated.ineligibleTabs, currentTabId),
+    };
+  }, [tabs, currentTabId]);
 
   // Count selected tabs
   const selectedCount = selectedTabIds.length;
