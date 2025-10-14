@@ -5,11 +5,8 @@ import { Play, Pause, Check, X, Filter, ArrowUpDown } from 'lucide-react';
 import { Button } from '~/shared/components/ui/button';
 import { Command, CommandGroup, CommandItem, CommandList } from '~/shared/components/ui/command';
 import { Kbd } from '~/shared/components/ui/kbd';
-import { Label } from '~/shared/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '~/shared/components/ui/popover';
-import { RadioGroup, RadioGroupItem } from '~/shared/components/ui/radio-group';
 import { Separator } from '~/shared/components/ui/separator';
-import { Toggle } from '~/shared/components/ui/toggle';
 
 import type { SortOption } from '../types/filters';
 
@@ -161,62 +158,62 @@ export function ActionsMenu({
 
             {/* Filter Options */}
             <CommandGroup heading="Filters">
-              <div className="px-2 py-1.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Filter aria-hidden="true" className="w-4 h-4" />
-                    <Label className="text-sm font-normal" htmlFor="same-domain-toggle">
-                      Same Domain Only
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      aria-label="Toggle same domain filter"
-                      id="same-domain-toggle"
-                      pressed={sameDomainFilter}
-                      size="sm"
-                      onPressedChange={onSameDomainFilterChange}
-                    >
-                      {sameDomainFilter ? 'On' : 'Off'}
-                    </Toggle>
-                    <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                      <Kbd>⌘</Kbd>
-                      <Kbd>D</Kbd>
-                    </div>
+              <CommandItem
+                onSelect={() => {
+                  onSameDomainFilterChange(!sameDomainFilter);
+                  onOpenChange(false);
+                }}
+              >
+                <div className="flex items-center gap-2 flex-1">
+                  <Filter aria-hidden="true" className="w-4 h-4" />
+                  <span>Same Domain Only</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {sameDomainFilter && <Check aria-hidden="true" className="w-4 h-4" />}
+                  <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                    <Kbd>⌘</Kbd>
+                    <Kbd>D</Kbd>
                   </div>
                 </div>
-              </div>
+              </CommandItem>
             </CommandGroup>
 
             <Separator />
 
             {/* Sort Options */}
             <CommandGroup heading="Sort By">
-              <div className="px-2 py-1.5">
-                <RadioGroup
-                  value={sortBy}
-                  onValueChange={(value) => onSortChange(value as SortOption)}
-                >
-                  <div className="flex items-center gap-2 py-1">
-                    <RadioGroupItem id="sort-similarity" value="similarity" />
-                    <Label className="text-sm font-normal flex-1" htmlFor="sort-similarity">
-                      <div className="flex items-center gap-2">
-                        <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
-                        <span>Similarity (Domain Grouping)</span>
-                      </div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center gap-2 py-1">
-                    <RadioGroupItem id="sort-recent" value="recent" />
-                    <Label className="text-sm font-normal flex-1" htmlFor="sort-recent">
-                      <div className="flex items-center gap-2">
-                        <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
-                        <span>Recent Visits</span>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
+              <CommandItem
+                onSelect={() => {
+                  onSortChange('similarity');
+                  onOpenChange(false);
+                }}
+              >
+                <div className="flex items-center gap-2 flex-1">
+                  {sortBy === 'similarity' && <Check aria-hidden="true" className="w-4 h-4" />}
+                  <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
+                  <span>Similarity (Domain Grouping)</span>
+                </div>
+                <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                  <Kbd>⌘</Kbd>
+                  <Kbd>1</Kbd>
+                </div>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  onSortChange('recent');
+                  onOpenChange(false);
+                }}
+              >
+                <div className="flex items-center gap-2 flex-1">
+                  {sortBy === 'recent' && <Check aria-hidden="true" className="w-4 h-4" />}
+                  <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
+                  <span>Recent Visits</span>
+                </div>
+                <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                  <Kbd>⌘</Kbd>
+                  <Kbd>2</Kbd>
+                </div>
+              </CommandItem>
             </CommandGroup>
           </CommandList>
         </Command>

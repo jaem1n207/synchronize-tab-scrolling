@@ -364,8 +364,30 @@ export function ScrollSyncPopup() {
           setSameDomainFilter((prev) => !prev);
         },
       },
+      {
+        key: '1',
+        mod: true,
+        handler: () => {
+          setSortBy('similarity');
+        },
+      },
+      {
+        key: '2',
+        mod: true,
+        handler: () => {
+          setSortBy('recent');
+        },
+      },
     ],
-    [syncStatus.isActive, selectedTabIds, handleStart, handleStop, handleSelectAll, handleClearAll],
+    [
+      syncStatus.isActive,
+      selectedTabIds,
+      handleStart,
+      handleStop,
+      handleSelectAll,
+      handleClearAll,
+      setSortBy,
+    ],
   );
 
   const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(
