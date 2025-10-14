@@ -268,6 +268,54 @@ export function ScrollSyncPopup() {
     setError(null);
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.ctrlKey || e.metaKey;
+
+      // Ctrl/Cmd + Enter: Start/Stop Sync
+      if (isMod && e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (syncStatus.isActive) {
+          handleStop();
+        } else if (selectedTabIds.length >= 2) {
+          handleStart();
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + D: Deselect All
+      if (isMod && e.key === 'd') {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!syncStatus.isActive) {
+          setSelectedTabIds([]);
+          saveSelectedTabIds([]);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + A: Select All Eligible Tabs
+      if (isMod && e.key === 'a') {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!syncStatus.isActive) {
+          const eligibleTabIds = tabs.filter((tab) => tab.eligible).map((tab) => tab.id);
+          setSelectedTabIds(eligibleTabIds);
+          saveSelectedTabIds(eligibleTabIds);
+        }
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [syncStatus.isActive, selectedTabIds, tabs, handleStart, handleStop]);
+
   const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(
     (status) => status === 'disconnected' || status === 'error',
   );
