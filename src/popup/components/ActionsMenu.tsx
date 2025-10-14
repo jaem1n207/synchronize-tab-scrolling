@@ -47,6 +47,23 @@ export function ActionsMenu({
   onSameDomainFilterChange,
 }: ActionsMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const firstItemRef = useRef<HTMLDivElement>(null);
+  const lastFocusedElement = useRef<HTMLElement | null>(null);
+
+  // Store focused element before opening and focus first item when opened
+  useEffect(() => {
+    if (open) {
+      // Store the currently focused element
+      lastFocusedElement.current = document.activeElement as HTMLElement;
+
+      // Focus the first item after a brief delay to ensure the menu is rendered
+      setTimeout(() => {
+        if (firstItemRef.current) {
+          firstItemRef.current.focus();
+        }
+      }, 50);
+    }
+  }, [open]);
 
   // Keyboard shortcut: Cmd/Ctrl + K
   useEffect(() => {
@@ -109,6 +126,12 @@ export function ActionsMenu({
             sideOffset={8}
             onCloseAutoFocus={(e) => {
               e.preventDefault();
+              // Restore focus to the element that was focused before opening
+              if (lastFocusedElement.current && typeof lastFocusedElement.current.focus === 'function') {
+                setTimeout(() => {
+                  lastFocusedElement.current?.focus();
+                }, 0);
+              }
             }}
           >
             <motion.div
@@ -122,6 +145,7 @@ export function ActionsMenu({
                   {/* Sync Controls */}
                   <CommandGroup heading="Sync Controls">
                     <CommandItem
+                      ref={firstItemRef}
                       disabled={!isSyncActive && selectedCount < 2}
                       onSelect={handleSyncAction}
                     >

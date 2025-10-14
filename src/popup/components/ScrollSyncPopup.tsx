@@ -35,7 +35,6 @@ export function ScrollSyncPopup() {
   const [currentTabId, setCurrentTabId] = useState<number>();
   const [error, setError] = useState<ErrorState | null>(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
-  const [lastFocusedElement, setLastFocusedElement] = useState<HTMLElement | null>(null);
 
   // Persistent preferences
   const [sortBy, setSortBy] = usePersistentState<SortOption>(
@@ -409,27 +408,6 @@ export function ScrollSyncPopup() {
     setError(null);
   }, []);
 
-  // Actions Menu open state handler with focus management
-  const handleActionsMenuOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) {
-        // Store currently focused element when opening
-        const activeEl = document.activeElement as HTMLElement;
-        setLastFocusedElement(activeEl);
-      } else {
-        // Restore focus when closing
-        if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
-          // Use setTimeout to ensure the menu is fully closed before refocusing
-          setTimeout(() => {
-            lastFocusedElement.focus();
-          }, 0);
-        }
-      }
-      setActionsMenuOpen(open);
-    },
-    [lastFocusedElement],
-  );
-
   // Actions Menu handlers
   const handleSelectAll = useCallback(() => {
     if (!syncStatus.isActive) {
@@ -549,7 +527,7 @@ export function ScrollSyncPopup() {
             selectedCount={selectedTabIds.length}
             sortBy={sortBy}
             onClearAll={handleClearAll}
-            onOpenChange={handleActionsMenuOpenChange}
+            onOpenChange={setActionsMenuOpen}
             onSameDomainFilterChange={setSameDomainFilter}
             onSelectAll={handleSelectAll}
             onSortChange={setSortBy}
