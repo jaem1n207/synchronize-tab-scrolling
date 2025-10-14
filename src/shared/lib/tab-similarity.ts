@@ -71,6 +71,20 @@ export function calculateTabSimilarity(referenceTab: TabInfo, compareTab: TabInf
 }
 
 /**
+ * Extract domain from URL
+ *
+ * @param url - The URL string
+ * @returns Domain (hostname) or empty string if invalid
+ */
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * Sort tabs by similarity to a reference tab (usually current tab)
  *
  * The reference tab will be placed first, followed by other tabs
@@ -109,4 +123,92 @@ export function sortTabsBySimilarity(
 
   // Return reference tab first, then sorted others
   return [referenceTab, ...sortedOthers];
+}
+
+/**
+ * Sort tabs with domain-based grouping for better visual organization
+ *
+ * Algorithm:
+ * 1. Place current tab at the top
+ * 2. Group remaining tabs by domain
+ * 3. Sort tabs within each domain group by URL path (alphabetically)
+ * 4. Sort domain groups by similarity to current tab
+ * 5. Flatten the result
+ *
+ * This creates a more intuitive organization where related tabs (same domain)
+ * are grouped together, making it easier to scan and find related content.
+ *
+ * Example result:
+ * - github.com/react-devtools (current)
+ * - github.com/react/issues
+ * - github.com/react/pulls
+ * - react.dev/docs/hooks
+ * - react.dev/docs/state
+ * - vue.org/guide
+ *
+ * @param tabs - Array of tabs to sort
+ * @param referenceTabId - ID of the reference tab (usually current tab)
+ * @returns Sorted array with domain-based grouping
+ */
+export function sortTabsWithDomainGrouping(
+  tabs: Array<TabInfo>,
+  referenceTabId?: number,
+): Array<TabInfo> {
+  // If no reference tab, return as-is
+  if (!referenceTabId) {
+    return tabs;
+  }
+
+  // Find reference tab
+  const referenceTab = tabs.find((tab) => tab.id === referenceTabId);
+  if (!referenceTab) {
+    return tabs;
+  }
+
+  // Separate reference tab from others
+  const otherTabs = tabs.filter((tab) => tab.id !== referenceTabId);
+
+  // Group tabs by domain
+  const domainGroups = new Map<string, Array<TabInfo>>();
+
+  for (const tab of otherTabs) {
+    const domain = extractDomain(tab.url);
+    if (!domainGroups.has(domain)) {
+      domainGroups.set(domain, []);
+    }
+    domainGroups.get(domain)!.push(tab);
+  }
+
+  // Sort tabs within each domain group by URL path
+  for (const domainTabs of domainGroups.values()) {
+    domainTabs.sort((a, b) => {
+      try {
+        const pathA = new URL(a.url).pathname;
+        const pathB = new URL(b.url).pathname;
+        return pathA.localeCompare(pathB);
+      } catch {
+        // If URL parsing fails, maintain original order
+        return 0;
+      }
+    });
+  }
+
+  // Sort domain groups by similarity to reference tab
+  // Use the first tab in each group as the representative for similarity calculation
+  const sortedGroups = Array.from(domainGroups.entries())
+    .map(([domain, domainTabs]) => ({
+      domain,
+      tabs: domainTabs,
+      similarity: calculateTabSimilarity(referenceTab, domainTabs[0]),
+    }))
+    .sort((a, b) => b.similarity - a.similarity);
+
+  // Flatten: reference tab first, then sorted domain groups
+  const result: Array<TabInfo> = [referenceTab];
+
+  for (const group of sortedGroups) {
+    result.push(...group.tabs);
+  }
+
+  return result;
 }
