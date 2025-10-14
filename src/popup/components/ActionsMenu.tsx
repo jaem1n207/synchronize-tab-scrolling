@@ -23,7 +23,6 @@ interface ActionsMenuProps {
   onSortChange: (sort: SortOption) => void;
   sameDomainFilter: boolean;
   onSameDomainFilterChange: (enabled: boolean) => void;
-  inputRef?: React.RefObject<HTMLInputElement>;
 }
 
 export function ActionsMenu({
@@ -39,7 +38,6 @@ export function ActionsMenu({
   onSortChange,
   sameDomainFilter,
   onSameDomainFilterChange,
-  inputRef,
 }: ActionsMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -101,7 +99,6 @@ export function ActionsMenu({
         sideOffset={8}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
-          inputRef?.current?.focus();
         }}
       >
         <Command>
