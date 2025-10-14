@@ -196,114 +196,141 @@ export function ScrollSyncPopup() {
     });
   }, []);
 
-  const handleStart = useCallback(async () => {
-    // Clear any existing errors
-    setError(null);
+  const handleStartWithRetry = useCallback(
+    async (isRetry = false) => {
+      // Clear any existing errors
+      setError(null);
 
-    // Validation: Check if at least 2 tabs are selected
-    if (selectedTabIds.length < 2) {
-      setError({
-        message: 'Please select at least 2 tabs to synchronize.',
-        severity: 'warning',
-        timestamp: Date.now(),
-      });
-      return;
-    }
-
-    try {
-      console.log('[ScrollSyncPopup] Starting sync with tab IDs:', selectedTabIds);
-
-      // Show "Connecting..." feedback
-      setError({
-        message: `Connecting to ${selectedTabIds.length} tabs...`,
-        severity: 'info',
-        timestamp: Date.now(),
-      });
-
-      // Send start message to background script and wait for connection results
-      const response = (await sendMessage(
-        'scroll:start',
-        {
-          tabIds: selectedTabIds,
-          mode: 'ratio', // Default to ratio mode, can be made configurable later
-        },
-        'background',
-      )) as {
-        success: boolean;
-        connectedTabs: Array<number>;
-        connectionResults: Record<number, { success: boolean; error?: string }>;
-        error?: string;
-      };
-
-      console.log('[ScrollSyncPopup] Connection response:', response);
-
-      if (!response.success) {
-        // Connection failed
-        const failedTabs = Object.entries(response.connectionResults || {})
-          .filter(([, result]) => !result.success)
-          .map(([tabId, result]) => `Tab ${tabId}: ${result.error || 'Unknown error'}`);
-
+      // Validation: Check if at least 2 tabs are selected
+      if (selectedTabIds.length < 2) {
         setError({
-          message:
-            response.error ||
-            `Failed to connect to tabs. ${failedTabs.length > 0 ? failedTabs.join(', ') : ''}`,
+          message: 'Please select at least 2 tabs to synchronize.',
+          severity: 'warning',
+          timestamp: Date.now(),
+        });
+        return;
+      }
+
+      try {
+        // If this is a retry, reload all selected tabs first
+        if (isRetry) {
+          console.log('[ScrollSyncPopup] Reloading tabs before retry:', selectedTabIds);
+          setError({
+            message: `Reloading ${selectedTabIds.length} tabs...`,
+            severity: 'info',
+            timestamp: Date.now(),
+          });
+
+          // Reload all selected tabs
+          await Promise.all(
+            selectedTabIds.map((tabId) =>
+              browser.tabs.reload(tabId).catch((err) => {
+                console.warn(`Failed to reload tab ${tabId}:`, err);
+              }),
+            ),
+          );
+
+          // Wait a bit for tabs to reload
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+
+        console.log('[ScrollSyncPopup] Starting sync with tab IDs:', selectedTabIds);
+
+        // Show "Connecting..." feedback
+        setError({
+          message: `Connecting to ${selectedTabIds.length} tabs...`,
+          severity: 'info',
+          timestamp: Date.now(),
+        });
+
+        // Send start message to background script and wait for connection results
+        const response = (await sendMessage(
+          'scroll:start',
+          {
+            tabIds: selectedTabIds,
+            mode: 'ratio', // Default to ratio mode, can be made configurable later
+          },
+          'background',
+        )) as {
+          success: boolean;
+          connectedTabs: Array<number>;
+          connectionResults: Record<number, { success: boolean; error?: string }>;
+          error?: string;
+        };
+
+        console.log('[ScrollSyncPopup] Connection response:', response);
+
+        if (!response.success) {
+          // Connection failed
+          const failedTabs = Object.entries(response.connectionResults || {})
+            .filter(([, result]) => !result.success)
+            .map(([tabId, result]) => `Tab ${tabId}: ${result.error || 'Unknown error'}`);
+
+          setError({
+            message:
+              response.error ||
+              `Failed to connect to tabs. ${failedTabs.length > 0 ? failedTabs.join(', ') : ''}`,
+            severity: 'error',
+            timestamp: Date.now(),
+            action: {
+              label: 'Retry',
+              handler: () => handleStartWithRetry(true),
+            },
+          });
+
+          // Don't update sync status
+          return;
+        }
+
+        // Success - update sync status with actually connected tabs
+        const statuses: Record<number, ConnectionStatus> = {};
+        response.connectedTabs.forEach((id) => {
+          statuses[id] = 'connected';
+        });
+
+        setSyncStatus({
+          isActive: true,
+          connectedTabs: response.connectedTabs,
+          connectionStatuses: statuses,
+        });
+
+        // Show success message
+        const connectedCount = response.connectedTabs.length;
+        const attemptedCount = selectedTabIds.length;
+
+        if (connectedCount < attemptedCount) {
+          // Some tabs failed to connect
+          const failedCount = attemptedCount - connectedCount;
+          setError({
+            message: `Connected to ${connectedCount} of ${attemptedCount} tabs (${failedCount} failed).`,
+            severity: 'warning',
+            timestamp: Date.now(),
+          });
+        } else {
+          // All tabs connected successfully
+          setError({
+            message: `Successfully connected to ${connectedCount} tabs.`,
+            severity: 'info',
+            timestamp: Date.now(),
+          });
+        }
+      } catch (error) {
+        console.error('Failed to start sync:', error);
+        setError({
+          message: `Failed to start synchronization: ${error instanceof Error ? error.message : String(error)}`,
           severity: 'error',
           timestamp: Date.now(),
           action: {
             label: 'Retry',
-            handler: handleStart,
+            handler: () => handleStartWithRetry(true),
           },
         });
-
-        // Don't update sync status
-        return;
       }
+    },
+    [selectedTabIds],
+  );
 
-      // Success - update sync status with actually connected tabs
-      const statuses: Record<number, ConnectionStatus> = {};
-      response.connectedTabs.forEach((id) => {
-        statuses[id] = 'connected';
-      });
-
-      setSyncStatus({
-        isActive: true,
-        connectedTabs: response.connectedTabs,
-        connectionStatuses: statuses,
-      });
-
-      // Show success message
-      const connectedCount = response.connectedTabs.length;
-      const attemptedCount = selectedTabIds.length;
-
-      if (connectedCount < attemptedCount) {
-        // Some tabs failed to connect
-        const failedCount = attemptedCount - connectedCount;
-        setError({
-          message: `Connected to ${connectedCount} of ${attemptedCount} tabs (${failedCount} failed).`,
-          severity: 'warning',
-          timestamp: Date.now(),
-        });
-      } else {
-        // All tabs connected successfully
-        setError({
-          message: `Successfully connected to ${connectedCount} tabs.`,
-          severity: 'info',
-          timestamp: Date.now(),
-        });
-      }
-    } catch (error) {
-      console.error('Failed to start sync:', error);
-      setError({
-        message: `Failed to start synchronization: ${error instanceof Error ? error.message : String(error)}`,
-        severity: 'error',
-        timestamp: Date.now(),
-        action: {
-          label: 'Retry',
-          handler: handleStart,
-        },
-      });
-    }
-  }, [selectedTabIds]);
+  const handleStart = useCallback(() => handleStartWithRetry(false), [handleStartWithRetry]);
 
   const handleStop = useCallback(async () => {
     setError(null);
