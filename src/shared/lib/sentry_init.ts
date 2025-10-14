@@ -2,6 +2,9 @@ import * as Sentry from '@sentry/react';
 import browser from 'webextension-polyfill';
 
 export const initializeSentry = (): void => {
+  // FIXME: 프로젝트 기능 구현 완료 후 해제
+  return void 0;
+
   const dsn =
     'https://3fa7b6b2a6c5e4cc0018e61cf4f417eb@o4509283258990592.ingest.us.sentry.io/4509283262398464';
 

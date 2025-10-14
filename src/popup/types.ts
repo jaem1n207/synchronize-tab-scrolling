@@ -5,6 +5,7 @@ export interface TabInfo {
   favIconUrl?: string;
   eligible: boolean;
   ineligibleReason?: string;
+  lastAccessed?: number; // Timestamp when tab was last accessed
 }
 
 export interface SyncStatus {
@@ -13,7 +14,7 @@ export interface SyncStatus {
   connectionStatuses: Record<number, ConnectionStatus>;
 }
 
-export type ConnectionStatus = 'connected' | 'disconnected' | 'error';
+export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'connecting';
 
 export interface PanelPosition {
   x: number;

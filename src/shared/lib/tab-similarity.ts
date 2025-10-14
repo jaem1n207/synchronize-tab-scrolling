@@ -207,3 +207,53 @@ export function sortTabsWithDomainGrouping(
 
   return result;
 }
+
+/**
+ * Sort tabs by recent visits (lastAccessed timestamp)
+ *
+ * Tabs with more recent lastAccessed timestamps appear first.
+ * Tabs without lastAccessed are placed at the end.
+ *
+ * @param tabs - Array of tabs to sort
+ * @returns Sorted array by recent visits (descending)
+ */
+export function sortTabsByRecentVisits(tabs: Array<TabInfo>): Array<TabInfo> {
+  return [...tabs].sort((a, b) => {
+    const timeA = a.lastAccessed ?? 0;
+    const timeB = b.lastAccessed ?? 0;
+    return timeB - timeA; // Descending order (most recent first)
+  });
+}
+
+/**
+ * Filter tabs by domain matching
+ *
+ * Only returns tabs that match the domain of the reference tab
+ *
+ * @param tabs - Array of tabs to filter
+ * @param referenceTabId - ID of the reference tab
+ * @returns Filtered array with only matching domains
+ */
+export function filterTabsBySameDomain(
+  tabs: Array<TabInfo>,
+  referenceTabId?: number,
+): Array<TabInfo> {
+  if (!referenceTabId) {
+    return tabs;
+  }
+
+  const referenceTab = tabs.find((tab) => tab.id === referenceTabId);
+  if (!referenceTab) {
+    return tabs;
+  }
+
+  const referenceDomain = extractDomain(referenceTab.url);
+  if (!referenceDomain) {
+    return tabs;
+  }
+
+  return tabs.filter((tab) => {
+    const domain = extractDomain(tab.url);
+    return domain === referenceDomain;
+  });
+}

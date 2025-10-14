@@ -1,16 +1,29 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
 
+import { useKeyboardShortcuts } from '~/shared/hooks/useKeyboardShortcuts';
+import { usePersistentState } from '~/shared/hooks/usePersistentState';
 import { loadSelectedTabIds, saveSelectedTabIds } from '~/shared/lib/storage';
+import {
+  sortTabsWithDomainGrouping,
+  sortTabsByRecentVisits,
+  filterTabsBySameDomain,
+} from '~/shared/lib/tab-similarity';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
+import { DEFAULT_PREFERENCES } from '../types/filters';
+
+import { ActionsMenu } from './ActionsMenu';
 import { ErrorNotification } from './ErrorNotification';
+import { FooterInfo } from './FooterInfo';
 import { SyncControlButtons } from './SyncControlButtons';
+import { SyncStatusHeader } from './SyncStatusHeader';
 import { TabCommandPalette } from './TabCommandPalette';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
+import type { SortOption } from '../types/filters';
 
 export function ScrollSyncPopup() {
   const [selectedTabIds, setSelectedTabIds] = useState<Array<number>>([]);
@@ -22,6 +35,17 @@ export function ScrollSyncPopup() {
   });
   const [currentTabId, setCurrentTabId] = useState<number>();
   const [error, setError] = useState<ErrorState | null>(null);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+
+  // Persistent preferences
+  const [sortBy, setSortBy] = usePersistentState<SortOption>(
+    'popup-sort-by',
+    DEFAULT_PREFERENCES.sortBy,
+  );
+  const [sameDomainFilter, setSameDomainFilter] = usePersistentState<boolean>(
+    'popup-same-domain-filter',
+    DEFAULT_PREFERENCES.filters.sameDomainOnly,
+  );
 
   useEffect(() => {
     const initialize = async () => {
@@ -100,6 +124,7 @@ export function ScrollSyncPopup() {
               favIconUrl: tab.favIconUrl,
               eligible: !isForbidden,
               ineligibleReason,
+              lastAccessed: tab.lastAccessed,
             };
           });
 
@@ -138,6 +163,25 @@ export function ScrollSyncPopup() {
 
     initialize();
   }, []);
+
+  // Filter and sort tabs based on preferences
+  const filteredAndSortedTabs = useMemo(() => {
+    let processedTabs = [...tabs];
+
+    // Apply same domain filter
+    if (sameDomainFilter) {
+      processedTabs = filterTabsBySameDomain(processedTabs, currentTabId);
+    }
+
+    // Apply sort
+    if (sortBy === 'similarity') {
+      processedTabs = sortTabsWithDomainGrouping(processedTabs, currentTabId);
+    } else if (sortBy === 'recent') {
+      processedTabs = sortTabsByRecentVisits(processedTabs);
+    }
+
+    return processedTabs;
+  }, [tabs, sameDomainFilter, sortBy, currentTabId]);
 
   const handleToggleTab = useCallback((tabId: number) => {
     setSelectedTabIds((prev) => {
@@ -268,80 +312,123 @@ export function ScrollSyncPopup() {
     setError(null);
   }, []);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMod = e.ctrlKey || e.metaKey;
+  // Actions Menu handlers
+  const handleSelectAll = useCallback(() => {
+    if (!syncStatus.isActive) {
+      const eligibleTabIds = filteredAndSortedTabs
+        .filter((tab) => tab.eligible)
+        .map((tab) => tab.id);
+      setSelectedTabIds(eligibleTabIds);
+      saveSelectedTabIds(eligibleTabIds);
+    }
+  }, [syncStatus.isActive, filteredAndSortedTabs]);
 
-      // Ctrl/Cmd + Enter: Start/Stop Sync
-      if (isMod && e.key === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
+  const handleClearAll = useCallback(() => {
+    if (!syncStatus.isActive) {
+      setSelectedTabIds([]);
+      saveSelectedTabIds([]);
+    }
+  }, [syncStatus.isActive]);
 
-        if (syncStatus.isActive) {
-          handleStop();
-        } else if (selectedTabIds.length >= 2) {
-          handleStart();
-        }
-        return;
-      }
-
-      // Ctrl/Cmd + D: Deselect All
-      if (isMod && e.key === 'd') {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!syncStatus.isActive) {
-          setSelectedTabIds([]);
-          saveSelectedTabIds([]);
-        }
-        return;
-      }
-
-      // Ctrl/Cmd + A: Select All Eligible Tabs
-      if (isMod && e.key === 'a') {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!syncStatus.isActive) {
-          const eligibleTabIds = tabs.filter((tab) => tab.eligible).map((tab) => tab.id);
-          setSelectedTabIds(eligibleTabIds);
-          saveSelectedTabIds(eligibleTabIds);
-        }
-        return;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [syncStatus.isActive, selectedTabIds, tabs, handleStart, handleStop]);
+  // Keyboard shortcuts - using custom hook
+  useKeyboardShortcuts(
+    [
+      {
+        key: 's',
+        mod: true,
+        handler: () => {
+          if (syncStatus.isActive) {
+            handleStop();
+          } else if (selectedTabIds.length >= 2) {
+            handleStart();
+          }
+        },
+      },
+      {
+        key: 'a',
+        mod: true,
+        handler: handleSelectAll,
+        enabled: !syncStatus.isActive,
+      },
+      {
+        key: 'x',
+        mod: true,
+        shift: true,
+        handler: handleClearAll,
+        enabled: !syncStatus.isActive,
+      },
+      {
+        key: 'd',
+        mod: true,
+        handler: () => {
+          setSameDomainFilter((prev) => !prev);
+        },
+      },
+    ],
+    [syncStatus.isActive, selectedTabIds, handleStart, handleStop, handleSelectAll, handleClearAll],
+  );
 
   const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(
     (status) => status === 'disconnected' || status === 'error',
   );
 
   return (
-    <div className="w-480px p-4 space-y-4">
-      {error && <ErrorNotification error={error} onDismiss={handleDismissError} />}
+    <div className="w-480px flex flex-col h-full">
+      {error && (
+        <div className="p-4">
+          <ErrorNotification error={error} onDismiss={handleDismissError} />
+        </div>
+      )}
 
-      <section aria-labelledby="tab-selection-heading">
-        <TabCommandPalette
-          currentTabId={currentTabId}
-          isSyncActive={syncStatus.isActive}
-          selectedTabIds={selectedTabIds}
+      <div className="flex-1 p-4 space-y-4 overflow-hidden flex flex-col">
+        {/* Sync Status Header */}
+        <SyncStatusHeader
+          connectedTabs={syncStatus.connectedTabs}
+          connectionStatuses={syncStatus.connectionStatuses}
+          isActive={syncStatus.isActive}
           tabs={tabs}
-          onToggleTab={handleToggleTab}
         />
-      </section>
 
-      <SyncControlButtons
-        hasConnectionError={hasConnectionError}
-        isActive={syncStatus.isActive}
-        selectedCount={selectedTabIds.length}
-        onResync={handleResync}
-        onStart={handleStart}
-        onStop={handleStop}
-      />
+        {/* Tab Selection */}
+        <section aria-labelledby="tab-selection-heading" className="flex-1 flex flex-col min-h-0">
+          <TabCommandPalette
+            currentTabId={currentTabId}
+            isSyncActive={syncStatus.isActive}
+            selectedTabIds={selectedTabIds}
+            tabs={filteredAndSortedTabs}
+            onToggleTab={handleToggleTab}
+          />
+        </section>
+
+        {/* Control Buttons and Actions Menu */}
+        <div className="flex items-center gap-2">
+          <SyncControlButtons
+            hasConnectionError={hasConnectionError}
+            isActive={syncStatus.isActive}
+            selectedCount={selectedTabIds.length}
+            onResync={handleResync}
+            onStart={handleStart}
+            onStop={handleStop}
+          />
+          <ActionsMenu
+            isSyncActive={syncStatus.isActive}
+            open={actionsMenuOpen}
+            sameDomainFilter={sameDomainFilter}
+            selectedCount={selectedTabIds.length}
+            sortBy={sortBy}
+            onClearAll={handleClearAll}
+            onOpenChange={setActionsMenuOpen}
+            onSameDomainFilterChange={setSameDomainFilter}
+            onSelectAll={handleSelectAll}
+            onSortChange={setSortBy}
+            onStartSync={handleStart}
+            onStopSync={handleStop}
+          />
+        </div>
+      </div>
+
+      {/* Footer Hints */}
+      <FooterInfo />
     </div>
   );
 }

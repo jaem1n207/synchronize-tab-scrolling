@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 
 import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 
+import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
 import { Button } from '~/shared/components/ui/button';
 import { loadManualScrollOffsets, clearManualScrollOffset } from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
@@ -106,14 +107,12 @@ export function LinkedSitesPanel({
                   onClick={() => !isCurrent && onSwitchToTab(tab.id)}
                 >
                   <StatusIndicator status={status} />
-                  {tab.favIconUrl && (
-                    <img
-                      alt=""
-                      aria-hidden="true"
-                      className="w-4 h-4 shrink-0"
-                      src={tab.favIconUrl}
-                    />
-                  )}
+                  <Avatar className="w-4 h-4 shrink-0">
+                    <AvatarImage alt="" src={tab.favIconUrl} />
+                    <AvatarFallback className="bg-muted text-[8px] text-muted-foreground">
+                      ?
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 flex flex-col items-start gap-1">
                     <span className="text-left truncate text-sm w-full">{tab.title}</span>
                     {hasOffset && (
