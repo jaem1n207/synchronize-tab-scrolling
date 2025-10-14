@@ -218,56 +218,126 @@ onMessage('get-current-tab', async () => {
   );
 });
 
+// Helper function to send message with timeout
+async function sendMessageWithTimeout<T>(
+  messageId: string,
+  data: unknown,
+  destination: { context: 'content-script'; tabId: number },
+  timeoutMs: number = 5000,
+): Promise<T> {
+  return Promise.race([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sendMessage(messageId, data as any, destination) as Promise<T>,
+    new Promise<never>((__, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs),
+    ),
+  ]);
+}
+
 // Scroll synchronization message handlers
 logger.info('Registering scroll:start handler');
 onMessage('scroll:start', async ({ data }) => {
   logger.info('Received scroll:start message', { data });
   const payload = data as { tabIds: Array<number>; mode: string };
 
-  // Update sync state
-  syncState.isActive = true;
-  syncState.linkedTabs = payload.tabIds;
-  syncState.mode = payload.mode;
-  payload.tabIds.forEach((id) => {
-    syncState.connectionStatuses[id] = 'connected';
-  });
+  // Initialize connection statuses as 'connecting'
+  const connectionResults: Record<number, { success: boolean; error?: string }> = {};
 
-  // Persist state to survive service worker restarts
-  await persistSyncState();
-
-  // Broadcast start message to all selected tabs with their tab IDs
-  logger.info(`Broadcasting start message to ${payload.tabIds.length} tabs`, {
-    tabIds: payload.tabIds,
-  });
+  // Attempt to connect to each tab with timeout and acknowledgment validation
+  logger.info(`Connecting to ${payload.tabIds.length} tabs`, { tabIds: payload.tabIds });
 
   const promises = payload.tabIds.map(async (tabId) => {
     try {
-      // Verify tab exists
+      // Verify tab exists first
       const tab = await browser.tabs.get(tabId);
       logger.debug(`Verified tab ${tabId} exists:`, { title: tab.title, url: tab.url });
 
       logger.debug(`Sending scroll:start to tab ${tabId}`);
-      await sendMessage(
+
+      // Send message with timeout and capture acknowledgment
+      const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
         'scroll:start',
         { ...payload, currentTabId: tabId },
         { context: 'content-script', tabId },
+        5000, // 5 second timeout
       );
-      logger.debug(`Successfully sent scroll:start to tab ${tabId}`);
+
+      // Validate acknowledgment
+      if (response && response.success && response.tabId === tabId) {
+        logger.info(`Tab ${tabId} acknowledged connection successfully`);
+        connectionResults[tabId] = { success: true };
+        syncState.connectionStatuses[tabId] = 'connected';
+      } else {
+        logger.error(`Tab ${tabId} returned invalid acknowledgment`, { response });
+        connectionResults[tabId] = { success: false, error: 'Invalid acknowledgment' };
+        syncState.connectionStatuses[tabId] = 'error';
+      }
     } catch (error) {
-      logger.error(`Failed to send start message to tab ${tabId}`, { error });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to connect to tab ${tabId}`, { error: errorMessage });
+      connectionResults[tabId] = { success: false, error: errorMessage };
       syncState.connectionStatuses[tabId] = 'error';
     }
   });
 
   await Promise.all(promises);
-  logger.info('All start messages sent');
 
-  // Broadcast status update to all synced tabs
-  logger.info('Broadcasting sync status');
+  // Check if at least 2 tabs connected successfully
+  const successfulConnections = Object.entries(connectionResults).filter(
+    ([, result]) => result.success,
+  );
+  const connectedTabIds = successfulConnections.map(([tabId]) => Number(tabId));
+
+  logger.info('Connection results', {
+    total: payload.tabIds.length,
+    successful: successfulConnections.length,
+    failed: payload.tabIds.length - successfulConnections.length,
+    results: connectionResults,
+  });
+
+  if (connectedTabIds.length < 2) {
+    // Not enough tabs connected, rollback
+    logger.error('Failed to connect to enough tabs (need at least 2)');
+
+    // Send stop messages to any tabs that did connect
+    const stopPromises = connectedTabIds.map((tabId) =>
+      sendMessage('scroll:stop', {}, { context: 'content-script', tabId }).catch((error) => {
+        logger.error(`Failed to send rollback stop message to tab ${tabId}`, { error });
+      }),
+    );
+    await Promise.all(stopPromises);
+
+    // Don't update sync state
+    syncState.isActive = false;
+    syncState.linkedTabs = [];
+    syncState.connectionStatuses = {};
+
+    return {
+      success: false,
+      connectedTabs: connectedTabIds,
+      connectionResults,
+      error: 'Failed to connect to at least 2 tabs',
+    };
+  }
+
+  // Update sync state with only successfully connected tabs
+  syncState.isActive = true;
+  syncState.linkedTabs = connectedTabIds;
+  syncState.mode = payload.mode;
+
+  // Persist state to survive service worker restarts
+  await persistSyncState();
+
+  // Broadcast status update to all connected tabs
+  logger.info('Broadcasting sync status to connected tabs');
   await broadcastSyncStatus();
   logger.info('Sync status broadcasted');
 
-  return { success: true };
+  return {
+    success: true,
+    connectedTabs: connectedTabIds,
+    connectionResults,
+  };
 });
 
 onMessage('scroll:stop', async ({ data }) => {

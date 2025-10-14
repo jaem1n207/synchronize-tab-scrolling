@@ -326,9 +326,33 @@ export function initScrollSync() {
     console.log('[scrollSync] Received scroll:start message', data);
     logger.info('Received scroll:start message', { data });
     const payload = data as { tabIds: Array<number>; mode: SyncMode; currentTabId: number };
+
+    // Clean up any existing sync state before starting new sync
+    // This is critical for re-sync scenarios where content script is already active
+    if (isSyncActive) {
+      logger.info('Sync already active, cleaning up old state before re-initializing');
+
+      // Remove old scroll listener
+      window.removeEventListener('scroll', handleScroll);
+
+      // Stop old URL monitoring
+      stopUrlMonitoring();
+
+      // Cleanup old keyboard handler
+      cleanupKeyboardHandler();
+
+      // Stop old connection health check
+      stopConnectionHealthCheck();
+    }
+
+    // Reset all state variables
     isSyncActive = true;
     currentMode = payload.mode;
-    currentTabId = payload.currentTabId; // Set the tab ID from background script
+    currentTabId = payload.currentTabId;
+    isManualScrollEnabled = false;
+    lastScrollTime = 0;
+    lastProgrammaticScrollTime = 0;
+    isConnectionHealthy = true;
 
     // Initialize lastSyncedRatio with current scroll position to prevent offset calculation errors
     lastSyncedRatio = getScrollRatio();
@@ -360,6 +384,7 @@ export function initScrollSync() {
     startConnectionHealthCheck();
     lastSuccessfulSync = Date.now();
 
+    logger.info('Content script sync initialization complete');
     return { success: true, tabId: currentTabId };
   });
 

@@ -213,36 +213,88 @@ export function ScrollSyncPopup() {
     try {
       console.log('[ScrollSyncPopup] Starting sync with tab IDs:', selectedTabIds);
 
-      // Send start message to background script
-      await sendMessage(
+      // Show "Connecting..." feedback
+      setError({
+        message: `Connecting to ${selectedTabIds.length} tabs...`,
+        severity: 'info',
+        timestamp: Date.now(),
+      });
+
+      // Send start message to background script and wait for connection results
+      const response = (await sendMessage(
         'scroll:start',
         {
           tabIds: selectedTabIds,
           mode: 'ratio', // Default to ratio mode, can be made configurable later
         },
         'background',
-      );
+      )) as {
+        success: boolean;
+        connectedTabs: Array<number>;
+        connectionResults: Record<number, { success: boolean; error?: string }>;
+        error?: string;
+      };
 
+      console.log('[ScrollSyncPopup] Connection response:', response);
+
+      if (!response.success) {
+        // Connection failed
+        const failedTabs = Object.entries(response.connectionResults || {})
+          .filter(([, result]) => !result.success)
+          .map(([tabId, result]) => `Tab ${tabId}: ${result.error || 'Unknown error'}`);
+
+        setError({
+          message:
+            response.error ||
+            `Failed to connect to tabs. ${failedTabs.length > 0 ? failedTabs.join(', ') : ''}`,
+          severity: 'error',
+          timestamp: Date.now(),
+          action: {
+            label: 'Retry',
+            handler: handleStart,
+          },
+        });
+
+        // Don't update sync status
+        return;
+      }
+
+      // Success - update sync status with actually connected tabs
       const statuses: Record<number, ConnectionStatus> = {};
-      selectedTabIds.forEach((id) => {
+      response.connectedTabs.forEach((id) => {
         statuses[id] = 'connected';
       });
 
       setSyncStatus({
         isActive: true,
-        connectedTabs: selectedTabIds,
+        connectedTabs: response.connectedTabs,
         connectionStatuses: statuses,
       });
 
-      setError({
-        message: `Successfully started synchronization for ${selectedTabIds.length} tabs.`,
-        severity: 'info',
-        timestamp: Date.now(),
-      });
+      // Show success message
+      const connectedCount = response.connectedTabs.length;
+      const attemptedCount = selectedTabIds.length;
+
+      if (connectedCount < attemptedCount) {
+        // Some tabs failed to connect
+        const failedCount = attemptedCount - connectedCount;
+        setError({
+          message: `Connected to ${connectedCount} of ${attemptedCount} tabs (${failedCount} failed).`,
+          severity: 'warning',
+          timestamp: Date.now(),
+        });
+      } else {
+        // All tabs connected successfully
+        setError({
+          message: `Successfully connected to ${connectedCount} tabs.`,
+          severity: 'info',
+          timestamp: Date.now(),
+        });
+      }
     } catch (error) {
       console.error('Failed to start sync:', error);
       setError({
-        message: 'Failed to start synchronization. Please try again.',
+        message: `Failed to start synchronization: ${error instanceof Error ? error.message : String(error)}`,
         severity: 'error',
         timestamp: Date.now(),
         action: {
@@ -256,9 +308,16 @@ export function ScrollSyncPopup() {
   const handleStop = useCallback(async () => {
     setError(null);
 
+    // Show stopping feedback
+    setError({
+      message: 'Stopping synchronization...',
+      severity: 'info',
+      timestamp: Date.now(),
+    });
+
     try {
-      // Send stop message to background script
-      await sendMessage(
+      // Send stop message to background script with timeout
+      const stopPromise = sendMessage(
         'scroll:stop',
         {
           tabIds: syncStatus.connectedTabs,
@@ -266,6 +325,15 @@ export function ScrollSyncPopup() {
         'background',
       );
 
+      // Add timeout to prevent hanging
+      await Promise.race([
+        stopPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Stop operation timed out after 5 seconds')), 5000),
+        ),
+      ]);
+
+      // Success - update state
       setSyncStatus({
         isActive: false,
         connectedTabs: [],
@@ -279,16 +347,18 @@ export function ScrollSyncPopup() {
       });
     } catch (error) {
       console.error('Failed to stop sync:', error);
-      setError({
-        message: 'Warning: Failed to properly stop sync. Local state has been cleared.',
-        severity: 'warning',
-        timestamp: Date.now(),
-      });
-      // Still update local state even if message fails
+
+      // Clear local state regardless of error
       setSyncStatus({
         isActive: false,
         connectedTabs: [],
         connectionStatuses: {},
+      });
+
+      setError({
+        message: `Warning: ${error instanceof Error ? error.message : 'Failed to stop sync properly'}. Local state has been cleared.`,
+        severity: 'warning',
+        timestamp: Date.now(),
       });
     }
   }, [syncStatus.connectedTabs]);
