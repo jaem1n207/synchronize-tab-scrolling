@@ -131,20 +131,20 @@ export function sortTabsBySimilarity(
  * Algorithm:
  * 1. Place current tab at the top
  * 2. Group remaining tabs by domain
- * 3. Sort tabs within each domain group by URL path (alphabetically)
+ * 3. Sort tabs within each domain group by similarity to current tab
  * 4. Sort domain groups by similarity to current tab
  * 5. Flatten the result
  *
- * This creates a more intuitive organization where related tabs (same domain)
- * are grouped together, making it easier to scan and find related content.
+ * This creates a more intuitive organization where:
+ * - Related tabs (same domain) are grouped together
+ * - Most similar tabs appear near the current tab
+ * - Makes it easier to scan and find related content
  *
- * Example result:
- * - github.com/react-devtools (current)
- * - github.com/react/issues
- * - github.com/react/pulls
- * - react.dev/docs/hooks
- * - react.dev/docs/state
- * - vue.org/guide
+ * Example result for current tab "chrome.tabs API docs":
+ * - chrome.com/docs/tabs (current)
+ * - chrome.com/docs/tabs?hl=ko (very similar - same page, different language)
+ * - chrome.com/docs/i18n (less similar - different API)
+ * - react.dev/docs/hooks (different domain)
  *
  * @param tabs - Array of tabs to sort
  * @param referenceTabId - ID of the reference tab (usually current tab)
@@ -179,17 +179,12 @@ export function sortTabsWithDomainGrouping(
     domainGroups.get(domain)!.push(tab);
   }
 
-  // Sort tabs within each domain group by URL path
+  // Sort tabs within each domain group by similarity to reference tab
   for (const domainTabs of domainGroups.values()) {
     domainTabs.sort((a, b) => {
-      try {
-        const pathA = new URL(a.url).pathname;
-        const pathB = new URL(b.url).pathname;
-        return pathA.localeCompare(pathB);
-      } catch {
-        // If URL parsing fails, maintain original order
-        return 0;
-      }
+      const simA = calculateTabSimilarity(referenceTab, a);
+      const simB = calculateTabSimilarity(referenceTab, b);
+      return simB - simA; // Descending order (more similar tabs come first)
     });
   }
 
