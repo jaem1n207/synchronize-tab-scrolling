@@ -279,6 +279,7 @@ export function ScrollSyncPopup() {
       <section aria-labelledby="tab-selection-heading">
         <TabCommandPalette
           currentTabId={currentTabId}
+          isSyncActive={syncStatus.isActive}
           selectedTabIds={selectedTabIds}
           tabs={tabs}
           onToggleTab={handleToggleTab}

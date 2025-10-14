@@ -31,6 +31,7 @@ interface TabCommandPaletteProps {
   tabs: Array<TabInfo>;
   selectedTabIds: Array<number>;
   currentTabId?: number;
+  isSyncActive: boolean;
   onToggleTab: (tabId: number) => void;
 }
 
@@ -38,6 +39,7 @@ export function TabCommandPalette({
   tabs,
   selectedTabIds,
   currentTabId,
+  isSyncActive,
   onToggleTab,
 }: TabCommandPaletteProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,11 +53,11 @@ export function TabCommandPalette({
 
   const handleToggle = useCallback(
     (tabId: number, eligible: boolean) => {
-      if (eligible) {
+      if (eligible && !isSyncActive) {
         onToggleTab(tabId);
       }
     },
-    [onToggleTab],
+    [onToggleTab, isSyncActive],
   );
 
   const handleKeyDown = useCallback(
@@ -113,7 +115,11 @@ export function TabCommandPalette({
           )}
         </div>
 
-        <SelectedTabsChips tabs={selectedTabsInfo} onRemoveTab={onToggleTab} />
+        <SelectedTabsChips
+          isSyncActive={isSyncActive}
+          tabs={selectedTabsInfo}
+          onRemoveTab={onToggleTab}
+        />
 
         <Command
           aria-labelledby="tab-selection-heading"
@@ -151,11 +157,19 @@ export function TabCommandPalette({
                       return (
                         <CommandItem
                           key={tab.id}
+                          aria-disabled={isSyncActive}
+                          aria-label={
+                            isSyncActive
+                              ? `${tab.title} - Cannot change selection during sync`
+                              : undefined
+                          }
                           aria-selected={isSelected}
                           className={cn(
-                            'flex items-center gap-3 py-3 px-3 cursor-pointer',
+                            'flex items-center gap-3 py-3 px-3',
+                            isSyncActive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
                             isSelected && 'bg-accent',
                           )}
+                          disabled={isSyncActive}
                           role="option"
                           value={`${tab.title}-${tab.url}-${tab.id}`}
                           onKeyDown={(e) => handleKeyDown(e, tab.id, tab.eligible)}
@@ -165,6 +179,7 @@ export function TabCommandPalette({
                             aria-label={`Select ${tab.title}`}
                             checked={isSelected}
                             className="shrink-0"
+                            disabled={isSyncActive}
                             onCheckedChange={() => handleToggle(tab.id, tab.eligible)}
                           />
 
