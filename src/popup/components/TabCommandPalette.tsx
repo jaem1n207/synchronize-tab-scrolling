@@ -110,7 +110,11 @@ export function TabCommandPalette({
               Select Tabs to Sync
             </h2>
             {selectedCount > 0 && (
-              <Badge aria-label={`${selectedCount} tabs selected`} className="ml-2" variant="default">
+              <Badge
+                aria-label={`${selectedCount} tabs selected`}
+                className="ml-2"
+                variant="default"
+              >
                 {selectedCount} selected
               </Badge>
             )}

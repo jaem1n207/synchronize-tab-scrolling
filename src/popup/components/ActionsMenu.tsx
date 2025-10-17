@@ -127,7 +127,10 @@ export function ActionsMenu({
             onCloseAutoFocus={(e) => {
               e.preventDefault();
               // Restore focus to the element that was focused before opening
-              if (lastFocusedElement.current && typeof lastFocusedElement.current.focus === 'function') {
+              if (
+                lastFocusedElement.current &&
+                typeof lastFocusedElement.current.focus === 'function'
+              ) {
                 setTimeout(() => {
                   lastFocusedElement.current?.focus();
                 }, 0);
