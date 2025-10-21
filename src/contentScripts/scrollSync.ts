@@ -145,13 +145,20 @@ async function handleScroll() {
 
   const scrollInfo = getScrollInfo();
 
-  // Remove offset from scrollTop before broadcasting
-  // This ensures we send the "pure" scroll position without offset applied
-  const offsetPx = await getManualScrollOffset(currentTabId);
+  // Remove offset ratio from current ratio before broadcasting
+  // This ensures we send the "pure" scroll ratio without offset applied
+  const offsetRatio = await getManualScrollOffset(currentTabId);
   const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
 
-  // Clamp pureScrollTop to valid range to prevent negative or overflow values
-  const pureScrollTop = Math.max(0, Math.min(myMaxScroll, scrollInfo.scrollTop - offsetPx));
+  // Calculate current scroll ratio
+  const currentRatio = myMaxScroll > 0 ? scrollInfo.scrollTop / myMaxScroll : 0;
+
+  // Calculate pure ratio by removing this tab's offset
+  const pureRatio = currentRatio - offsetRatio;
+
+  // Convert pure ratio back to pixels for the message (for backward compatibility)
+  // Receiving tabs will convert back to ratio and add their own offsets
+  const pureScrollTop = Math.max(0, Math.min(myMaxScroll, pureRatio * myMaxScroll));
 
   const message = {
     scrollTop: pureScrollTop,
@@ -162,11 +169,12 @@ async function handleScroll() {
     timestamp: now,
   };
 
-  logger.debug('Broadcasting scroll (offset removed)', {
+  logger.debug('Broadcasting scroll (offset ratio removed)', {
     actualScrollTop: scrollInfo.scrollTop,
-    offsetPx,
+    currentRatio,
+    offsetRatio,
+    pureRatio,
     pureScrollTop,
-    clamped: pureScrollTop !== scrollInfo.scrollTop - offsetPx,
   });
 
   // Broadcast to other tabs via background script
@@ -448,23 +456,23 @@ export function initScrollSync() {
     const myScrollInfo = getScrollInfo();
     const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
 
-    // Convert source ratio to my document's pixel position
-    const targetBaseScrollTop = sourceRatio * myMaxScroll;
+    // Load manual scroll offset ratio for this tab
+    const offsetRatio = await getManualScrollOffset(currentTabId);
 
-    // Load manual scroll offset (in pixels) for this tab
-    const offsetPx = await getManualScrollOffset(currentTabId);
+    // Apply offset ratio to source ratio to get target ratio for this tab
+    const targetRatio = sourceRatio + offsetRatio;
 
-    // Apply pixel offset
-    const finalScrollTop = targetBaseScrollTop + offsetPx;
+    // Convert target ratio to pixel position for this document
+    const targetScrollTop = targetRatio * myMaxScroll;
 
     // Clamp to valid range [0, myMaxScroll]
-    const clampedScrollTop = Math.max(0, Math.min(myMaxScroll, finalScrollTop));
+    const clampedScrollTop = Math.max(0, Math.min(myMaxScroll, targetScrollTop));
 
-    logger.debug('Applying scroll with pixel offset', {
+    logger.debug('Applying scroll with offset ratio', {
       sourceRatio,
-      targetBaseScrollTop,
-      offsetPx,
-      finalScrollTop,
+      offsetRatio,
+      targetRatio,
+      targetScrollTop,
       clampedScrollTop,
     });
 
@@ -494,7 +502,7 @@ export function initScrollSync() {
         });
       }
     } else {
-      // Ratio-based sync (P0) with pixel offset
+      // Ratio-based sync (P0) with ratio offset
       window.scrollTo({
         top: clampedScrollTop,
         behavior: 'auto',
@@ -523,6 +531,28 @@ export function initScrollSync() {
         currentTabId,
       });
     }
+  });
+
+  // Listen for sync baseline updates (P1)
+  // When a tab finishes manual adjustment, it broadcasts the new baseline ratio
+  // so all tabs update their lastSyncedRatio without actually scrolling
+  onMessage('scroll:baseline-update', ({ data }) => {
+    if (!isSyncActive) return;
+
+    const payload = data as { sourceTabId: number; baselineRatio: number; timestamp: number };
+
+    // Don't update if this is the source tab
+    if (payload.sourceTabId === currentTabId) return;
+
+    logger.info('Updating sync baseline ratio', {
+      oldRatio: lastSyncedRatio,
+      newRatio: payload.baselineRatio,
+      sourceTabId: payload.sourceTabId,
+    });
+
+    // Update lastSyncedRatio WITHOUT scrolling
+    // This prevents jumps when the source tab starts scrolling again
+    lastSyncedRatio = payload.baselineRatio;
   });
 
   // Listen for URL sync from other tabs (P1)

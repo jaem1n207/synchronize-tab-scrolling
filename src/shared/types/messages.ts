@@ -47,6 +47,16 @@ export interface ManualScrollMessage {
 }
 
 /**
+ * Message to update sync baseline ratio across all tabs
+ * Sent when a tab finishes manual adjustment to prevent jumps
+ */
+export interface SyncBaselineUpdateMessage {
+  sourceTabId: number;
+  baselineRatio: number;
+  timestamp: number;
+}
+
+/**
  * Message for URL navigation synchronization (P1)
  */
 export interface UrlSyncMessage {
@@ -80,6 +90,7 @@ export interface ProtocolMap {
   'scroll:stop': StopSyncMessage;
   'scroll:sync': ScrollSyncMessage;
   'scroll:manual': ManualScrollMessage;
+  'scroll:baseline-update': SyncBaselineUpdateMessage;
   'scroll:status': SyncStatusResponse;
   'url:sync': UrlSyncMessage;
   'element:match': ElementMatchMessage;

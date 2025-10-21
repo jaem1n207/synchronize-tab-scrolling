@@ -89,50 +89,70 @@ async function disableManualMode() {
   isManualModeActive = false;
   logger.debug('Manual scroll mode disabled');
 
-  // Calculate and save manual scroll offset in pixels using latest synced position
+  // Calculate and save manual scroll offset as RATIO using latest synced position
   if (getScrollInfoCallback) {
     try {
       const { currentScrollTop, lastSyncedRatio } = getScrollInfoCallback();
 
-      // Use the LATEST lastSyncedRatio (which may have been updated during manual mode)
+      // Calculate current scroll ratio
       const myMaxScroll =
         document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const currentBaselineScrollTop = lastSyncedRatio * myMaxScroll;
+      const currentRatio = myMaxScroll > 0 ? currentScrollTop / myMaxScroll : 0;
 
-      // Calculate pixel offset: current position - where we "should be" according to latest sync
-      const offsetPx = currentScrollTop - currentBaselineScrollTop;
+      // Calculate ratio offset: how far ahead/behind this tab should be from sync baseline
+      const offsetRatio = currentRatio - lastSyncedRatio;
 
-      // Validate offset is within reasonable range (±50% of viewport height)
-      const viewportHeight = window.innerHeight;
-      const maxReasonableOffset = viewportHeight * 0.5;
+      // Validate offset is within reasonable range (±0.5 ratio, which is ±50% of document)
+      const maxReasonableOffset = 0.5;
 
-      if (Math.abs(offsetPx) > maxReasonableOffset) {
-        logger.warn('Offset exceeds reasonable range, clamping', {
-          offsetPx,
+      if (Math.abs(offsetRatio) > maxReasonableOffset) {
+        logger.warn('Offset ratio exceeds reasonable range, clamping', {
+          offsetRatio,
           maxReasonableOffset,
-          currentScrollTop,
-          currentBaselineScrollTop,
+          currentRatio,
           lastSyncedRatio,
         });
       }
 
       // Clamp offset to reasonable range
-      const clampedOffsetPx = Math.max(
+      const clampedOffsetRatio = Math.max(
         -maxReasonableOffset,
-        Math.min(maxReasonableOffset, offsetPx),
+        Math.min(maxReasonableOffset, offsetRatio),
       );
 
-      logger.debug('Calculating manual scroll offset', {
-        currentScrollTop,
+      logger.debug('Calculating manual scroll offset as ratio', {
+        currentRatio,
         lastSyncedRatio,
-        currentBaselineScrollTop,
-        offsetPx,
-        clampedOffsetPx,
+        offsetRatio,
+        clampedOffsetRatio,
       });
 
-      // Save the clamped pixel offset for this tab
-      await saveManualScrollOffset(currentTabId, clampedOffsetPx);
-      logger.info('Manual scroll offset saved', { tabId: currentTabId, offsetPx: clampedOffsetPx });
+      // Save the clamped ratio offset for this tab
+      await saveManualScrollOffset(currentTabId, clampedOffsetRatio);
+      logger.info('Manual scroll offset saved as ratio', {
+        tabId: currentTabId,
+        offsetRatio: clampedOffsetRatio,
+      });
+
+      // Broadcast new baseline ratio to all tabs so they update their lastSyncedRatio
+      // This prevents jumps when this tab starts scrolling again
+      const newBaselineRatio = currentRatio - clampedOffsetRatio;
+      sendMessage(
+        'scroll:baseline-update',
+        {
+          sourceTabId: currentTabId,
+          baselineRatio: newBaselineRatio,
+          timestamp: Date.now(),
+        },
+        'background',
+      ).catch((error) => {
+        logger.error('Failed to send baseline update message', { error });
+      });
+
+      logger.debug('Broadcast baseline update', {
+        newBaselineRatio,
+        sourceTabId: currentTabId,
+      });
     } catch (error) {
       logger.error('Failed to save manual scroll offset', { error });
     }
