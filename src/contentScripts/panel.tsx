@@ -6,7 +6,12 @@ import browser from 'webextension-polyfill';
 
 import { DraggableControlPanel } from '~/popup/components/DraggableControlPanel';
 import { LinkedSitesPanel } from '~/popup/components/LinkedSitesPanel';
-import { loadPanelMinimized, savePanelMinimized } from '~/shared/lib/storage';
+import {
+  loadPanelMinimized,
+  savePanelMinimized,
+  loadUrlSyncEnabled,
+  saveUrlSyncEnabled,
+} from '~/shared/lib/storage';
 
 import type { TabInfo, ConnectionStatus } from '~/popup/types';
 
@@ -23,16 +28,26 @@ function PanelApp() {
   const [currentTabId, setCurrentTabId] = useState<number>();
   const [showReconnectPrompt, setShowReconnectPrompt] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
 
   useEffect(() => {
-    // Load minimized state
+    // Load minimized state and URL sync state
     loadPanelMinimized().then(setIsMinimized).catch(console.error);
+    loadUrlSyncEnabled().then(setUrlSyncEnabled).catch(console.error);
   }, []);
 
   const handleToggleMinimize = useCallback(() => {
     setIsMinimized((prev) => {
       const newValue = !prev;
       savePanelMinimized(newValue);
+      return newValue;
+    });
+  }, []);
+
+  const handleToggleUrlSync = useCallback(() => {
+    setUrlSyncEnabled((prev) => {
+      const newValue = !prev;
+      saveUrlSyncEnabled(newValue);
       return newValue;
     });
   }, []);
@@ -165,6 +180,78 @@ function PanelApp() {
           </button>
         </div>
       )}
+      <div
+        style={{
+          padding: '12px',
+          borderBottom: '1px solid #e5e7eb',
+          pointerEvents: 'auto',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}
+        >
+          <label
+            htmlFor="url-sync-toggle"
+            style={{
+              fontSize: '13px',
+              fontWeight: '500',
+              color: '#374151',
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            Sync URL Navigation
+          </label>
+          <button
+            aria-checked={urlSyncEnabled}
+            aria-label="Toggle URL synchronization"
+            id="url-sync-toggle"
+            role="switch"
+            style={{
+              position: 'relative',
+              width: '44px',
+              height: '24px',
+              backgroundColor: urlSyncEnabled ? '#3b82f6' : '#d1d5db',
+              borderRadius: '12px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s',
+              pointerEvents: 'auto',
+            }}
+            type="button"
+            onClick={handleToggleUrlSync}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: '2px',
+                left: urlSyncEnabled ? '22px' : '2px',
+                width: '20px',
+                height: '20px',
+                backgroundColor: 'white',
+                borderRadius: '50%',
+                transition: 'left 0.2s',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+              }}
+            />
+          </button>
+        </div>
+        <p
+          style={{
+            marginTop: '6px',
+            fontSize: '11px',
+            color: '#6b7280',
+            lineHeight: '1.4',
+          }}
+        >
+          When enabled, URL changes are synchronized across tabs (preserving hash fragments)
+        </p>
+      </div>
       <LinkedSitesPanel
         connectionStatuses={connectionStatuses}
         currentTabId={currentTabId}

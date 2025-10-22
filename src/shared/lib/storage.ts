@@ -17,6 +17,7 @@ const STORAGE_KEYS = {
   IS_PANEL_MINIMIZED: 'isPanelMinimized',
   SELECTED_TAB_IDS: 'selectedTabIds',
   MANUAL_SCROLL_OFFSETS: 'manualScrollOffsets',
+  URL_SYNC_ENABLED: 'urlSyncEnabled',
 } as const;
 
 /**
@@ -194,6 +195,36 @@ export async function clearAllManualScrollOffsets(): Promise<void> {
     });
   } catch (error) {
     console.error('Failed to clear all manual scroll offsets:', error);
+  }
+}
+
+/**
+ * Save URL sync enabled state
+ * @param enabled - Whether URL synchronization is enabled
+ */
+export async function saveUrlSyncEnabled(enabled: boolean): Promise<void> {
+  try {
+    await browser.storage.local.set({
+      [STORAGE_KEYS.URL_SYNC_ENABLED]: enabled,
+    });
+  } catch (error) {
+    console.error('Failed to save URL sync enabled state:', error);
+  }
+}
+
+/**
+ * Load URL sync enabled state
+ * @returns Whether URL synchronization is enabled (default: true)
+ */
+export async function loadUrlSyncEnabled(): Promise<boolean> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.URL_SYNC_ENABLED);
+    return result[STORAGE_KEYS.URL_SYNC_ENABLED] !== undefined
+      ? (result[STORAGE_KEYS.URL_SYNC_ENABLED] as boolean)
+      : true; // Default to enabled
+  } catch (error) {
+    console.error('Failed to load URL sync enabled state:', error);
+    return true;
   }
 }
 

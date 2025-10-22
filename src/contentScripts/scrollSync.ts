@@ -9,7 +9,7 @@
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { getManualScrollOffset } from '~/shared/lib/storage';
+import { getManualScrollOffset, loadUrlSyncEnabled } from '~/shared/lib/storage';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
 import { hidePanel, showPanel } from './panel';
@@ -556,7 +556,7 @@ export function initScrollSync() {
   });
 
   // Listen for URL sync from other tabs (P1)
-  onMessage('url:sync', ({ data }) => {
+  onMessage('url:sync', async ({ data }) => {
     if (!isSyncActive) return;
 
     const payload = data as { url: string; sourceTabId: number };
@@ -564,10 +564,39 @@ export function initScrollSync() {
     // Don't navigate if this is the source tab
     if (payload.sourceTabId === currentTabId) return;
 
+    // Check if URL sync is enabled
+    const urlSyncEnabled = await loadUrlSyncEnabled();
+    if (!urlSyncEnabled) {
+      logger.debug('URL sync is disabled, ignoring navigation request');
+      return;
+    }
+
     logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
 
-    // Navigate to the new URL
-    window.location.href = payload.url;
+    try {
+      // Parse URLs to preserve target's hash fragment
+      const sourceUrl = new URL(payload.url);
+      const targetUrl = new URL(window.location.href);
+
+      // Build new URL: source's base (origin + pathname + search) + target's hash
+      const newBase = `${sourceUrl.origin}${sourceUrl.pathname}${sourceUrl.search}`;
+      const finalUrl = newBase + targetUrl.hash;
+
+      logger.debug('URL sync with hash preservation', {
+        sourceUrl: payload.url,
+        targetHash: targetUrl.hash,
+        finalUrl,
+      });
+
+      // Navigate to the new URL with preserved hash
+      window.location.href = finalUrl;
+    } catch (error) {
+      // Fallback: use source URL as-is if parsing fails
+      logger.warn('Failed to parse URL for hash preservation, using source URL directly', {
+        error,
+      });
+      window.location.href = payload.url;
+    }
   });
 
   logger.info('Scroll sync initialized');
