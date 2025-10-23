@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
 import { createRoot } from 'react-dom/client';
+
 import { loadUrlSyncEnabled, saveUrlSyncEnabled } from '~/shared/lib/storage';
 
 import { SyncControlPanel } from './components';
@@ -92,11 +93,35 @@ export function showPanel() {
   appContainer.id = 'scroll-sync-app';
   shadowRoot.appendChild(appContainer);
 
-  // Inject styles into shadow DOM
-  Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).forEach((el) => {
-    const cloned = el.cloneNode(true);
-    styleContainer.appendChild(cloned);
-  });
+  // Function to inject styles into shadow DOM
+  const injectStyles = () => {
+    // Clear existing styles
+    styleContainer.innerHTML = '';
+
+    // Clone all style tags and link elements
+    Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).forEach((el) => {
+      const cloned = el.cloneNode(true) as HTMLElement;
+      styleContainer.appendChild(cloned);
+    });
+
+    // Add base styles for better visibility
+    const baseStyle = document.createElement('style');
+    baseStyle.textContent = `
+      * {
+        box-sizing: border-box;
+      }
+      :host {
+        all: initial;
+      }
+    `;
+    styleContainer.appendChild(baseStyle);
+  };
+
+  // Inject styles immediately
+  injectStyles();
+
+  // Re-inject styles after a short delay to catch any late-loaded styles
+  setTimeout(injectStyles, 100);
 
   // Create React root and render
   panelRoot = createRoot(appContainer);
@@ -106,7 +131,8 @@ export function showPanel() {
   const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-        const hasManualMode = document.documentElement.classList.contains('scroll-sync-manual-mode');
+        const hasManualMode =
+          document.documentElement.classList.contains('scroll-sync-manual-mode');
         if (manualModeIndicator) {
           manualModeIndicator.style.opacity = hasManualMode ? '1' : '0';
         }

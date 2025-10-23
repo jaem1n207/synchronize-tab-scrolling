@@ -19,30 +19,30 @@ export const SyncControlPanel = React.forwardRef<HTMLDivElement, SyncControlPane
       <div
         ref={ref}
         className={cn(
-          'fixed top-4 right-4 z-[2147483647]',
+          'fixed top-4 right-4 z-[2147483647] pointer-events-auto',
           'animate-in fade-in slide-in-from-top-2 duration-300',
           className,
         )}
       >
-        <Card className="w-80 backdrop-blur-lg bg-background/95 shadow-lg border-border/50">
-          <CardContent className="p-4">
+        <Card className="w-80 backdrop-blur-xl bg-background/95 shadow-2xl border-border/60 hover:shadow-blue-500/20 transition-shadow duration-200">
+          <CardContent className="p-5">
             <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-1.5">
                 <Label
-                  className="text-sm font-medium leading-none cursor-pointer"
+                  className="text-sm font-semibold leading-none cursor-pointer text-foreground"
                   htmlFor={switchId}
                 >
                   Sync URL Navigation
                 </Label>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Preserves query parameters and hash fragments
+                  Preserves query parameters and hash fragments across tabs
                 </p>
               </div>
               <Switch
                 aria-describedby={`${switchId}-description`}
                 aria-label="Toggle URL navigation synchronization"
                 checked={urlSyncEnabled}
-                className="mt-0.5"
+                className="mt-0.5 data-[state=checked]:bg-blue-500"
                 id={switchId}
                 onCheckedChange={onToggle}
               />
