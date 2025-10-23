@@ -39,24 +39,27 @@ export function showPanel() {
     return;
   }
 
-  // Create container with highest z-index and pointer events enabled for panel interaction
+  // Create root container following Vercel toolbar pattern
   panelContainer = document.createElement('div');
   panelContainer.id = 'scroll-sync-panel-root';
-  panelContainer.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 2147483647;
-  `;
+  panelContainer.className = 'tailwind tailwind-no-preflight';
+  panelContainer.setAttribute('style', 'all: revert;');
 
   // Append to body
   document.body.appendChild(panelContainer);
 
   // Create shadow DOM for style isolation
   const shadowRoot = panelContainer.attachShadow({ mode: 'open' });
+
+  // Create theme wrapper
+  const themeWrapper = document.createElement('div');
+  themeWrapper.className = 'dark-theme';
+  shadowRoot.appendChild(themeWrapper);
+
+  // Create content wrapper with pointer events
+  const contentWrapper = document.createElement('div');
+  contentWrapper.setAttribute('style', 'display: contents; pointer-events: auto;');
+  themeWrapper.appendChild(contentWrapper);
 
   // Create manual mode visual indicator
   manualModeIndicator = document.createElement('div');
@@ -74,24 +77,16 @@ export function showPanel() {
     transition: opacity 0.2s ease-in-out;
     z-index: 2147483646;
   `;
-  shadowRoot.appendChild(manualModeIndicator);
+  contentWrapper.appendChild(manualModeIndicator);
 
   // Create style container
   const styleContainer = document.createElement('div');
-  shadowRoot.appendChild(styleContainer);
+  contentWrapper.appendChild(styleContainer);
 
-  // Create app container - enable pointer events for the panel itself
+  // Create app container
   const appContainer = document.createElement('div');
-  appContainer.style.cssText = `
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-  `;
   appContainer.id = 'scroll-sync-app';
-  shadowRoot.appendChild(appContainer);
+  contentWrapper.appendChild(appContainer);
 
   // Function to inject styles into shadow DOM
   const injectStyles = () => {
@@ -104,14 +99,26 @@ export function showPanel() {
       styleContainer.appendChild(cloned);
     });
 
-    // Add base styles for better visibility
+    // Add critical base styles for Shadow DOM
     const baseStyle = document.createElement('style');
     baseStyle.textContent = `
+      :host {
+        all: initial;
+        display: block;
+      }
+
       * {
         box-sizing: border-box;
       }
-      :host {
-        all: initial;
+
+      /* Ensure high z-index for overlays */
+      .geist-overlay {
+        z-index: 100000000001;
+      }
+
+      .geist-overlay-backdrop {
+        z-index: 10000000000;
+        pointer-events: auto;
       }
     `;
     styleContainer.appendChild(baseStyle);
@@ -122,6 +129,7 @@ export function showPanel() {
 
   // Re-inject styles after a short delay to catch any late-loaded styles
   setTimeout(injectStyles, 100);
+  setTimeout(injectStyles, 500);
 
   // Create React root and render
   panelRoot = createRoot(appContainer);
