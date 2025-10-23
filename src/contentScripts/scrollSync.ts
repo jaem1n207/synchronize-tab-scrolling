@@ -574,25 +574,26 @@ export function initScrollSync() {
     logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
 
     try {
-      // Parse URLs to preserve target's hash fragment
+      // Parse URLs to preserve target's query parameters and hash fragment
       const sourceUrl = new URL(payload.url);
       const targetUrl = new URL(window.location.href);
 
-      // Build new URL: source's base (origin + pathname + search) + target's hash
-      const newBase = `${sourceUrl.origin}${sourceUrl.pathname}${sourceUrl.search}`;
-      const finalUrl = newBase + targetUrl.hash;
+      // Build new URL: source's base (origin + pathname) + target's query + target's hash
+      const newBase = `${sourceUrl.origin}${sourceUrl.pathname}`;
+      const finalUrl = newBase + targetUrl.search + targetUrl.hash;
 
-      logger.debug('URL sync with hash preservation', {
+      logger.debug('URL sync with query and hash preservation', {
         sourceUrl: payload.url,
+        targetSearch: targetUrl.search,
         targetHash: targetUrl.hash,
         finalUrl,
       });
 
-      // Navigate to the new URL with preserved hash
+      // Navigate to the new URL with preserved query and hash
       window.location.href = finalUrl;
     } catch (error) {
       // Fallback: use source URL as-is if parsing fails
-      logger.warn('Failed to parse URL for hash preservation, using source URL directly', {
+      logger.warn('Failed to parse URL for query/hash preservation, using source URL directly', {
         error,
       });
       window.location.href = payload.url;
