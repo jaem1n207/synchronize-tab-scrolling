@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
@@ -19,7 +19,7 @@ import { ActionsMenu } from './ActionsMenu';
 import { ErrorNotification } from './ErrorNotification';
 import { FooterInfo } from './FooterInfo';
 import { SyncControlButtons } from './SyncControlButtons';
-import { TabCommandPalette } from './TabCommandPalette';
+import { TabCommandPalette, type TabCommandPaletteHandle } from './TabCommandPalette';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 import type { SortOption } from '../types/filters';
@@ -35,6 +35,9 @@ export function ScrollSyncPopup() {
   const [currentTabId, setCurrentTabId] = useState<number>();
   const [error, setError] = useState<ErrorState | null>(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+
+  // Ref for search input focus management
+  const searchInputRef = useRef<TabCommandPaletteHandle>(null);
 
   // Persistent preferences
   const [sortBy, setSortBy] = usePersistentState<SortOption>(
@@ -329,7 +332,11 @@ export function ScrollSyncPopup() {
     [selectedTabIds],
   );
 
-  const handleStart = useCallback(() => handleStartWithRetry(false), [handleStartWithRetry]);
+  const handleStart = useCallback(() => {
+    handleStartWithRetry(false);
+    // Restore focus to search input after action
+    setTimeout(() => searchInputRef.current?.focus(), 100);
+  }, [handleStartWithRetry]);
 
   const handleStop = useCallback(async () => {
     setError(null);
@@ -355,7 +362,7 @@ export function ScrollSyncPopup() {
       await Promise.race([
         stopPromise,
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Stop operation timed out after 5 seconds')), 5000),
+          setTimeout(() => reject(new Error('Stop operation timed out after 2 seconds')), 2_000),
         ),
       ]);
 
@@ -387,6 +394,9 @@ export function ScrollSyncPopup() {
         timestamp: Date.now(),
       });
     }
+
+    // Restore focus to search input after action
+    setTimeout(() => searchInputRef.current?.focus(), 100);
   }, [syncStatus.connectedTabs]);
 
   const handleResync = useCallback(() => {
@@ -402,6 +412,9 @@ export function ScrollSyncPopup() {
       ...prev,
       connectionStatuses: newStatuses,
     }));
+
+    // Restore focus to search input after action
+    setTimeout(() => searchInputRef.current?.focus(), 100);
   }, [syncStatus.connectionStatuses]);
 
   const handleDismissError = useCallback(() => {
@@ -490,6 +503,13 @@ export function ScrollSyncPopup() {
     (status) => status === 'disconnected' || status === 'error',
   );
 
+  // Restore focus to search input when ActionsMenu closes
+  useEffect(() => {
+    if (!actionsMenuOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [actionsMenuOpen]);
+
   return (
     <div className="w-480px h-600px flex flex-col relative">
       {error && (
@@ -502,6 +522,7 @@ export function ScrollSyncPopup() {
         {/* Tab Selection */}
         <section aria-labelledby="tab-selection-heading" className="flex-1 flex flex-col min-h-0">
           <TabCommandPalette
+            ref={searchInputRef}
             currentTabId={currentTabId}
             isSyncActive={syncStatus.isActive}
             selectedTabIds={selectedTabIds}
