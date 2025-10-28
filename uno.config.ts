@@ -19,7 +19,7 @@ export default defineConfig({
     presetAttributify(),
     presetIcons(),
     presetAnimations(),
-    presetShadcn({ color: 'blue' }),
+    presetShadcn({ color: 'neutral' }),
   ],
   rules: [
     // timing function credit: https://www.joshwcomeau.com/animation/css-transitions/#custom-curves-7
