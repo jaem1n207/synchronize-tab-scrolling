@@ -223,7 +223,7 @@ async function sendMessageWithTimeout<T>(
   messageId: string,
   data: unknown,
   destination: { context: 'content-script'; tabId: number },
-  timeoutMs: number = 5000,
+  timeoutMs: number = 2_000,
 ): Promise<T> {
   return Promise.race([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -259,7 +259,7 @@ onMessage('scroll:start', async ({ data }) => {
         'scroll:start',
         { ...payload, currentTabId: tabId },
         { context: 'content-script', tabId },
-        5000, // 5 second timeout
+        2_000, // 2 second timeout
       );
 
       // Validate acknowledgment
