@@ -21,16 +21,11 @@ function MyContentScript() {
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(false);
 
   const handleToggle = () => {
-    setUrlSyncEnabled(prev => !prev);
+    setUrlSyncEnabled((prev) => !prev);
     // Add your synchronization logic here
   };
 
-  return (
-    <SyncControlPanel
-      urlSyncEnabled={urlSyncEnabled}
-      onToggle={handleToggle}
-    />
-  );
+  return <SyncControlPanel urlSyncEnabled={urlSyncEnabled} onToggle={handleToggle} />;
 }
 ```
 
@@ -38,15 +33,16 @@ function MyContentScript() {
 
 ### `SyncControlPanelProps`
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `urlSyncEnabled` | `boolean` | Yes | Current state of URL sync (checked/unchecked) |
-| `onToggle` | `() => void` | Yes | Callback function called when switch is toggled |
-| `className` | `string` | No | Optional CSS classes for custom styling |
+| Prop             | Type         | Required | Description                                     |
+| ---------------- | ------------ | -------- | ----------------------------------------------- |
+| `urlSyncEnabled` | `boolean`    | Yes      | Current state of URL sync (checked/unchecked)   |
+| `onToggle`       | `() => void` | Yes      | Callback function called when switch is toggled |
+| `className`      | `string`     | No       | Optional CSS classes for custom styling         |
 
 ## Styling
 
 The component uses:
+
 - **Positioning**: Fixed position at top-right corner with 16px margin
 - **Z-index**: Maximum value (2147483647) to ensure it stays on top
 - **Background**: Semi-transparent with backdrop blur for modern glass effect
@@ -117,14 +113,14 @@ function ContentScriptApp() {
     // Send message to background script
     chrome.runtime.sendMessage({
       type: 'URL_SYNC_TOGGLE',
-      enabled: urlSyncEnabled
+      enabled: urlSyncEnabled,
     });
   }, [urlSyncEnabled]);
 
   return (
     <SyncControlPanel
       urlSyncEnabled={urlSyncEnabled}
-      onToggle={() => setUrlSyncEnabled(prev => !prev)}
+      onToggle={() => setUrlSyncEnabled((prev) => !prev)}
     />
   );
 }

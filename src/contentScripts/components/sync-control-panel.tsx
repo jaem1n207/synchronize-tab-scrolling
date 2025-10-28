@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Menu, Settings2 } from 'lucide-react';
 
 import { Badge } from '~/shared/components/ui/badge';
@@ -12,8 +13,8 @@ import {
   CommandItem,
   CommandList,
 } from '~/shared/components/ui/command';
-import { Dialog, DialogContent, DialogTitle } from '~/shared/components/ui/dialog';
 import { Kbd } from '~/shared/components/ui/kbd';
+import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
 import { cn } from '~/shared/lib/utils';
 
@@ -30,291 +31,346 @@ interface Position {
 
 const BUTTON_SIZE = 36;
 const DRAG_HANDLE_SIZE = 60;
-const EDGE_MARGIN = 8;
+const EDGE_MARGIN = 32; // Distance from screen edge
 
-export const SyncControlPanel = React.forwardRef<HTMLDivElement, SyncControlPanelProps>(
-  ({ urlSyncEnabled, onToggle, className }, ref) => {
-    const [isOpen, setIsOpen] = React.useState(false);
-    const [position, setPosition] = React.useState<Position>({ x: EDGE_MARGIN, y: EDGE_MARGIN });
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [dragOffset, setDragOffset] = React.useState<Position>({ x: 0, y: 0 });
-    const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
+// Custom PopoverContent with container support for Shadow DOM
+const CustomPopoverContent = React.forwardRef<
+  React.ElementRef<typeof PopoverPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+    container?: HTMLElement | null;
+  }
+>(({ className, align = 'start', sideOffset = 8, container, ...props }, ref) => (
+  <PopoverPrimitive.Portal container={container}>
+    <PopoverPrimitive.Content
+      ref={ref}
+      align={align}
+      className={cn(
+        'z-[2147483647] w-96 rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl p-0',
+        'outline-none data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2',
+        'data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+        className,
+      )}
+      sideOffset={sideOffset}
+      {...props}
+    />
+  </PopoverPrimitive.Portal>
+));
+CustomPopoverContent.displayName = 'CustomPopoverContent';
 
-    const toolbarRef = React.useRef<HTMLDivElement>(null);
+export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
+  urlSyncEnabled,
+  onToggle,
+  className,
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [position, setPosition] = React.useState<Position>({ x: EDGE_MARGIN, y: EDGE_MARGIN });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [dragOffset, setDragOffset] = React.useState<Position>({ x: 0, y: 0 });
+  const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = React.useState<Position>({ x: 0, y: 0 });
 
-    const snapToEdge = React.useCallback((pos: Position): Position => {
-      const maxX = window.innerWidth - BUTTON_SIZE;
-      const maxY = window.innerHeight - BUTTON_SIZE;
+  const toolbarRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const wasDraggedRef = React.useRef<boolean>(false);
 
-      // Calculate distances to each edge
-      const distToLeft = pos.x;
-      const distToRight = maxX - pos.x;
-      const distToTop = pos.y;
-      const distToBottom = maxY - pos.y;
+  const snapToEdge = React.useCallback((pos: Position): Position => {
+    const centerX = window.innerWidth / 2;
+    const maxY = window.innerHeight - BUTTON_SIZE;
 
-      // Find closest edge
-      const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+    // Snap X to left or right edge based on which half of screen
+    const isLeftSide = pos.x < centerX;
+    const snappedX = isLeftSide ? EDGE_MARGIN : window.innerWidth - BUTTON_SIZE - EDGE_MARGIN;
 
-      let snappedX = pos.x;
-      let snappedY = pos.y;
+    // Keep Y position, allow full height movement (no EDGE_MARGIN on Y axis)
+    const snappedY = Math.max(0, Math.min(pos.y, maxY));
 
-      // Snap to closest edge
-      if (minDist === distToLeft) {
-        snappedX = EDGE_MARGIN;
-      } else if (minDist === distToRight) {
-        snappedX = maxX - EDGE_MARGIN;
-      }
+    return { x: snappedX, y: snappedY };
+  }, []);
 
-      if (minDist === distToTop) {
-        snappedY = EDGE_MARGIN;
-      } else if (minDist === distToBottom) {
-        snappedY = maxY - EDGE_MARGIN;
-      }
+  const constrainPosition = React.useCallback((pos: Position): Position => {
+    const maxX = window.innerWidth - BUTTON_SIZE;
+    const maxY = window.innerHeight - BUTTON_SIZE;
 
-      return { x: snappedX, y: snappedY };
-    }, []);
+    return {
+      x: Math.max(0, Math.min(pos.x, maxX)),
+      y: Math.max(0, Math.min(pos.y, maxY)),
+    };
+  }, []);
 
-    const constrainPosition = React.useCallback((pos: Position): Position => {
-      const maxX = window.innerWidth - BUTTON_SIZE;
-      const maxY = window.innerHeight - BUTTON_SIZE;
+  const handleMouseDown = React.useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
 
-      return {
-        x: Math.max(0, Math.min(pos.x, maxX)),
-        y: Math.max(0, Math.min(pos.y, maxY)),
-      };
-    }, []);
+      setDragStartPos({ x: e.clientX, y: e.clientY });
+      setDragOffset({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      });
+      setIsDragging(true);
+    },
+    [position],
+  );
 
-    const handleMouseDown = React.useCallback(
-      (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-
-        setDragOffset({
-          x: e.clientX - position.x,
-          y: e.clientY - position.y,
-        });
-        setIsDragging(true);
-      },
-      [position],
-    );
-
-    const handleMouseMove = React.useCallback(
-      (e: MouseEvent) => {
-        if (!isDragging) return;
-
-        // Use transform for smooth dragging performance
-        const newPosition = constrainPosition({
-          x: e.clientX - dragOffset.x,
-          y: e.clientY - dragOffset.y,
-        });
-
-        setDragTransform(newPosition);
-      },
-      [isDragging, dragOffset, constrainPosition],
-    );
-
-    const handleMouseUp = React.useCallback(() => {
+  const handleMouseMove = React.useCallback(
+    (e: MouseEvent) => {
       if (!isDragging) return;
 
-      // Snap to nearest edge and set final position
-      const snappedPosition = snapToEdge(dragTransform);
-      setPosition(snappedPosition);
+      // Use transform for smooth dragging performance
+      const newPosition = constrainPosition({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y,
+      });
+
+      setDragTransform(newPosition);
+    },
+    [isDragging, dragOffset, constrainPosition],
+  );
+
+  const handleMouseUp = React.useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      // Calculate drag distance
+      const dragDistance = Math.sqrt(
+        Math.pow(e.clientX - dragStartPos.x, 2) + Math.pow(e.clientY - dragStartPos.y, 2),
+      );
+
+      // Only snap to edge if user actually dragged (>5px)
+      if (dragDistance > 5) {
+        const snappedPosition = snapToEdge(dragTransform);
+        setPosition(snappedPosition);
+
+        // Mark as dragged to prevent popover from opening
+        wasDraggedRef.current = true;
+        setTimeout(() => {
+          wasDraggedRef.current = false;
+        }, 100);
+      }
+
       setDragTransform({ x: 0, y: 0 });
       setIsDragging(false);
-    }, [isDragging, dragTransform, snapToEdge]);
+    },
+    [isDragging, dragTransform, snapToEdge, dragStartPos],
+  );
 
-    const handleClick = React.useCallback(
-      (e: React.MouseEvent<HTMLButtonElement>) => {
-        if (isDragging) {
+  const handleOpenChange = React.useCallback((open: boolean) => {
+    // Prevent opening if user just dragged
+    if (open && wasDraggedRef.current) {
+      return;
+    }
+    setIsOpen(open);
+  }, []);
+
+  React.useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setPosition((prev) => constrainPosition(prev));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [constrainPosition]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+        const hasModifier = e.key === 'Control';
+        if (hasModifier || isOpen) {
           e.preventDefault();
-          e.stopPropagation();
-          return;
+          setIsOpen((prev) => !prev);
         }
-        setIsOpen(true);
-      },
-      [isDragging],
-    );
-
-    React.useEffect(() => {
-      if (isDragging) {
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-
-        return () => {
-          document.removeEventListener('mousemove', handleMouseMove);
-          document.removeEventListener('mouseup', handleMouseUp);
-        };
       }
-    }, [isDragging, handleMouseMove, handleMouseUp]);
 
-    React.useEffect(() => {
-      const handleResize = () => {
-        setPosition((prev) => constrainPosition(prev));
-      };
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
 
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }, [constrainPosition]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
-    React.useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
-          const hasModifier = e.key === 'Control';
-          if (hasModifier || isOpen) {
-            e.preventDefault();
-            setIsOpen((prev) => !prev);
-          }
-        }
+  // Calculate popover side based on button position
+  const popoverSide = position.x < window.innerWidth / 2 ? 'right' : 'left';
 
-        if (e.key === 'Escape' && isOpen) {
-          setIsOpen(false);
-        }
-      };
+  return (
+    <div ref={containerRef} className={cn('pointer-events-none', className)}>
+      {/* Drag handle area (60px) */}
+      <div
+        ref={toolbarRef}
+        className={cn(
+          'fixed pointer-events-auto z-[2147483647]',
+          'flex items-center justify-center',
+          isDragging && 'cursor-grabbing',
+          !isDragging && 'cursor-grab',
+        )}
+        role="presentation"
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${DRAG_HANDLE_SIZE}px`,
+          height: `${DRAG_HANDLE_SIZE}px`,
+          transform: isDragging
+            ? `translate(${dragTransform.x - position.x}px, ${dragTransform.y - position.y}px)`
+            : 'none',
+          userSelect: 'none',
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        <Popover open={isOpen} onOpenChange={handleOpenChange}>
+          <PopoverTrigger asChild>
+            {/* Button (36px) */}
+            <Button
+              aria-label="Open sync control panel"
+              className={cn(
+                'rounded-full shadow-lg backdrop-blur-md p-0',
+                'bg-black/80 hover:bg-black/90',
+                'border border-white/20',
+                'transition-all duration-200',
+                !isDragging && 'hover:scale-110 hover:shadow-xl',
+                'group relative flex items-center justify-center',
+              )}
+              style={{
+                width: `${BUTTON_SIZE}px`,
+                height: `${BUTTON_SIZE}px`,
+                minWidth: `${BUTTON_SIZE}px`,
+                minHeight: `${BUTTON_SIZE}px`,
+              }}
+              tabIndex={-1}
+              type="button"
+            >
+              <Menu className="h-4 w-4 text-white" />
 
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen]);
-
-    return (
-      <div ref={ref} className={cn('pointer-events-none', className)}>
-        {/* Drag handle area (60px) */}
-        <div
-          ref={toolbarRef}
-          className={cn(
-            'fixed pointer-events-auto z-[2147483647]',
-            'flex items-center justify-center',
-            isDragging && 'cursor-grabbing',
-            !isDragging && 'cursor-grab',
-          )}
-          role="presentation"
-          style={{
-            left: `${position.x}px`,
-            top: `${position.y}px`,
-            width: `${DRAG_HANDLE_SIZE}px`,
-            height: `${DRAG_HANDLE_SIZE}px`,
-            transform: isDragging
-              ? `translate(${dragTransform.x - position.x}px, ${dragTransform.y - position.y}px)`
-              : 'none',
-          }}
-          onMouseDown={handleMouseDown}
-        >
-          {/* Button (36px) */}
-          <Button
-            aria-label="Open sync control panel"
-            className={cn(
-              'rounded-full shadow-lg backdrop-blur-md',
-              'bg-black/80 hover:bg-black/90',
-              'border border-white/20',
-              'transition-all duration-200',
-              !isDragging && 'hover:scale-110 hover:shadow-xl',
-              'group relative',
-            )}
-            size="icon"
-            style={{
-              width: `${BUTTON_SIZE}px`,
-              height: `${BUTTON_SIZE}px`,
-            }}
-            onClick={handleClick}
-          >
-            <Menu className="h-4 w-4 text-white" />
-
-            {/* Status badge */}
-            <div className="absolute -bottom-0.5 -right-0.5">
-              <Badge
-                className={cn(
-                  'h-3 w-3 rounded-full p-0 flex items-center justify-center',
-                  'border-2 border-black',
-                  'transition-colors duration-200',
-                  urlSyncEnabled ? 'bg-blue-500' : 'bg-gray-400',
-                )}
-                variant="default"
-              >
-                <span className="sr-only">{urlSyncEnabled ? 'Active' : 'Inactive'}</span>
-              </Badge>
-            </div>
-
-            {/* Keyboard shortcut tooltip */}
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
-              <div className="bg-black/90 text-white px-2 py-1 rounded text-xs backdrop-blur-sm flex items-center gap-1">
-                <Kbd className="bg-white/20 text-white text-xs px-1">⌃</Kbd>
+              {/* Status badge */}
+              <div className="absolute -bottom-0.5 -right-0.5">
+                <Badge
+                  className={cn(
+                    'h-3 w-3 rounded-full p-0 flex items-center justify-center',
+                    'border-2 border-black',
+                    'transition-colors duration-200',
+                    urlSyncEnabled ? 'bg-blue-500' : 'bg-gray-400',
+                  )}
+                  variant="default"
+                >
+                  <span className="sr-only">{urlSyncEnabled ? 'Active' : 'Inactive'}</span>
+                </Badge>
               </div>
-            </div>
-          </Button>
-        </div>
 
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="sm:max-w-md backdrop-blur-xl bg-background/95 border-border/60 shadow-2xl">
-            <DialogTitle className="sr-only">Sync Control Settings</DialogTitle>
+              {/* Keyboard shortcut tooltip */}
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+                <div className="bg-black/90 text-white px-2 py-1 rounded text-xs backdrop-blur-sm flex items-center gap-1">
+                  <Kbd className="bg-white/20 text-white text-xs px-1">⌃</Kbd>
+                </div>
+              </div>
+            </Button>
+          </PopoverTrigger>
+
+          <CustomPopoverContent container={containerRef.current} side={popoverSide}>
             <Command className="rounded-lg border-none shadow-none">
-              <CommandInput placeholder="Search settings..." />
-              <CommandList>
+              <div className="border-b border-border/50 px-3 py-2">
+                <div className="text-xs font-medium text-muted-foreground">Scroll Sync Toolbar</div>
+              </div>
+              <CommandInput className="border-none" placeholder="Search settings..." />
+              <CommandList className="max-h-[400px]">
                 <CommandEmpty>No settings found.</CommandEmpty>
-                <CommandGroup heading="Synchronization Settings">
+
+                <CommandGroup heading="Settings">
                   <CommandItem
-                    className="flex items-center justify-between py-3 cursor-pointer"
+                    className="flex items-center justify-between py-3 px-4 cursor-pointer aria-selected:bg-accent"
                     onSelect={() => {
                       onToggle();
                     }}
                   >
-                    <div className="flex items-center gap-3">
-                      <Settings2 className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+                        <Settings2 className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex flex-col gap-0.5 flex-1">
                         <span className="text-sm font-medium">URL Sync Navigation</span>
                         <span className="text-xs text-muted-foreground">
-                          Sync query parameters and hash fragments
+                          Preserve query parameters and hash fragments across tabs
                         </span>
                       </div>
                     </div>
-                    <Switch
-                      checked={urlSyncEnabled}
-                      className="data-[state=checked]:bg-blue-500"
-                      onCheckedChange={(checked) => {
-                        if (checked !== urlSyncEnabled) {
-                          onToggle();
-                        }
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <div className="flex items-center gap-2">
+                      {urlSyncEnabled && (
+                        <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
+                          On
+                        </Badge>
+                      )}
+                      {!urlSyncEnabled && (
+                        <Badge className="text-muted-foreground" variant="outline">
+                          Off
+                        </Badge>
+                      )}
+                      <Switch
+                        checked={urlSyncEnabled}
+                        className="data-[state=checked]:bg-primary"
+                        onCheckedChange={(checked) => {
+                          if (checked !== urlSyncEnabled) {
+                            onToggle();
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
                   </CommandItem>
 
-                  <CommandItem className="flex items-center justify-between py-3 opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-3">
-                      <Menu className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex flex-col gap-1">
+                  <CommandItem className="flex items-center justify-between py-3 px-4 opacity-60 cursor-not-allowed">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+                        <Menu className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex flex-col gap-0.5 flex-1">
                         <span className="text-sm font-medium">Scroll Synchronization</span>
                         <span className="text-xs text-muted-foreground">
-                          Currently {urlSyncEnabled ? 'active' : 'inactive'}
+                          Synchronized scrolling is {urlSyncEnabled ? 'active' : 'inactive'}
                         </span>
                       </div>
                     </div>
-                    <Badge
-                      className={cn(
-                        urlSyncEnabled ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400',
-                      )}
-                      variant="default"
-                    >
-                      {urlSyncEnabled ? 'Active' : 'Inactive'}
-                    </Badge>
+                    {urlSyncEnabled && (
+                      <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
+                        Active
+                      </Badge>
+                    )}
+                    {!urlSyncEnabled && (
+                      <Badge className="text-muted-foreground" variant="outline">
+                        Inactive
+                      </Badge>
+                    )}
                   </CommandItem>
                 </CommandGroup>
 
                 <CommandGroup heading="Keyboard Shortcuts">
-                  <CommandItem className="justify-between cursor-default opacity-60">
+                  <CommandItem className="justify-between cursor-default opacity-60 px-4">
                     <span className="text-sm">Toggle Panel</span>
-                    <Kbd className="text-xs">⌃</Kbd>
+                    <Kbd className="text-xs bg-muted">⌃</Kbd>
                   </CommandItem>
-                  <CommandItem className="justify-between cursor-default opacity-60">
+                  <CommandItem className="justify-between cursor-default opacity-60 px-4">
                     <span className="text-sm">Close Panel</span>
-                    <Kbd className="text-xs">Esc</Kbd>
+                    <Kbd className="text-xs bg-muted">Esc</Kbd>
                   </CommandItem>
                 </CommandGroup>
               </CommandList>
             </Command>
-          </DialogContent>
-        </Dialog>
+          </CustomPopoverContent>
+        </Popover>
       </div>
-    );
-  },
-);
-
-SyncControlPanel.displayName = 'SyncControlPanel';
+    </div>
+  );
+};

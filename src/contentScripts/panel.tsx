@@ -51,14 +51,26 @@ export function showPanel() {
   // Create shadow DOM for style isolation
   const shadowRoot = panelContainer.attachShadow({ mode: 'open' });
 
-  // Create theme wrapper
+  // Create theme wrapper with proper stacking context
   const themeWrapper = document.createElement('div');
   themeWrapper.className = 'dark-theme';
+  themeWrapper.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2147483647;
+  `;
   shadowRoot.appendChild(themeWrapper);
 
   // Create content wrapper with pointer events
   const contentWrapper = document.createElement('div');
-  contentWrapper.setAttribute('style', 'display: contents; pointer-events: auto;');
+  contentWrapper.setAttribute(
+    'style',
+    'pointer-events: auto; position: relative; width: 100%; height: 100%;',
+  );
   themeWrapper.appendChild(contentWrapper);
 
   // Create manual mode visual indicator

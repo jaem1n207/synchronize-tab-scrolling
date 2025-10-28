@@ -15,10 +15,7 @@
 ```tsx
 import { SyncControlPanel } from '~/contentScripts/components';
 
-<SyncControlPanel
-  urlSyncEnabled={true}
-  onToggle={() => console.log('Toggled')}
-/>
+<SyncControlPanel urlSyncEnabled={true} onToggle={() => console.log('Toggled')} />;
 ```
 
 ## Component Structure
@@ -53,11 +50,11 @@ SyncControlPanel (320px × auto)
 
 ## Props
 
-| Prop | Type | Required |
-|------|------|----------|
-| `urlSyncEnabled` | `boolean` | ✅ |
-| `onToggle` | `() => void` | ✅ |
-| `className` | `string` | ❌ |
+| Prop             | Type         | Required |
+| ---------------- | ------------ | -------- |
+| `urlSyncEnabled` | `boolean`    | ✅       |
+| `onToggle`       | `() => void` | ✅       |
+| `className`      | `string`     | ❌       |
 
 ## Dependencies Added
 
