@@ -5,16 +5,16 @@ pre-commit:
       glob: '**/*.{ts,tsx}'
       exclude: '{node_modules,extension/dist,build,dist}/**/*'
       run: |
-        bun x prettier --write {staged_files} &&
-        NODE_OPTIONS='--experimental-strip-types' bun x eslint {staged_files} --fix --flag unstable_native_nodejs_ts_config --max-warnings=0
+        bunx prettier --write {staged_files} &&
+        NODE_OPTIONS='--experimental-strip-types' bunx eslint {staged_files} --fix --flag unstable_native_nodejs_ts_config --max-warnings=0
     format-others:
       glob: '**/*.{json,md,mdx,css,html,yml,yaml,scss}'
       exclude: '{node_modules,extension/dist,build,dist,pnpm-lock.yaml}/**/*'
-      run: bun x prettier --write {staged_files}
+      run: bunx prettier --write {staged_files}
     typecheck:
       glob: '**/*.{ts,tsx}'
       exclude: '{node_modules,extension/dist,build,dist}/**/*'
-      run: bun x tsc --noEmit
+      run: bunx tsc --noEmit
 
 # 종속성 변경 시 패키지 업데이트
 post-merge:
@@ -31,8 +31,8 @@ health:
   parallel: true
   commands:
     lint:
-      run: NODE_OPTIONS='--experimental-strip-types' bun x eslint . --fix --flag unstable_native_nodejs_ts_config
+      run: NODE_OPTIONS='--experimental-strip-types' bunx eslint . --fix --flag unstable_native_nodejs_ts_config
     format:
-      run: bun x prettier --write .
+      run: bunx prettier --write .
     typecheck:
-      run: bun x tsc --noEmit
+      run: bunx tsc --noEmit
