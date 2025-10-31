@@ -510,8 +510,30 @@ export function ScrollSyncPopup() {
     }
   }, [actionsMenuOpen]);
 
+  // Restore focus when clicking non-interactive areas
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+
+    // Check if clicked element is interactive (button, input, link, or has interactive role)
+    // Note: [role="option"] removed to allow focus restoration after CommandItem clicks
+    const isInteractive = target.closest(
+      'button, input, a, textarea, select, [role="button"], [role="checkbox"], [role="switch"], [role="menuitem"]',
+    );
+
+    // If not interactive, restore focus to search input
+    if (!isInteractive) {
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+  }, []);
+
   return (
-    <div className="w-480px h-600px flex flex-col relative">
+    // Container for focus management - not directly interactive
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      className="w-480px h-600px flex flex-col relative"
+      role="none"
+      onClick={handleContainerClick}
+    >
       {error && (
         <div className="absolute top-0 left-0 right-0 z-50 p-4">
           <ErrorNotification error={error} onDismiss={handleDismissError} />

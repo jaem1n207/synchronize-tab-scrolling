@@ -191,6 +191,7 @@ export const TabCommandPalette = forwardRef<TabCommandPaletteHandle, TabCommandP
                               className="shrink-0"
                               disabled={isSyncActive}
                               onCheckedChange={() => handleToggle(tab.id, tab.eligible)}
+                              onClick={(e) => e.stopPropagation()}
                             />
 
                             {tab.favIconUrl && (
