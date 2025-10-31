@@ -68,13 +68,13 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   const [isOpen, setIsOpen] = React.useState(false);
   const [position, setPosition] = React.useState<Position>({ x: EDGE_MARGIN, y: EDGE_MARGIN });
   const [isDragging, setIsDragging] = React.useState(false);
-  const [dragOffset, setDragOffset] = React.useState<Position>({ x: 0, y: 0 });
   const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = React.useState<Position>({ x: 0, y: 0 });
 
   const toolbarRef = React.useRef<HTMLDivElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const wasDraggedRef = React.useRef<boolean>(false);
+  const dragOffsetRef = React.useRef<Position>({ x: 0, y: 0 });
 
   const snapToEdge = React.useCallback((pos: Position): Position => {
     const centerX = window.innerWidth / 2;
@@ -106,10 +106,12 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
       e.preventDefault();
 
       setDragStartPos({ x: e.clientX, y: e.clientY });
-      setDragOffset({
+      dragOffsetRef.current = {
         x: e.clientX - position.x,
         y: e.clientY - position.y,
-      });
+      };
+      // Initialize dragTransform with current position to prevent jump on drag start
+      setDragTransform(position);
       setIsDragging(true);
     },
     [position],
@@ -121,13 +123,13 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
 
       // Use transform for smooth dragging performance
       const newPosition = constrainPosition({
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y,
+        x: e.clientX - dragOffsetRef.current.x,
+        y: e.clientY - dragOffsetRef.current.y,
       });
 
       setDragTransform(newPosition);
     },
-    [isDragging, dragOffset, constrainPosition],
+    [isDragging, constrainPosition],
   );
 
   const handleMouseUp = React.useCallback(
@@ -141,20 +143,25 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
 
       // Only snap to edge if user actually dragged (>5px)
       if (dragDistance > 5) {
-        const snappedPosition = snapToEdge(dragTransform);
+        // Calculate final position directly from mouse event using ref to get latest offset
+        const finalPosition = constrainPosition({
+          x: e.clientX - dragOffsetRef.current.x,
+          y: e.clientY - dragOffsetRef.current.y,
+        });
+        const snappedPosition = snapToEdge(finalPosition);
         setPosition(snappedPosition);
 
         // Mark as dragged to prevent popover from opening
         wasDraggedRef.current = true;
         setTimeout(() => {
           wasDraggedRef.current = false;
-        }, 100);
+        }, 50);
       }
 
       setDragTransform({ x: 0, y: 0 });
       setIsDragging(false);
     },
-    [isDragging, dragTransform, snapToEdge, dragStartPos],
+    [isDragging, constrainPosition, snapToEdge, dragStartPos],
   );
 
   const handleOpenChange = React.useCallback((open: boolean) => {
@@ -221,6 +228,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         )}
         role="presentation"
         style={{
+          position: 'fixed',
           left: `${position.x}px`,
           top: `${position.y}px`,
           width: `${DRAG_HANDLE_SIZE}px`,
