@@ -33,6 +33,16 @@ const BUTTON_SIZE = 36;
 const DRAG_HANDLE_SIZE = 60;
 const EDGE_MARGIN = 32; // Distance from screen edge
 
+/**
+ * TODO:
+ * - [ ] 패널 토글 기능
+ *    현재 동작: `CustomPopoverContent`가 열린 상태에서 다시 클릭하면 닫히지 않음. Drag Handle을 클릭하여 이동해야 닫히고 있음.
+ *    기대하는 동작: `CustomPopoverContent`가 열린 상태에서 다시 클릭하거나 Drag Handle을 클릭하여 이동하면 닫히도록 해야 함.
+ * - [ ] 패널 이동 기능
+ *    현재 동작: A, B 탭이 동기화 중이라 가정할 때, A 탭에서 패널을 이동 -> B 탭에서 패널이 이동하지 않음.
+ *    기대하는 동작: A 탭에서 패널을 이동하면 B 탭에서도 동일한 위치로 이동하는 것이 기대됨.
+ */
+
 // Custom PopoverContent with container support for Shadow DOM
 const CustomPopoverContent = React.forwardRef<
   React.ComponentRef<typeof PopoverPrimitive.Content>,
@@ -103,6 +113,10 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   const handleMouseDown = React.useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (e.button !== 0) return;
+
+      // Prevent dragging when popover is open
+      if (isOpen) return;
+
       e.preventDefault();
 
       setDragStartPos({ x: e.clientX, y: e.clientY });
@@ -114,7 +128,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
       setDragTransform(position);
       setIsDragging(true);
     },
-    [position],
+    [position, isOpen],
   );
 
   const handleMouseMove = React.useCallback(
