@@ -35,7 +35,7 @@ const EDGE_MARGIN = 32; // Distance from screen edge
 
 // Custom PopoverContent with container support for Shadow DOM
 const CustomPopoverContent = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Content>,
+  React.ComponentRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
     container?: HTMLElement | null;
   }

@@ -528,7 +528,7 @@ export function ScrollSyncPopup() {
 
   return (
     // Container for focus management - not directly interactive
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+
     <div
       className="w-480px h-600px flex flex-col relative"
       role="none"
