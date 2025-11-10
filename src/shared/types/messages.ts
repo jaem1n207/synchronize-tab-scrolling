@@ -83,6 +83,15 @@ export interface ElementMatchMessage {
 }
 
 /**
+ * Message to synchronize panel position across tabs
+ */
+export interface PanelPositionMessage {
+  x: number;
+  y: number;
+  sourceTabId: number;
+}
+
+/**
  * Webext-bridge protocol message definitions
  */
 export interface ProtocolMap {
@@ -94,4 +103,5 @@ export interface ProtocolMap {
   'scroll:status': SyncStatusResponse;
   'url:sync': UrlSyncMessage;
   'element:match': ElementMatchMessage;
+  'panel:position': PanelPositionMessage;
 }

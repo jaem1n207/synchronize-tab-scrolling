@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Menu, Settings2 } from 'lucide-react';
+import { onMessage, sendMessage } from 'webext-bridge/content-script';
+import browser from 'webextension-polyfill';
 
 import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
@@ -32,13 +34,6 @@ interface Position {
 const BUTTON_SIZE = 36;
 const DRAG_HANDLE_SIZE = 60;
 const EDGE_MARGIN = 32; // Distance from screen edge
-
-/**
- * TODO:
- * - [ ] 패널 이동 기능
- *    현재 동작: A, B 탭이 동기화 중이라 가정할 때, A 탭에서 패널을 이동 -> B 탭에서 패널이 이동하지 않음.
- *    기대하는 동작: A 탭에서 패널을 이동하면 B 탭에서도 동일한 위치로 이동하는 것이 기대됨.
- */
 
 // Custom PopoverContent with container support for Shadow DOM
 const CustomPopoverContent = React.forwardRef<
@@ -144,7 +139,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   );
 
   const handleMouseUp = React.useCallback(
-    (e: MouseEvent) => {
+    async (e: MouseEvent) => {
       if (!isDragging) return;
 
       // Calculate drag distance
@@ -161,6 +156,20 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         });
         const snappedPosition = snapToEdge(finalPosition);
         setPosition(snappedPosition);
+
+        // Broadcast position change to other tabs
+        try {
+          const currentTab = await browser.tabs.getCurrent();
+          if (currentTab?.id) {
+            await sendMessage(
+              'panel:position',
+              { x: snappedPosition.x, y: snappedPosition.y, sourceTabId: currentTab.id },
+              'background',
+            );
+          }
+        } catch (error) {
+          console.error('Failed to broadcast panel position:', error);
+        }
 
         // Mark as dragged to prevent popover from opening
         wasDraggedRef.current = true;
@@ -222,6 +231,23 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
+
+  React.useEffect(() => {
+    const unsubscribe = onMessage('panel:position', async (message) => {
+      const currentTab = await browser.tabs.getCurrent();
+      const data = message.data;
+
+      // Only update position if message is from a different tab
+      if (currentTab?.id && data && typeof data === 'object' && 'sourceTabId' in data) {
+        const { x, y, sourceTabId } = data as { x: number; y: number; sourceTabId: number };
+        if (sourceTabId !== currentTab.id) {
+          setPosition({ x, y });
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Calculate popover side based on button position
   const popoverSide = position.x < window.innerWidth / 2 ? 'right' : 'left';
