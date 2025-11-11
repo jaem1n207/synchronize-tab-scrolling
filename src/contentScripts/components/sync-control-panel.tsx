@@ -36,30 +36,37 @@ const DRAG_HANDLE_SIZE = 60;
 const EDGE_MARGIN = 32; // Distance from screen edge
 
 // Custom PopoverContent with container support for Shadow DOM
-const CustomPopoverContent = React.forwardRef<
-  React.ComponentRef<typeof PopoverPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
-    container?: HTMLElement | null;
-  }
->(({ className, align = 'start', sideOffset = 8, container, ...props }, ref) => (
-  <PopoverPrimitive.Portal container={container}>
-    <PopoverPrimitive.Content
-      ref={ref}
-      align={align}
-      className={cn(
-        'z-[2147483647] w-96 rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl p-0',
-        'outline-none data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-        'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2',
-        'data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-        className,
-      )}
-      sideOffset={sideOffset}
-      {...props}
-    />
-  </PopoverPrimitive.Portal>
-));
+function CustomPopoverContent({
+  className,
+  align = 'start',
+  sideOffset = 8,
+  container,
+  ref,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+  container?: HTMLElement | null;
+  ref?: React.Ref<React.ComponentRef<typeof PopoverPrimitive.Content>>;
+}) {
+  return (
+    <PopoverPrimitive.Portal container={container}>
+      <PopoverPrimitive.Content
+        ref={ref}
+        align={align}
+        className={cn(
+          'z-[2147483647] w-96 rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl p-0',
+          'outline-none data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+          'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2',
+          'data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+          className,
+        )}
+        sideOffset={sideOffset}
+        {...props}
+      />
+    </PopoverPrimitive.Portal>
+  );
+}
 CustomPopoverContent.displayName = 'CustomPopoverContent';
 
 export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
