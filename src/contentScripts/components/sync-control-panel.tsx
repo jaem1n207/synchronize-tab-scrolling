@@ -54,6 +54,7 @@ function CustomPopoverContent({
         align={align}
         className={cn(
           'z-[2147483647] w-96 rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl p-0',
+          'pointer-events-auto',
           'outline-none data-[state=open]:animate-in data-[state=closed]:animate-out',
           'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -284,7 +285,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         }}
         onMouseDown={handleMouseDown}
       >
-        <Popover open={isOpen} onOpenChange={handleOpenChange}>
+        <Popover modal={false} open={isOpen} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
             {/* Button (36px) */}
             <Button
