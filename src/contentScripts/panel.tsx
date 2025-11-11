@@ -65,12 +65,9 @@ export function showPanel() {
   `;
   shadowRoot.appendChild(themeWrapper);
 
-  // Create content wrapper with pointer events
+  // Create content wrapper with pointer events disabled (interactive elements will enable them individually)
   const contentWrapper = document.createElement('div');
-  contentWrapper.setAttribute(
-    'style',
-    'pointer-events: auto; position: relative; width: 100%; height: 100%;',
-  );
+  contentWrapper.setAttribute('style', 'pointer-events: none; position: relative;');
   themeWrapper.appendChild(contentWrapper);
 
   // Create manual mode visual indicator
