@@ -412,6 +412,36 @@ onMessage('scroll:manual', async ({ data }) => {
   return { success: true };
 });
 
+// Handler for baseline update relay
+onMessage('scroll:baseline-update', async ({ data }) => {
+  logger.debug('Relaying baseline update', { data });
+  const payload = data as {
+    sourceTabId: number;
+    baselineRatio: number;
+    timestamp: number;
+  };
+
+  // Relay to all synced tabs except the source
+  const targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
+
+  if (targetTabIds.length === 0) {
+    logger.debug('No target tabs for baseline update');
+    return { success: true };
+  }
+
+  const promises = targetTabIds.map((tabId) =>
+    sendMessage('scroll:baseline-update', data, {
+      context: 'content-script',
+      tabId,
+    }).catch((error) => {
+      logger.debug(`Failed to relay baseline update to tab ${tabId}`, { error });
+    }),
+  );
+
+  await Promise.all(promises);
+  return { success: true };
+});
+
 // Helper function to broadcast sync status to all synced tabs
 async function broadcastSyncStatus() {
   const tabs = await browser.tabs.query({ currentWindow: true });

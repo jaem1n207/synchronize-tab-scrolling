@@ -6,7 +6,7 @@
 import { sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { saveManualScrollOffset } from '~/shared/lib/storage';
+import { getManualScrollOffset, saveManualScrollOffset } from '~/shared/lib/storage';
 
 const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
@@ -46,7 +46,7 @@ function handleKeyDown(event: KeyboardEvent) {
     isManualModeActive = true;
     logger.debug('Manual scroll mode enabled');
 
-    // Notify content script to disable scroll sync
+    // Notify content script to disable scroll syn
     sendMessage(
       'scroll:manual',
       {
@@ -127,16 +127,33 @@ async function disableManualMode() {
         clampedOffsetRatio,
       });
 
-      // Save the clamped ratio offset for this tab
-      await saveManualScrollOffset(currentTabId, clampedOffsetRatio);
+      // Get existing offset and accumulate (support multiple manual adjustments)
+      const existingOffset = await getManualScrollOffset(currentTabId);
+      const accumulatedOffset = existingOffset + clampedOffsetRatio;
+
+      // Clamp accumulated offset to reasonable range
+      const clampedAccumulatedOffset = Math.max(
+        -maxReasonableOffset,
+        Math.min(maxReasonableOffset, accumulatedOffset),
+      );
+
+      logger.debug('Accumulating manual scroll offset', {
+        existingOffset,
+        newOffset: clampedOffsetRatio,
+        accumulatedOffset,
+        clampedAccumulatedOffset,
+      });
+
+      // Save the accumulated clamped ratio offset for this tab
+      await saveManualScrollOffset(currentTabId, clampedAccumulatedOffset);
       logger.info('Manual scroll offset saved as ratio', {
         tabId: currentTabId,
-        offsetRatio: clampedOffsetRatio,
+        offsetRatio: clampedAccumulatedOffset,
       });
 
       // Broadcast new baseline ratio to all tabs so they update their lastSyncedRatio
       // This prevents jumps when this tab starts scrolling again
-      const newBaselineRatio = currentRatio - clampedOffsetRatio;
+      const newBaselineRatio = currentRatio - clampedAccumulatedOffset;
       sendMessage(
         'scroll:baseline-update',
         {

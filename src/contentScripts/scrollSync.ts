@@ -25,6 +25,7 @@ let isManualScrollEnabled = false;
 let lastScrollTime = 0;
 let lastNavigationUrl = window.location.href;
 let lastSyncedRatio = 0; // Track the last synced ratio for offset calculation
+let manualModeBaselineRatio = 0; // Frozen baseline ratio when entering manual mode
 let lastProgrammaticScrollTime = 0; // Track programmatic scrolls to prevent infinite loops
 const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
 const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 100; // ms - ignore user scrolls shortly after programmatic scroll
@@ -380,7 +381,7 @@ export function initScrollSync() {
     // Initialize keyboard handler with tab ID and scroll info callback
     initKeyboardHandler(currentTabId, () => ({
       currentScrollTop: window.scrollY,
-      lastSyncedRatio,
+      lastSyncedRatio: isManualScrollEnabled ? manualModeBaselineRatio : lastSyncedRatio,
     }));
     logger.debug('Keyboard handler initialized');
 
@@ -518,6 +519,15 @@ export function initScrollSync() {
     // Only apply to this specific tab
     if (payload.tabId !== currentTabId) {
       return;
+    }
+
+    // Snapshot baseline ratio when ENTERING manual mode
+    if (payload.enabled) {
+      manualModeBaselineRatio = lastSyncedRatio;
+      logger.info('Manual mode activated, baseline ratio frozen', {
+        frozenBaseline: manualModeBaselineRatio,
+        currentTabId,
+      });
     }
 
     isManualScrollEnabled = payload.enabled;
