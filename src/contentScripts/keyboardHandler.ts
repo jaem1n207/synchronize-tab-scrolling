@@ -12,6 +12,7 @@ const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
 let isManualModeActive = false;
 let currentTabId = 0;
+let manualModeBaselineSnapshot = 0; // Snapshot taken synchronously when Alt is pressed
 let getScrollInfoCallback: (() => { currentScrollTop: number; lastSyncedRatio: number }) | null =
   null;
 
@@ -43,6 +44,15 @@ export function initKeyboardHandler(
 function handleKeyDown(event: KeyboardEvent) {
   // Check for Option (macOS) or Alt (Windows/Linux)
   if ((event.altKey || event.metaKey) && !isManualModeActive) {
+    // Snapshot baseline IMMEDIATELY when entering manual mode (synchronous, no race condition)
+    if (getScrollInfoCallback) {
+      const { lastSyncedRatio } = getScrollInfoCallback();
+      manualModeBaselineSnapshot = lastSyncedRatio;
+      logger.debug('Manual mode enabled, snapshotted baseline', {
+        manualModeBaselineSnapshot,
+      });
+    }
+
     isManualModeActive = true;
     logger.debug('Manual scroll mode enabled');
 
@@ -89,18 +99,18 @@ async function disableManualMode() {
   isManualModeActive = false;
   logger.debug('Manual scroll mode disabled');
 
-  // Calculate and save manual scroll offset as RATIO using latest synced position
+  // Calculate and save manual scroll offset as RATIO using snapshot from Alt PRESS
   if (getScrollInfoCallback) {
     try {
-      const { currentScrollTop, lastSyncedRatio } = getScrollInfoCallback();
+      const { currentScrollTop } = getScrollInfoCallback();
 
       // Calculate current scroll ratio
       const myMaxScroll =
         document.documentElement.scrollHeight - document.documentElement.clientHeight;
       const currentRatio = myMaxScroll > 0 ? currentScrollTop / myMaxScroll : 0;
 
-      // Calculate ratio offset: how far ahead/behind this tab should be from sync baseline
-      const offsetRatio = currentRatio - lastSyncedRatio;
+      // Calculate ratio offset using snapshot taken at Alt PRESS (not release)
+      const offsetRatio = currentRatio - manualModeBaselineSnapshot;
 
       // Validate offset is within reasonable range (±0.5 ratio, which is ±50% of document)
       const maxReasonableOffset = 0.5;
@@ -110,7 +120,7 @@ async function disableManualMode() {
           offsetRatio,
           maxReasonableOffset,
           currentRatio,
-          lastSyncedRatio,
+          lastSyncedRatio: manualModeBaselineSnapshot,
         });
       }
 
@@ -122,7 +132,7 @@ async function disableManualMode() {
 
       logger.debug('Calculating manual scroll offset as ratio', {
         currentRatio,
-        lastSyncedRatio,
+        lastSyncedRatio: manualModeBaselineSnapshot,
         offsetRatio,
         clampedOffsetRatio,
       });

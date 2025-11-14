@@ -393,7 +393,7 @@ export function initScrollSync() {
     // Initialize keyboard handler with tab ID and scroll info callback
     initKeyboardHandler(currentTabId, () => ({
       currentScrollTop: window.scrollY,
-      lastSyncedRatio: lastSyncedRatioSnapshot, // Use frozen snapshot during manual mode
+      lastSyncedRatio: lastSyncedRatio, // Return live value for synchronous snapshot
     }));
     logger.debug('Keyboard handler initialized');
 
@@ -533,7 +533,7 @@ export function initScrollSync() {
 
   // Listen for manual scroll toggle (P1)
   onMessage('scroll:manual', async ({ data }) => {
-    logger.info('Manual scroll mode toggled', { data });
+    // logger.info('Manual scroll mode toggled', { data });
     const payload = data as { tabId: number; enabled: boolean };
 
     // Only apply to this specific tab
