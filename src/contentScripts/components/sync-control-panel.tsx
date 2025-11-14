@@ -84,6 +84,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const wasDraggedRef = React.useRef<boolean>(false);
   const dragOffsetRef = React.useRef<Position>({ x: 0, y: 0 });
+  const rafIdRef = React.useRef<number | null>(null);
 
   const snapToEdge = React.useCallback((pos: Position): Position => {
     const centerX = window.innerWidth / 2;
@@ -135,13 +136,21 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
     (e: MouseEvent) => {
       if (!isDragging) return;
 
-      // Use transform for smooth dragging performance
-      const newPosition = constrainPosition({
-        x: e.clientX - dragOffsetRef.current.x,
-        y: e.clientY - dragOffsetRef.current.y,
-      });
+      // Cancel any pending RAF to avoid stacking updates
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
 
-      setDragTransform(newPosition);
+      // Use requestAnimationFrame for 60fps smooth dragging performance
+      rafIdRef.current = requestAnimationFrame(() => {
+        const newPosition = constrainPosition({
+          x: e.clientX - dragOffsetRef.current.x,
+          y: e.clientY - dragOffsetRef.current.y,
+        });
+
+        setDragTransform(newPosition);
+        rafIdRef.current = null;
+      });
     },
     [isDragging, constrainPosition],
   );
@@ -149,6 +158,12 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   const handleMouseUp = React.useCallback(
     async (e: MouseEvent) => {
       if (!isDragging) return;
+
+      // Cancel any pending RAF
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
 
       // Calculate drag distance
       const dragDistance = Math.sqrt(
@@ -294,6 +309,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
               transform: isDragging
                 ? `translate(${dragTransform.x - position.x}px, ${dragTransform.y - position.y}px)`
                 : 'none',
+              willChange: isDragging ? 'transform' : 'auto',
               userSelect: 'none',
             }}
             tabIndex={-1}
