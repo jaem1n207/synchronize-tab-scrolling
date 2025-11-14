@@ -9,7 +9,11 @@
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { getManualScrollOffset, loadUrlSyncEnabled } from '~/shared/lib/storage';
+import {
+  clearManualScrollOffset,
+  getManualScrollOffset,
+  loadUrlSyncEnabled,
+} from '~/shared/lib/storage';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
 import { hidePanel, showPanel } from './panel';
@@ -330,7 +334,7 @@ export function initScrollSync() {
   console.log('[scrollSync] Registering scroll sync message handlers');
 
   // Listen for start sync message
-  onMessage('scroll:start', ({ data }) => {
+  onMessage('scroll:start', async ({ data }) => {
     console.log('[scrollSync] Received scroll:start message', data);
     logger.info('Received scroll:start message', { data });
     const payload = data as { tabIds: Array<number>; mode: SyncMode; currentTabId: number };
@@ -361,6 +365,10 @@ export function initScrollSync() {
     lastScrollTime = 0;
     lastProgrammaticScrollTime = 0;
     isConnectionHealthy = true;
+
+    // Clear any existing manual offset for clean start
+    await clearManualScrollOffset(currentTabId);
+    logger.info('Cleared manual scroll offset on sync start', { currentTabId });
 
     // Initialize lastSyncedRatio with current scroll position to prevent offset calculation errors
     lastSyncedRatio = getScrollRatio();
@@ -397,7 +405,7 @@ export function initScrollSync() {
   });
 
   // Listen for stop sync message
-  onMessage('scroll:stop', ({ data }) => {
+  onMessage('scroll:stop', async ({ data }) => {
     logger.info('Stopping scroll sync', { data });
     isSyncActive = false;
 
@@ -412,6 +420,10 @@ export function initScrollSync() {
 
     // Cleanup keyboard handler
     cleanupKeyboardHandler();
+
+    // Clear manual scroll offset for this tab when stopping sync
+    await clearManualScrollOffset(currentTabId);
+    logger.info('Cleared manual scroll offset on sync stop', { currentTabId });
 
     // Hide draggable control panel
     hidePanel();
@@ -464,9 +476,9 @@ export function initScrollSync() {
     // Apply offset ratio to source ratio to get target ratio for this tab
     const targetRatio = sourceRatio + offsetRatio;
 
-    // Update lastSyncedRatio to the TARGET ratio (after applying offset)
-    // This ensures manual offset calculation uses the correct baseline
-    lastSyncedRatio = targetRatio;
+    // Update lastSyncedRatio to the SOURCE ratio (pure baseline without offsets)
+    // This ensures manual offset calculations always use a consistent baseline
+    lastSyncedRatio = sourceRatio;
 
     // Convert target ratio to pixel position for this document
     const targetScrollTop = targetRatio * myMaxScroll;
