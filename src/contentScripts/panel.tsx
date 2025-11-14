@@ -31,7 +31,6 @@ function PanelApp() {
 
 let panelRoot: ReturnType<typeof createRoot> | null = null;
 let panelContainer: HTMLDivElement | null = null;
-let manualModeIndicator: HTMLDivElement | null = null;
 
 export function showPanel() {
   if (panelContainer) {
@@ -51,42 +50,22 @@ export function showPanel() {
   // Create shadow DOM for style isolation
   const shadowRoot = panelContainer.attachShadow({ mode: 'open' });
 
-  // Create theme wrapper with proper stacking context
+  // Create theme wrapper with minimal fixed positioning context
   const themeWrapper = document.createElement('div');
   themeWrapper.className = 'dark-theme';
   themeWrapper.style.cssText = `
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
     pointer-events: none;
     z-index: 2147483647;
   `;
   shadowRoot.appendChild(themeWrapper);
 
-  // Create content wrapper with pointer events disabled (interactive elements will enable them individually)
+  // Create content wrapper
   const contentWrapper = document.createElement('div');
-  contentWrapper.setAttribute('style', 'pointer-events: none; position: relative;');
+  contentWrapper.setAttribute('style', 'position: relative; pointer-events: auto;');
   themeWrapper.appendChild(contentWrapper);
-
-  // Create manual mode visual indicator
-  manualModeIndicator = document.createElement('div');
-  manualModeIndicator.id = 'manual-mode-indicator';
-  manualModeIndicator.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    border: 4px solid #3b82f6;
-    box-shadow: inset 0 0 30px rgba(59, 130, 246, 0.3), 0 0 20px rgba(59, 130, 246, 0.2);
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-    z-index: 2147483646;
-  `;
-  contentWrapper.appendChild(manualModeIndicator);
 
   // Create style container
   const styleContainer = document.createElement('div');
@@ -143,24 +122,6 @@ export function showPanel() {
   // Create React root and render
   panelRoot = createRoot(appContainer);
   panelRoot.render(<PanelApp />);
-
-  // Monitor for manual mode class changes
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-        const hasManualMode =
-          document.documentElement.classList.contains('scroll-sync-manual-mode');
-        if (manualModeIndicator) {
-          manualModeIndicator.style.opacity = hasManualMode ? '1' : '0';
-        }
-      }
-    });
-  });
-
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class'],
-  });
 }
 
 export function hidePanel() {

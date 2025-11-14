@@ -134,26 +134,6 @@ async function disableManualMode() {
         tabId: currentTabId,
         offsetRatio: clampedOffsetRatio,
       });
-
-      // Broadcast new baseline ratio to all tabs so they update their lastSyncedRatio
-      // This prevents jumps when this tab starts scrolling again
-      const newBaselineRatio = currentRatio - clampedOffsetRatio;
-      sendMessage(
-        'scroll:baseline-update',
-        {
-          sourceTabId: currentTabId,
-          baselineRatio: newBaselineRatio,
-          timestamp: Date.now(),
-        },
-        'background',
-      ).catch((error) => {
-        logger.error('Failed to send baseline update message', { error });
-      });
-
-      logger.debug('Broadcast baseline update', {
-        newBaselineRatio,
-        sourceTabId: currentTabId,
-      });
     } catch (error) {
       logger.error('Failed to save manual scroll offset', { error });
     }

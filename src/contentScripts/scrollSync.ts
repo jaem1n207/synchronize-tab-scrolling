@@ -25,7 +25,6 @@ let isManualScrollEnabled = false;
 let lastScrollTime = 0;
 let lastNavigationUrl = window.location.href;
 let lastSyncedRatio = 0; // Track the last synced ratio for offset calculation
-let manualModeBaselineRatio = 0; // Frozen baseline ratio when entering manual mode
 let lastProgrammaticScrollTime = 0; // Track programmatic scrolls to prevent infinite loops
 const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
 const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 100; // ms - ignore user scrolls shortly after programmatic scroll
@@ -381,7 +380,7 @@ export function initScrollSync() {
     // Initialize keyboard handler with tab ID and scroll info callback
     initKeyboardHandler(currentTabId, () => ({
       currentScrollTop: window.scrollY,
-      lastSyncedRatio: isManualScrollEnabled ? manualModeBaselineRatio : lastSyncedRatio,
+      lastSyncedRatio,
     }));
     logger.debug('Keyboard handler initialized');
 
@@ -443,10 +442,12 @@ export function initScrollSync() {
 
     // Calculate the synced ratio from source tab
     const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
-    lastSyncedRatio = sourceRatio;
 
     // If in manual mode, store the synced ratio but don't apply it
     if (isManualScrollEnabled) {
+      // Still update lastSyncedRatio to the source ratio during manual mode
+      // This allows manual offset calculation to work correctly
+      lastSyncedRatio = sourceRatio;
       logger.debug('Manual mode active, storing synced ratio but not applying', {
         syncedRatio: sourceRatio,
       });
@@ -462,6 +463,10 @@ export function initScrollSync() {
 
     // Apply offset ratio to source ratio to get target ratio for this tab
     const targetRatio = sourceRatio + offsetRatio;
+
+    // Update lastSyncedRatio to the TARGET ratio (after applying offset)
+    // This ensures manual offset calculation uses the correct baseline
+    lastSyncedRatio = targetRatio;
 
     // Convert target ratio to pixel position for this document
     const targetScrollTop = targetRatio * myMaxScroll;
@@ -521,15 +526,6 @@ export function initScrollSync() {
       return;
     }
 
-    // Snapshot baseline ratio when ENTERING manual mode
-    if (payload.enabled) {
-      manualModeBaselineRatio = lastSyncedRatio;
-      logger.info('Manual mode activated, baseline ratio frozen', {
-        frozenBaseline: manualModeBaselineRatio,
-        currentTabId,
-      });
-    }
-
     isManualScrollEnabled = payload.enabled;
 
     // When manual mode is deactivated, the saved offset will be applied on the next scroll:sync
@@ -541,28 +537,6 @@ export function initScrollSync() {
         currentTabId,
       });
     }
-  });
-
-  // Listen for sync baseline updates (P1)
-  // When a tab finishes manual adjustment, it broadcasts the new baseline ratio
-  // so all tabs update their lastSyncedRatio without actually scrolling
-  onMessage('scroll:baseline-update', ({ data }) => {
-    if (!isSyncActive) return;
-
-    const payload = data as { sourceTabId: number; baselineRatio: number; timestamp: number };
-
-    // Don't update if this is the source tab
-    if (payload.sourceTabId === currentTabId) return;
-
-    logger.info('Updating sync baseline ratio', {
-      oldRatio: lastSyncedRatio,
-      newRatio: payload.baselineRatio,
-      sourceTabId: payload.sourceTabId,
-    });
-
-    // Update lastSyncedRatio WITHOUT scrolling
-    // This prevents jumps when the source tab starts scrolling again
-    lastSyncedRatio = payload.baselineRatio;
   });
 
   // Listen for URL sync from other tabs (P1)
