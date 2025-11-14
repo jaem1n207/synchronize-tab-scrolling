@@ -6,7 +6,7 @@
 import { sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { getManualScrollOffset, saveManualScrollOffset } from '~/shared/lib/storage';
+import { saveManualScrollOffset } from '~/shared/lib/storage';
 
 const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
@@ -127,33 +127,17 @@ async function disableManualMode() {
         clampedOffsetRatio,
       });
 
-      // Get existing offset and accumulate (support multiple manual adjustments)
-      const existingOffset = await getManualScrollOffset(currentTabId);
-      const accumulatedOffset = existingOffset + clampedOffsetRatio;
-
-      // Clamp accumulated offset to reasonable range
-      const clampedAccumulatedOffset = Math.max(
-        -maxReasonableOffset,
-        Math.min(maxReasonableOffset, accumulatedOffset),
-      );
-
-      logger.debug('Accumulating manual scroll offset', {
-        existingOffset,
-        newOffset: clampedOffsetRatio,
-        accumulatedOffset,
-        clampedAccumulatedOffset,
-      });
-
-      // Save the accumulated clamped ratio offset for this tab
-      await saveManualScrollOffset(currentTabId, clampedAccumulatedOffset);
+      // The calculated offsetRatio is already the absolute offset from baseline
+      // Save it directly (no accumulation needed)
+      await saveManualScrollOffset(currentTabId, clampedOffsetRatio);
       logger.info('Manual scroll offset saved as ratio', {
         tabId: currentTabId,
-        offsetRatio: clampedAccumulatedOffset,
+        offsetRatio: clampedOffsetRatio,
       });
 
       // Broadcast new baseline ratio to all tabs so they update their lastSyncedRatio
       // This prevents jumps when this tab starts scrolling again
-      const newBaselineRatio = currentRatio - clampedAccumulatedOffset;
+      const newBaselineRatio = currentRatio - clampedOffsetRatio;
       sendMessage(
         'scroll:baseline-update',
         {
