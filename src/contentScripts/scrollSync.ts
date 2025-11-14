@@ -161,6 +161,10 @@ async function handleScroll() {
   // Calculate pure ratio by removing this tab's offset
   const pureRatio = currentRatio - offsetRatio;
 
+  // Update lastSyncedRatio to track the pure baseline we're broadcasting
+  // This ensures manual mode snapshots an accurate baseline even when this tab is the active scroller
+  lastSyncedRatio = pureRatio;
+
   // Convert pure ratio back to pixels for the message (for backward compatibility)
   // Receiving tabs will convert back to ratio and add their own offsets
   const pureScrollTop = Math.max(0, Math.min(myMaxScroll, pureRatio * myMaxScroll));
