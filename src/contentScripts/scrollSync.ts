@@ -29,6 +29,7 @@ let isManualScrollEnabled = false;
 let lastScrollTime = 0;
 let lastNavigationUrl = window.location.href;
 let lastSyncedRatio = 0; // Track the last synced ratio for offset calculation
+let lastSyncedRatioSnapshot = 0; // Frozen snapshot when entering manual mode
 let lastProgrammaticScrollTime = 0; // Track programmatic scrolls to prevent infinite loops
 const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
 const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 100; // ms - ignore user scrolls shortly after programmatic scroll
@@ -388,7 +389,7 @@ export function initScrollSync() {
     // Initialize keyboard handler with tab ID and scroll info callback
     initKeyboardHandler(currentTabId, () => ({
       currentScrollTop: window.scrollY,
-      lastSyncedRatio,
+      lastSyncedRatio: lastSyncedRatioSnapshot, // Use frozen snapshot during manual mode
     }));
     logger.debug('Keyboard handler initialized');
 
@@ -455,13 +456,11 @@ export function initScrollSync() {
     // Calculate the synced ratio from source tab
     const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
 
-    // If in manual mode, store the synced ratio but don't apply it
+    // If in manual mode, ignore sync messages completely (baseline is frozen)
     if (isManualScrollEnabled) {
-      // Still update lastSyncedRatio to the source ratio during manual mode
-      // This allows manual offset calculation to work correctly
-      lastSyncedRatio = sourceRatio;
-      logger.debug('Manual mode active, storing synced ratio but not applying', {
-        syncedRatio: sourceRatio,
+      logger.debug('Manual mode active, ignoring sync to preserve frozen baseline', {
+        sourceRatio,
+        frozenBaseline: lastSyncedRatioSnapshot,
       });
       return;
     }
@@ -536,6 +535,16 @@ export function initScrollSync() {
     // Only apply to this specific tab
     if (payload.tabId !== currentTabId) {
       return;
+    }
+
+    // Snapshot baseline ratio when ENTERING manual mode
+    if (payload.enabled) {
+      lastSyncedRatioSnapshot = lastSyncedRatio;
+      logger.debug('Manual mode activated, snapshotted baseline', {
+        lastSyncedRatio,
+        lastSyncedRatioSnapshot,
+        currentTabId,
+      });
     }
 
     isManualScrollEnabled = payload.enabled;
