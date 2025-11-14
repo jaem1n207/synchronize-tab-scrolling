@@ -32,7 +32,6 @@ interface Position {
 }
 
 const BUTTON_SIZE = 36;
-const DRAG_HANDLE_SIZE = 60;
 const EDGE_MARGIN = 32; // Distance from screen edge
 
 // Custom PopoverContent with container support for Shadow DOM
@@ -81,7 +80,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = React.useState<Position>({ x: 0, y: 0 });
 
-  const toolbarRef = React.useRef<HTMLDivElement>(null);
+  const toolbarRef = React.useRef<HTMLButtonElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const wasDraggedRef = React.useRef<boolean>(false);
   const dragOffsetRef = React.useRef<Position>({ x: 0, y: 0 });
@@ -111,13 +110,14 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   }, []);
 
   const handleMouseDown = React.useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
       if (e.button !== 0) return;
 
       // Prevent dragging when popover is open
       if (isOpen) return;
 
       e.preventDefault();
+      e.stopPropagation();
 
       setDragStartPos({ x: e.clientX, y: e.clientY });
       dragOffsetRef.current = {
@@ -163,7 +163,11 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
           y: e.clientY - dragOffsetRef.current.y,
         });
         const snappedPosition = snapToEdge(finalPosition);
+
+        // Update both position and dragTransform to the snapped position
+        // This ensures smooth visual transition when isDragging becomes false
         setPosition(snappedPosition);
+        setDragTransform(snappedPosition);
 
         // Broadcast position change to other tabs
         try {
@@ -186,7 +190,6 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         }, 50);
       }
 
-      setDragTransform({ x: 0, y: 0 });
       setIsDragging(false);
     },
     [isDragging, constrainPosition, snapToEdge, dragStartPos],
@@ -237,7 +240,9 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen]);
 
   React.useEffect(() => {
@@ -261,170 +266,158 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   const popoverSide = position.x < window.innerWidth / 2 ? 'right' : 'left';
 
   return (
-    <div ref={containerRef} className={cn('pointer-events-none', className)}>
-      {/* Drag handle area (60px) */}
-      <div
-        ref={toolbarRef}
-        className={cn(
-          'fixed pointer-events-auto z-[2147483647]',
-          'flex items-center justify-center',
-          isDragging && 'cursor-grabbing',
-          !isDragging && 'cursor-grab',
-        )}
-        role="presentation"
-        style={{
-          position: 'fixed',
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          width: `${DRAG_HANDLE_SIZE}px`,
-          height: `${DRAG_HANDLE_SIZE}px`,
-          transform: isDragging
-            ? `translate(${dragTransform.x - position.x}px, ${dragTransform.y - position.y}px)`
-            : 'none',
-          userSelect: 'none',
-        }}
-        onMouseDown={handleMouseDown}
-      >
-        <Popover modal={false} open={isOpen} onOpenChange={handleOpenChange}>
-          <PopoverTrigger asChild>
-            {/* Button (36px) */}
-            <Button
-              aria-label="Open sync control panel"
-              className={cn(
-                'rounded-full shadow-lg backdrop-blur-md p-0',
-                'bg-black/80 hover:bg-black/90',
-                'border border-white/20',
-                'transition-all duration-200',
-                !isDragging && 'hover:scale-110 hover:shadow-xl',
-                'group relative flex items-center justify-center',
-              )}
-              style={{
-                width: `${BUTTON_SIZE}px`,
-                height: `${BUTTON_SIZE}px`,
-                minWidth: `${BUTTON_SIZE}px`,
-                minHeight: `${BUTTON_SIZE}px`,
-              }}
-              tabIndex={-1}
-              type="button"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <Menu className="h-4 w-4 text-white" />
+    <div ref={containerRef} className={className}>
+      <Popover modal={false} open={isOpen} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            ref={toolbarRef}
+            aria-label="Open sync control panel"
+            className={cn(
+              'fixed pointer-events-auto z-[2147483647]',
+              'rounded-full shadow-lg backdrop-blur-md p-0',
+              'bg-black/80 hover:bg-black/90',
+              'border border-white/20',
+              'transition-all duration-200',
+              !isDragging && !isOpen && 'hover:scale-110 hover:shadow-xl',
+              isDragging && 'cursor-grabbing',
+              isOpen && 'cursor-default',
+              'group relative flex items-center justify-center',
+            )}
+            style={{
+              position: 'fixed',
+              left: `${position.x}px`,
+              top: `${position.y}px`,
+              width: `${BUTTON_SIZE}px`,
+              height: `${BUTTON_SIZE}px`,
+              minWidth: `${BUTTON_SIZE}px`,
+              minHeight: `${BUTTON_SIZE}px`,
+              transform: isDragging
+                ? `translate(${dragTransform.x - position.x}px, ${dragTransform.y - position.y}px)`
+                : 'none',
+              userSelect: 'none',
+            }}
+            tabIndex={-1}
+            type="button"
+            onMouseDown={handleMouseDown}
+          >
+            <Menu className="h-4 w-4 text-white" />
 
-              {/* Status badge */}
-              <div className="absolute -bottom-0.5 -right-0.5">
-                <Badge
-                  className={cn(
-                    'h-3 w-3 rounded-full p-0 flex items-center justify-center',
-                    'border-2 border-black',
-                    'transition-colors duration-200',
-                    urlSyncEnabled ? 'bg-blue-500' : 'bg-gray-400',
-                  )}
-                  variant="default"
-                >
-                  <span className="sr-only">{urlSyncEnabled ? 'Active' : 'Inactive'}</span>
-                </Badge>
-              </div>
+            {/* Status badge */}
+            <div className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
+              <Badge
+                className={cn(
+                  'h-3 w-3 rounded-full p-0 flex items-center justify-center',
+                  'border-2 border-black',
+                  'transition-colors duration-200',
+                  urlSyncEnabled ? 'bg-blue-500' : 'bg-gray-400',
+                )}
+                variant="default"
+              >
+                <span className="sr-only">{urlSyncEnabled ? 'Active' : 'Inactive'}</span>
+              </Badge>
+            </div>
 
-              {/* Keyboard shortcut tooltip */}
+            {/* Keyboard shortcut tooltip */}
+            {!isDragging && !isOpen && (
               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
                 <div className="bg-black/90 text-white px-2 py-1 rounded text-xs backdrop-blur-sm flex items-center gap-1">
                   <Kbd className="bg-white/20 text-white text-xs px-1">⌃</Kbd>
                 </div>
               </div>
-            </Button>
-          </PopoverTrigger>
+            )}
+          </Button>
+        </PopoverTrigger>
 
-          <CustomPopoverContent container={containerRef.current} side={popoverSide}>
-            <Command className="rounded-lg border-none shadow-none">
-              <div className="border-b border-border/50 px-3 py-2">
-                <div className="text-xs font-medium text-muted-foreground">Scroll Sync Toolbar</div>
-              </div>
-              <CommandInput className="border-none" placeholder="Search settings..." />
-              <CommandList className="max-h-[400px]">
-                <CommandEmpty>No settings found.</CommandEmpty>
+        <CustomPopoverContent container={containerRef.current} side={popoverSide}>
+          <Command className="rounded-lg border-none shadow-none">
+            <div className="border-b border-border/50 px-3 py-2">
+              <div className="text-xs font-medium text-muted-foreground">Scroll Sync Toolbar</div>
+            </div>
+            <CommandInput className="border-none" placeholder="Search settings..." />
+            <CommandList className="max-h-[400px]">
+              <CommandEmpty>No settings found.</CommandEmpty>
 
-                <CommandGroup heading="Settings">
-                  <CommandItem
-                    className="flex items-center justify-between py-3 px-4 cursor-pointer aria-selected:bg-accent"
-                    onSelect={() => {
-                      onToggle();
-                    }}
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-                        <Settings2 className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex flex-col gap-0.5 flex-1">
-                        <span className="text-sm font-medium">URL Sync Navigation</span>
-                        <span className="text-xs text-muted-foreground">
-                          Preserve query parameters and hash fragments across tabs
-                        </span>
-                      </div>
+              <CommandGroup heading="Settings">
+                <CommandItem
+                  className="flex items-center justify-between py-3 px-4 cursor-pointer aria-selected:bg-accent"
+                  onSelect={() => {
+                    onToggle();
+                  }}
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+                      <Settings2 className="h-4 w-4 text-primary" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      {urlSyncEnabled && (
-                        <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
-                          On
-                        </Badge>
-                      )}
-                      {!urlSyncEnabled && (
-                        <Badge className="text-muted-foreground" variant="outline">
-                          Off
-                        </Badge>
-                      )}
-                      <Switch
-                        checked={urlSyncEnabled}
-                        className="data-[state=checked]:bg-primary"
-                        onCheckedChange={(checked) => {
-                          if (checked !== urlSyncEnabled) {
-                            onToggle();
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                    <div className="flex flex-col gap-0.5 flex-1">
+                      <span className="text-sm font-medium">URL Sync Navigation</span>
+                      <span className="text-xs text-muted-foreground">
+                        Preserve query parameters and hash fragments across tabs
+                      </span>
                     </div>
-                  </CommandItem>
-
-                  <CommandItem className="flex items-center justify-between py-3 px-4 opacity-60 cursor-not-allowed">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
-                        <Menu className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div className="flex flex-col gap-0.5 flex-1">
-                        <span className="text-sm font-medium">Scroll Synchronization</span>
-                        <span className="text-xs text-muted-foreground">
-                          Synchronized scrolling is {urlSyncEnabled ? 'active' : 'inactive'}
-                        </span>
-                      </div>
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
                     {urlSyncEnabled && (
                       <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
-                        Active
+                        On
                       </Badge>
                     )}
                     {!urlSyncEnabled && (
                       <Badge className="text-muted-foreground" variant="outline">
-                        Inactive
+                        Off
                       </Badge>
                     )}
-                  </CommandItem>
-                </CommandGroup>
+                    <Switch
+                      checked={urlSyncEnabled}
+                      className="data-[state=checked]:bg-primary"
+                      onCheckedChange={(checked) => {
+                        if (checked !== urlSyncEnabled) {
+                          onToggle();
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </CommandItem>
 
-                <CommandGroup heading="Keyboard Shortcuts">
-                  <CommandItem className="justify-between cursor-default opacity-60 px-4">
-                    <span className="text-sm">Toggle Panel</span>
-                    <Kbd className="text-xs bg-muted">⌃</Kbd>
-                  </CommandItem>
-                  <CommandItem className="justify-between cursor-default opacity-60 px-4">
-                    <span className="text-sm">Close Panel</span>
-                    <Kbd className="text-xs bg-muted">Esc</Kbd>
-                  </CommandItem>
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </CustomPopoverContent>
-        </Popover>
-      </div>
+                <CommandItem className="flex items-center justify-between py-3 px-4 opacity-60 cursor-not-allowed">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+                      <Menu className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex flex-col gap-0.5 flex-1">
+                      <span className="text-sm font-medium">Scroll Synchronization</span>
+                      <span className="text-xs text-muted-foreground">
+                        Synchronized scrolling is {urlSyncEnabled ? 'active' : 'inactive'}
+                      </span>
+                    </div>
+                  </div>
+                  {urlSyncEnabled && (
+                    <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
+                      Active
+                    </Badge>
+                  )}
+                  {!urlSyncEnabled && (
+                    <Badge className="text-muted-foreground" variant="outline">
+                      Inactive
+                    </Badge>
+                  )}
+                </CommandItem>
+              </CommandGroup>
+
+              <CommandGroup heading="Keyboard Shortcuts">
+                <CommandItem className="justify-between cursor-default opacity-60 px-4">
+                  <span className="text-sm">Toggle Panel</span>
+                  <Kbd className="text-xs bg-muted">⌃</Kbd>
+                </CommandItem>
+                <CommandItem className="justify-between cursor-default opacity-60 px-4">
+                  <span className="text-sm">Close Panel</span>
+                  <Kbd className="text-xs bg-muted">Esc</Kbd>
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </CustomPopoverContent>
+      </Popover>
     </div>
   );
 };
