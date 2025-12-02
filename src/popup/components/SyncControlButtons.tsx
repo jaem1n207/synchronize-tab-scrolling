@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { Play, Square, RefreshCw } from 'lucide-react';
 
 import { Button } from '~/shared/components/ui/button';
+import { Kbd } from '~/shared/components/ui/kbd';
 import {
   Tooltip,
   TooltipContent,
@@ -59,6 +60,10 @@ export function SyncControlButtons({
               >
                 <Play aria-hidden="true" className="w-4 h-4" />
                 Start Sync
+                <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                  <Kbd>⌘</Kbd>
+                  <Kbd>S</Kbd>
+                </div>
               </Button>
             </TooltipTrigger>
             {!canStart && (
@@ -78,6 +83,10 @@ export function SyncControlButtons({
           >
             <Square aria-hidden="true" className="w-4 h-4" />
             Stop Sync
+            <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+              <Kbd>⌘</Kbd>
+              <Kbd>S</Kbd>
+            </div>
           </Button>
         )}
 

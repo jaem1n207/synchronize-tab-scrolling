@@ -4,16 +4,16 @@ export function FooterInfo() {
   return (
     <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground px-2 py-1.5 border-t">
       <div className="flex items-center gap-1.5">
-        <Kbd>⌘K</Kbd>
         <span>Actions</span>
+        <Kbd>⌘K</Kbd>
       </div>
       <div className="flex items-center gap-1.5">
-        <Kbd>⌘S</Kbd>
         <span>Start/Stop</span>
+        <Kbd>⌘S</Kbd>
       </div>
       <div className="flex items-center gap-1.5">
-        <Kbd>Enter</Kbd>
         <span>Select</span>
+        <Kbd>Enter</Kbd>
       </div>
     </div>
   );
