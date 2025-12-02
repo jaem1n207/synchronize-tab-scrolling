@@ -152,14 +152,14 @@ async function handleScroll() {
 
   // Remove offset ratio from current ratio before broadcasting
   // This ensures we send the "pure" scroll ratio without offset applied
-  const offsetRatio = await getManualScrollOffset(currentTabId);
+  const offsetData = await getManualScrollOffset(currentTabId);
   const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
 
   // Calculate current scroll ratio
   const currentRatio = myMaxScroll > 0 ? scrollInfo.scrollTop / myMaxScroll : 0;
 
   // Calculate pure ratio by removing this tab's offset
-  const pureRatio = currentRatio - offsetRatio;
+  const pureRatio = currentRatio - offsetData.ratio;
 
   // Update lastSyncedRatio to track the pure baseline we're broadcasting
   // This ensures manual mode snapshots an accurate baseline even when this tab is the active scroller
@@ -181,7 +181,7 @@ async function handleScroll() {
   logger.debug('Broadcasting scroll (offset ratio removed)', {
     actualScrollTop: scrollInfo.scrollTop,
     currentRatio,
-    offsetRatio,
+    offsetRatio: offsetData.ratio,
     pureRatio,
     pureScrollTop,
   });
@@ -474,10 +474,10 @@ export function initScrollSync() {
     const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
 
     // Load manual scroll offset ratio for this tab
-    const offsetRatio = await getManualScrollOffset(currentTabId);
+    const offsetData = await getManualScrollOffset(currentTabId);
 
     // Apply offset ratio to source ratio to get target ratio for this tab
-    const targetRatio = sourceRatio + offsetRatio;
+    const targetRatio = sourceRatio + offsetData.ratio;
 
     // Update lastSyncedRatio to the SOURCE ratio (pure baseline without offsets)
     // This ensures manual offset calculations always use a consistent baseline
@@ -491,7 +491,7 @@ export function initScrollSync() {
 
     logger.debug('Applying scroll with offset ratio', {
       sourceRatio,
-      offsetRatio,
+      offsetRatio: offsetData.ratio,
       targetRatio,
       targetScrollTop,
       clampedScrollTop,

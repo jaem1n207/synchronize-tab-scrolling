@@ -5,19 +5,13 @@ import { Menu, Settings2 } from 'lucide-react';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
-import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '~/shared/components/ui/command';
 import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
+import { useSystemTheme } from '~/shared/hooks/use-system-theme';
+import { PANEL_ANIMATIONS, prefersReducedMotion } from '~/shared/lib/animations';
+import { loadManualScrollOffsets } from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
 
 interface SyncControlPanelProps {
@@ -29,6 +23,13 @@ interface SyncControlPanelProps {
 interface Position {
   x: number;
   y: number;
+}
+
+interface SyncedTab {
+  id: number;
+  title: string;
+  offsetPixels: number; // pixel offset value
+  isCurrent: boolean;
 }
 
 const BUTTON_SIZE = 36;
@@ -79,12 +80,16 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
   const [isDragging, setIsDragging] = React.useState(false);
   const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = React.useState<Position>({ x: 0, y: 0 });
+  const [syncedTabs, setSyncedTabs] = React.useState<SyncedTab[]>([]);
 
   const toolbarRef = React.useRef<HTMLButtonElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const wasDraggedRef = React.useRef<boolean>(false);
   const dragOffsetRef = React.useRef<Position>({ x: 0, y: 0 });
   const rafIdRef = React.useRef<number | null>(null);
+  const ctrlOnlyRef = React.useRef<boolean>(false);
+
+  const systemTheme = useSystemTheme();
 
   const snapToEdge = React.useCallback((pos: Position): Position => {
     const centerX = window.innerWidth / 2;
@@ -218,6 +223,46 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
     setIsOpen(open);
   }, []);
 
+  const loadSyncedTabsWithOffsets = React.useCallback(async () => {
+    try {
+      // 1. Get synced tabs list
+      const response = await sendMessage('sync:get-status', {}, 'background');
+      const status = response as {
+        success: boolean;
+        linkedTabs?: Array<{ id: number; title: string; url: string; favIconUrl?: string }>;
+        currentTabId?: number;
+      } | null;
+
+      if (!status?.success || !status.linkedTabs) {
+        setSyncedTabs([]);
+        return;
+      }
+
+      // 2. Get all offsets
+      const offsets = await loadManualScrollOffsets();
+
+      // 3. Merge and update state
+      const tabs = status.linkedTabs.map((tab) => ({
+        id: tab.id,
+        title: tab.title,
+        offsetPixels: offsets[tab.id]?.pixels || 0,
+        isCurrent: tab.id === status.currentTabId,
+      }));
+
+      setSyncedTabs(tabs);
+    } catch (error) {
+      console.error('Failed to load synced tabs with offsets:', error);
+      setSyncedTabs([]);
+    }
+  }, []);
+
+  // Load synced tabs when popover opens
+  React.useEffect(() => {
+    if (isOpen) {
+      loadSyncedTabsWithOffsets();
+    }
+  }, [isOpen, loadSyncedTabsWithOffsets]);
+
   React.useEffect(() => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
@@ -241,22 +286,36 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
-        const hasModifier = e.key === 'Control';
-        if (hasModifier || isOpen) {
-          e.preventDefault();
-          setIsOpen((prev) => !prev);
-        }
+      // Start tracking when Ctrl key is pressed
+      if (e.key === 'Control') {
+        ctrlOnlyRef.current = true;
+        return;
       }
 
+      // Mark as combination key if any other key is pressed while Ctrl is held
+      if (e.ctrlKey && ctrlOnlyRef.current) {
+        ctrlOnlyRef.current = false;
+      }
+
+      // Close with Escape
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Toggle only when Ctrl is released and it was pressed alone
+      if (e.key === 'Control' && ctrlOnlyRef.current) {
+        ctrlOnlyRef.current = false;
+        setIsOpen((prev) => !prev);
+      }
+    };
+
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
     };
   }, [isOpen]);
 
@@ -290,11 +349,15 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
             className={cn(
               'fixed pointer-events-auto z-[2147483647]',
               'rounded-full shadow-lg backdrop-blur-md p-0',
-              'bg-black/80 hover:bg-black/90',
-              'border border-white/20',
-              'transition-all duration-200',
-              !isDragging && !isOpen && 'hover:scale-110 hover:shadow-xl',
+              systemTheme === 'dark'
+                ? 'bg-white/90 hover:bg-white text-black'
+                : 'bg-black/80 hover:bg-black/90 text-white',
+              systemTheme === 'dark' ? 'border border-black/20' : 'border border-white/20',
               isDragging && 'cursor-grabbing',
+              !isDragging &&
+                !isOpen &&
+                !prefersReducedMotion() &&
+                'hover:scale-110 hover:shadow-xl',
               isOpen && 'cursor-default',
               'group relative flex items-center justify-center',
             )}
@@ -306,38 +369,55 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
               height: `${BUTTON_SIZE}px`,
               minWidth: `${BUTTON_SIZE}px`,
               minHeight: `${BUTTON_SIZE}px`,
-              transform: isDragging
-                ? `translate(${dragTransform.x - position.x}px, ${dragTransform.y - position.y}px)`
-                : 'none',
-              willChange: isDragging ? 'transform' : 'auto',
+              transform:
+                isDragging && !prefersReducedMotion()
+                  ? `translate(${dragTransform.x - position.x}px, ${dragTransform.y - position.y}px)`
+                  : 'scale(1)',
+              transition:
+                isDragging || prefersReducedMotion()
+                  ? 'none'
+                  : `all ${PANEL_ANIMATIONS.edgeSnap.duration}ms ${PANEL_ANIMATIONS.edgeSnap.easing}`,
+              willChange: isDragging && !prefersReducedMotion() ? 'transform' : 'auto',
               userSelect: 'none',
             }}
             tabIndex={-1}
             type="button"
             onMouseDown={handleMouseDown}
           >
-            <Menu className="h-4 w-4 text-white" />
+            <Menu className="h-4 w-4" />
 
-            {/* Status badge */}
+            {/* Status indicator */}
             <div className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
-              <Badge
+              <div
+                aria-label={urlSyncEnabled ? 'Sync active' : 'Sync inactive'}
                 className={cn(
-                  'h-3 w-3 rounded-full p-0 flex items-center justify-center',
-                  'border-2 border-black',
+                  'h-3 w-3 rounded-full',
+                  'border-2',
+                  systemTheme === 'dark' ? 'border-white' : 'border-black',
                   'transition-colors duration-200',
                   urlSyncEnabled ? 'bg-blue-500' : 'bg-gray-400',
                 )}
-                variant="default"
-              >
-                <span className="sr-only">{urlSyncEnabled ? 'Active' : 'Inactive'}</span>
-              </Badge>
+                role="status"
+              />
             </div>
 
             {/* Keyboard shortcut tooltip */}
             {!isDragging && !isOpen && (
               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
-                <div className="bg-black/90 text-white px-2 py-1 rounded text-xs backdrop-blur-sm flex items-center gap-1">
-                  <Kbd className="bg-white/20 text-white text-xs px-1">⌃</Kbd>
+                <div
+                  className={cn(
+                    'px-2 py-1 rounded text-xs backdrop-blur-sm flex items-center gap-1',
+                    systemTheme === 'dark' ? 'bg-white/90 text-black' : 'bg-black/90 text-white',
+                  )}
+                >
+                  <Kbd
+                    className={cn(
+                      'text-xs px-1',
+                      systemTheme === 'dark' ? 'bg-black/20 text-black' : 'bg-white/20 text-white',
+                    )}
+                  >
+                    ⌃
+                  </Kbd>
                 </div>
               </div>
             )}
@@ -345,93 +425,58 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         </PopoverTrigger>
 
         <CustomPopoverContent container={containerRef.current} side={popoverSide}>
-          <Command className="rounded-lg border-none shadow-none">
-            <div className="border-b border-border/50 px-3 py-2">
-              <div className="text-xs font-medium text-muted-foreground">Scroll Sync Toolbar</div>
+          <div className="p-4 space-y-4">
+            {/* Header */}
+            <div className="text-sm font-medium border-b border-border/50 pb-2">
+              Scroll Sync Toolbar
             </div>
-            <CommandInput className="border-none" placeholder="Search settings..." />
-            <CommandList className="max-h-[400px]">
-              <CommandEmpty>No settings found.</CommandEmpty>
 
-              <CommandGroup heading="Settings">
-                <CommandItem
-                  className="flex items-center justify-between py-3 px-4 cursor-pointer aria-selected:bg-accent"
-                  onSelect={() => {
-                    onToggle();
-                  }}
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
-                      <Settings2 className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex flex-col gap-0.5 flex-1">
-                      <span className="text-sm font-medium">URL Sync Navigation</span>
-                      <span className="text-xs text-muted-foreground">
-                        Preserve query parameters and hash fragments across tabs
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {urlSyncEnabled && (
-                      <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
-                        On
-                      </Badge>
-                    )}
-                    {!urlSyncEnabled && (
-                      <Badge className="text-muted-foreground" variant="outline">
-                        Off
-                      </Badge>
-                    )}
-                    <Switch
-                      checked={urlSyncEnabled}
-                      className="data-[state=checked]:bg-primary"
-                      onCheckedChange={(checked) => {
-                        if (checked !== urlSyncEnabled) {
-                          onToggle();
-                        }
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                </CommandItem>
+            {/* URL Sync Navigation toggle */}
+            <div className="flex items-center justify-between gap-3 py-2">
+              <div className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">URL Sync Navigation</span>
+              </div>
+              <Switch checked={urlSyncEnabled} onCheckedChange={onToggle} />
+            </div>
 
-                <CommandItem className="flex items-center justify-between py-3 px-4 opacity-60 cursor-not-allowed">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
-                      <Menu className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex flex-col gap-0.5 flex-1">
-                      <span className="text-sm font-medium">Scroll Synchronization</span>
-                      <span className="text-xs text-muted-foreground">
-                        Synchronized scrolling is {urlSyncEnabled ? 'active' : 'inactive'}
-                      </span>
-                    </div>
+            {/* Synced Tabs list with offsets */}
+            {syncedTabs.length > 0 && (
+              <div className="space-y-2 border-t border-border/50 pt-3">
+                <div className="text-xs text-muted-foreground">Synced Tabs</div>
+                {syncedTabs.map((tab) => (
+                  <div key={tab.id} className="flex items-center justify-between text-sm">
+                    <span className={cn('truncate max-w-[200px]', tab.isCurrent && 'font-medium')}>
+                      {tab.title}
+                      {tab.isCurrent && ' (current)'}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-xs font-mono',
+                        tab.offsetPixels > 0 && 'text-green-500',
+                        tab.offsetPixels < 0 && 'text-red-500',
+                        tab.offsetPixels === 0 && 'text-muted-foreground',
+                      )}
+                    >
+                      {tab.offsetPixels >= 0 ? `+${tab.offsetPixels}px` : `${tab.offsetPixels}px`}
+                    </span>
                   </div>
-                  {urlSyncEnabled && (
-                    <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
-                      Active
-                    </Badge>
-                  )}
-                  {!urlSyncEnabled && (
-                    <Badge className="text-muted-foreground" variant="outline">
-                      Inactive
-                    </Badge>
-                  )}
-                </CommandItem>
-              </CommandGroup>
+                ))}
+              </div>
+            )}
 
-              <CommandGroup heading="Keyboard Shortcuts">
-                <CommandItem className="justify-between cursor-default opacity-60 px-4">
-                  <span className="text-sm">Toggle Panel</span>
-                  <Kbd className="text-xs bg-muted">⌃</Kbd>
-                </CommandItem>
-                <CommandItem className="justify-between cursor-default opacity-60 px-4">
-                  <span className="text-sm">Close Panel</span>
-                  <Kbd className="text-xs bg-muted">Esc</Kbd>
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
+            {/* Keyboard Shortcuts Footer */}
+            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground border-t border-border/50 pt-2">
+              <div className="flex items-center gap-1.5">
+                <span>Toggle</span>
+                <Kbd className="text-xs">⌃</Kbd>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span>Close</span>
+                <Kbd className="text-xs">Esc</Kbd>
+              </div>
+            </div>
+          </div>
         </CustomPopoverContent>
       </Popover>
     </div>

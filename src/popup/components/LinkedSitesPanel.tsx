@@ -4,7 +4,11 @@ import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
 import { Button } from '~/shared/components/ui/button';
-import { loadManualScrollOffsets, clearManualScrollOffset } from '~/shared/lib/storage';
+import {
+  loadManualScrollOffsets,
+  clearManualScrollOffset,
+  type ManualScrollOffset,
+} from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
 
 import { StatusIndicator } from './StatusIndicator';
@@ -25,7 +29,7 @@ export function LinkedSitesPanel({
   onSwitchToTab,
 }: LinkedSitesPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [manualOffsets, setManualOffsets] = useState<Record<number, number>>({});
+  const [manualOffsets, setManualOffsets] = useState<Record<number, ManualScrollOffset>>({});
 
   // Load manual scroll offsets on mount and when linked tabs change
   useEffect(() => {
@@ -90,14 +94,15 @@ export function LinkedSitesPanel({
           {linkedTabs.map((tab) => {
             const status = connectionStatuses[tab.id] || 'disconnected';
             const isCurrent = tab.id === currentTabId;
-            const offset = manualOffsets[tab.id];
-            const hasOffset = offset !== undefined && offset !== 0;
+            const offsetData = manualOffsets[tab.id];
+            const offsetPixels = offsetData?.pixels || 0;
+            const hasOffset = offsetData !== undefined && offsetPixels !== 0;
 
             return (
               <div key={tab.id} className="relative">
                 <Button
                   aria-current={isCurrent ? 'page' : undefined}
-                  aria-label={`${tab.title} - ${status}${isCurrent ? ' (current tab)' : ''}${hasOffset ? ` - offset: ${offset > 0 ? '+' : ''}${Math.round(offset)}px` : ''}`}
+                  aria-label={`${tab.title} - ${status}${isCurrent ? ' (current tab)' : ''}${hasOffset ? ` - offset: ${offsetPixels > 0 ? '+' : ''}${offsetPixels}px` : ''}`}
                   className={cn(
                     'w-full justify-start gap-3 h-auto py-2 px-3 transition-colors duration-200',
                     isCurrent && 'bg-accent',
@@ -117,8 +122,8 @@ export function LinkedSitesPanel({
                     <span className="text-left truncate text-sm w-full">{tab.title}</span>
                     {hasOffset && (
                       <span className="text-xs text-muted-foreground">
-                        Offset: {offset > 0 ? '+' : ''}
-                        {Math.round(offset)}px
+                        Offset: {offsetPixels > 0 ? '+' : ''}
+                        {offsetPixels}px
                       </span>
                     )}
                   </div>

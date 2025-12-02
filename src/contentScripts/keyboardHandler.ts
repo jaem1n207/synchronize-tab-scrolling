@@ -130,19 +130,24 @@ async function disableManualMode() {
         Math.min(maxReasonableOffset, offsetRatio),
       );
 
+      // Calculate pixel offset for display purposes
+      const offsetPixels = Math.round(clampedOffsetRatio * myMaxScroll);
+
       logger.debug('Calculating manual scroll offset as ratio', {
         currentRatio,
         lastSyncedRatio: manualModeBaselineSnapshot,
         offsetRatio,
         clampedOffsetRatio,
+        offsetPixels,
       });
 
       // The calculated offsetRatio is already the absolute offset from baseline
-      // Save it directly (no accumulation needed)
-      await saveManualScrollOffset(currentTabId, clampedOffsetRatio);
-      logger.info('Manual scroll offset saved as ratio', {
+      // Save it directly (no accumulation needed) along with pixel value
+      await saveManualScrollOffset(currentTabId, clampedOffsetRatio, offsetPixels);
+      logger.info('Manual scroll offset saved', {
         tabId: currentTabId,
         offsetRatio: clampedOffsetRatio,
+        offsetPixels,
       });
     } catch (error) {
       logger.error('Failed to save manual scroll offset', { error });

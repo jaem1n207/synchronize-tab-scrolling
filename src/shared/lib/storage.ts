@@ -125,12 +125,37 @@ export async function loadSelectedTabIds(): Promise<Array<number>> {
 }
 
 /**
- * Load manual scroll offsets for all tabs
+ * Manual scroll offset data structure
  */
-export async function loadManualScrollOffsets(): Promise<Record<number, number>> {
+export interface ManualScrollOffset {
+  ratio: number; // -1 to 1, where 0 means no offset
+  pixels: number; // actual pixel offset value
+}
+
+/**
+ * Load manual scroll offsets for all tabs
+ * @returns Record of tabId to offset data (supports both legacy number format and new object format)
+ */
+export async function loadManualScrollOffsets(): Promise<Record<number, ManualScrollOffset>> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.MANUAL_SCROLL_OFFSETS);
-    return (result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS] as Record<number, number>) || {};
+    const stored = result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS] as
+      | Record<number, number | ManualScrollOffset>
+      | undefined;
+
+    if (!stored) return {};
+
+    // Convert legacy format (number) to new format (object)
+    const converted: Record<number, ManualScrollOffset> = {};
+    for (const [tabId, value] of Object.entries(stored)) {
+      if (typeof value === 'number') {
+        // Legacy format: just ratio, no pixel info
+        converted[Number(tabId)] = { ratio: value, pixels: 0 };
+      } else {
+        converted[Number(tabId)] = value;
+      }
+    }
+    return converted;
   } catch (error) {
     console.error('Failed to load manual scroll offsets:', error);
     return {};
@@ -140,12 +165,17 @@ export async function loadManualScrollOffsets(): Promise<Record<number, number>>
 /**
  * Save manual scroll offset for a specific tab
  * @param tabId - The tab ID
- * @param offset - The scroll offset as a ratio (-1 to 1, where 0 means no offset)
+ * @param ratio - The scroll offset as a ratio (-1 to 1, where 0 means no offset)
+ * @param pixels - The scroll offset in pixels
  */
-export async function saveManualScrollOffset(tabId: number, offset: number): Promise<void> {
+export async function saveManualScrollOffset(
+  tabId: number,
+  ratio: number,
+  pixels: number,
+): Promise<void> {
   try {
     const offsets = await loadManualScrollOffsets();
-    offsets[tabId] = offset;
+    offsets[tabId] = { ratio, pixels };
     await browser.storage.local.set({
       [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
     });
@@ -157,15 +187,15 @@ export async function saveManualScrollOffset(tabId: number, offset: number): Pro
 /**
  * Get manual scroll offset for a specific tab
  * @param tabId - The tab ID
- * @returns The scroll offset ratio, or 0 if no offset exists
+ * @returns The scroll offset data, or default values if no offset exists
  */
-export async function getManualScrollOffset(tabId: number): Promise<number> {
+export async function getManualScrollOffset(tabId: number): Promise<ManualScrollOffset> {
   try {
     const offsets = await loadManualScrollOffsets();
-    return offsets[tabId] || 0;
+    return offsets[tabId] || { ratio: 0, pixels: 0 };
   } catch (error) {
     console.error('Failed to get manual scroll offset:', error);
-    return 0;
+    return { ratio: 0, pixels: 0 };
   }
 }
 
