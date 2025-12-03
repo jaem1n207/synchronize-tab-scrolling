@@ -408,6 +408,71 @@ onMessage('scroll:ping', async ({ data }) => {
   return { success: true, timestamp: Date.now(), tabId: payload.tabId };
 });
 
+// Handler for reconnection request from content script (idle tab recovery)
+onMessage('scroll:reconnect', async ({ data }) => {
+  const payload = data as { tabId: number; timestamp: number };
+  logger.info('Received reconnection request from content script', { payload });
+
+  // Check if sync is active and tab is in the sync list
+  if (!syncState.isActive) {
+    logger.debug('Sync not active, ignoring reconnection request');
+    return { success: false, reason: 'Sync not active' };
+  }
+
+  if (!syncState.linkedTabs.includes(payload.tabId)) {
+    logger.debug('Tab not in sync list, ignoring reconnection request', {
+      tabId: payload.tabId,
+      linkedTabs: syncState.linkedTabs,
+    });
+    return { success: false, reason: 'Tab not in sync list' };
+  }
+
+  // Verify tab still exists
+  try {
+    const tab = await browser.tabs.get(payload.tabId);
+    logger.debug('Tab verified for reconnection', { tabId: tab.id, url: tab.url });
+  } catch (error) {
+    logger.error('Tab no longer exists, removing from sync', { tabId: payload.tabId, error });
+    // Remove tab from sync list
+    syncState.linkedTabs = syncState.linkedTabs.filter((id) => id !== payload.tabId);
+    delete syncState.connectionStatuses[payload.tabId];
+    await persistSyncState();
+    return { success: false, reason: 'Tab no longer exists' };
+  }
+
+  // Re-send scroll:start to reconnect the content script
+  try {
+    const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+      'scroll:start',
+      {
+        tabIds: syncState.linkedTabs,
+        mode: syncState.mode || 'ratio',
+        currentTabId: payload.tabId,
+      },
+      { context: 'content-script', tabId: payload.tabId },
+      3_000, // 3 second timeout for reconnection
+    );
+
+    if (response && response.success && response.tabId === payload.tabId) {
+      syncState.connectionStatuses[payload.tabId] = 'connected';
+      logger.info(`Tab ${payload.tabId} reconnected successfully after idle recovery`);
+      await persistSyncState();
+      await broadcastSyncStatus();
+      return { success: true };
+    } else {
+      logger.error('Invalid reconnection acknowledgment', { response });
+      syncState.connectionStatuses[payload.tabId] = 'error';
+      await persistSyncState();
+      return { success: false, reason: 'Invalid acknowledgment' };
+    }
+  } catch (error) {
+    logger.error(`Failed to reconnect tab ${payload.tabId}`, { error });
+    syncState.connectionStatuses[payload.tabId] = 'error';
+    await persistSyncState();
+    return { success: false, reason: 'Connection failed' };
+  }
+});
+
 logger.info('All message handlers registered successfully');
 
 // Tab event listeners for sync persistence
@@ -493,39 +558,122 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// Handle tab activation - reconnect if previously disconnected
+// Helper function to check if content script is alive via ping
+async function isContentScriptAlive(tabId: number): Promise<boolean> {
+  try {
+    const response = await sendMessageWithTimeout<{ success: boolean }>(
+      'scroll:ping',
+      { tabId, timestamp: Date.now() },
+      { context: 'content-script', tabId },
+      1_000, // 1 second timeout for ping
+    );
+    return response && response.success;
+  } catch {
+    return false;
+  }
+}
+
+// Helper function to re-inject content script into a tab
+async function reinjectContentScript(tabId: number): Promise<boolean> {
+  try {
+    logger.info(`Re-injecting content script into tab ${tabId}`);
+
+    // Re-inject the content script
+    await browser.scripting.executeScript({
+      target: { tabId },
+      files: ['dist/contentScripts/index.global.js'],
+    });
+
+    logger.info(`Content script re-injected into tab ${tabId}`);
+
+    // Wait a moment for the script to initialize
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Now send scroll:start to initialize sync
+    const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+      'scroll:start',
+      {
+        tabIds: syncState.linkedTabs,
+        mode: syncState.mode || 'ratio',
+        currentTabId: tabId,
+      },
+      { context: 'content-script', tabId },
+      3_000,
+    );
+
+    if (response && response.success && response.tabId === tabId) {
+      syncState.connectionStatuses[tabId] = 'connected';
+      logger.info(`Tab ${tabId} reconnected after content script re-injection`);
+      await persistSyncState();
+      await broadcastSyncStatus();
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    logger.error(`Failed to re-inject content script into tab ${tabId}`, { error });
+    return false;
+  }
+}
+
+// Handle tab activation - check content script health and reconnect if needed
 browser.tabs.onActivated.addListener(async ({ tabId }) => {
   if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
     return;
   }
 
-  // Check if tab was disconnected
-  if (
-    syncState.connectionStatuses[tabId] === 'disconnected' ||
-    syncState.connectionStatuses[tabId] === 'error'
-  ) {
-    logger.info(`Attempting to reconnect activated tab ${tabId}`);
+  logger.debug(`Synced tab ${tabId} activated, checking content script health`);
 
-    try {
-      await sendMessage(
-        'scroll:start',
-        {
-          tabIds: syncState.linkedTabs,
-          mode: syncState.mode || 'ratio',
-          currentTabId: tabId,
-        },
-        { context: 'content-script', tabId },
-      );
+  // First, check if content script is alive with a ping
+  const isAlive = await isContentScriptAlive(tabId);
 
+  if (isAlive) {
+    // Content script is alive
+    if (syncState.connectionStatuses[tabId] !== 'connected') {
+      // Mark as connected if it wasn't already
+      syncState.connectionStatuses[tabId] = 'connected';
+      await persistSyncState();
+      await broadcastSyncStatus();
+    }
+    logger.debug(`Tab ${tabId} content script is alive`);
+    return;
+  }
+
+  // Content script is not responding - it may have been killed when tab was suspended
+  logger.info(`Content script in tab ${tabId} not responding, attempting recovery`);
+
+  // Try to reconnect first (in case content script just needs re-initialization)
+  try {
+    const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+      'scroll:start',
+      {
+        tabIds: syncState.linkedTabs,
+        mode: syncState.mode || 'ratio',
+        currentTabId: tabId,
+      },
+      { context: 'content-script', tabId },
+      2_000,
+    );
+
+    if (response && response.success && response.tabId === tabId) {
       syncState.connectionStatuses[tabId] = 'connected';
       logger.info(`Successfully reconnected activated tab ${tabId}`);
       await persistSyncState();
       await broadcastSyncStatus();
-    } catch (error) {
-      logger.error(`Failed to reconnect activated tab ${tabId}`, { error });
-      syncState.connectionStatuses[tabId] = 'error';
-      await persistSyncState();
+      return;
     }
+  } catch (error) {
+    logger.debug(`Reconnection attempt failed for tab ${tabId}, trying re-injection`, { error });
+  }
+
+  // If reconnection failed, try re-injecting the content script
+  const reinjectSuccess = await reinjectContentScript(tabId);
+
+  if (!reinjectSuccess) {
+    logger.error(`Failed to recover tab ${tabId} after all attempts`);
+    syncState.connectionStatuses[tabId] = 'error';
+    await persistSyncState();
+    await broadcastSyncStatus();
   }
 });
 
