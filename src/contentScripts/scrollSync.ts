@@ -317,8 +317,16 @@ async function handleScroll() {
 /**
  * Broadcast URL change to other tabs (P1)
  */
-function broadcastUrlChange(url: string) {
+async function broadcastUrlChange(url: string) {
   logger.info('URL changed, broadcasting to other tabs', { url });
+
+  // Clear manual scroll offset when navigating to a new page (source tab)
+  // Only clear if URL sync is enabled - old offset values won't be useful on a new page
+  const urlSyncEnabled = await loadUrlSyncEnabled();
+  if (urlSyncEnabled) {
+    await clearManualScrollOffset(currentTabId);
+    logger.debug('Cleared manual scroll offset on URL change (source tab)', { currentTabId });
+  }
 
   sendMessage(
     'url:sync',
@@ -722,6 +730,11 @@ export function initScrollSync() {
     }
 
     logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
+
+    // Clear manual scroll offset before navigating to new page
+    // Old offset values won't be useful on a new page
+    await clearManualScrollOffset(currentTabId);
+    logger.debug('Cleared manual scroll offset before URL navigation', { currentTabId });
 
     try {
       // Parse URLs to preserve target's query parameters and hash fragment
