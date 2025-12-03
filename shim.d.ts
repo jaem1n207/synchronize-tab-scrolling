@@ -7,10 +7,6 @@ declare module 'react' {
 
 declare module 'webext-bridge' {
   export interface ProtocolMap {
-    // 기존 예제 프로토콜
-    'tab-prev': { title: string | undefined };
-    'get-current-tab': ProtocolWithReturn<{ tabId: number }, { title?: string }>;
-
     // 스크롤 동기화 프로토콜
     SCROLL_UPDATE: {
       scrollPosition: {
