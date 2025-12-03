@@ -568,11 +568,9 @@ function stopVisibilityChangeMonitoring() {
  */
 export function initScrollSync() {
   logger.info('Registering scroll sync message handlers');
-  console.log('[scrollSync] Registering scroll sync message handlers');
 
   // Listen for start sync message
   onMessage('scroll:start', async ({ data }) => {
-    console.log('[scrollSync] Received scroll:start message', data);
     logger.info('Received scroll:start message', { data });
     const payload = data as { tabIds: Array<number>; mode: SyncMode; currentTabId: number };
 

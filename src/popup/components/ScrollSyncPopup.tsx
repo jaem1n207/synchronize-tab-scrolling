@@ -66,7 +66,6 @@ export function ScrollSyncPopup() {
             connectionStatuses?: Record<number, ConnectionStatus>;
           };
           if (response?.isActive) {
-            console.log('[ScrollSyncPopup] Restoring sync state from background:', response);
             hasActiveSync = true;
             syncedTabIds = response.connectedTabs || [];
             setSyncStatus({
@@ -76,8 +75,8 @@ export function ScrollSyncPopup() {
             });
             setSelectedTabIds(syncedTabIds);
           }
-        } catch (error) {
-          console.log('[ScrollSyncPopup] No active sync to restore:', error);
+        } catch {
+          // No active sync to restore - this is expected on first load
         }
 
         // Load saved state
@@ -131,22 +130,12 @@ export function ScrollSyncPopup() {
             };
           });
 
-        console.log(
-          '[ScrollSyncPopup] Loaded tabs:',
-          tabInfos.map((t) => ({ id: t.id, title: t.title, url: t.url, eligible: t.eligible })),
-        );
         setTabs(tabInfos);
 
         // Validate selectedTabIds against available tabs
         if (hasActiveSync) {
           const availableTabIds = new Set(tabInfos.map((tab) => tab.id));
           const validSelectedIds = syncedTabIds.filter((id) => availableTabIds.has(id));
-
-          console.log('[ScrollSyncPopup] Validating sync state:', {
-            syncedTabIds,
-            availableTabIds: Array.from(availableTabIds),
-            validSelectedIds,
-          });
 
           // If some tabs are missing, update selectedTabIds to only include valid ones
           if (validSelectedIds.length !== syncedTabIds.length) {
@@ -257,7 +246,6 @@ export function ScrollSyncPopup() {
       try {
         // If this is a retry, reload all selected tabs first
         if (isRetry) {
-          console.log('[ScrollSyncPopup] Reloading tabs before retry:', selectedTabIds);
           setError({
             message: t('reloadingTabs', [String(selectedTabIds.length)]),
             severity: 'info',
@@ -276,8 +264,6 @@ export function ScrollSyncPopup() {
           // Wait a bit for tabs to reload
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
-
-        console.log('[ScrollSyncPopup] Starting sync with tab IDs:', selectedTabIds);
 
         // Show "Connecting..." feedback
         setError({
@@ -300,8 +286,6 @@ export function ScrollSyncPopup() {
           connectionResults: Record<number, { success: boolean; error?: string }>;
           error?: string;
         };
-
-        console.log('[ScrollSyncPopup] Connection response:', response);
 
         if (!response.success) {
           // Connection failed
