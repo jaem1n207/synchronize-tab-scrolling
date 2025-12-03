@@ -58,6 +58,10 @@ let isConnectionHealthy = true;
 const CONNECTION_CHECK_INTERVAL = 30000; // Check every 30 seconds
 const CONNECTION_TIMEOUT_THRESHOLD = 60000; // Consider disconnected after 60 seconds
 
+// Visibility change handler for idle tab reconnection
+let visibilityChangeHandler: (() => void) | null = null;
+let isReconnecting = false; // Prevent duplicate reconnection attempts
+
 /**
  * Get current scroll information
  */
@@ -462,6 +466,104 @@ function hideReconnectionPrompt() {
 }
 
 /**
+ * Request reconnection from background script
+ * Called when tab becomes visible after being idle/suspended
+ */
+async function requestReconnection() {
+  if (isReconnecting) {
+    logger.debug('Reconnection already in progress, skipping');
+    return;
+  }
+
+  if (!isSyncActive || !currentTabId) {
+    logger.debug('Sync not active or no tab ID, skipping reconnection');
+    return;
+  }
+
+  isReconnecting = true;
+  logger.info('Requesting reconnection after tab became visible', { currentTabId });
+
+  try {
+    // Send reconnection request to background script
+    const response = await sendMessage(
+      'scroll:reconnect',
+      { tabId: currentTabId, timestamp: Date.now() },
+      'background',
+    );
+
+    if (response && (response as { success: boolean }).success) {
+      logger.info('Reconnection successful');
+      lastSuccessfulSync = Date.now();
+      isConnectionHealthy = true;
+      hideReconnectionPrompt();
+    } else {
+      logger.warn('Reconnection failed', { response });
+    }
+  } catch (error) {
+    logger.error('Failed to request reconnection', { error });
+  } finally {
+    isReconnecting = false;
+  }
+}
+
+/**
+ * Handle visibility change event
+ * Triggered when tab becomes visible after being hidden/idle
+ */
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible' && isSyncActive) {
+    logger.info('Tab became visible while sync active, checking connection health');
+
+    const timeSinceLastSync = Date.now() - lastSuccessfulSync;
+
+    // If it's been a while since last sync, proactively request reconnection
+    // This handles cases where the tab was suspended/discarded by the browser
+    if (timeSinceLastSync > CONNECTION_TIMEOUT_THRESHOLD) {
+      logger.info('Connection likely stale after visibility change, requesting reconnection', {
+        timeSinceLastSync,
+        threshold: CONNECTION_TIMEOUT_THRESHOLD,
+      });
+      requestReconnection();
+    } else {
+      // Even if within threshold, send a ping to verify connection is alive
+      // The content script itself may have been reloaded
+      sendMessage('scroll:ping', { tabId: currentTabId, timestamp: Date.now() }, 'background')
+        .then(() => {
+          logger.debug('Connection verified after visibility change');
+          lastSuccessfulSync = Date.now();
+        })
+        .catch((error) => {
+          logger.warn('Connection verification failed, requesting reconnection', { error });
+          requestReconnection();
+        });
+    }
+  }
+}
+
+/**
+ * Start visibility change monitoring for idle tab reconnection
+ */
+function startVisibilityChangeMonitoring() {
+  // Remove any existing handler
+  stopVisibilityChangeMonitoring();
+
+  visibilityChangeHandler = handleVisibilityChange;
+  document.addEventListener('visibilitychange', visibilityChangeHandler);
+  logger.info('Visibility change monitoring started');
+}
+
+/**
+ * Stop visibility change monitoring
+ */
+function stopVisibilityChangeMonitoring() {
+  if (visibilityChangeHandler) {
+    document.removeEventListener('visibilitychange', visibilityChangeHandler);
+    visibilityChangeHandler = null;
+    logger.info('Visibility change monitoring stopped');
+  }
+}
+
+/**
  * Initialize scroll sync system
  */
 export function initScrollSync() {
@@ -545,6 +647,9 @@ export function initScrollSync() {
     startConnectionHealthCheck();
     lastSuccessfulSync = Date.now();
 
+    // Start visibility change monitoring for idle tab reconnection
+    startVisibilityChangeMonitoring();
+
     logger.info('Content script sync initialization complete');
     return { success: true, tabId: currentTabId };
   });
@@ -556,6 +661,9 @@ export function initScrollSync() {
 
     // Stop connection health check
     stopConnectionHealthCheck();
+
+    // Stop visibility change monitoring
+    stopVisibilityChangeMonitoring();
 
     // Remove scroll listener
     window.removeEventListener('scroll', handleScroll);
@@ -711,6 +819,13 @@ export function initScrollSync() {
         currentTabId,
       });
     }
+  });
+
+  // Listen for ping from background to verify content script is alive
+  onMessage('scroll:ping', async ({ data }) => {
+    const payload = data as { tabId: number; timestamp: number };
+    logger.debug('Received ping from background', { payload, isSyncActive, currentTabId });
+    return { success: true, tabId: currentTabId, timestamp: Date.now() };
   });
 
   // Listen for URL sync from other tabs (P1)
