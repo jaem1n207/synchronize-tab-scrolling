@@ -50,7 +50,7 @@ export function ErrorNotification({
         <motion.div
           animate={motionVariants.slideDown.animate}
           aria-live="polite"
-          className={`flex items-start gap-3 rounded-lg border p-3 shadow-sm ${severityStyles[error.severity]}`}
+          className={`flex items-center gap-3 rounded-lg border py-2 px-3 shadow-sm ${severityStyles[error.severity]}`}
           exit={motionVariants.slideDown.exit}
           initial={motionVariants.slideDown.initial}
           role="alert"
@@ -73,7 +73,7 @@ export function ErrorNotification({
           </div>
           <button
             aria-label="Dismiss notification"
-            className="text-current opacity-60 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2"
+            className="text-current opacity-60 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer"
             type="button"
             onClick={onDismiss}
           >

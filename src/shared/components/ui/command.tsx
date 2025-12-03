@@ -70,7 +70,10 @@ function CommandList({ ref, className, ...props }: CommandListProps) {
   return (
     <CommandPrimitive.List
       ref={ref}
-      className={cn('max-h-[300px] overflow-y-auto overflow-x-hidden', className)}
+      className={cn(
+        'max-h-[300px] overflow-y-auto overflow-x-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        className,
+      )}
       {...props}
     />
   );
