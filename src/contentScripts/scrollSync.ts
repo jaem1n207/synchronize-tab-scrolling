@@ -9,6 +9,7 @@
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
   clearManualScrollOffset,
   getManualScrollOffset,
@@ -27,7 +28,6 @@ const logger = new ExtensionLogger({ scope: 'scroll-sync' });
 let isSyncActive = false;
 let currentMode: SyncMode = 'ratio';
 let isManualScrollEnabled = false;
-let lastScrollTime = 0;
 let lastNavigationUrl = window.location.href;
 let lastSyncedRatio = 0; // Track the last synced ratio for offset calculation
 let lastSyncedRatioSnapshot = 0; // Frozen snapshot when entering manual mode
@@ -255,9 +255,10 @@ function findNearestElement(): { index: number; ratio: number } | null {
 }
 
 /**
- * Handle scroll event with throttling
+ * Core scroll handler logic (without throttling)
+ * Throttling is handled by the wrapper function
  */
-async function handleScroll() {
+async function handleScrollCore() {
   if (!isSyncActive || isManualScrollEnabled) return;
 
   const now = Date.now();
@@ -270,9 +271,6 @@ async function handleScroll() {
     });
     return;
   }
-
-  if (now - lastScrollTime < THROTTLE_DELAY) return;
-  lastScrollTime = now;
 
   const scrollInfo = getScrollInfo();
 
@@ -317,6 +315,14 @@ async function handleScroll() {
     logger.error('Failed to send scroll sync message', { error });
   });
 }
+
+/**
+ * Throttled and debounced scroll handler
+ * - First call: immediate execution for responsiveness
+ * - Subsequent calls: throttled for performance
+ * - Final call: guaranteed via debounce for accuracy (ensures final position sync)
+ */
+const handleScroll = throttleAndDebounce(handleScrollCore, THROTTLE_DELAY);
 
 /**
  * Broadcast URL change to other tabs (P1)
@@ -597,7 +603,6 @@ export function initScrollSync() {
     currentMode = payload.mode;
     currentTabId = payload.currentTabId;
     isManualScrollEnabled = false;
-    lastScrollTime = 0;
     lastProgrammaticScrollTime = 0;
     isConnectionHealthy = true;
 
