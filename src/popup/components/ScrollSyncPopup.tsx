@@ -56,6 +56,7 @@ export function ScrollSyncPopup() {
       try {
         // Query background for current sync status
         let hasActiveSync = false;
+        let syncedTabIds: Array<number> = [];
         try {
           const syncStatusResponse = await sendMessage('sync:get-status', {}, 'background');
           const response = syncStatusResponse as {
@@ -67,12 +68,13 @@ export function ScrollSyncPopup() {
           if (response?.isActive) {
             console.log('[ScrollSyncPopup] Restoring sync state from background:', response);
             hasActiveSync = true;
+            syncedTabIds = response.connectedTabs || [];
             setSyncStatus({
               isActive: true,
-              connectedTabs: response.connectedTabs || [],
+              connectedTabs: syncedTabIds,
               connectionStatuses: response.connectionStatuses || {},
             });
-            setSelectedTabIds(response.connectedTabs || []);
+            setSelectedTabIds(syncedTabIds);
           }
         } catch (error) {
           console.log('[ScrollSyncPopup] No active sync to restore:', error);
@@ -131,12 +133,46 @@ export function ScrollSyncPopup() {
 
         console.log(
           '[ScrollSyncPopup] Loaded tabs:',
-          tabInfos.map((t) => ({ id: t.id, title: t.title })),
+          tabInfos.map((t) => ({ id: t.id, title: t.title, url: t.url, eligible: t.eligible })),
         );
         setTabs(tabInfos);
 
-        // Restore previously selected tabs only if not already syncing
-        if (!hasActiveSync) {
+        // Validate selectedTabIds against available tabs
+        if (hasActiveSync) {
+          const availableTabIds = new Set(tabInfos.map((tab) => tab.id));
+          const validSelectedIds = syncedTabIds.filter((id) => availableTabIds.has(id));
+
+          console.log('[ScrollSyncPopup] Validating sync state:', {
+            syncedTabIds,
+            availableTabIds: Array.from(availableTabIds),
+            validSelectedIds,
+          });
+
+          // If some tabs are missing, update selectedTabIds to only include valid ones
+          if (validSelectedIds.length !== syncedTabIds.length) {
+            console.warn(
+              '[ScrollSyncPopup] Some synced tabs no longer available, updating selection',
+            );
+            setSelectedTabIds(validSelectedIds);
+
+            // If fewer than 2 valid tabs remain, sync state is inconsistent
+            if (validSelectedIds.length < 2) {
+              console.warn(
+                '[ScrollSyncPopup] Sync state inconsistent: fewer than 2 tabs available. Resetting sync status.',
+              );
+              setSyncStatus({
+                isActive: false,
+                connectedTabs: [],
+                connectionStatuses: {},
+              });
+              // Notify background to stop sync
+              sendMessage('scroll:stop', { tabIds: syncedTabIds }, 'background').catch((err) => {
+                console.warn('[ScrollSyncPopup] Failed to stop sync in background:', err);
+              });
+            }
+          }
+        } else {
+          // Restore previously selected tabs only if not already syncing
           const validTabIds = tabInfos.map((tab) => tab.id);
           const restoredSelection = savedTabIds.filter((id) => validTabIds.includes(id));
           if (restoredSelection.length > 0) {
