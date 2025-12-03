@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
+import { t } from '~/shared/i18n';
 
 interface SyncControlButtonsProps {
   isActive: boolean;
@@ -42,15 +43,15 @@ export function SyncControlButtons({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div aria-label="Sync controls" className="flex items-center gap-2" role="group">
+      <div aria-label={t('syncControls')} className="flex items-center gap-2" role="group">
         {!isActive ? (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 aria-label={
                   canStart
-                    ? 'Start synchronization'
-                    : `Select at least 2 tabs to start (${selectedCount} selected)`
+                    ? t('startSynchronization')
+                    : t('selectAtLeastTwoTabsCount', [String(selectedCount)])
                 }
                 className="gap-2"
                 disabled={!canStart}
@@ -59,7 +60,7 @@ export function SyncControlButtons({
                 onKeyDown={(e) => handleKeyDown(e, onStart, !canStart)}
               >
                 <Play aria-hidden="true" className="w-4 h-4" />
-                Start Sync
+                {t('startSync')}
                 <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                   <Kbd>⌘</Kbd>
                   <Kbd>S</Kbd>
@@ -68,13 +69,13 @@ export function SyncControlButtons({
             </TooltipTrigger>
             {!canStart && (
               <TooltipContent>
-                <p className="text-xs">Select at least 2 tabs to start</p>
+                <p className="text-xs">{t('selectAtLeastTwoTabs')}</p>
               </TooltipContent>
             )}
           </Tooltip>
         ) : (
           <Button
-            aria-label="Stop synchronization"
+            aria-label={t('stopSynchronization')}
             className="gap-2"
             size="sm"
             variant="destructive"
@@ -82,7 +83,7 @@ export function SyncControlButtons({
             onKeyDown={(e) => handleKeyDown(e, onStop, false)}
           >
             <Square aria-hidden="true" className="w-4 h-4" />
-            Stop Sync
+            {t('stopSync')}
             <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
               <Kbd>⌘</Kbd>
               <Kbd>S</Kbd>
@@ -94,7 +95,7 @@ export function SyncControlButtons({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                aria-label="Re-sync disconnected tabs"
+                aria-label={t('resyncDisconnectedTabs')}
                 size="sm"
                 variant="outline"
                 onClick={onResync}
@@ -104,7 +105,7 @@ export function SyncControlButtons({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs">Re-sync disconnected tabs</p>
+              <p className="text-xs">{t('resyncDisconnectedTabs')}</p>
             </TooltipContent>
           </Tooltip>
         )}

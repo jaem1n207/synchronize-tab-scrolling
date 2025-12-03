@@ -1,14 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 
 import { createRoot } from 'react-dom/client';
+import browser from 'webextension-polyfill';
 
 import { loadUrlSyncEnabled, saveUrlSyncEnabled } from '~/shared/lib/storage';
 
 import { SyncControlPanel } from './components';
-
-import '@unocss/reset/tailwind.css';
-// eslint-disable-next-line import/no-unresolved
-import 'virtual:uno.css';
 
 function PanelApp() {
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
@@ -76,48 +73,27 @@ export function showPanel() {
   appContainer.id = 'scroll-sync-app';
   contentWrapper.appendChild(appContainer);
 
-  // Function to inject styles into shadow DOM
-  const injectStyles = () => {
-    // Clear existing styles
-    styleContainer.innerHTML = '';
+  // Inject extension CSS into shadow DOM
+  const extensionStyleLink = document.createElement('link');
+  extensionStyleLink.rel = 'stylesheet';
+  extensionStyleLink.href = browser.runtime.getURL(
+    'dist/contentScripts/synchronize-tab-scrolling.css',
+  );
+  styleContainer.appendChild(extensionStyleLink);
 
-    // Clone all style tags and link elements
-    Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).forEach((el) => {
-      const cloned = el.cloneNode(true) as HTMLElement;
-      styleContainer.appendChild(cloned);
-    });
+  // Add critical base styles for Shadow DOM
+  const baseStyle = document.createElement('style');
+  baseStyle.textContent = `
+    :host {
+      all: initial;
+      display: block;
+    }
 
-    // Add critical base styles for Shadow DOM
-    const baseStyle = document.createElement('style');
-    baseStyle.textContent = `
-      :host {
-        all: initial;
-        display: block;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      /* Ensure high z-index for overlays */
-      .geist-overlay {
-        z-index: 100000000001;
-      }
-
-      .geist-overlay-backdrop {
-        z-index: 10000000000;
-        pointer-events: auto;
-      }
-    `;
-    styleContainer.appendChild(baseStyle);
-  };
-
-  // Inject styles immediately
-  injectStyles();
-
-  // Re-inject styles after a short delay to catch any late-loaded styles
-  setTimeout(injectStyles, 100);
-  setTimeout(injectStyles, 500);
+    * {
+      box-sizing: border-box;
+    }
+  `;
+  styleContainer.appendChild(baseStyle);
 
   // Create React root and render
   panelRoot = createRoot(appContainer);

@@ -15,6 +15,12 @@ pre-commit:
       glob: '**/*.{ts,tsx}'
       exclude: '{node_modules,extension/dist,build,dist}/**/*'
       run: bunx tsc --noEmit
+    i18n-validate:
+      glob: 'src/shared/i18n/_locales/**/*.json'
+      run: bunx esno scripts/validate-i18n.ts
+      skip:
+        - merge
+        - rebase
 
 # 종속성 변경 시 패키지 업데이트
 post-merge:
@@ -36,3 +42,5 @@ health:
       run: bunx prettier --write .
     typecheck:
       run: bunx tsc --noEmit
+    i18n-validate:
+      run: bunx esno scripts/validate-i18n.ts

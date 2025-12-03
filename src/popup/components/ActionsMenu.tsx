@@ -8,6 +8,7 @@ import { Command, CommandGroup, CommandItem, CommandList } from '~/shared/compon
 import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Separator } from '~/shared/components/ui/separator';
+import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
   EASING_FUNCTIONS,
@@ -109,7 +110,7 @@ export function ActionsMenu({
           variant="outline"
           onClick={() => onOpenChange(!open)}
         >
-          Actions
+          {t('actionsButton')}
           <div className="flex items-center gap-0.5">
             <Kbd>⌘</Kbd>
             <Kbd>K</Kbd>
@@ -146,7 +147,7 @@ export function ActionsMenu({
               <Command>
                 <CommandList className="max-h-[400px]">
                   {/* Sync Controls */}
-                  <CommandGroup heading="Sync Controls">
+                  <CommandGroup heading={t('syncControlsHeading')}>
                     <CommandItem
                       ref={firstItemRef}
                       disabled={!isSyncActive && selectedCount < 2}
@@ -158,7 +159,7 @@ export function ActionsMenu({
                         ) : (
                           <Play aria-hidden="true" className="w-4 h-4" />
                         )}
-                        <span>{isSyncActive ? 'Stop Sync' : 'Start Sync'}</span>
+                        <span>{isSyncActive ? t('stopSync') : t('startSync')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                         <Kbd>⌘</Kbd>
@@ -170,11 +171,11 @@ export function ActionsMenu({
                   <Separator />
 
                   {/* Selection Controls */}
-                  <CommandGroup heading="Selection">
+                  <CommandGroup heading={t('selectionHeading')}>
                     <CommandItem disabled={isSyncActive} onSelect={handleSelectAll}>
                       <div className="flex items-center gap-2 flex-1">
                         <Check aria-hidden="true" className="w-4 h-4" />
-                        <span>Select All Tabs</span>
+                        <span>{t('selectAllTabs')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                         <Kbd>⌘</Kbd>
@@ -187,7 +188,7 @@ export function ActionsMenu({
                     >
                       <div className="flex items-center gap-2 flex-1">
                         <X aria-hidden="true" className="w-4 h-4" />
-                        <span>Clear All Selections</span>
+                        <span>{t('clearAllSelections')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                         <Kbd>⌘</Kbd>
@@ -200,7 +201,7 @@ export function ActionsMenu({
                   <Separator />
 
                   {/* Filter Options */}
-                  <CommandGroup heading="Filters">
+                  <CommandGroup heading={t('filtersHeading')}>
                     <CommandItem
                       onSelect={() => {
                         onSameDomainFilterChange(!sameDomainFilter);
@@ -209,7 +210,7 @@ export function ActionsMenu({
                     >
                       <div className="flex items-center gap-2 flex-1">
                         <Filter aria-hidden="true" className="w-4 h-4" />
-                        <span>Same Domain Only</span>
+                        <span>{t('sameDomainOnly')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {sameDomainFilter && <Check aria-hidden="true" className="w-4 h-4" />}
@@ -224,7 +225,7 @@ export function ActionsMenu({
                   <Separator />
 
                   {/* Sort Options */}
-                  <CommandGroup heading="Sort By">
+                  <CommandGroup heading={t('sortByHeading')}>
                     <CommandItem
                       onSelect={() => {
                         onSortChange('similarity');
@@ -236,7 +237,7 @@ export function ActionsMenu({
                           <Check aria-hidden="true" className="w-4 h-4" />
                         )}
                         <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
-                        <span>Similarity (Domain Grouping)</span>
+                        <span>{t('sortSimilarity')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                         <Kbd>⌘</Kbd>
@@ -252,7 +253,7 @@ export function ActionsMenu({
                       <div className="flex items-center gap-2 flex-1">
                         {sortBy === 'recent' && <Check aria-hidden="true" className="w-4 h-4" />}
                         <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
-                        <span>Recent Visits</span>
+                        <span>{t('sortRecent')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                         <Kbd>⌘</Kbd>

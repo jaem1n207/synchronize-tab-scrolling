@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
 import { Badge } from '~/shared/components/ui/badge';
 import { ScrollArea } from '~/shared/components/ui/scroll-area';
+import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
   EASING_FUNCTIONS,
@@ -42,7 +43,7 @@ export function SyncStatusHeader({
             <div className="flex items-center gap-2">
               <Badge className="flex items-center gap-1.5" variant="default">
                 <Loader2 aria-hidden="true" className="w-3 h-3 animate-spin" />
-                <span>Syncing {connectedTabs.length} tabs</span>
+                <span>{t('syncingTabs', [String(connectedTabs.length)])}</span>
               </Badge>
             </div>
           </div>
@@ -73,19 +74,19 @@ export function SyncStatusHeader({
 
                       {isConnected && (
                         <CheckCircle2
-                          aria-label="Connected"
+                          aria-label={t('connected')}
                           className="w-3 h-3 shrink-0 text-green-600"
                         />
                       )}
                       {isError && (
                         <XCircle
-                          aria-label="Disconnected"
+                          aria-label={t('disconnected')}
                           className="w-3 h-3 shrink-0 text-destructive"
                         />
                       )}
                       {status === 'connecting' && (
                         <Loader2
-                          aria-label="Connecting"
+                          aria-label={t('connecting')}
                           className="w-3 h-3 shrink-0 animate-spin text-muted-foreground"
                         />
                       )}

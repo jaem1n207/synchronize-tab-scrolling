@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
 import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
+import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
   EASING_FUNCTIONS,
@@ -24,7 +25,7 @@ export function SelectedTabsChips({ tabs, isSyncActive, onRemoveTab }: SelectedT
     <div className="h-[64px] overflow-y-auto border rounded-lg p-2 bg-muted/30">
       {tabs.length === 0 ? (
         <div className="flex items-center justify-center h-full">
-          <p className="text-xs text-muted-foreground">Select 2 or more tabs to start syncing</p>
+          <p className="text-xs text-muted-foreground">{t('selectTwoOrMoreTabs')}</p>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -55,8 +56,8 @@ export function SelectedTabsChips({ tabs, isSyncActive, onRemoveTab }: SelectedT
                   <Button
                     aria-label={
                       isSyncActive
-                        ? `Cannot remove ${tab.title} during sync`
-                        : `Remove ${tab.title}`
+                        ? t('cannotRemoveTabDuringSync', [tab.title])
+                        : t('removeTab', [tab.title])
                     }
                     className="h-4 w-4 p-0 hover:bg-muted rounded-sm shrink-0"
                     disabled={isSyncActive}

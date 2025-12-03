@@ -5,6 +5,7 @@ import browser from 'webextension-polyfill';
 
 import { useKeyboardShortcuts } from '~/shared/hooks/useKeyboardShortcuts';
 import { usePersistentState } from '~/shared/hooks/usePersistentState';
+import { t } from '~/shared/i18n';
 import { loadSelectedTabIds, saveSelectedTabIds } from '~/shared/lib/storage';
 import {
   sortTabsWithDomainGrouping,
@@ -102,26 +103,23 @@ export function ScrollSyncPopup() {
                 url.includes('microsoftedge.microsoft.com/addons') ||
                 url.includes('addons.mozilla.org')
               ) {
-                ineligibleReason =
-                  'Web store pages cannot be synchronized due to security restrictions';
+                ineligibleReason = t('ineligibleWebStore');
               } else if (url.match(/^https?:\/\/(drive|docs|sheets|mail)\.google\.com/)) {
-                ineligibleReason =
-                  'Google services pages have restrictions that prevent synchronization';
+                ineligibleReason = t('ineligibleGoogleServices');
               } else if (
                 url.match(/^(chrome|edge|about|firefox|moz-extension|chrome-extension):/)
               ) {
-                ineligibleReason =
-                  'Browser internal pages cannot be synchronized due to security restrictions';
+                ineligibleReason = t('ineligibleBrowserInternal');
               } else if (url.match(/^(view-source|data|javascript|file|blob):/)) {
-                ineligibleReason = 'Special protocol pages cannot be synchronized';
+                ineligibleReason = t('ineligibleSpecialProtocol');
               } else {
-                ineligibleReason = 'This page cannot be synchronized due to security restrictions';
+                ineligibleReason = t('ineligibleSecurityRestriction');
               }
             }
 
             return {
               id: tab.id!,
-              title: tab.title || 'Untitled',
+              title: tab.title || t('untitled'),
               url,
               favIconUrl: tab.favIconUrl,
               eligible: !isForbidden,
@@ -147,11 +145,11 @@ export function ScrollSyncPopup() {
       } catch (error) {
         console.error('Failed to initialize popup:', error);
         setError({
-          message: 'Failed to load tabs. Please refresh the extension.',
+          message: t('errorLoadTabsFailed'),
           severity: 'error',
           timestamp: Date.now(),
           action: {
-            label: 'Retry',
+            label: t('retry'),
             handler: () => {
               setError(null);
               initialize();
@@ -206,7 +204,7 @@ export function ScrollSyncPopup() {
       // Validation: Check if at least 2 tabs are selected
       if (selectedTabIds.length < 2) {
         setError({
-          message: 'Please select at least 2 tabs to synchronize.',
+          message: t('errorMinTabsRequired'),
           severity: 'warning',
           timestamp: Date.now(),
         });
@@ -218,7 +216,7 @@ export function ScrollSyncPopup() {
         if (isRetry) {
           console.log('[ScrollSyncPopup] Reloading tabs before retry:', selectedTabIds);
           setError({
-            message: `Reloading ${selectedTabIds.length} tabs...`,
+            message: t('reloadingTabs', [String(selectedTabIds.length)]),
             severity: 'info',
             timestamp: Date.now(),
           });
@@ -240,7 +238,7 @@ export function ScrollSyncPopup() {
 
         // Show "Connecting..." feedback
         setError({
-          message: `Connecting to ${selectedTabIds.length} tabs...`,
+          message: t('connectingToTabs', [String(selectedTabIds.length)]),
           severity: 'info',
           timestamp: Date.now(),
         });
@@ -271,11 +269,11 @@ export function ScrollSyncPopup() {
           setError({
             message:
               response.error ||
-              `Failed to connect to tabs. ${failedTabs.length > 0 ? failedTabs.join(', ') : ''}`,
+              t('failedToConnectToTabs', [failedTabs.length > 0 ? failedTabs.join(', ') : '']),
             severity: 'error',
             timestamp: Date.now(),
             action: {
-              label: 'Retry',
+              label: t('retry'),
               handler: () => handleStartWithRetry(true),
             },
           });
@@ -304,14 +302,18 @@ export function ScrollSyncPopup() {
           // Some tabs failed to connect
           const failedCount = attemptedCount - connectedCount;
           setError({
-            message: `Connected to ${connectedCount} of ${attemptedCount} tabs (${failedCount} failed).`,
+            message: t('connectedToTabs', [
+              String(connectedCount),
+              String(attemptedCount),
+              String(failedCount),
+            ]),
             severity: 'warning',
             timestamp: Date.now(),
           });
         } else {
           // All tabs connected successfully
           setError({
-            message: `Successfully connected to ${connectedCount} tabs.`,
+            message: t('successfullyConnectedToTabs', [String(connectedCount)]),
             severity: 'info',
             timestamp: Date.now(),
           });
@@ -319,11 +321,11 @@ export function ScrollSyncPopup() {
       } catch (error) {
         console.error('Failed to start sync:', error);
         setError({
-          message: `Failed to start synchronization: ${error instanceof Error ? error.message : String(error)}`,
+          message: t('failedToStartSync', [error instanceof Error ? error.message : String(error)]),
           severity: 'error',
           timestamp: Date.now(),
           action: {
-            label: 'Retry',
+            label: t('retry'),
             handler: () => handleStartWithRetry(true),
           },
         });
@@ -343,7 +345,7 @@ export function ScrollSyncPopup() {
 
     // Show stopping feedback
     setError({
-      message: 'Stopping synchronization...',
+      message: t('stoppingSynchronization'),
       severity: 'info',
       timestamp: Date.now(),
     });
@@ -374,7 +376,7 @@ export function ScrollSyncPopup() {
       });
 
       setError({
-        message: 'Synchronization stopped successfully.',
+        message: t('successSyncStopped'),
         severity: 'info',
         timestamp: Date.now(),
       });
@@ -389,7 +391,9 @@ export function ScrollSyncPopup() {
       });
 
       setError({
-        message: `Warning: ${error instanceof Error ? error.message : 'Failed to stop sync properly'}. Local state has been cleared.`,
+        message: t('warningStopSyncFailed', [
+          error instanceof Error ? error.message : 'Failed to stop sync properly',
+        ]),
         severity: 'warning',
         timestamp: Date.now(),
       });

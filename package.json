@@ -33,7 +33,7 @@
     "dev:web": "vite",
     "dev:js": "pnpm run build:js -- --mode development",
     "--------------------------------prod-----------------------------": "",
-    "build": "cross-env NODE_ENV=production run-s clear build:web build:prepare build:background build:js",
+    "build": "cross-env NODE_ENV=production run-s clear i18n:validate build:web build:prepare build:background build:js",
     "build:prepare": "esno scripts/prepare.ts",
     "build:background": "vite build --config vite.config.background.mts",
     "build:web": "vite build",
@@ -56,6 +56,7 @@
     "lint:fix": "NODE_OPTIONS='--experimental-strip-types' eslint . --fix --flag unstable_native_nodejs_ts_config",
     "format:fix": "pnpm prettier --write .",
     "typecheck": "pnpm tsc --noEmit",
+    "i18n:validate": "esno scripts/validate-i18n.ts",
     "cz": "czg"
   },
   "dependencies": {

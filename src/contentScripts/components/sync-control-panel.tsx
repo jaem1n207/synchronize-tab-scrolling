@@ -10,6 +10,7 @@ import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
 import { useSystemTheme } from '~/shared/hooks/use-system-theme';
+import { t } from '~/shared/i18n';
 import { PANEL_ANIMATIONS, prefersReducedMotion } from '~/shared/lib/animations';
 import { loadManualScrollOffsets } from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
@@ -345,7 +346,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         <PopoverTrigger asChild>
           <Button
             ref={toolbarRef}
-            aria-label="Open sync control panel"
+            aria-label={t('openSyncControlPanel')}
             className={cn(
               'fixed pointer-events-auto z-[2147483647]',
               'rounded-full shadow-lg backdrop-blur-md p-0',
@@ -389,7 +390,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
             {/* Status indicator */}
             <div className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
               <div
-                aria-label={urlSyncEnabled ? 'Sync active' : 'Sync inactive'}
+                aria-label={urlSyncEnabled ? t('syncActive') : t('syncInactive')}
                 className={cn(
                   'h-3 w-3 rounded-full',
                   'border-2',
@@ -427,15 +428,15 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         <CustomPopoverContent container={containerRef.current} side={popoverSide}>
           <div className="p-4 space-y-4">
             {/* Header */}
-            <div className="text-sm font-medium border-b border-border/50 pb-2">
-              Scroll Sync Toolbar
+            <div className="text-sm font-medium border-b text-red-500 border-border/50 pb-2">
+              {t('scrollSyncToolbar')}
             </div>
 
             {/* URL Sync Navigation toggle */}
             <div className="flex items-center justify-between gap-3 py-2">
               <div className="flex items-center gap-2">
                 <Settings2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">URL Sync Navigation</span>
+                <span className="text-sm">{t('urlSyncNavigation')}</span>
               </div>
               <Switch checked={urlSyncEnabled} onCheckedChange={onToggle} />
             </div>
@@ -443,12 +444,12 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
             {/* Synced Tabs list with offsets */}
             {syncedTabs.length > 0 && (
               <div className="space-y-2 border-t border-border/50 pt-3">
-                <div className="text-xs text-muted-foreground">Synced Tabs</div>
+                <div className="text-xs text-muted-foreground">{t('syncedTabs')}</div>
                 {syncedTabs.map((tab) => (
                   <div key={tab.id} className="flex items-center justify-between text-sm">
                     <span className={cn('truncate max-w-[200px]', tab.isCurrent && 'font-medium')}>
                       {tab.title}
-                      {tab.isCurrent && ' (current)'}
+                      {tab.isCurrent && ` (${t('current')})`}
                     </span>
                     <span
                       className={cn(
@@ -468,11 +469,11 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
             {/* Keyboard Shortcuts Footer */}
             <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground border-t border-border/50 pt-2">
               <div className="flex items-center gap-1.5">
-                <span>Toggle</span>
+                <span>{t('toggleShortcut')}</span>
                 <Kbd className="text-xs">⌃</Kbd>
               </div>
               <div className="flex items-center gap-1.5">
-                <span>Close</span>
+                <span>{t('closeShortcut')}</span>
                 <Kbd className="text-xs">Esc</Kbd>
               </div>
             </div>

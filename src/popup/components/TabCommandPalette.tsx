@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
+import { t } from '~/shared/i18n';
 import { matchesKoreanSearch } from '~/shared/lib/korean-search';
 import { sortTabsWithDomainGrouping } from '~/shared/lib/tab-similarity';
 import { cn } from '~/shared/lib/utils';
@@ -118,15 +119,15 @@ export function TabCommandPalette({
             className="flex items-center justify-between px-1"
           >
             <h2 className="text-sm font-medium" id="tab-selection-heading">
-              Select Tabs to Sync
+              {t('tabSelectionHeading')}
             </h2>
             {selectedCount > 0 && (
               <Badge
-                aria-label={`${selectedCount} tabs selected`}
+                aria-label={t('tabsSelectedLabel', [String(selectedCount)])}
                 className="ml-2"
                 variant="default"
               >
-                {selectedCount} selected
+                {t('selectedCount', [String(selectedCount)])}
               </Badge>
             )}
           </div>
@@ -145,8 +146,8 @@ export function TabCommandPalette({
         >
           <CommandInput
             ref={inputRef}
-            aria-label="Search tabs"
-            placeholder="Search tabs by title or URL..."
+            aria-label={t('searchTabsLabel')}
+            placeholder={t('searchTabsPlaceholder')}
             value={searchQuery}
             onValueChange={setSearchQuery}
           />
@@ -154,12 +155,12 @@ export function TabCommandPalette({
             <ScrollArea className="max-h-[300px]">
               <CommandEmpty>
                 <div className="py-6 text-center text-sm text-muted-foreground">
-                  <p>No tabs found matching &quot;{searchQuery}&quot;</p>
+                  <p>{t('noTabsMatchingSearch', [searchQuery])}</p>
                 </div>
               </CommandEmpty>
 
               {eligibleTabs.length > 0 && (
-                <CommandGroup heading="Available Tabs">
+                <CommandGroup heading={t('availableTabs')}>
                   {eligibleTabs
                     .filter(
                       (tab) =>
@@ -177,7 +178,7 @@ export function TabCommandPalette({
                           aria-disabled={isSyncActive}
                           aria-label={
                             isSyncActive
-                              ? `${tab.title} - Cannot change selection during sync`
+                              ? t('cannotChangeSelectionDuringSync', [tab.title])
                               : undefined
                           }
                           aria-selected={isSelected}
@@ -193,7 +194,7 @@ export function TabCommandPalette({
                           onSelect={() => handleToggle(tab.id, tab.eligible)}
                         >
                           <Checkbox
-                            aria-label={`Select ${tab.title}`}
+                            aria-label={t('selectTab', [tab.title])}
                             checked={isSelected}
                             className="shrink-0"
                             disabled={isSyncActive}
@@ -215,11 +216,11 @@ export function TabCommandPalette({
                               <span className="text-sm font-medium truncate">{tab.title}</span>
                               {isCurrentTab && (
                                 <Badge
-                                  aria-label="Current tab"
+                                  aria-label={t('currentTabLabel')}
                                   className="shrink-0 text-xs"
                                   variant="outline"
                                 >
-                                  Current
+                                  {t('currentTab')}
                                 </Badge>
                               )}
                             </div>
@@ -241,7 +242,7 @@ export function TabCommandPalette({
               )}
 
               {ineligibleTabs.length > 0 && (
-                <CommandGroup heading="Unavailable Tabs">
+                <CommandGroup heading={t('unavailableTabs')}>
                   {ineligibleTabs
                     .filter(
                       (tab) =>
@@ -265,7 +266,7 @@ export function TabCommandPalette({
                             >
                               <Checkbox
                                 disabled
-                                aria-label={`Cannot select ${tab.title}`}
+                                aria-label={t('cannotSelectTab', [tab.title])}
                                 checked={false}
                                 className="shrink-0"
                               />
@@ -284,11 +285,11 @@ export function TabCommandPalette({
                                   <span className="text-sm font-medium truncate">{tab.title}</span>
                                   {isCurrentTab && (
                                     <Badge
-                                      aria-label="Current tab"
+                                      aria-label={t('currentTabLabel')}
                                       className="shrink-0 text-xs"
                                       variant="outline"
                                     >
-                                      Current
+                                      {t('currentTab')}
                                     </Badge>
                                   )}
                                 </div>
@@ -310,7 +311,7 @@ export function TabCommandPalette({
                             <div className="flex items-start gap-2">
                               <AlertCircle className="w-4 h-4 shrink-0 text-destructive mt-0.5" />
                               <div>
-                                <p className="font-medium text-xs mb-1">Cannot Sync</p>
+                                <p className="font-medium text-xs mb-1">{t('cannotSync')}</p>
                                 <p className="text-xs text-muted-foreground">
                                   {tab.ineligibleReason}
                                 </p>

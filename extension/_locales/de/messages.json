@@ -133,5 +133,268 @@
   },
   "ineligibleSecurityRestriction": {
     "message": "Diese Seite kann aufgrund von Sicherheitsbeschränkungen nicht synchronisiert werden"
+  },
+  "syncControls": {
+    "message": "Synchronisationssteuerung"
+  },
+  "startSynchronization": {
+    "message": "Synchronisation starten"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "Wählen Sie mindestens 2 Tabs zum Starten"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "Wählen Sie mindestens 2 Tabs zum Starten ($COUNT$ ausgewählt)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "Synchronisation stoppen"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "Getrennte Tabs neu synchronisieren"
+  },
+  "actionsButton": {
+    "message": "Aktionen"
+  },
+  "syncControlsHeading": {
+    "message": "Synchronisationssteuerung"
+  },
+  "selectionHeading": {
+    "message": "Auswahl"
+  },
+  "selectAllTabs": {
+    "message": "Alle Tabs auswählen"
+  },
+  "clearAllSelections": {
+    "message": "Alle Auswahlen löschen"
+  },
+  "filtersHeading": {
+    "message": "Filter"
+  },
+  "sameDomainOnly": {
+    "message": "Nur gleiche Domain"
+  },
+  "sortByHeading": {
+    "message": "Sortieren nach"
+  },
+  "sortSimilarity": {
+    "message": "Ähnlichkeit (Domain-Gruppierung)"
+  },
+  "sortRecent": {
+    "message": "Letzte Besuche"
+  },
+  "footerActions": {
+    "message": "Aktionen"
+  },
+  "footerStartStop": {
+    "message": "Starten/Stoppen"
+  },
+  "footerSelect": {
+    "message": "Auswählen"
+  },
+  "syncingTabs": {
+    "message": "$COUNT$ Tabs werden synchronisiert",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "Verbinden"
+  },
+  "availableTabs": {
+    "message": "Verfügbare Tabs"
+  },
+  "unavailableTabs": {
+    "message": "Nicht verfügbare Tabs"
+  },
+  "searchTabsPlaceholder": {
+    "message": "Tabs nach Titel oder URL suchen..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "Keine Tabs gefunden, die \"$QUERY$\" entsprechen",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - Auswahl kann während der Synchronisation nicht geändert werden",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "$TITLE$ auswählen",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "$TITLE$ kann nicht ausgewählt werden",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome Web Store"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "Synchronisation nicht möglich"
+  },
+  "syncActive": {
+    "message": "Synchronisation aktiv"
+  },
+  "syncInactive": {
+    "message": "Synchronisation inaktiv"
+  },
+  "scrollSyncToolbar": {
+    "message": "Scroll-Sync-Werkzeugleiste"
+  },
+  "urlSyncNavigation": {
+    "message": "URL-Sync-Navigation"
+  },
+  "syncedTabs": {
+    "message": "Synchronisierte Tabs"
+  },
+  "current": {
+    "message": "aktuell"
+  },
+  "toggleShortcut": {
+    "message": "Umschalten"
+  },
+  "closeShortcut": {
+    "message": "Schließen"
+  },
+  "openSyncControlPanel": {
+    "message": "Synchronisations-Steuerungspanel öffnen"
+  },
+  "connectingToTabs": {
+    "message": "Verbindung zu $COUNT$ Tabs wird hergestellt...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "$COUNT$ Tabs werden neu geladen...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "Synchronisation wird gestoppt..."
+  },
+  "connectedToTabs": {
+    "message": "Mit $COUNT$ von $TOTAL$ Tabs verbunden ($FAILED$ fehlgeschlagen).",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "Erfolgreich mit $COUNT$ Tabs verbunden.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "Wählen Sie 2 oder mehr Tabs zum Synchronisieren"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "$TITLE$ kann während der Synchronisation nicht entfernt werden",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "$TITLE$ entfernen",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "$COUNT$ Tabs ausgewählt",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "Aktueller Tab"
+  },
+  "searchTabsLabel": {
+    "message": "Tabs suchen"
+  },
+  "untitled": {
+    "message": "Ohne Titel"
+  },
+  "failedToStartSync": {
+    "message": "Synchronisation konnte nicht gestartet werden: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Verbindungs-Timeout"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "Warnung: $ERROR$. Lokaler Status wurde gelöscht.",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Synchronisation konnte nicht ordnungsgemäß gestoppt werden"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "Verbindung zu Tabs fehlgeschlagen. $DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "Tab 123: Verbindungs-Timeout"
+      }
+    }
   }
 }

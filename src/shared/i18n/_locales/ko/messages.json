@@ -133,5 +133,268 @@
   },
   "ineligibleSecurityRestriction": {
     "message": "이 페이지는 보안 제한으로 인해 동기화할 수 없습니다"
+  },
+  "syncControls": {
+    "message": "동기화 컨트롤"
+  },
+  "startSynchronization": {
+    "message": "동기화 시작"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "시작하려면 2개 이상의 탭을 선택하세요"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "시작하려면 2개 이상의 탭을 선택하세요 ($COUNT$개 선택됨)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "동기화 중지"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "연결이 끊긴 탭 재동기화"
+  },
+  "actionsButton": {
+    "message": "작업"
+  },
+  "syncControlsHeading": {
+    "message": "동기화 제어"
+  },
+  "selectionHeading": {
+    "message": "선택"
+  },
+  "selectAllTabs": {
+    "message": "모든 탭 선택"
+  },
+  "clearAllSelections": {
+    "message": "모든 선택 해제"
+  },
+  "filtersHeading": {
+    "message": "필터"
+  },
+  "sameDomainOnly": {
+    "message": "같은 도메인만"
+  },
+  "sortByHeading": {
+    "message": "정렬 기준"
+  },
+  "sortSimilarity": {
+    "message": "유사도 (도메인 그룹화)"
+  },
+  "sortRecent": {
+    "message": "최근 방문"
+  },
+  "footerActions": {
+    "message": "작업"
+  },
+  "footerStartStop": {
+    "message": "시작/중지"
+  },
+  "footerSelect": {
+    "message": "선택"
+  },
+  "syncingTabs": {
+    "message": "$COUNT$개 탭 동기화 중",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "연결 중"
+  },
+  "availableTabs": {
+    "message": "사용 가능한 탭"
+  },
+  "unavailableTabs": {
+    "message": "사용 불가능한 탭"
+  },
+  "searchTabsPlaceholder": {
+    "message": "제목 또는 URL로 탭 검색..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "\"$QUERY$\"와 일치하는 탭을 찾을 수 없습니다",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - 동기화 중에는 선택을 변경할 수 없습니다",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "$TITLE$ 선택",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "$TITLE$ 선택 불가",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome 웹 스토어"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "동기화 불가"
+  },
+  "syncActive": {
+    "message": "동기화 활성"
+  },
+  "syncInactive": {
+    "message": "동기화 비활성"
+  },
+  "scrollSyncToolbar": {
+    "message": "스크롤 동기화 도구"
+  },
+  "urlSyncNavigation": {
+    "message": "URL 동기화 네비게이션"
+  },
+  "syncedTabs": {
+    "message": "동기화된 탭"
+  },
+  "current": {
+    "message": "현재"
+  },
+  "toggleShortcut": {
+    "message": "전환"
+  },
+  "closeShortcut": {
+    "message": "닫기"
+  },
+  "openSyncControlPanel": {
+    "message": "동기화 제어판 열기"
+  },
+  "connectingToTabs": {
+    "message": "$COUNT$개 탭에 연결 중...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "$COUNT$개 탭 새로고침 중...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "동기화 중지 중..."
+  },
+  "connectedToTabs": {
+    "message": "$TOTAL$개 탭 중 $COUNT$개 연결됨 ($FAILED$개 실패).",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "$COUNT$개 탭에 성공적으로 연결되었습니다.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "동기화를 시작하려면 2개 이상의 탭을 선택하세요"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "동기화 중에는 $TITLE$을(를) 제거할 수 없습니다",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "$TITLE$ 제거",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "$COUNT$개 탭 선택됨",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "현재 탭"
+  },
+  "searchTabsLabel": {
+    "message": "탭 검색"
+  },
+  "untitled": {
+    "message": "제목 없음"
+  },
+  "failedToStartSync": {
+    "message": "동기화를 시작하지 못했습니다: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "연결 시간 초과"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "경고: $ERROR$. 로컬 상태가 초기화되었습니다.",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "동기화를 제대로 중지하지 못했습니다"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "탭에 연결하지 못했습니다. $DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "탭 123: 연결 시간 초과"
+      }
+    }
   }
 }

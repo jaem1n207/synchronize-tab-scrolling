@@ -1,60 +1,60 @@
 {
   "extName": {
-    "message": "Synchronize Tab Scrolling"
+    "message": "Sincronizar Desplazamiento de Pestanas"
   },
   "extDescription": {
-    "message": "Browser extension that lets you synchronize the scrolling position of multiple tabs"
+    "message": "Extension del navegador que permite sincronizar la posicion de desplazamiento de multiples pestanas"
   },
   "searchPlaceholder": {
-    "message": "Search Tabs"
+    "message": "Buscar Pestanas"
   },
   "noSearchFound": {
-    "message": "Unable to find any tabs matching your search"
+    "message": "No se encontraron pestanas que coincidan con tu busqueda"
   },
   "noTabsFound": {
-    "message": "No syncable tabs found"
+    "message": "No se encontraron pestanas sincronizables"
   },
   "startSync": {
-    "message": "Start Sync"
+    "message": "Iniciar Sincronizacion"
   },
   "stopSync": {
-    "message": "Stop Sync"
+    "message": "Detener Sincronizacion"
   },
   "syncValidationError": {
-    "message": "Please select at least 2 tabs"
+    "message": "Por favor selecciona al menos 2 pestanas"
   },
   "loading": {
-    "message": "Loading..."
+    "message": "Cargando..."
   },
   "error": {
-    "message": "An error occurred"
+    "message": "Ocurrio un error"
   },
   "backgroundUpdate": {
-    "message": "Background Updating..."
+    "message": "Actualizando en segundo plano..."
   },
   "tabs": {
-    "message": "Tabs"
+    "message": "Pestanas"
   },
   "changeTheme": {
-    "message": "Change Theme"
+    "message": "Cambiar Tema"
   },
   "light": {
-    "message": "Light"
+    "message": "Claro"
   },
   "dark": {
-    "message": "Dark"
+    "message": "Oscuro"
   },
   "system": {
-    "message": "System"
+    "message": "Sistema"
   },
   "noTitle": {
-    "message": "No Title"
+    "message": "Sin Titulo"
   },
   "tabSelectionHeading": {
-    "message": "Select Tabs to Sync"
+    "message": "Seleccionar Pestanas para Sincronizar"
   },
   "selectedCount": {
-    "message": "$COUNT$ selected",
+    "message": "$COUNT$ seleccionadas",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -63,46 +63,46 @@
     }
   },
   "resync": {
-    "message": "Resync"
+    "message": "Resincronizar"
   },
   "minimize": {
-    "message": "Minimize"
+    "message": "Minimizar"
   },
   "maximize": {
-    "message": "Maximize"
+    "message": "Maximizar"
   },
   "linkedTabs": {
-    "message": "Linked Tabs"
+    "message": "Pestanas Vinculadas"
   },
   "currentTab": {
-    "message": "Current"
+    "message": "Actual"
   },
   "switchToTab": {
-    "message": "Switch to this tab"
+    "message": "Cambiar a esta pestana"
   },
   "connected": {
-    "message": "Connected"
+    "message": "Conectado"
   },
   "disconnected": {
-    "message": "Disconnected"
+    "message": "Desconectado"
   },
   "errorLoadTabsFailed": {
-    "message": "Failed to load tabs. Please refresh the extension."
+    "message": "Error al cargar pestanas. Por favor actualiza la extension."
   },
   "errorStartSyncFailed": {
-    "message": "Failed to start synchronization. Please try again."
+    "message": "Error al iniciar la sincronizacion. Por favor intenta de nuevo."
   },
   "errorStopSyncFailed": {
-    "message": "Warning: Failed to properly stop sync. Local state has been cleared."
+    "message": "Advertencia: Error al detener la sincronizacion correctamente. El estado local ha sido limpiado."
   },
   "errorSwitchTabFailed": {
-    "message": "Failed to switch to tab. The tab may have been closed."
+    "message": "Error al cambiar a la pestana. La pestana puede haber sido cerrada."
   },
   "errorMinTabsRequired": {
-    "message": "Please select at least 2 tabs to synchronize."
+    "message": "Por favor selecciona al menos 2 pestanas para sincronizar."
   },
   "successSyncStarted": {
-    "message": "Successfully started synchronization for $COUNT$ tabs.",
+    "message": "Sincronizacion iniciada exitosamente para $COUNT$ pestanas.",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -111,40 +111,40 @@
     }
   },
   "successSyncStopped": {
-    "message": "Synchronization stopped successfully."
+    "message": "Sincronizacion detenida exitosamente."
   },
   "retry": {
-    "message": "Retry"
+    "message": "Reintentar"
   },
   "dismiss": {
-    "message": "Dismiss"
+    "message": "Descartar"
   },
   "ineligibleWebStore": {
-    "message": "Web store pages cannot be synchronized due to security restrictions"
+    "message": "Las paginas de la tienda web no pueden sincronizarse debido a restricciones de seguridad"
   },
   "ineligibleGoogleServices": {
-    "message": "Google services pages have restrictions that prevent synchronization"
+    "message": "Las paginas de servicios de Google tienen restricciones que impiden la sincronizacion"
   },
   "ineligibleBrowserInternal": {
-    "message": "Browser internal pages cannot be synchronized due to security restrictions"
+    "message": "Las paginas internas del navegador no pueden sincronizarse debido a restricciones de seguridad"
   },
   "ineligibleSpecialProtocol": {
-    "message": "Special protocol pages cannot be synchronized"
+    "message": "Las paginas con protocolo especial no pueden sincronizarse"
   },
   "ineligibleSecurityRestriction": {
-    "message": "This page cannot be synchronized due to security restrictions"
+    "message": "Esta pagina no puede sincronizarse debido a restricciones de seguridad"
   },
   "syncControls": {
-    "message": "Sync controls"
+    "message": "Controles de sincronizacion"
   },
   "startSynchronization": {
-    "message": "Start synchronization"
+    "message": "Iniciar sincronizacion"
   },
   "selectAtLeastTwoTabs": {
-    "message": "Select at least 2 tabs to start"
+    "message": "Selecciona al menos 2 pestanas para iniciar"
   },
   "selectAtLeastTwoTabsCount": {
-    "message": "Select at least 2 tabs to start ($COUNT$ selected)",
+    "message": "Selecciona al menos 2 pestanas para iniciar ($COUNT$ seleccionadas)",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -153,52 +153,52 @@
     }
   },
   "stopSynchronization": {
-    "message": "Stop synchronization"
+    "message": "Detener sincronizacion"
   },
   "resyncDisconnectedTabs": {
-    "message": "Re-sync disconnected tabs"
+    "message": "Resincronizar pestanas desconectadas"
   },
   "actionsButton": {
-    "message": "Actions"
+    "message": "Acciones"
   },
   "syncControlsHeading": {
-    "message": "Sync Controls"
+    "message": "Controles de Sincronizacion"
   },
   "selectionHeading": {
-    "message": "Selection"
+    "message": "Seleccion"
   },
   "selectAllTabs": {
-    "message": "Select All Tabs"
+    "message": "Seleccionar Todas las Pestanas"
   },
   "clearAllSelections": {
-    "message": "Clear All Selections"
+    "message": "Limpiar Todas las Selecciones"
   },
   "filtersHeading": {
-    "message": "Filters"
+    "message": "Filtros"
   },
   "sameDomainOnly": {
-    "message": "Same Domain Only"
+    "message": "Solo Mismo Dominio"
   },
   "sortByHeading": {
-    "message": "Sort By"
+    "message": "Ordenar Por"
   },
   "sortSimilarity": {
-    "message": "Similarity (Domain Grouping)"
+    "message": "Similitud (Agrupacion por Dominio)"
   },
   "sortRecent": {
-    "message": "Recent Visits"
+    "message": "Visitas Recientes"
   },
   "footerActions": {
-    "message": "Actions"
+    "message": "Acciones"
   },
   "footerStartStop": {
-    "message": "Start/Stop"
+    "message": "Iniciar/Detener"
   },
   "footerSelect": {
-    "message": "Select"
+    "message": "Seleccionar"
   },
   "syncingTabs": {
-    "message": "Syncing $COUNT$ tabs",
+    "message": "Sincronizando $COUNT$ pestanas",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -207,19 +207,19 @@
     }
   },
   "connecting": {
-    "message": "Connecting"
+    "message": "Conectando"
   },
   "availableTabs": {
-    "message": "Available Tabs"
+    "message": "Pestanas Disponibles"
   },
   "unavailableTabs": {
-    "message": "Unavailable Tabs"
+    "message": "Pestanas No Disponibles"
   },
   "searchTabsPlaceholder": {
-    "message": "Search tabs by title or URL..."
+    "message": "Buscar pestanas por titulo o URL..."
   },
   "noTabsMatchingSearch": {
-    "message": "No tabs found matching \"$QUERY$\"",
+    "message": "No se encontraron pestanas que coincidan con \"$QUERY$\"",
     "placeholders": {
       "query": {
         "content": "$1",
@@ -228,7 +228,7 @@
     }
   },
   "cannotChangeSelectionDuringSync": {
-    "message": "$TITLE$ - Cannot change selection during sync",
+    "message": "$TITLE$ - No se puede cambiar la seleccion durante la sincronizacion",
     "placeholders": {
       "title": {
         "content": "$1",
@@ -237,7 +237,7 @@
     }
   },
   "selectTab": {
-    "message": "Select $TITLE$",
+    "message": "Seleccionar $TITLE$",
     "placeholders": {
       "title": {
         "content": "$1",
@@ -246,7 +246,7 @@
     }
   },
   "cannotSelectTab": {
-    "message": "Cannot select $TITLE$",
+    "message": "No se puede seleccionar $TITLE$",
     "placeholders": {
       "title": {
         "content": "$1",
@@ -255,37 +255,37 @@
     }
   },
   "cannotSync": {
-    "message": "Cannot Sync"
+    "message": "No se puede Sincronizar"
   },
   "syncActive": {
-    "message": "Sync active"
+    "message": "Sincronizacion activa"
   },
   "syncInactive": {
-    "message": "Sync inactive"
+    "message": "Sincronizacion inactiva"
   },
   "scrollSyncToolbar": {
-    "message": "Scroll Sync Toolbar"
+    "message": "Barra de Sincronizacion de Desplazamiento"
   },
   "urlSyncNavigation": {
-    "message": "URL Sync Navigation"
+    "message": "Navegacion de Sincronizacion URL"
   },
   "syncedTabs": {
-    "message": "Synced Tabs"
+    "message": "Pestanas Sincronizadas"
   },
   "current": {
-    "message": "current"
+    "message": "actual"
   },
   "toggleShortcut": {
-    "message": "Toggle"
+    "message": "Alternar"
   },
   "closeShortcut": {
-    "message": "Close"
+    "message": "Cerrar"
   },
   "openSyncControlPanel": {
-    "message": "Open sync control panel"
+    "message": "Abrir panel de control de sincronizacion"
   },
   "connectingToTabs": {
-    "message": "Connecting to $COUNT$ tabs...",
+    "message": "Conectando a $COUNT$ pestanas...",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -294,7 +294,7 @@
     }
   },
   "reloadingTabs": {
-    "message": "Reloading $COUNT$ tabs...",
+    "message": "Recargando $COUNT$ pestanas...",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -303,10 +303,10 @@
     }
   },
   "stoppingSynchronization": {
-    "message": "Stopping synchronization..."
+    "message": "Deteniendo sincronizacion..."
   },
   "connectedToTabs": {
-    "message": "Connected to $COUNT$ of $TOTAL$ tabs ($FAILED$ failed).",
+    "message": "Conectado a $COUNT$ de $TOTAL$ pestanas ($FAILED$ fallaron).",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -323,7 +323,7 @@
     }
   },
   "successfullyConnectedToTabs": {
-    "message": "Successfully connected to $COUNT$ tabs.",
+    "message": "Conectado exitosamente a $COUNT$ pestanas.",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -332,10 +332,10 @@
     }
   },
   "selectTwoOrMoreTabs": {
-    "message": "Select 2 or more tabs to start syncing"
+    "message": "Selecciona 2 o mas pestanas para iniciar la sincronizacion"
   },
   "cannotRemoveTabDuringSync": {
-    "message": "Cannot remove $TITLE$ during sync",
+    "message": "No se puede eliminar $TITLE$ durante la sincronizacion",
     "placeholders": {
       "title": {
         "content": "$1",
@@ -344,7 +344,7 @@
     }
   },
   "removeTab": {
-    "message": "Remove $TITLE$",
+    "message": "Eliminar $TITLE$",
     "placeholders": {
       "title": {
         "content": "$1",
@@ -353,7 +353,7 @@
     }
   },
   "tabsSelectedLabel": {
-    "message": "$COUNT$ tabs selected",
+    "message": "$COUNT$ pestanas seleccionadas",
     "placeholders": {
       "count": {
         "content": "$1",
@@ -362,16 +362,16 @@
     }
   },
   "currentTabLabel": {
-    "message": "Current tab"
+    "message": "Pestana actual"
   },
   "searchTabsLabel": {
-    "message": "Search tabs"
+    "message": "Buscar pestanas"
   },
   "untitled": {
-    "message": "Untitled"
+    "message": "Sin titulo"
   },
   "failedToStartSync": {
-    "message": "Failed to start synchronization: $ERROR$",
+    "message": "Error al iniciar la sincronizacion: $ERROR$",
     "placeholders": {
       "error": {
         "content": "$1",
@@ -380,7 +380,7 @@
     }
   },
   "warningStopSyncFailed": {
-    "message": "Warning: $ERROR$. Local state has been cleared.",
+    "message": "Advertencia: $ERROR$. El estado local ha sido limpiado.",
     "placeholders": {
       "error": {
         "content": "$1",
@@ -389,7 +389,7 @@
     }
   },
   "failedToConnectToTabs": {
-    "message": "Failed to connect to tabs. $DETAILS$",
+    "message": "Error al conectar a las pestanas. $DETAILS$",
     "placeholders": {
       "details": {
         "content": "$1",

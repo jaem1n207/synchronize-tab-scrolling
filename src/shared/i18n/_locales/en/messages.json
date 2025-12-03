@@ -15,10 +15,10 @@
     "message": "No syncable tabs found"
   },
   "startSync": {
-    "message": "Start sync"
+    "message": "Start Sync"
   },
   "stopSync": {
-    "message": "Stop sync"
+    "message": "Stop Sync"
   },
   "syncValidationError": {
     "message": "Please select at least 2 tabs"
@@ -133,5 +133,268 @@
   },
   "ineligibleSecurityRestriction": {
     "message": "This page cannot be synchronized due to security restrictions"
+  },
+  "syncControls": {
+    "message": "Sync controls"
+  },
+  "startSynchronization": {
+    "message": "Start synchronization"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "Select at least 2 tabs to start"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "Select at least 2 tabs to start ($COUNT$ selected)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "Stop synchronization"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "Re-sync disconnected tabs"
+  },
+  "actionsButton": {
+    "message": "Actions"
+  },
+  "syncControlsHeading": {
+    "message": "Sync Controls"
+  },
+  "selectionHeading": {
+    "message": "Selection"
+  },
+  "selectAllTabs": {
+    "message": "Select All Tabs"
+  },
+  "clearAllSelections": {
+    "message": "Clear All Selections"
+  },
+  "filtersHeading": {
+    "message": "Filters"
+  },
+  "sameDomainOnly": {
+    "message": "Same Domain Only"
+  },
+  "sortByHeading": {
+    "message": "Sort By"
+  },
+  "sortSimilarity": {
+    "message": "Similarity (Domain Grouping)"
+  },
+  "sortRecent": {
+    "message": "Recent Visits"
+  },
+  "footerActions": {
+    "message": "Actions"
+  },
+  "footerStartStop": {
+    "message": "Start/Stop"
+  },
+  "footerSelect": {
+    "message": "Select"
+  },
+  "syncingTabs": {
+    "message": "Syncing $COUNT$ tabs",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "Connecting"
+  },
+  "availableTabs": {
+    "message": "Available Tabs"
+  },
+  "unavailableTabs": {
+    "message": "Unavailable Tabs"
+  },
+  "searchTabsPlaceholder": {
+    "message": "Search tabs by title or URL..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "No tabs found matching \"$QUERY$\"",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - Cannot change selection during sync",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "Select $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "Cannot select $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome Web Store"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "Cannot Sync"
+  },
+  "syncActive": {
+    "message": "Sync active"
+  },
+  "syncInactive": {
+    "message": "Sync inactive"
+  },
+  "scrollSyncToolbar": {
+    "message": "Scroll Sync Toolbar"
+  },
+  "urlSyncNavigation": {
+    "message": "URL Sync Navigation"
+  },
+  "syncedTabs": {
+    "message": "Synced Tabs"
+  },
+  "current": {
+    "message": "current"
+  },
+  "toggleShortcut": {
+    "message": "Toggle"
+  },
+  "closeShortcut": {
+    "message": "Close"
+  },
+  "openSyncControlPanel": {
+    "message": "Open sync control panel"
+  },
+  "connectingToTabs": {
+    "message": "Connecting to $COUNT$ tabs...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "Reloading $COUNT$ tabs...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "Stopping synchronization..."
+  },
+  "connectedToTabs": {
+    "message": "Connected to $COUNT$ of $TOTAL$ tabs ($FAILED$ failed).",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "Successfully connected to $COUNT$ tabs.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "Select 2 or more tabs to start syncing"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "Cannot remove $TITLE$ during sync",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "Remove $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "$COUNT$ tabs selected",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "Current tab"
+  },
+  "searchTabsLabel": {
+    "message": "Search tabs"
+  },
+  "untitled": {
+    "message": "Untitled"
+  },
+  "failedToStartSync": {
+    "message": "Failed to start synchronization: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Connection timeout"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "Warning: $ERROR$. Local state has been cleared.",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Failed to stop sync properly"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "Failed to connect to tabs. $DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "Tab 123: Connection timeout"
+      }
+    }
   }
 }
