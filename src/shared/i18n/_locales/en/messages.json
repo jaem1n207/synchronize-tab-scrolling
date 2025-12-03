@@ -396,5 +396,32 @@
         "example": "Tab 123: Connection timeout"
       }
     }
+  },
+  "hiddenByFilter": {
+    "message": "$COUNT$ tabs hidden by domain filter",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "No tabs match the domain filter"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "Tabs matching \"$QUERY$\" are hidden by domain filter",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "Clear filter"
+  },
+  "filterActive": {
+    "message": "Filter active"
   }
 }

@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo, useRef, useImperativeHandle } from 'react';
 
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Check, Filter } from 'lucide-react';
 
 import { Badge } from '~/shared/components/ui/badge';
+import { Button } from '~/shared/components/ui/button';
 import { Checkbox } from '~/shared/components/ui/checkbox';
 import {
   Command,
@@ -24,8 +25,6 @@ import { matchesKoreanSearch } from '~/shared/lib/korean-search';
 import { sortTabsWithDomainGrouping } from '~/shared/lib/tab-similarity';
 import { cn } from '~/shared/lib/utils';
 
-import { SelectedTabsChips } from './SelectedTabsChips';
-
 import type { TabInfo } from '../types';
 
 export interface TabCommandPaletteHandle {
@@ -35,19 +34,27 @@ export interface TabCommandPaletteHandle {
 export interface TabCommandPaletteProps {
   ref?: React.Ref<TabCommandPaletteHandle>;
   tabs: Array<TabInfo>;
+  allTabs?: Array<TabInfo>;
   selectedTabIds: Array<number>;
   currentTabId?: number;
   isSyncActive: boolean;
   onToggleTab: (tabId: number) => void;
+  totalTabCount?: number;
+  sameDomainFilter?: boolean;
+  onClearFilter?: () => void;
 }
 
 export function TabCommandPalette({
   ref,
   tabs,
+  allTabs,
   selectedTabIds,
   currentTabId,
   isSyncActive,
   onToggleTab,
+  totalTabCount,
+  sameDomainFilter,
+  onClearFilter,
 }: TabCommandPaletteProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -106,8 +113,23 @@ export function TabCommandPalette({
   // Count selected tabs
   const selectedCount = selectedTabIds.length;
 
-  // Get selected tabs info
-  const selectedTabsInfo = tabs.filter((tab) => selectedTabIds.includes(tab.id));
+  // Check if matching tabs exist in other domains (hidden by filter)
+  const hasMatchingTabsInOtherDomains = useMemo(() => {
+    if (!searchQuery || !sameDomainFilter || !allTabs) return false;
+
+    // Only check when current domain-filtered results are empty
+    const currentResults = tabs.filter(
+      (tab) =>
+        matchesKoreanSearch(tab.title, searchQuery) || matchesKoreanSearch(tab.url, searchQuery),
+    );
+    if (currentResults.length > 0) return false;
+
+    // Check if any unfiltered tabs match the search
+    return allTabs.some(
+      (tab) =>
+        matchesKoreanSearch(tab.title, searchQuery) || matchesKoreanSearch(tab.url, searchQuery),
+    );
+  }, [searchQuery, sameDomainFilter, allTabs, tabs]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -133,12 +155,6 @@ export function TabCommandPalette({
           </div>
         )}
 
-        <SelectedTabsChips
-          isSyncActive={isSyncActive}
-          tabs={selectedTabsInfo}
-          onRemoveTab={onToggleTab}
-        />
-
         <Command
           aria-labelledby="tab-selection-heading"
           className="rounded-lg border shadow-sm"
@@ -154,9 +170,39 @@ export function TabCommandPalette({
           <CommandList asChild>
             <ScrollArea className="max-h-[300px]">
               <CommandEmpty>
-                <div className="py-6 text-center text-sm text-muted-foreground">
-                  <p>{t('noTabsMatchingSearch', [searchQuery])}</p>
-                </div>
+                {sameDomainFilter &&
+                !searchQuery &&
+                eligibleTabs.length === 0 &&
+                ineligibleTabs.length === 0 ? (
+                  // Case 1: Filter ON + No search + No tabs
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {t('noTabsMatchingFilter')}
+                    </p>
+                    {onClearFilter && (
+                      <Button size="sm" variant="outline" onClick={onClearFilter}>
+                        {t('clearDomainFilter')}
+                      </Button>
+                    )}
+                  </div>
+                ) : hasMatchingTabsInOtherDomains ? (
+                  // Case 2: Filter ON + Search + Matching tabs hidden by filter
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {t('tabsMatchingSearchHiddenByFilter', [searchQuery])}
+                    </p>
+                    {onClearFilter && (
+                      <Button size="sm" variant="outline" onClick={onClearFilter}>
+                        {t('clearDomainFilter')}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  // Case 3 & 4: No matching tabs anywhere
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    <p>{t('noTabsMatchingSearch', [searchQuery])}</p>
+                  </div>
+                )}
               </CommandEmpty>
 
               {eligibleTabs.length > 0 && (
@@ -322,6 +368,13 @@ export function TabCommandPalette({
                       );
                     })}
                 </CommandGroup>
+              )}
+
+              {sameDomainFilter && totalTabCount !== undefined && tabs.length < totalTabCount && (
+                <div className="flex items-center justify-center gap-2 py-2 px-3 text-xs text-muted-foreground border-t">
+                  <Filter className="w-3 h-3" />
+                  <span>{t('hiddenByFilter', [String(totalTabCount - tabs.length)])}</span>
+                </div>
               )}
             </ScrollArea>
           </CommandList>

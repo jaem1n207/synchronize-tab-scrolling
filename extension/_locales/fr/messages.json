@@ -396,5 +396,32 @@
         "example": "Onglet 123 : Délai de connexion dépassé"
       }
     }
+  },
+  "hiddenByFilter": {
+    "message": "$COUNT$ onglets masqués par le filtre de domaine",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "Aucun onglet ne correspond au filtre de domaine"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "Les onglets correspondant à \"$QUERY$\" sont masqués par le filtre de domaine",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "Effacer le filtre"
+  },
+  "filterActive": {
+    "message": "Filtre actif"
   }
 }

@@ -396,5 +396,32 @@
         "example": "टैब 123: कनेक्शन टाइमआउट"
       }
     }
+  },
+  "hiddenByFilter": {
+    "message": "डोमेन फ़िल्टर द्वारा $COUNT$ टैब छिपाए गए",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "कोई टैब डोमेन फ़िल्टर से मेल नहीं खाता"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "\"$QUERY$\" से मेल खाने वाले टैब डोमेन फ़िल्टर द्वारा छिपाए गए हैं",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "गूगल"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "फ़िल्टर साफ़ करें"
+  },
+  "filterActive": {
+    "message": "फ़िल्टर सक्रिय"
   }
 }

@@ -396,5 +396,32 @@
         "example": "Tab 123: Connection timeout"
       }
     }
+  },
+  "hiddenByFilter": {
+    "message": "$COUNT$ pestañas ocultas por filtro de dominio",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "No hay pestañas que coincidan con el filtro de dominio"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "Las pestañas que coinciden con \"$QUERY$\" están ocultas por el filtro de dominio",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "Borrar filtro"
+  },
+  "filterActive": {
+    "message": "Filtro activo"
   }
 }

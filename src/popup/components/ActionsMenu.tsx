@@ -105,12 +105,21 @@ export function ActionsMenu({
         <Button
           ref={triggerRef}
           aria-expanded={open}
-          className="gap-2"
+          aria-label={
+            sameDomainFilter ? `${t('actionsButton')} - ${t('filterActive')}` : t('actionsButton')
+          }
+          className="gap-2 relative"
           size="sm"
           variant="outline"
           onClick={() => onOpenChange(!open)}
         >
           {t('actionsButton')}
+          {sameDomainFilter && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full"
+            />
+          )}
           <div className="flex items-center gap-0.5">
             <Kbd>⌘</Kbd>
             <Kbd>K</Kbd>

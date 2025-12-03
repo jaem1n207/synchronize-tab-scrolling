@@ -396,5 +396,32 @@
         "example": "标签页123：连接超时"
       }
     }
+  },
+  "hiddenByFilter": {
+    "message": "域名筛选隐藏了$COUNT$个标签页",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "没有标签页匹配域名筛选"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "与\"$QUERY$\"匹配的标签页已被域名筛选隐藏",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "谷歌"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "清除筛选"
+  },
+  "filterActive": {
+    "message": "筛选已启用"
   }
 }

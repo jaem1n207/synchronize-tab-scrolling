@@ -19,6 +19,7 @@ import { DEFAULT_PREFERENCES } from '../types/filters';
 import { ActionsMenu } from './ActionsMenu';
 import { ErrorNotification } from './ErrorNotification';
 import { FooterInfo } from './FooterInfo';
+import { SelectedTabsChips } from './SelectedTabsChips';
 import { SyncControlButtons } from './SyncControlButtons';
 import { TabCommandPalette, type TabCommandPaletteHandle } from './TabCommandPalette';
 
@@ -182,6 +183,12 @@ export function ScrollSyncPopup() {
 
     return processedTabs;
   }, [tabs, sameDomainFilter, sortBy, currentTabId]);
+
+  // Get selected tabs info from unfiltered tabs (always show selected regardless of domain filter)
+  const selectedTabsInfo = useMemo(
+    () => tabs.filter((tab) => selectedTabIds.includes(tab.id)),
+    [tabs, selectedTabIds],
+  );
 
   const handleToggleTab = useCallback((tabId: number) => {
     setSelectedTabIds((prev) => {
@@ -360,12 +367,11 @@ export function ScrollSyncPopup() {
         'background',
       );
 
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging - use symbol to identify timeout errors
+      const TIMEOUT_SYMBOL = Symbol('timeout');
       await Promise.race([
         stopPromise,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Stop operation timed out after 2 seconds')), 2_000),
-        ),
+        new Promise((_, reject) => setTimeout(() => reject(TIMEOUT_SYMBOL), 2_000)),
       ]);
 
       // Success - update state
@@ -381,8 +387,6 @@ export function ScrollSyncPopup() {
         timestamp: Date.now(),
       });
     } catch (error) {
-      console.error('Failed to stop sync:', error);
-
       // Clear local state regardless of error
       setSyncStatus({
         isActive: false,
@@ -390,13 +394,25 @@ export function ScrollSyncPopup() {
         connectionStatuses: {},
       });
 
-      setError({
-        message: t('warningStopSyncFailed', [
-          error instanceof Error ? error.message : 'Failed to stop sync properly',
-        ]),
-        severity: 'warning',
-        timestamp: Date.now(),
-      });
+      // Timeout is expected behavior - treat as success since local state is cleared
+      if (typeof error === 'symbol') {
+        console.warn('Stop sync timed out, but local state was cleared successfully');
+        setError({
+          message: t('successSyncStopped'),
+          severity: 'info',
+          timestamp: Date.now(),
+        });
+      } else {
+        // Actual error - show warning
+        console.error('Failed to stop sync:', error);
+        setError({
+          message: t('warningStopSyncFailed', [
+            error instanceof Error ? error.message : t('errorStopSyncFailed'),
+          ]),
+          severity: 'warning',
+          timestamp: Date.now(),
+        });
+      }
     }
 
     // Restore focus to search input after action
@@ -545,14 +561,25 @@ export function ScrollSyncPopup() {
       )}
 
       <div className="flex-1 p-4 space-y-4 overflow-hidden flex flex-col min-h-0">
+        {/* Selected Tabs Chips */}
+        <SelectedTabsChips
+          isSyncActive={syncStatus.isActive}
+          tabs={selectedTabsInfo}
+          onRemoveTab={handleToggleTab}
+        />
+
         {/* Tab Selection */}
         <section aria-labelledby="tab-selection-heading" className="flex-1 flex flex-col min-h-0">
           <TabCommandPalette
             ref={searchInputRef}
+            allTabs={tabs}
             currentTabId={currentTabId}
             isSyncActive={syncStatus.isActive}
+            sameDomainFilter={sameDomainFilter}
             selectedTabIds={selectedTabIds}
             tabs={filteredAndSortedTabs}
+            totalTabCount={tabs.length}
+            onClearFilter={() => setSameDomainFilter(false)}
             onToggleTab={handleToggleTab}
           />
         </section>

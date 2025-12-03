@@ -396,5 +396,32 @@
         "example": "탭 123: 연결 시간 초과"
       }
     }
+  },
+  "hiddenByFilter": {
+    "message": "도메인 필터로 $COUNT$개 탭이 숨겨짐",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "도메인 필터와 일치하는 탭이 없습니다"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "\"$QUERY$\"와 일치하는 탭이 도메인 필터에 의해 숨겨져 있습니다",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "구글"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "필터 해제"
+  },
+  "filterActive": {
+    "message": "필터 활성화됨"
   }
 }
