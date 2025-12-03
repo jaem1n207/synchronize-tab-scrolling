@@ -72,14 +72,10 @@ pnpm start:firefox   # Firefox
    - Main UI for tab selection and sync control
    - Built with React and Shadcn UI components
 
-4. **Options Page** (`src/options/`)
-   - Settings and configuration page
-   - Opens in new tab
-
 ### Build Configuration
 
 - **Vite Configs**:
-  - `vite.config.mts`: Main config for popup and options pages
+  - `vite.config.mts`: Main config for popup page
   - `vite.config.background.mts`: Background script bundling
   - `vite.config.content.mts`: Content script bundling
 
@@ -115,6 +111,14 @@ pnpm start:firefox   # Firefox
 - All network requests should use HTTPS (CSP requirement)
 - Follows Manifest V3 for Chrome/Edge, with compatibility for Firefox
 - Uses absolute z-index (2147483647) for content script UI to ensure visibility
+
+### Adding New Extension Pages (e.g., Options Page)
+
+When adding a new extension page (like an options page), update the following files:
+
+1. `src/manifest.ts` - Add `options_ui` configuration
+2. `vite.config.mts` - Add page entry to `rollupOptions.input`
+3. `scripts/prepare.ts` - Add view name to `views` array in `stubIndexHtml()` function
 
 ## File Structure Patterns
 
