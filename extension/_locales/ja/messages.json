@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "フィルター有効"
+  },
+  "connectionLost": {
+    "message": "接続が切断されました"
+  },
+  "reconnecting": {
+    "message": "再接続中..."
+  },
+  "reconnectionSuccessful": {
+    "message": "再接続成功"
+  },
+  "reconnectionFailed": {
+    "message": "再接続失敗"
+  },
+  "autoReconnecting": {
+    "message": "非アクティブなタブを自動再接続中..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ 再接続しました",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ 切断されました（非アクティブ）",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }

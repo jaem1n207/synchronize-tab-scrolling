@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "Filtre actif"
+  },
+  "connectionLost": {
+    "message": "Connexion perdue"
+  },
+  "reconnecting": {
+    "message": "Reconnexion en cours..."
+  },
+  "reconnectionSuccessful": {
+    "message": "Reconnexion réussie"
+  },
+  "reconnectionFailed": {
+    "message": "Échec de la reconnexion"
+  },
+  "autoReconnecting": {
+    "message": "Reconnexion automatique de l'onglet inactif..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ reconnecté",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ déconnecté (inactif)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }

@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "Filter active"
+  },
+  "connectionLost": {
+    "message": "Connection lost"
+  },
+  "reconnecting": {
+    "message": "Reconnecting..."
+  },
+  "reconnectionSuccessful": {
+    "message": "Reconnection successful"
+  },
+  "reconnectionFailed": {
+    "message": "Reconnection failed"
+  },
+  "autoReconnecting": {
+    "message": "Auto-reconnecting idle tab..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ reconnected",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ disconnected (idle)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }

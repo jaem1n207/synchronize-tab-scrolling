@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "Filtro activo"
+  },
+  "connectionLost": {
+    "message": "Conexión perdida"
+  },
+  "reconnecting": {
+    "message": "Reconectando..."
+  },
+  "reconnectionSuccessful": {
+    "message": "Reconexión exitosa"
+  },
+  "reconnectionFailed": {
+    "message": "Reconexión fallida"
+  },
+  "autoReconnecting": {
+    "message": "Reconectando automáticamente la pestaña inactiva..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ reconectado",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ desconectado (inactivo)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }

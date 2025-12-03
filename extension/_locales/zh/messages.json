@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "筛选已启用"
+  },
+  "connectionLost": {
+    "message": "连接已断开"
+  },
+  "reconnecting": {
+    "message": "正在重新连接..."
+  },
+  "reconnectionSuccessful": {
+    "message": "重新连接成功"
+  },
+  "reconnectionFailed": {
+    "message": "重新连接失败"
+  },
+  "autoReconnecting": {
+    "message": "正在自动重新连接空闲标签页..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ 已重新连接",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ 已断开连接（空闲）",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }

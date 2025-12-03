@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "필터 활성화됨"
+  },
+  "connectionLost": {
+    "message": "연결이 끊어졌습니다"
+  },
+  "reconnecting": {
+    "message": "재연결 중..."
+  },
+  "reconnectionSuccessful": {
+    "message": "재연결 성공"
+  },
+  "reconnectionFailed": {
+    "message": "재연결 실패"
+  },
+  "autoReconnecting": {
+    "message": "유휴 탭 자동 재연결 중..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ 재연결됨",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ 연결 끊김 (유휴 상태)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }

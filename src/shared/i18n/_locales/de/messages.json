@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "Filter aktiv"
+  },
+  "connectionLost": {
+    "message": "Verbindung verloren"
+  },
+  "reconnecting": {
+    "message": "Verbindung wird wiederhergestellt..."
+  },
+  "reconnectionSuccessful": {
+    "message": "Wiederverbindung erfolgreich"
+  },
+  "reconnectionFailed": {
+    "message": "Wiederverbindung fehlgeschlagen"
+  },
+  "autoReconnecting": {
+    "message": "Automatische Wiederverbindung des inaktiven Tabs..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ wiederverbunden",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ getrennt (inaktiv)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }

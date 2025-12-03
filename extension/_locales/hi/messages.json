@@ -423,5 +423,38 @@
   },
   "filterActive": {
     "message": "फ़िल्टर सक्रिय"
+  },
+  "connectionLost": {
+    "message": "कनेक्शन टूट गया"
+  },
+  "reconnecting": {
+    "message": "पुनः कनेक्ट हो रहा है..."
+  },
+  "reconnectionSuccessful": {
+    "message": "पुनः कनेक्शन सफल"
+  },
+  "reconnectionFailed": {
+    "message": "पुनः कनेक्शन विफल"
+  },
+  "autoReconnecting": {
+    "message": "निष्क्रिय टैब को स्वचालित रूप से पुनः कनेक्ट कर रहा है..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ पुनः कनेक्ट हुआ",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ डिस्कनेक्ट (निष्क्रिय)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
   }
 }
