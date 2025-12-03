@@ -13,8 +13,13 @@ const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 let isManualModeActive = false;
 let currentTabId = 0;
 let manualModeBaselineSnapshot = 0; // Snapshot taken synchronously when Alt is pressed
-let getScrollInfoCallback: (() => { currentScrollTop: number; lastSyncedRatio: number }) | null =
-  null;
+let getScrollInfoCallback:
+  | (() => {
+      currentScrollTop: number;
+      lastSyncedRatio: number;
+      setManualModeActive: (active: boolean) => void;
+    })
+  | null = null;
 
 /**
  * Initialize keyboard handler
@@ -23,7 +28,11 @@ let getScrollInfoCallback: (() => { currentScrollTop: number; lastSyncedRatio: n
  */
 export function initKeyboardHandler(
   tabId: number,
-  getScrollInfo?: () => { currentScrollTop: number; lastSyncedRatio: number },
+  getScrollInfo?: () => {
+    currentScrollTop: number;
+    lastSyncedRatio: number;
+    setManualModeActive: (active: boolean) => void;
+  },
 ) {
   currentTabId = tabId;
   getScrollInfoCallback = getScrollInfo || null;
@@ -46,8 +55,12 @@ function handleKeyDown(event: KeyboardEvent) {
   if ((event.altKey || event.metaKey) && !isManualModeActive) {
     // Snapshot baseline IMMEDIATELY when entering manual mode (synchronous, no race condition)
     if (getScrollInfoCallback) {
-      const { lastSyncedRatio } = getScrollInfoCallback();
+      const { lastSyncedRatio, setManualModeActive } = getScrollInfoCallback();
       manualModeBaselineSnapshot = lastSyncedRatio;
+
+      // Set manual mode flag SYNCHRONOUSLY to prevent race condition with scroll:sync
+      setManualModeActive(true);
+
       logger.debug('Manual mode enabled, snapshotted baseline', {
         manualModeBaselineSnapshot,
       });
@@ -97,6 +110,13 @@ function handleBlur() {
  */
 async function disableManualMode() {
   isManualModeActive = false;
+
+  // Set manual mode flag SYNCHRONOUSLY to prevent race condition
+  if (getScrollInfoCallback) {
+    const { setManualModeActive } = getScrollInfoCallback();
+    setManualModeActive(false);
+  }
+
   logger.debug('Manual scroll mode disabled');
 
   // Calculate and save manual scroll offset as RATIO using snapshot from Alt PRESS

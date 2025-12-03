@@ -13,6 +13,7 @@ import {
   clearManualScrollOffset,
   getManualScrollOffset,
   loadUrlSyncEnabled,
+  saveManualScrollOffset,
 } from '~/shared/lib/storage';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
@@ -33,6 +34,15 @@ let lastSyncedRatioSnapshot = 0; // Frozen snapshot when entering manual mode
 let lastProgrammaticScrollTime = 0; // Track programmatic scrolls to prevent infinite loops
 const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
 const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 100; // ms - ignore user scrolls shortly after programmatic scroll
+
+// Wheel-based manual mode for unfocused tabs (detects Alt/Option via WheelEvent.altKey)
+let wheelManualModeActive = false;
+let wheelBaselineSnapshot = 0;
+
+// Mousemove handler for detecting Alt release during wheel manual mode
+let wheelModeMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+let lastMouseMoveCheckTime = 0;
+const MOUSEMOVE_THROTTLE = 50; // ms - performance optimization
 
 // URL monitoring
 let urlObserver: MutationObserver | null = null;
@@ -66,6 +76,118 @@ function getScrollRatio(): number {
   const { scrollTop, scrollHeight, clientHeight } = getScrollInfo();
   const maxScroll = scrollHeight - clientHeight;
   return maxScroll > 0 ? scrollTop / maxScroll : 0;
+}
+
+/**
+ * Cleanup mousemove listener for wheel manual mode
+ */
+function cleanupWheelModeMouseMoveListener() {
+  if (wheelModeMouseMoveHandler) {
+    window.removeEventListener('mousemove', wheelModeMouseMoveHandler);
+    wheelModeMouseMoveHandler = null;
+  }
+}
+
+/**
+ * Exit wheel manual mode: save offset and cleanup
+ */
+async function exitWheelManualMode() {
+  if (!wheelManualModeActive) return;
+
+  // Calculate and save offset
+  const currentRatio = getScrollRatio();
+  const offsetRatio = currentRatio - wheelBaselineSnapshot;
+
+  // Clamp offset to reasonable range (±50% of document)
+  const maxReasonableOffset = 0.5;
+  const clampedOffsetRatio = Math.max(
+    -maxReasonableOffset,
+    Math.min(maxReasonableOffset, offsetRatio),
+  );
+
+  // Calculate pixel offset for display
+  const { scrollHeight, clientHeight } = getScrollInfo();
+  const maxScroll = scrollHeight - clientHeight;
+  const offsetPixels = Math.round(clampedOffsetRatio * maxScroll);
+
+  logger.debug('Wheel manual mode exiting, saving offset', {
+    currentRatio,
+    wheelBaselineSnapshot,
+    offsetRatio,
+    clampedOffsetRatio,
+    offsetPixels,
+  });
+
+  // Save offset to storage
+  await saveManualScrollOffset(currentTabId, clampedOffsetRatio, offsetPixels);
+
+  logger.info('Wheel manual scroll offset saved', {
+    tabId: currentTabId,
+    offsetRatio: clampedOffsetRatio,
+    offsetPixels,
+  });
+
+  // Reset state
+  wheelManualModeActive = false;
+  isManualScrollEnabled = false;
+
+  // Remove mousemove listener
+  cleanupWheelModeMouseMoveListener();
+}
+
+/**
+ * Handle mousemove to detect Alt release during wheel manual mode
+ * Uses throttling for performance optimization
+ */
+function handleMouseMoveForWheelMode(event: MouseEvent) {
+  if (!wheelManualModeActive) return;
+
+  // Throttle: check only every MOUSEMOVE_THROTTLE ms (performance optimization)
+  const now = Date.now();
+  if (now - lastMouseMoveCheckTime < MOUSEMOVE_THROTTLE) return;
+  lastMouseMoveCheckTime = now;
+
+  const isModifierPressed = event.altKey || event.metaKey;
+
+  // If Alt/Meta was released, exit wheel manual mode
+  if (!isModifierPressed) {
+    logger.debug('Alt release detected via mousemove, exiting wheel manual mode');
+    exitWheelManualMode();
+  }
+}
+
+/**
+ * Handle wheel events to detect modifier keys for unfocused tab manual scroll
+ * This enables manual scroll adjustment even when the tab doesn't have keyboard focus
+ * (e.g., in Arc browser's split view where user holds Alt in focused tab A,
+ * then scrolls with mouse wheel in unfocused tab B)
+ */
+async function handleWheel(event: WheelEvent) {
+  if (!isSyncActive) return;
+
+  const isModifierPressed = event.altKey || event.metaKey;
+
+  // Enter wheel manual mode: modifier key pressed + not already in any manual mode
+  if (isModifierPressed && !wheelManualModeActive && !isManualScrollEnabled) {
+    wheelManualModeActive = true;
+    wheelBaselineSnapshot = lastSyncedRatio;
+    isManualScrollEnabled = true; // Prevent scroll:sync from overwriting position
+
+    // Add mousemove listener to detect Alt release (performance: only when in wheel manual mode)
+    wheelModeMouseMoveHandler = handleMouseMoveForWheelMode;
+    window.addEventListener('mousemove', wheelModeMouseMoveHandler, { passive: true });
+
+    logger.debug('Wheel manual mode entered via WheelEvent modifier detection', {
+      wheelBaselineSnapshot,
+      altKey: event.altKey,
+      metaKey: event.metaKey,
+    });
+  }
+
+  // Exit wheel manual mode: modifier key released while in wheel manual mode
+  if (!isModifierPressed && wheelManualModeActive) {
+    await exitWheelManualMode();
+  }
 }
 
 /**
@@ -371,9 +493,9 @@ export function initScrollSync() {
     lastProgrammaticScrollTime = 0;
     isConnectionHealthy = true;
 
-    // Clear any existing manual offset for clean start
-    await clearManualScrollOffset(currentTabId);
-    logger.info('Cleared manual scroll offset on sync start', { currentTabId });
+    // Reset mousemove state for wheel manual mode
+    lastMouseMoveCheckTime = 0;
+    cleanupWheelModeMouseMoveListener();
 
     // Initialize lastSyncedRatio with current scroll position to prevent offset calculation errors
     lastSyncedRatio = getScrollRatio();
@@ -387,6 +509,11 @@ export function initScrollSync() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     logger.debug('Scroll listener added');
 
+    // Add wheel listener for unfocused tab manual scroll detection
+    // This allows detecting Alt/Option key via WheelEvent.altKey even when tab doesn't have focus
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    logger.debug('Wheel listener added for unfocused tab manual scroll support');
+
     // Start URL monitoring (P1)
     startUrlMonitoring();
 
@@ -394,6 +521,11 @@ export function initScrollSync() {
     initKeyboardHandler(currentTabId, () => ({
       currentScrollTop: window.scrollY,
       lastSyncedRatio: lastSyncedRatio, // Return live value for synchronous snapshot
+      setManualModeActive: (active: boolean) => {
+        // Set flag SYNCHRONOUSLY to prevent race condition with scroll:sync messages
+        isManualScrollEnabled = active;
+        logger.debug('Manual mode flag set synchronously via callback', { active });
+      },
     }));
     logger.debug('Keyboard handler initialized');
 
@@ -419,6 +551,15 @@ export function initScrollSync() {
 
     // Remove scroll listener
     window.removeEventListener('scroll', handleScroll);
+
+    // Remove wheel listener
+    window.removeEventListener('wheel', handleWheel);
+
+    // Reset wheel manual mode state
+    wheelManualModeActive = false;
+    wheelBaselineSnapshot = 0;
+    lastMouseMoveCheckTime = 0;
+    cleanupWheelModeMouseMoveListener();
 
     // Stop URL monitoring (P1)
     stopUrlMonitoring();
