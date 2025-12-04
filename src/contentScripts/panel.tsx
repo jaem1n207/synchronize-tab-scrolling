@@ -169,6 +169,9 @@ export function showPanel() {
       --colors-border: hsl(var(--border));
       --colors-input: hsl(var(--input));
       --colors-ring: hsl(var(--ring));
+
+      /* Base text color - replaces body { color: ... } from UnoCSS */
+      color: hsl(var(--foreground));
     }
 
     /* Dark theme HSL variables */
@@ -215,6 +218,9 @@ export function showPanel() {
       --colors-border: hsl(var(--border));
       --colors-input: hsl(var(--input));
       --colors-ring: hsl(var(--ring));
+
+      /* Base text color - replaces body { color: ... } from UnoCSS */
+      color: hsl(var(--foreground));
     }
 
     *, *::before, *::after, ::backdrop {

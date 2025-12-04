@@ -71,11 +71,11 @@ function CustomPopoverContent({
 }
 CustomPopoverContent.displayName = 'CustomPopoverContent';
 
-export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
+export const SyncControlPanel = ({
   urlSyncEnabled,
   onToggle,
   className,
-}) => {
+}: SyncControlPanelProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [position, setPosition] = React.useState<Position>({ x: EDGE_MARGIN, y: EDGE_MARGIN });
   const [isDragging, setIsDragging] = React.useState(false);
