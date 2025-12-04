@@ -1,316 +1,208 @@
 <p align="center">
   <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc" target="_blank" rel="noreferrer noopener">
-    <img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Chrome Web Store" />
-  <a />
+    <img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Synchronize Tab Scrolling Logo" />
+  </a>
 </p>
-<p align="center">A browser extension that lets you <strong>synchronize</strong> the scrolling position of multiple tabs</p>
+
+<h1 align="center">Synchronize Tab Scrolling</h1>
+
 <p align="center">
-  <a rel="noreferrer noopener" target="_blank" href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
-    <img alt="Chrome Web Store" src="https://img.shields.io/badge/CHROME-4285F4?style=for-the-badge&logo=GoogleChrome&logoColor=white">
+  <strong>Scroll once, sync everywhere.</strong><br/>
+  A browser extension that keeps multiple tabs scrolling together.
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
+    <img alt="Chrome" src="https://img.shields.io/badge/Chrome-4285F4?style=for-the-badge&logo=GoogleChrome&logoColor=white">
   </a>
-  <a rel="noreferrer noopener" target="_blank" href="https://microsoftedge.microsoft.com/addons/detail/synchronize-tab-scrolling/jonclaakmpjodjggkadldgkapccdofnn">
-    <img alt="Microsoft Edge Add-ons" src="https://img.shields.io/badge/Edge-0078D7?style=for-the-badge&logo=Microsoft-edge&logoColor=white">
+  <a href="https://microsoftedge.microsoft.com/addons/detail/synchronize-tab-scrolling/jonclaakmpjodjggkadldgkapccdofnn">
+    <img alt="Edge" src="https://img.shields.io/badge/Edge-0078D7?style=for-the-badge&logo=Microsoft-edge&logoColor=white">
   </a>
-  <a rel="noreferrer noopener" target="_blank" href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling">
-    <img alt="Firefox Add-ons" src="https://img.shields.io/badge/Firefox-FF7139?style=for-the-badge&logo=Firefox-Browser&logoColor=white">
+  <a href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling">
+    <img alt="Firefox" src="https://img.shields.io/badge/Firefox-FF7139?style=for-the-badge&logo=Firefox-Browser&logoColor=white">
   </a>
-  <a rel="noreferrer noopener" target="_blank" href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
-    <img alt="Brave Extensions" src="https://img.shields.io/badge/Brave-FB542B?style=for-the-badge&logo=Brave&logoColor=white">
+  <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
+    <img alt="Brave" src="https://img.shields.io/badge/Brave-FB542B?style=for-the-badge&logo=Brave&logoColor=white">
   </a>
 </p>
+
 <p align="center">
   <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/releases">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/jaem1n207/synchronize-tab-scrolling?include_prereleases&sort=semver&display_name=release&style=for-the-badge&logo=semanticrelease&logoColor=white&color=%236096B4">
-  </a>
-  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/pulls">
-    <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logo=github&logoColor=white&color=%236096B4">
-  </a>
-  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/issues">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logo=github&logoColor=white&color=%236096B4">
+    <img alt="Release" src="https://img.shields.io/github/v/release/jaem1n207/synchronize-tab-scrolling?style=flat-square&color=6096B4">
   </a>
   <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE">
-    <img alt="GitHub License" src="https://img.shields.io/github/license/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logoColor=white&color=%236096B4">
+    <img alt="License" src="https://img.shields.io/github/license/jaem1n207/synchronize-tab-scrolling?style=flat-square&color=6096B4">
   </a>
 </p>
-<h1 align="center">Synchronize Tab Scrolling</h2>
 
-ENGLISH | [한국어](./README-ko_kr.md)
+<p align="center">
+  ENGLISH | <a href="./README-ko_kr.md">한국어</a>
+</p>
 
-Synchronize Tab Scrolling is a powerful cross-browser extension that automatically synchronizes scroll positions across multiple tabs, enabling seamless side-by-side document comparison for translators, researchers, developers, and content reviewers.
+---
 
-## ✨ Features
+## What is this?
 
-### Core Synchronization
+When you read two documents side by side—like an original and its translation—scrolling them together can be tedious. This extension solves that problem.
 
-- **Real-time Scroll Sync**: <100ms synchronization delay between tabs with proportional positioning
-- **Intelligent Element Matching**: DOM structure analysis for content-aware synchronization
-- **Manual Scroll Control**: Hold Option/Alt key to temporarily scroll individual tabs
-- **URL Navigation Sync**: Linked tabs navigate together (back, forward, new URLs)
-- **State Persistence**: Maintains your selections across popup reopens
-- **Security Compliant**: Automatic handling of restricted URLs
+**Scroll in one tab, and all linked tabs scroll to the same position automatically.**
 
-### User Experience
+---
 
-- **Draggable Control Panel**: Smooth edge-snapping with minimize/maximize animations
-- **Connection Status**: Visual indicators for sync state and tab eligibility
-- **Hardware Accelerated**: Smooth 200ms animations using CSS transforms
-- **Cross-Browser**: Works identically on Chrome, Edge, Firefox, and Brave
+## How to Use
 
-<br />
+### Step 1: Install
 
-## Contents
+Click one of the browser badges above to install from your browser's extension store.
 
-- [Contents](#contents)
-- [Intro](#intro)
-- [Usage](#usage)
-- [Youtube Video Link](#youtube-video-link)
-- [Privacy Policy](#privacy-policy)
-- [Unsupported Pages](#unsupported-pages)
-- [SUPPORT](#support)
-- [License](#license)
+### Step 2: Open tabs
 
-## Intro
+Open two or more tabs with the content you want to compare.
 
-This extension provides convenience for users reading original and translated documents across multiple tabs.
-When the user scrolls in one tab, the linked tab automatically scrolls to the same position, allowing for easy comparison and reading of the original and translated texts.
-This feature is particularly useful when translating documents or referencing multilingual documents simultaneously.
+### Step 3: Start syncing
 
-## Usage
+1. Click the extension icon in your browser toolbar
+2. Select the tabs you want to sync (check the boxes)
+3. Click **"Start Sync"**
 
-### Basic Usage
+### Step 4: Scroll!
 
-1. **Open Multiple Tabs**: Open 2 or more tabs with content you want to compare
-2. **Click Extension Icon**: Click the extension icon in your browser toolbar
-3. **Select Tabs**: Check the tabs you want to synchronize in the popup
-4. **Start Syncing**: Click "Start Sync" button
-5. **Scroll**: Scroll in any selected tab - all linked tabs will follow!
+Scroll in any synced tab. All linked tabs follow automatically.
 
-To stop synchronizing, click "Stop Sync" button or close the popup. Your tab selections and panel preferences are automatically saved.
+### Tip: Manual Position Adjustment
 
-### Advanced Features
+When comparing documents like originals and translations, content lengths often differ due to language characteristics—some languages express the same idea more concisely or verbosely. As you scroll, the reading positions may gradually drift apart.
 
-#### 📍 Manual Scroll Mode
+**Hold Option (Mac) or Alt (Windows)** while scrolling to adjust a specific tab's position without affecting others. Release the key, and sync continues from the new alignment.
 
-Hold **Option** (Mac) or **Alt** (Windows/Linux) while scrolling to temporarily disable synchronization for the current tab. Release the key to re-enable sync.
+### Step 5: Stop syncing
 
-#### 🎯 Element-Based Synchronization
+Click the extension icon again and select **"Stop Sync"**, or simply close the synced tabs.
 
-The extension automatically detects semantic elements (headings, paragraphs, sections) and matches content across tabs for more accurate synchronization on similar documents. This works especially well when comparing:
+---
 
-- Original and translated documents with similar structure
-- Different versions of the same document
-- Side-by-side code comparisons
+## Demo Video
 
-#### 🔗 URL Navigation Sync
-
-When sync is active, navigating to a new URL in any linked tab will automatically navigate all other linked tabs to the same URL. This includes:
-
-- Clicking links in the page
-- Browser back/forward buttons
-- Single Page Application (SPA) navigation
-- Direct URL changes
-
-#### 💾 State Persistence
-
-Your preferences are automatically saved:
-
-- Selected tabs (restored if tabs still exist)
-- Panel minimized/maximized state
-- Panel position (when dragged)
-- Sync mode preferences
-
-### Tab Eligibility
-
-Some pages cannot be synchronized due to browser security restrictions:
-
-- ❌ Browser internal pages (chrome://, about:, etc.)
-- ❌ Extension store pages
-- ❌ Google services (Drive, Docs, Gmail, etc.)
-- ❌ Special protocols (view-source:, data:, file:)
-- ✅ Regular web pages (HTTP/HTTPS)
-
-## Youtube Video Link
-
-<a target="_blank" rel="noreferrer noopener" href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC">
- <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Watch the video" width="480" height="360" border="10" title="Synchronize Tab Scrolling Promotion - Click to Watch!" />
+<a href="https://www.youtube.com/watch?v=DxFYu6XHGJY">
+  <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Demo Video" width="480" height="360" />
 </a>
+
+---
+
+## Pages That Don't Work
+
+Due to browser security restrictions, the extension cannot sync these pages:
+
+- Browser internal pages (`chrome://`, `edge://`, `about:`)
+- Extension stores
+- Google services (Docs, Drive, Gmail, Sheets, etc.)
+- Some web apps (Figma, JIRA, Microsoft Office Online, Notion, etc.)
+- Special URLs (`view-source:`, `data:`, `file://`)
+
+These tabs will appear disabled in the selection list.
+
+---
+
+## Who is this for?
+
+- reviewing multiple papers simultaneously
+- comparing code versions side by side
+- comparing original and translated documents
+- **Anyone** who works with multiple documents at once
+
+---
+
+## Features
+
+### Real-time Scroll Sync
+
+When you scroll in one tab, all linked tabs move to the same relative position instantly.
+
+```mermaid
+flowchart LR
+    subgraph You["Your Action"]
+        A[Scroll in Tab A]
+    end
+
+    A --> B[Extension detects position]
+    B --> C[Tab B scrolls to same position]
+    B --> D[Tab C scrolls to same position]
+```
+
+### Manual Position Adjustment
+
+Sometimes documents don't line up perfectly. Hold **Option** (Mac) or **Alt** (Windows) while scrolling to adjust individual tabs without breaking the sync.
+
+```mermaid
+flowchart TD
+    A["Hold Option/Alt key"] --> B["Scroll freely in one tab"]
+    B --> C["Release the key"]
+    C --> D["New position is saved"]
+    D --> E["Sync continues from new alignment"]
+```
+
+### Auto-Reconnection
+
+If a tab loses connection (e.g., after your computer sleeps), the extension automatically reconnects and resumes syncing—no manual intervention needed.
+
+```mermaid
+flowchart LR
+    A[Connection lost] --> B[Auto-detect]
+    B --> C[Reconnect]
+    C --> D[Resume sync]
+```
+
+### URL Navigation Sync
+
+When you click a link in one tab, all linked tabs navigate to the same URL together.
+
+---
+
+## Supported Languages
+
+The extension interface is available in **9 languages**:
+
+| Language          | Code |
+| ----------------- | ---- |
+| English           | en   |
+| 한국어 (Korean)   | ko   |
+| 日本語 (Japanese) | ja   |
+| Français (French) | fr   |
+| Español (Spanish) | es   |
+| Deutsch (German)  | de   |
+| 中文 (Chinese)    | zh   |
+| हिन्दी (Hindi)    | hi   |
+
+---
 
 ## Privacy Policy
 
-The Synchronize Tab Scrolling extension has no ads, no analytics, no trackers, and no use of cookies. It is also an open-source project.
+**Your privacy matters.**
 
-## Unsupported Pages
+- **No data collection**: We don't collect, store, or transmit any personal data
+- **No analytics**: No tracking, no cookies, no telemetry
+- **No network requests**: The extension works entirely offline
+- **Open source**: You can [inspect every line of code](https://github.com/jaem1n207/synchronize-tab-scrolling)
 
-Due to security and technical limitations, this extension does not function on the following types of pages:
+This extension only accesses tabs you explicitly select for syncing, and all data stays on your device.
 
-- Browser internal pages (e.g., chrome://, about:, moz-extension://)
-- Extension store pages
-- Data URLs (data:)
-- Developer tools (devtools:)
-- Source view pages (view-source:)
-- Google services (e.g., Google Accounts, Analytics, Search Console, Docs, Drive, Gmail, Sheets, Calendar, Slides, Meet, Photos)
+---
 
-On these pages, the corresponding items in the tab list will appear disabled.
+## Support
 
-## 🛠️ Development
+Having issues? We're here to help:
 
-### Prerequisites
+- **Email**: [tech.jmtt@gmail.com](mailto:tech.jmtt@gmail.com)
+- **GitHub**: [Report a bug](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/new?title=Bug%20Report&labels=bug&assignees=jaem1n207)
 
-- **Node.js**: v18+ (v20+ recommended)
-- **pnpm**: v9+
-- **Git**: Latest version
+---
 
-### Setup
+## Contributing
 
-```bash
-# Clone the repository
-git clone https://github.com/jaem1n207/synchronize-tab-scrolling.git
-cd synchronize-tab-scrolling
+Want to contribute? Check out our [Contributing Guide](./CONTRIBUTING.md) for development setup and guidelines.
 
-# Install dependencies
-pnpm install
-
-# Development mode (Chrome/Edge/Brave)
-pnpm dev
-
-# Development mode (Firefox)
-pnpm dev-firefox
-
-# Type checking
-pnpm typecheck
-
-# Linting with auto-fix
-pnpm lint:fix
-
-# Production build
-pnpm build
-
-# Package extension (.zip, .crx, .xpi)
-pnpm pack
-```
-
-### Development Commands
-
-| Command               | Description                                    |
-| --------------------- | ---------------------------------------------- |
-| `pnpm dev`            | Start development server for Chrome/Edge/Brave |
-| `pnpm dev-firefox`    | Start development server for Firefox           |
-| `pnpm build`          | Build production version                       |
-| `pnpm typecheck`      | Run TypeScript type checking                   |
-| `pnpm lint:fix`       | Lint and auto-fix code issues                  |
-| `pnpm format:fix`     | Format code with Prettier                      |
-| `pnpm test`           | Run test suite                                 |
-| `pnpm pack`           | Package extension for distribution             |
-| `pnpm start:chromium` | Launch extension in Chrome/Edge/Brave          |
-| `pnpm start:firefox`  | Launch extension in Firefox                    |
-
-### Project Structure
-
-```
-synchronize-tab-scrolling/
-├── src/
-│   ├── background/         # Background script (service worker)
-│   ├── contentScripts/     # Content scripts injected into pages
-│   │   ├── index.ts       # Main content script entry
-│   │   ├── scrollSync.ts  # Scroll synchronization logic
-│   │   └── keyboardHandler.ts  # Manual scroll adjustment
-│   ├── popup/             # Popup UI (React)
-│   │   ├── components/    # React components
-│   │   └── types.ts       # TypeScript definitions
-│   ├── options/           # Options page
-│   └── shared/            # Shared utilities and types
-│       ├── lib/          # Utility functions
-│       ├── types/        # Shared type definitions
-│       └── styles/       # Global styles
-├── public/               # Static assets
-├── dist/                 # Build output
-└── extension/           # Packaged extensions
-```
-
-### Tech Stack
-
-- **Framework**: React 19 with TypeScript
-- **Build Tool**: Vite with HMR support
-- **Styling**: UnoCSS + Tailwind + Shadcn UI
-- **State Management**: React Query (@tanstack/react-query)
-- **Extension API**: webextension-polyfill (cross-browser)
-- **Messaging**: webext-bridge (type-safe messaging)
-- **Error Tracking**: Sentry
-- **Icons**: unplugin-icons
-
-### Architecture
-
-#### Message Flow
-
-```
-Popup UI (React)
-    ↓ webext-bridge
-Background Script (Service Worker)
-    ↓ webext-bridge
-Content Scripts (All Tabs)
-```
-
-#### Synchronization Algorithms
-
-**Ratio-Based (Default)**:
-
-```typescript
-ratio = scrollTop / (scrollHeight - clientHeight);
-targetScrollTop = ratio * (targetScrollHeight - targetClientHeight);
-```
-
-**Element-Based (Advanced)**:
-
-1. Detect semantic elements (h1-h6, article, section, p, etc.)
-2. Find nearest element to current scroll position
-3. Match element index across tabs
-4. Scroll to matched element with position offset
-
-### Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and run tests: `pnpm test`
-4. Run linting: `pnpm lint:fix`
-5. Commit with [Conventional Commits](https://www.conventionalcommits.org/) format
-6. Push and open a Pull Request
-
-## SUPPORT
-
-I use it myself to improve usability and catch bugs, but if you encounter any issues, please report it below:
-
-- Email: <a href="mailto:tech.jmtt@gmail.com">tech.jmtt@gmail.com</a>
-- GitHub: <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/issues/new?title=%3CSUMMARIZE%20THE%20PROBLEM%3E&labels=bug&assignees=jaem1n207" title="report bug">Report a bug on github issue</a>
-
-## 🗺️ Roadmap
-
-### Completed ✅
-
-- [x] Basic scroll synchronization with <100ms delay
-- [x] Element-based synchronization mode
-- [x] Manual scroll adjustment with modifier keys
-- [x] URL navigation synchronization
-- [x] State persistence with browser.storage
-- [x] Cross-browser support (Chrome, Edge, Firefox, Brave)
-- [x] Draggable control panel with animations
-- [x] Security compliance for restricted URLs
-
-### In Progress 🚧
-
-- [ ] Multi-language support (i18n)
-- [ ] Error handling and recovery mechanisms
-- [ ] Performance monitoring dashboard
-
-### Planned 📋
-
-- [ ] Sync mode preferences (ratio vs element-based)
-- [ ] Advanced UI customization options
-- [ ] Automatic scroll speed adjustment
-- [ ] Tab group synchronization
-- [ ] Export/import sync configurations
+---
 
 ## License
 
-This project is licensed under the MIT License. For more details, please refer to the [LICENSE](./LICENSE) file.
+MIT License. See [LICENSE](./LICENSE) for details.

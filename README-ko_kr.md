@@ -1,97 +1,208 @@
 <p align="center">
   <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc" target="_blank" rel="noreferrer noopener">
-    <img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Chrome Web Store" />
-  <a />
+    <img width="250" src="https://github.com/jaem1n207/synchronize-tab-scrolling/assets/50766847/ec9b53f7-b8b7-46fe-9b0f-bf08b38cb940" alt="Synchronize Tab Scrolling 로고" />
+  </a>
 </p>
-<p align="center">여러 탭의 스크롤 위치를 <strong>동기화</strong>할 수 있는 브라우저 확장 프로그램입니다.</p>
+
+<h1 align="center">Synchronize Tab Scrolling</h1>
+
 <p align="center">
-  <a rel="noreferrer noopener" target="_blank" href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
-    <img alt="Chrome Web Store" src="https://img.shields.io/badge/CHROME-4285F4?style=for-the-badge&logo=GoogleChrome&logoColor=white">
+  <strong>한 번 스크롤하면, 모든 탭이 함께 움직입니다.</strong><br/>
+  여러 탭의 스크롤을 동시에 맞춰주는 브라우저 확장 프로그램이에요.
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
+    <img alt="Chrome" src="https://img.shields.io/badge/Chrome-4285F4?style=for-the-badge&logo=GoogleChrome&logoColor=white">
   </a>
-  <a rel="noreferrer noopener" target="_blank" href="https://microsoftedge.microsoft.com/addons/detail/synchronize-tab-scrolling/jonclaakmpjodjggkadldgkapccdofnn">
-    <img alt="Microsoft Edge Add-ons" src="https://img.shields.io/badge/Edge-0078D7?style=for-the-badge&logo=Microsoft-edge&logoColor=white">
+  <a href="https://microsoftedge.microsoft.com/addons/detail/synchronize-tab-scrolling/jonclaakmpjodjggkadldgkapccdofnn">
+    <img alt="Edge" src="https://img.shields.io/badge/Edge-0078D7?style=for-the-badge&logo=Microsoft-edge&logoColor=white">
   </a>
-  <a rel="noreferrer noopener" target="_blank" href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling">
-    <img alt="Firefox Add-ons" src="https://img.shields.io/badge/Firefox-FF7139?style=for-the-badge&logo=Firefox-Browser&logoColor=white">
+  <a href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling">
+    <img alt="Firefox" src="https://img.shields.io/badge/Firefox-FF7139?style=for-the-badge&logo=Firefox-Browser&logoColor=white">
   </a>
-  <a rel="noreferrer noopener" target="_blank" href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
-    <img alt="Brave Extensions" src="https://img.shields.io/badge/Brave-FB542B?style=for-the-badge&logo=Brave&logoColor=white">
+  <a href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc">
+    <img alt="Brave" src="https://img.shields.io/badge/Brave-FB542B?style=for-the-badge&logo=Brave&logoColor=white">
   </a>
 </p>
+
 <p align="center">
   <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/releases">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/jaem1n207/synchronize-tab-scrolling?include_prereleases&sort=semver&display_name=release&style=for-the-badge&logo=semanticrelease&logoColor=white&color=%236096B4">
-  </a>
-  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/pulls">
-    <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logo=github&logoColor=white&color=%236096B4">
-  </a>
-  <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/issues">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logo=github&logoColor=white&color=%236096B4">
+    <img alt="Release" src="https://img.shields.io/github/v/release/jaem1n207/synchronize-tab-scrolling?style=flat-square&color=6096B4">
   </a>
   <a href="https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE">
-    <img alt="GitHub License" src="https://img.shields.io/github/license/jaem1n207/synchronize-tab-scrolling?style=for-the-badge&logoColor=white&color=%236096B4">
+    <img alt="License" src="https://img.shields.io/github/license/jaem1n207/synchronize-tab-scrolling?style=flat-square&color=6096B4">
   </a>
 </p>
-<h1 align="center">Synchronize Tab Scrolling</h2>
 
-[ENGLISH](./README.md) | 한국어
+<p align="center">
+  <a href="./README.md">ENGLISH</a> | 한국어
+</p>
 
-두 개의 탭에서 문서를 읽을 때 스크롤 위치를 자동으로 동기화하여 사용자가 원문과 번역문을 더욱 편리하게 비교하고 읽을 수 있도록 도와주는 확장 프로그램입니다.
+---
 
-## 목차
+## 이게 뭔가요?
 
-- [목차](#목차)
-- [소개](#소개)
-- [사용 방법](#사용-방법)
-- [사용 영상](#사용-영상)
-- [개인정보 보호정책](#개인정보-보호정책)
-- [지원되지 않는 페이지](#지원되지-않는-페이지)
-- [지원](#지원)
-- [라이선스](#라이선스)
+두 문서를 나란히 놓고 읽을 때(ex: 원문과 번역문) 스크롤을 맞추는 게 번거로웠죠? 이 확장 프로그램이 그 문제를 해결해 줘요.
 
-## 소개
+**한 탭에서 스크롤하면, 연결된 모든 탭이 같은 위치로 자동으로 따라와요.**
 
-사용자가 여러 탭에서 동일한 문서의 원문과 번역문을 읽을 때 편의성을 제공합니다.
-사용자가 한 탭에서 스크롤을 조작하면, 연동된 다른 탭도 자동으로 같은 위치로 스크롤되어 문서의 원문과 번역문을 쉽게 비교하며 읽을 수 있게 해줍니다. 주로 문서를 번역할 때나 다국어 문서를 동시에 참조할 때 유용합니다.
+---
 
 ## 사용 방법
 
-1. 서로 다른 창에서 여러 개의 탭을 엽니다.
-2. 확장 프로그램 아이콘을 클릭합니다.
-3. 스크롤을 동기화할 탭을 두 개 이상 선택합니다.
+### 1단계: 설치
 
-'동기화 시작' 버튼을 클릭하고 탭을 스크롤하기만 하면 됩니다. 탭 동기화를 중지하려면 확장 아이콘을 한 번 더 클릭하고 '동기화 해제' 버튼을 선택하거나 동기화된 탭을 닫으면 됩니다.
+위의 브라우저 배지 중 하나를 클릭해서 각 브라우저의 확장 프로그램 스토어에서 설치해 주세요.
+
+### 2단계: 탭 열기
+
+탭을 두 개 이상 열어 주세요.
+
+### 3단계: 동기화 시작
+
+1. 브라우저 도구 모음에서 확장 프로그램 아이콘을 클릭해 주세요
+2. 동기화할 탭을 선택해 주세요 (체크박스 선택)
+3. **"동기화 시작"** 버튼을 클릭해 주세요
+
+### 4단계: 스크롤!
+
+동기화된 탭 중 아무 곳에서나 스크롤해 보세요. 연결된 모든 탭이 자동으로 따라와요.
+
+### 팁: 수동 위치 조정
+
+원문과 번역문처럼 같은 내용이라도 언어에 따라 길이가 달라요—어떤 언어는 간결하게, 어떤 언어는 길게 표현하니까요. 그래서 스크롤하다 보면 읽고 있는 위치가 점점 어긋나기도 해요.
+
+**Option** (Mac) 또는 **Alt** (Windows) 키를 누른 채로 스크롤하면, 다른 탭에 영향을 주지 않고 특정 탭의 위치만 조정할 수 있어요. 키를 놓으면 조정된 위치를 기준으로 동기화가 계속돼요.
+
+### 5단계: 동기화 중지
+
+확장 프로그램 아이콘을 다시 클릭해서 **"동기화 해제"**를 선택하거나, 동기화된 탭을 닫으면 돼요.
+
+---
 
 ## 사용 영상
 
-<a target="_blank" rel="noreferrer noopener" href="https://www.youtube.com/watch?v=DxFYu6XHGJY&ab_channel=%EC%9D%B4%EC%9E%AC%EB%AF%BC">
- <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Watch the video" width="480" height="360" border="10" title="Synchronize Tab Scrolling Promotion - 클릭하여 시청해보세요!" />
+<a href="https://www.youtube.com/watch?v=DxFYu6XHGJY">
+  <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="사용 영상" width="480" height="360" />
 </a>
 
-## 개인정보 보호정책
-
-Synchronize Tab Scrolling 확장 프로그램은 광고, 분석, 트래커, 쿠키를 사용하지 않습니다. 또한 오픈소스 프로젝트입니다.
+---
 
 ## 지원되지 않는 페이지
 
-이 확장 프로그램은 보안 및 기술적 제한으로 인해 다음과 같은 페이지에서는 작동하지 않습니다:
+브라우저 보안 제한 때문에 아래 페이지에서는 동기화가 안 돼요:
 
-- 브라우저 내부 페이지 (예: chrome://, about:, moz-extension://)
-- 확장 프로그램 스토어 페이지
-- 데이터 URL (data:)
-- 개발자 도구 (devtools:)
-- 소스 보기 페이지 (view-source:)
-- Google 서비스 (예: Google 계정, 애널리틱스, 검색 콘솔, 문서, 드라이브, Gmail, 스프레드시트, 캘린더, 프레젠테이션, Meet, 포토)
+- 브라우저 내부 페이지 (`chrome://`, `edge://`, `about:`)
+- 확장 프로그램 스토어
+- Google 서비스 (문서, 드라이브, Gmail, 스프레드시트 등)
+- 일부 웹 앱 (Figma, JIRA, Microsoft Office Online, Notion 등)
+- 특수 URL (`view-source:`, `data:`, `file://`)
 
-이러한 페이지에서는 탭 목록에서 해당 항목이 비활성화되어 표시됩니다.
+이런 탭은 선택 목록에서 비활성화돼요.
+
+---
+
+## 누구를 위한 건가요?
+
+- 여러 논문을 동시에 검토할 때
+- 코드 버전을 나란히 비교할 때
+- 원문과 번역문을 비교할 때
+- **여러 문서를 동시에 다루는 모든 분**
+
+---
+
+## 주요 기능
+
+### 실시간 스크롤 동기화
+
+한 탭에서 스크롤하면, 연결된 모든 탭이 같은 위치로 즉시 이동해요.
+
+```mermaid
+flowchart LR
+    subgraph 사용자["사용자 동작"]
+        A[탭 A에서 스크롤]
+    end
+
+    A --> B[확장 프로그램이 위치 감지]
+    B --> C[탭 B가 같은 위치로 이동]
+    B --> D[탭 C가 같은 위치로 이동]
+```
+
+### 수동 위치 조정
+
+문서의 위치가 완벽하게 맞지 않을 때가 있어요. **Option** (Mac) 또는 **Alt** (Windows) 키를 누른 채로 스크롤하면, 동기화를 유지하면서 개별 탭의 위치를 조정할 수 있어요.
+
+```mermaid
+flowchart TD
+    A["Option/Alt 키 누르기"] --> B["한 탭에서 자유롭게 스크롤"]
+    B --> C["키 놓기"]
+    C --> D["새 위치가 저장됨"]
+    D --> E["새 기준점에서 동기화 계속"]
+```
+
+### 자동 재연결
+
+탭의 연결이 끊어지면(예: 컴퓨터가 절전 모드에서 깨어난 후) 확장 프로그램이 자동으로 다시 연결하고 동기화를 재개해요. 별도의 조작이 필요 없어요.
+
+```mermaid
+flowchart LR
+    A[연결 끊김] --> B[자동 감지]
+    B --> C[재연결]
+    C --> D[동기화 재개]
+```
+
+### URL 이동 동기화
+
+한 탭에서 링크를 클릭하면, 연결된 모든 탭이 같은 주소로 함께 이동해요.
+
+---
+
+## 지원 언어
+
+확장 프로그램 인터페이스는 **9개 언어**로 제공돼요:
+
+| 언어                | 코드 |
+| ------------------- | ---- |
+| English (영어)      | en   |
+| 한국어              | ko   |
+| 日本語 (일본어)     | ja   |
+| Français (프랑스어) | fr   |
+| Español (스페인어)  | es   |
+| Deutsch (독일어)    | de   |
+| 中文 (중국어)       | zh   |
+| हिन्दी (힌디어)     | hi   |
+
+---
+
+## 개인정보 보호정책
+
+**여러분의 개인정보를 소중히 생각해요.**
+
+- **데이터 수집 없음**: 어떤 개인 정보도 수집하거나 저장하지 않아요
+- **분석 없음**: 추적, 쿠키, 원격 측정 없음
+- **네트워크 요청 없음**: 확장 프로그램은 완전히 오프라인으로 작동해요
+- **오픈 소스**: [모든 코드를 직접 확인](https://github.com/jaem1n207/synchronize-tab-scrolling)할 수 있어요
+
+이 확장 프로그램은 동기화를 위해 명시적으로 선택한 탭에만 접근하며, 모든 데이터는 여러분의 기기에만 저장돼요.
+
+---
 
 ## 지원
 
-직접 사용해보며 사용성을 개선하고 버그를 잡아내고 있지만, 버그를 발견한다면 아래로 제보해주세요:
+문제가 있으신가요? 도움을 드릴게요:
 
-- Email: <a href="mailto:tech.jmtt@gmail.com">tech.jmtt@gmail.com</a>
-- GitHub: <a href="https://prod.outgoing.prod.webservices.mozgcp.net/v1/ab981e001718903c17a3e7d97aa764a6214ebe73ad98b87e638f6b9bcc2cb193/https%3A//github.com/jaem1n207/synchronize-tab-scrolling/issues/new%3Ftitle=%25EB%25B2%2584%25EA%25B7%25B8%25EB%25A5%25BC%2520%25EC%2584%25A4%25EB%25AA%2585%25ED%2595%25A0%2520%25EC%2588%2598%2520%25EC%259E%2588%25EB%258A%2594%2520%25EC%25A0%259C%25EB%25AA%25A9%25EC%259D%2584%2520%25EA%25B0%2584%25EB%258B%25A8%25ED%259E%2588%2520%25EC%259E%2585%25EB%25A0%25A5%25ED%2595%25B4%25EC%25A3%25BC%25EC%2584%25B8%25EC%259A%2594&labels=bug&assignees=jaem1n207" title="버그 수정 요청">버그 수정 요청</a>
+- **이메일**: [tech.jmtt@gmail.com](mailto:tech.jmtt@gmail.com)
+- **GitHub**: [버그 신고하기](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/new?title=버그%20신고&labels=bug&assignees=jaem1n207)
+
+---
+
+## 기여하기
+
+기여하고 싶으신가요? [Contributing Guide](./CONTRIBUTING.md)에서 개발 환경 설정과 가이드라인을 확인해 주세요.
+
+---
 
 ## 라이선스
 
-이 프로젝트는 MIT 라이선스에 따라 라이센스가 부여됩니다. 자세한 내용은 [LICENSE](./LICENSE) 파일을 참조해주세요.
+MIT 라이선스. 자세한 내용은 [LICENSE](./LICENSE) 파일을 확인해 주세요.
