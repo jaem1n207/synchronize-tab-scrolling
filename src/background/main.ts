@@ -3,6 +3,7 @@ import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { initializeSentry } from '~/shared/lib/sentry_init';
+import { loadUrlSyncEnabled } from '~/shared/lib/storage';
 
 // Sentry 초기화
 initializeSentry();
@@ -539,13 +540,35 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
 
 // Handle tab updates (refresh, URL change) - auto-reconnect synced tabs
 browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Only act when page has finished loading
-  if (changeInfo.status !== 'complete') {
+  // Check if this tab is in our synced list
+  if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
     return;
   }
 
-  // Check if this tab is in our synced list
-  if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
+  // URL changed - broadcast to other synced tabs for cross-domain navigation support
+  // Content script's MutationObserver only handles SPA navigation; this handles hard navigation
+  if (changeInfo.url) {
+    logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: changeInfo.url });
+
+    const urlSyncEnabled = await loadUrlSyncEnabled();
+    if (urlSyncEnabled) {
+      const targetTabIds = syncState.linkedTabs.filter((id) => id !== tabId);
+      await Promise.all(
+        targetTabIds.map((targetTabId) =>
+          sendMessage(
+            'url:sync',
+            { url: changeInfo.url, sourceTabId: tabId },
+            { context: 'content-script', tabId: targetTabId },
+          ).catch((error) => {
+            logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
+          }),
+        ),
+      );
+    }
+  }
+
+  // Only reconnect when page has finished loading
+  if (changeInfo.status !== 'complete') {
     return;
   }
 
