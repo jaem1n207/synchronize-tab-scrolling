@@ -82,6 +82,8 @@ export function showPanel() {
   styleContainer.appendChild(extensionStyleLink);
 
   // Add critical base styles for Shadow DOM
+  // UnoCSS uses @property with inherits:false for opacity variables,
+  // which don't inherit into Shadow DOM. We need to explicitly set them.
   const baseStyle = document.createElement('style');
   baseStyle.textContent = `
     :host {
@@ -89,8 +91,13 @@ export function showPanel() {
       display: block;
     }
 
-    * {
+    *, *::before, *::after, ::backdrop {
       box-sizing: border-box;
+      --un-text-opacity: 100%;
+      --un-bg-opacity: 100%;
+      --un-border-opacity: 100%;
+      --un-ring-opacity: 100%;
+      --un-ring-offset-opacity: 100%;
     }
   `;
   styleContainer.appendChild(baseStyle);

@@ -428,7 +428,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         <CustomPopoverContent container={containerRef.current} side={popoverSide}>
           <div className="p-4 space-y-4">
             {/* Header */}
-            <div className="text-sm font-medium border-b text-red-500 border-border/50 pb-2">
+            <div className="text-sm font-medium border-b !text-red-500 opacity-100 border-border/50 pb-2">
               {t('scrollSyncToolbar')}
             </div>
 
