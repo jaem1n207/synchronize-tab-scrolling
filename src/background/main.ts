@@ -399,6 +399,26 @@ onMessage('url:sync', async ({ data }) => {
   return { success: true };
 });
 
+// Handler for URL sync enabled state change broadcast
+onMessage('sync:url-enabled-changed', async ({ data, sender }) => {
+  const payload = data as { enabled: boolean };
+  const sourceTabId = sender.tabId;
+  logger.info('Relaying URL sync enabled change', { enabled: payload.enabled, sourceTabId });
+
+  // Broadcast to all synced tabs except the source
+  const targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== sourceTabId);
+  const promises = targetTabIds.map((tabId) =>
+    sendMessage('sync:url-enabled-changed', payload, { context: 'content-script', tabId }).catch(
+      (error) => {
+        logger.debug(`Failed to relay URL sync enabled to tab ${tabId}`, { error });
+      },
+    ),
+  );
+
+  await Promise.all(promises);
+  return { success: true };
+});
+
 // Handler for connection health check ping
 onMessage('scroll:ping', async ({ data }) => {
   const payload = data as { tabId: number; timestamp: number };

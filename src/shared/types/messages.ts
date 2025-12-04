@@ -92,6 +92,13 @@ export interface PanelPositionMessage {
 }
 
 /**
+ * Message to synchronize URL sync enabled state across tabs
+ */
+export interface UrlSyncEnabledChangedMessage {
+  enabled: boolean;
+}
+
+/**
  * Webext-bridge protocol message definitions
  */
 export interface ProtocolMap {
@@ -104,4 +111,5 @@ export interface ProtocolMap {
   'url:sync': UrlSyncMessage;
   'element:match': ElementMatchMessage;
   'panel:position': PanelPositionMessage;
+  'sync:url-enabled-changed': UrlSyncEnabledChangedMessage;
 }

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
 import { createRoot } from 'react-dom/client';
+import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
 import { loadUrlSyncEnabled, saveUrlSyncEnabled } from '~/shared/lib/storage';
@@ -13,15 +14,31 @@ function PanelApp() {
   useEffect(() => {
     // Load URL sync state
     loadUrlSyncEnabled().then(setUrlSyncEnabled).catch(console.error);
+
+    // Listen for state changes from other synced tabs
+    const unsubscribe = onMessage('sync:url-enabled-changed', ({ data }) => {
+      const { enabled } = data as { enabled: boolean };
+      setUrlSyncEnabled(enabled);
+      saveUrlSyncEnabled(enabled);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
-  const handleToggleUrlSync = useCallback(() => {
-    setUrlSyncEnabled((prev) => {
-      const newValue = !prev;
-      saveUrlSyncEnabled(newValue);
-      return newValue;
-    });
-  }, []);
+  const handleToggleUrlSync = useCallback(async () => {
+    const newValue = !urlSyncEnabled;
+    setUrlSyncEnabled(newValue);
+    saveUrlSyncEnabled(newValue);
+
+    // Broadcast to other synced tabs via background
+    try {
+      await sendMessage('sync:url-enabled-changed', { enabled: newValue }, 'background');
+    } catch (error) {
+      console.error('Failed to broadcast URL sync enabled change', error);
+    }
+  }, [urlSyncEnabled]);
 
   return <SyncControlPanel urlSyncEnabled={urlSyncEnabled} onToggle={handleToggleUrlSync} />;
 }
