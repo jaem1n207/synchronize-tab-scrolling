@@ -28,6 +28,14 @@ function PanelApp() {
 
 let panelRoot: ReturnType<typeof createRoot> | null = null;
 let panelContainer: HTMLDivElement | null = null;
+let themeChangeListener: ((e: MediaQueryListEvent) => void) | null = null;
+
+/**
+ * Detect system theme preference
+ */
+function getSystemTheme(): 'light' | 'dark' {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
 
 export function showPanel() {
   if (panelContainer) {
@@ -48,8 +56,16 @@ export function showPanel() {
   const shadowRoot = panelContainer.attachShadow({ mode: 'open' });
 
   // Create theme wrapper with minimal fixed positioning context
+  // Uses system theme to match .light or .dark selector
   const themeWrapper = document.createElement('div');
-  themeWrapper.className = 'dark-theme';
+  themeWrapper.className = getSystemTheme();
+
+  // Listen for system theme changes
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  themeChangeListener = (e: MediaQueryListEvent) => {
+    themeWrapper.className = e.matches ? 'dark' : 'light';
+  };
+  mediaQuery.addEventListener('change', themeChangeListener);
   themeWrapper.style.cssText = `
     position: fixed;
     top: 0;
@@ -82,8 +98,9 @@ export function showPanel() {
   styleContainer.appendChild(extensionStyleLink);
 
   // Add critical base styles for Shadow DOM
-  // UnoCSS uses @property with inherits:false for opacity variables,
+  // UnoCSS uses @property with inherits:false for CSS variables,
   // which don't inherit into Shadow DOM. We need to explicitly set them.
+  // Also add theme HSL variables since :root doesn't apply in Shadow DOM.
   const baseStyle = document.createElement('style');
   baseStyle.textContent = `
     :host {
@@ -91,13 +108,146 @@ export function showPanel() {
       display: block;
     }
 
+    /* Light theme HSL variables */
+    .light {
+      --background: 0 0% 100%;
+      --foreground: 0 0% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 0 0% 3.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 0 0% 3.9%;
+      --primary: 0 0% 9%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 0 0% 96.1%;
+      --secondary-foreground: 0 0% 9%;
+      --muted: 0 0% 96.1%;
+      --muted-foreground: 0 0% 45.1%;
+      --accent: 0 0% 96.1%;
+      --accent-foreground: 0 0% 9%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 0 0% 89.8%;
+      --input: 0 0% 89.8%;
+      --ring: 0 0% 3.9%;
+      --radius: 0.5rem;
+      color-scheme: light only;
+
+      /* Computed color variables for light theme */
+      --colors-background: hsl(var(--background));
+      --colors-foreground: hsl(var(--foreground));
+      --colors-card: hsl(var(--card));
+      --colors-card-foreground: hsl(var(--card-foreground));
+      --colors-popover-DEFAULT: hsl(var(--popover));
+      --colors-popover-foreground: hsl(var(--popover-foreground));
+      --colors-primary-DEFAULT: hsl(var(--primary));
+      --colors-primary-foreground: hsl(var(--primary-foreground));
+      --colors-secondary-DEFAULT: hsl(var(--secondary));
+      --colors-secondary-foreground: hsl(var(--secondary-foreground));
+      --colors-muted-DEFAULT: hsl(var(--muted));
+      --colors-muted-foreground: hsl(var(--muted-foreground));
+      --colors-accent-DEFAULT: hsl(var(--accent));
+      --colors-accent-foreground: hsl(var(--accent-foreground));
+      --colors-destructive-DEFAULT: hsl(var(--destructive));
+      --colors-destructive-foreground: hsl(var(--destructive-foreground));
+      --colors-border: hsl(var(--border));
+      --colors-input: hsl(var(--input));
+      --colors-ring: hsl(var(--ring));
+    }
+
+    /* Dark theme HSL variables */
+    .dark {
+      --background: 0 0% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 0 0% 3.9%;
+      --card-foreground: 0 0% 98%;
+      --popover: 0 0% 3.9%;
+      --popover-foreground: 0 0% 98%;
+      --primary: 0 0% 98%;
+      --primary-foreground: 0 0% 9%;
+      --secondary: 0 0% 14.9%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 0 0% 14.9%;
+      --muted-foreground: 0 0% 63.9%;
+      --accent: 0 0% 14.9%;
+      --accent-foreground: 0 0% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 0 0% 14.9%;
+      --input: 0 0% 14.9%;
+      --ring: 0 0% 83.1%;
+      --radius: 0.5rem;
+      color-scheme: dark only;
+
+      /* Computed color variables for dark theme */
+      --colors-background: hsl(var(--background));
+      --colors-foreground: hsl(var(--foreground));
+      --colors-card: hsl(var(--card));
+      --colors-card-foreground: hsl(var(--card-foreground));
+      --colors-popover-DEFAULT: hsl(var(--popover));
+      --colors-popover-foreground: hsl(var(--popover-foreground));
+      --colors-primary-DEFAULT: hsl(var(--primary));
+      --colors-primary-foreground: hsl(var(--primary-foreground));
+      --colors-secondary-DEFAULT: hsl(var(--secondary));
+      --colors-secondary-foreground: hsl(var(--secondary-foreground));
+      --colors-muted-DEFAULT: hsl(var(--muted));
+      --colors-muted-foreground: hsl(var(--muted-foreground));
+      --colors-accent-DEFAULT: hsl(var(--accent));
+      --colors-accent-foreground: hsl(var(--accent-foreground));
+      --colors-destructive-DEFAULT: hsl(var(--destructive));
+      --colors-destructive-foreground: hsl(var(--destructive-foreground));
+      --colors-border: hsl(var(--border));
+      --colors-input: hsl(var(--input));
+      --colors-ring: hsl(var(--ring));
+    }
+
     *, *::before, *::after, ::backdrop {
       box-sizing: border-box;
+
+      /* Opacity variables (from @property declarations) */
       --un-text-opacity: 100%;
       --un-bg-opacity: 100%;
       --un-border-opacity: 100%;
       --un-ring-opacity: 100%;
       --un-ring-offset-opacity: 100%;
+
+      /* Outline variables */
+      --un-outline-style: solid;
+
+      /* Shadow variables */
+      --un-shadow: 0 0 #0000;
+      --un-shadow-color: ;
+      --un-ring-shadow: 0 0 #0000;
+      --un-ring-offset-shadow: 0 0 #0000;
+      --un-ring-color: ;
+      --un-ring-inset: ;
+      --un-ring-offset-color: ;
+      --un-ring-offset-width: 0px;
+      --un-inset-shadow: 0 0 #0000;
+      --un-inset-shadow-color: ;
+      --un-inset-ring-shadow: 0 0 #0000;
+      --un-inset-ring-color: ;
+
+      /* Transform variables */
+      --un-translate-x: 0;
+      --un-translate-y: 0;
+      --un-translate-z: 0;
+      --un-scale-x: 1;
+      --un-scale-y: 1;
+      --un-scale-z: 1;
+
+      /* Space reverse variables */
+      --un-space-y-reverse: 0;
+
+      /* Backdrop filter variables */
+      --un-backdrop-blur: ;
+      --un-backdrop-brightness: ;
+      --un-backdrop-contrast: ;
+      --un-backdrop-grayscale: ;
+      --un-backdrop-hue-rotate: ;
+      --un-backdrop-invert: ;
+      --un-backdrop-opacity: ;
+      --un-backdrop-saturate: ;
+      --un-backdrop-sepia: ;
     }
   `;
   styleContainer.appendChild(baseStyle);
@@ -114,6 +264,14 @@ export function hidePanel() {
 }
 
 export function destroyPanel() {
+  // Remove theme change listener
+  if (themeChangeListener) {
+    window
+      .matchMedia('(prefers-color-scheme: dark)')
+      .removeEventListener('change', themeChangeListener);
+    themeChangeListener = null;
+  }
+
   if (panelRoot) {
     panelRoot.unmount();
     panelRoot = null;

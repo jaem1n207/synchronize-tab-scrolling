@@ -428,7 +428,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
         <CustomPopoverContent container={containerRef.current} side={popoverSide}>
           <div className="p-4 space-y-4">
             {/* Header */}
-            <div className="text-sm font-medium border-b !text-red-500 opacity-100 border-border/50 pb-2">
+            <div className="text-sm font-medium border-b border-border/70 pb-2">
               {t('scrollSyncToolbar')}
             </div>
 
@@ -443,7 +443,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
 
             {/* Synced Tabs list with offsets */}
             {syncedTabs.length > 0 && (
-              <div className="space-y-2 border-t border-border/50 pt-3">
+              <div className="space-y-2 border-t border-border/70 pt-3">
                 <div className="text-xs text-muted-foreground">{t('syncedTabs')}</div>
                 {syncedTabs.map((tab) => (
                   <div key={tab.id} className="flex items-center justify-between text-sm">
@@ -467,7 +467,7 @@ export const SyncControlPanel: React.FC<SyncControlPanelProps> = ({
             )}
 
             {/* Keyboard Shortcuts Footer */}
-            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground border-t border-border/50 pt-2">
+            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground border-t border-border/70 pt-2">
               <div className="flex items-center gap-1.5">
                 <span>{t('toggleShortcut')}</span>
                 <Kbd className="text-xs">⌃</Kbd>
