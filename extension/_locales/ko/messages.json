@@ -267,7 +267,7 @@
     "message": "스크롤 동기화 도구"
   },
   "urlSyncNavigation": {
-    "message": "URL 동기화 네비게이션"
+    "message": "URL 동기화 여부"
   },
   "syncedTabs": {
     "message": "동기화된 탭"
