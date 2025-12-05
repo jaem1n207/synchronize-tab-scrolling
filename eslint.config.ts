@@ -1,4 +1,5 @@
 import jsEslint from '@eslint/js';
+import pluginQuery from '@tanstack/eslint-plugin-query';
 import importPlugin from 'eslint-plugin-import';
 import importXPlugin from 'eslint-plugin-import-x';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
@@ -8,7 +9,6 @@ import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tsEslint from 'typescript-eslint';
-import pluginQuery from '@tanstack/eslint-plugin-query';
 
 export default tsEslint.config(
   // 기본 설정
@@ -108,7 +108,7 @@ export default tsEslint.config(
               position: 'before',
             },
             {
-              pattern: '@/**',
+              pattern: '~/**',
               group: 'internal',
               position: 'before',
             },
