@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Menu, Settings2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
@@ -11,7 +12,13 @@ import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
 import { useSystemTheme } from '~/shared/hooks/use-system-theme';
 import { t } from '~/shared/i18n';
-import { PANEL_ANIMATIONS, prefersReducedMotion } from '~/shared/lib/animations';
+import {
+  ANIMATION_DURATIONS,
+  EASING_FUNCTIONS,
+  getMotionTransition,
+  PANEL_ANIMATIONS,
+  prefersReducedMotion,
+} from '~/shared/lib/animations';
 import { loadManualScrollOffsets } from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
 
@@ -37,35 +44,37 @@ const BUTTON_SIZE = 36;
 const EDGE_MARGIN = 32; // Distance from screen edge
 
 // Custom PopoverContent with container support for Shadow DOM
+// Uses Motion for animations since UnoCSS @property animations don't work in Shadow DOM
 function CustomPopoverContent({
   className,
   align = 'start',
   sideOffset = 8,
   container,
-  ref,
+  children,
   ...props
-}: React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content> & {
+}: Omit<React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>, 'children'> & {
   container?: HTMLElement | null;
-  ref?: React.Ref<React.ComponentRef<typeof PopoverPrimitive.Content>>;
+  children?: React.ReactNode;
 }) {
+  const reducedMotion = prefersReducedMotion();
+
   return (
-    <PopoverPrimitive.Portal container={container}>
-      <PopoverPrimitive.Content
-        ref={ref}
-        align={align}
-        className={cn(
-          'z-[2147483647] w-96 rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl p-0',
-          'pointer-events-auto',
-          'outline-none data-[state=open]:animate-in data-[state=closed]:animate-out',
-          'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-          'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-          'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2',
-          'data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
-          className,
-        )}
-        sideOffset={sideOffset}
-        {...props}
-      />
+    <PopoverPrimitive.Portal forceMount container={container}>
+      <PopoverPrimitive.Content asChild forceMount align={align} sideOffset={sideOffset} {...props}>
+        <motion.div
+          animate={{ opacity: 1, scale: 1 }}
+          className={cn(
+            'z-[2147483647] w-96 rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl p-0',
+            'pointer-events-auto outline-none',
+            className,
+          )}
+          exit={reducedMotion ? undefined : { opacity: 0, scale: 0.9 }}
+          initial={reducedMotion ? false : { opacity: 0, scale: 0.9 }}
+          transition={getMotionTransition(ANIMATION_DURATIONS.fast, EASING_FUNCTIONS.easeOutCubic)}
+        >
+          {children}
+        </motion.div>
+      </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   );
 }
@@ -425,60 +434,68 @@ export const SyncControlPanel = ({
           </Button>
         </PopoverTrigger>
 
-        <CustomPopoverContent container={containerRef.current} side={popoverSide}>
-          <div className="p-4 space-y-4">
-            {/* Header */}
-            <div className="text-sm font-medium border-b border-border/70 pb-2">
-              {t('scrollSyncToolbar')}
-            </div>
+        <AnimatePresence>
+          {isOpen && (
+            <CustomPopoverContent container={containerRef.current} side={popoverSide}>
+              <div className="p-4 space-y-4">
+                {/* Header */}
+                <div className="text-sm font-medium border-b border-border/70 pb-2">
+                  {t('scrollSyncToolbar')}
+                </div>
 
-            {/* URL Sync Navigation toggle */}
-            <div className="flex items-center justify-between gap-3 py-2">
-              <div className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{t('urlSyncNavigation')}</span>
-              </div>
-              <Switch checked={urlSyncEnabled} onCheckedChange={onToggle} />
-            </div>
-
-            {/* Synced Tabs list with offsets */}
-            {syncedTabs.length > 0 && (
-              <div className="space-y-2 border-t border-border/70 pt-3">
-                <div className="text-xs text-muted-foreground">{t('syncedTabs')}</div>
-                {syncedTabs.map((tab) => (
-                  <div key={tab.id} className="flex items-center justify-between text-sm">
-                    <span className={cn('truncate max-w-[200px]', tab.isCurrent && 'font-medium')}>
-                      {tab.title}
-                      {tab.isCurrent && ` (${t('current')})`}
-                    </span>
-                    <span
-                      className={cn(
-                        'text-xs font-mono',
-                        tab.offsetPixels > 0 && 'text-green-500',
-                        tab.offsetPixels < 0 && 'text-red-500',
-                        tab.offsetPixels === 0 && 'text-muted-foreground',
-                      )}
-                    >
-                      {tab.offsetPixels >= 0 ? `+${tab.offsetPixels}px` : `${tab.offsetPixels}px`}
-                    </span>
+                {/* URL Sync Navigation toggle */}
+                <div className="flex items-center justify-between gap-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{t('urlSyncNavigation')}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                  <Switch checked={urlSyncEnabled} onCheckedChange={onToggle} />
+                </div>
 
-            {/* Keyboard Shortcuts Footer */}
-            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground border-t border-border/70 pt-2">
-              <div className="flex items-center gap-1.5">
-                <span>{t('toggleShortcut')}</span>
-                <Kbd className="text-xs">⌃</Kbd>
+                {/* Synced Tabs list with offsets */}
+                {syncedTabs.length > 0 && (
+                  <div className="space-y-2 border-t border-border/70 pt-3">
+                    <div className="text-xs text-muted-foreground">{t('syncedTabs')}</div>
+                    {syncedTabs.map((tab) => (
+                      <div key={tab.id} className="flex items-center justify-between text-sm">
+                        <span
+                          className={cn('truncate max-w-[200px]', tab.isCurrent && 'font-medium')}
+                        >
+                          {tab.title}
+                          {tab.isCurrent && ` (${t('current')})`}
+                        </span>
+                        <span
+                          className={cn(
+                            'text-xs font-mono',
+                            tab.offsetPixels > 0 && 'text-green-500',
+                            tab.offsetPixels < 0 && 'text-red-500',
+                            tab.offsetPixels === 0 && 'text-muted-foreground',
+                          )}
+                        >
+                          {tab.offsetPixels >= 0
+                            ? `+${tab.offsetPixels}px`
+                            : `${tab.offsetPixels}px`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Keyboard Shortcuts Footer */}
+                <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground border-t border-border/70 pt-2">
+                  <div className="flex items-center gap-1.5">
+                    <span>{t('toggleShortcut')}</span>
+                    <Kbd className="text-xs">⌃</Kbd>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>{t('closeShortcut')}</span>
+                    <Kbd className="text-xs">Esc</Kbd>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span>{t('closeShortcut')}</span>
-                <Kbd className="text-xs">Esc</Kbd>
-              </div>
-            </div>
-          </div>
-        </CustomPopoverContent>
+            </CustomPopoverContent>
+          )}
+        </AnimatePresence>
       </Popover>
     </div>
   );
