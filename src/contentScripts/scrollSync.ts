@@ -16,11 +16,10 @@ import {
   loadUrlSyncEnabled,
   saveManualScrollOffset,
 } from '~/shared/lib/storage';
+import type { SyncMode } from '~/shared/types/messages';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
 import { hidePanel, showPanel } from './panel';
-
-import type { SyncMode } from '~/shared/types/messages';
 
 const logger = new ExtensionLogger({ scope: 'scroll-sync' });
 

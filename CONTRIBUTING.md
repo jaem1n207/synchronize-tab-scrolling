@@ -44,12 +44,14 @@ pnpm dev-firefox  # Firefox
 ### Loading the Extension
 
 **Chrome/Edge/Brave:**
+
 1. Navigate to `chrome://extensions` (or `edge://extensions`)
 2. Enable "Developer mode"
 3. Click "Load unpacked"
 4. Select the `extension` folder
 
 **Firefox:**
+
 1. Navigate to `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on"
 3. Select any file in the `extension` folder
@@ -112,14 +114,14 @@ flowchart TB
 
 **Key Messages:**
 
-| Message | Direction | Purpose |
-|---------|-----------|---------|
-| `scroll:start` | Background → Content | Initialize sync with tab IDs |
-| `scroll:stop` | Background → Content | Stop sync and cleanup |
-| `scroll:sync` | Content → Background → Content | Broadcast scroll position |
+| Message         | Direction                      | Purpose                       |
+| --------------- | ------------------------------ | ----------------------------- |
+| `scroll:start`  | Background → Content           | Initialize sync with tab IDs  |
+| `scroll:stop`   | Background → Content           | Stop sync and cleanup         |
+| `scroll:sync`   | Content → Background → Content | Broadcast scroll position     |
 | `scroll:manual` | Content → Background → Content | Toggle manual adjustment mode |
-| `url:sync` | Content → Background → Content | Broadcast URL changes |
-| `sync:status` | Background → Content | Update linked tabs info |
+| `url:sync`      | Content → Background → Content | Broadcast URL changes         |
+| `sync:status`   | Background → Content           | Update linked tabs info       |
 
 ### Synchronization Algorithms
 
@@ -181,53 +183,55 @@ stateDiagram-v2
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | React 19, TypeScript |
-| **Build Tool** | Vite with HMR |
-| **Styling** | UnoCSS + Tailwind + shadcn/ui |
-| **State** | React Query (@tanstack/react-query) |
-| **Extension API** | webextension-polyfill |
-| **Messaging** | webext-bridge |
-| **Animations** | Framer Motion |
-| **Icons** | unplugin-icons |
+| Category          | Technology                          |
+| ----------------- | ----------------------------------- |
+| **Framework**     | React 19, TypeScript                |
+| **Build Tool**    | Vite with HMR                       |
+| **Styling**       | UnoCSS + Tailwind + shadcn/ui       |
+| **State**         | React Query (@tanstack/react-query) |
+| **Extension API** | webextension-polyfill               |
+| **Messaging**     | webext-bridge                       |
+| **Animations**    | Framer Motion                       |
+| **Icons**         | unplugin-icons                      |
 
 ### Browser Support
 
-| Browser | Manifest | Background |
-|---------|----------|------------|
-| Chrome | V3 | Service Worker |
-| Edge | V3 | Service Worker |
-| Brave | V3 | Service Worker |
-| Firefox | V3 | Background Script |
+| Browser | Manifest | Background        |
+| ------- | -------- | ----------------- |
+| Chrome  | V3       | Service Worker    |
+| Edge    | V3       | Service Worker    |
+| Brave   | V3       | Service Worker    |
+| Firefox | V3       | Background Script |
 
 ---
 
 ## Development Commands
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start dev server (Chrome/Edge/Brave) |
-| `pnpm dev-firefox` | Start dev server (Firefox) |
-| `pnpm build` | Production build |
-| `pnpm typecheck` | TypeScript type checking |
-| `pnpm lint:fix` | Lint and auto-fix |
-| `pnpm format:fix` | Format with Prettier |
-| `pnpm test` | Run test suite |
-| `pnpm pack` | Package for distribution (.zip, .crx, .xpi) |
-| `pnpm start:chromium` | Launch in Chrome/Edge/Brave |
-| `pnpm start:firefox` | Launch in Firefox |
+| Command               | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `pnpm dev`            | Start dev server (Chrome/Edge/Brave)        |
+| `pnpm dev-firefox`    | Start dev server (Firefox)                  |
+| `pnpm build`          | Production build                            |
+| `pnpm typecheck`      | TypeScript type checking                    |
+| `pnpm lint:fix`       | Lint and auto-fix                           |
+| `pnpm format:fix`     | Format with Prettier                        |
+| `pnpm test`           | Run test suite                              |
+| `pnpm pack`           | Package for distribution (.zip, .crx, .xpi) |
+| `pnpm start:chromium` | Launch in Chrome/Edge/Brave                 |
+| `pnpm start:firefox`  | Launch in Firefox                           |
 
 ---
 
 ## Code Conventions
 
 ### File Naming
+
 - **Files/Folders**: kebab-case (`scroll-sync.ts`)
 - **Components**: PascalCase (`SyncControlPanel.tsx`)
 - **Types**: PascalCase with descriptive names
 
 ### TypeScript
+
 - Prefer `interface` over `type` for object shapes
 - Use Union Types over `enum`
 - Avoid `any` and type assertions (`as`)
@@ -244,6 +248,7 @@ refactor: simplify message handling
 ```
 
 ### Testing
+
 - Write tests for core business logic
 - Use Vitest for unit tests
 - Use Playwright for E2E tests
@@ -303,12 +308,14 @@ pnpm dev-firefox  # Firefox
 ### 확장 프로그램 로드
 
 **Chrome/Edge/Brave:**
+
 1. `chrome://extensions` (또는 `edge://extensions`) 접속
 2. "개발자 모드" 활성화
 3. "압축해제된 확장 프로그램을 로드합니다" 클릭
 4. `extension` 폴더 선택
 
 **Firefox:**
+
 1. `about:debugging#/runtime/this-firefox` 접속
 2. "임시 부가 기능 로드" 클릭
 3. `extension` 폴더 내 아무 파일 선택
@@ -318,10 +325,12 @@ pnpm dev-firefox  # Firefox
 ## 코드 컨벤션
 
 ### 파일 명명
+
 - **파일/폴더**: kebab-case (`scroll-sync.ts`)
 - **컴포넌트**: PascalCase (`SyncControlPanel.tsx`)
 
 ### TypeScript
+
 - 객체 형태는 `type`보다 `interface` 선호
 - `enum`보다 Union Types 사용
 - `any`와 타입 단언(`as`) 지양
