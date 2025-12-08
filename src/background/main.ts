@@ -51,6 +51,13 @@ const autoSyncState: AutoSyncState = {
 // Track tabs that are in manual sync (excluded from auto-sync temporarily)
 const manualSyncOverriddenTabs = new Set<number>();
 
+// Track pending retry timers for auto-sync groups
+const autoSyncRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// Max retries for starting auto-sync
+const AUTO_SYNC_START_MAX_RETRIES = 3;
+const AUTO_SYNC_START_RETRY_DELAY_MS = 2000;
+
 /**
  * Check if a tab is overridden by manual sync
  */
@@ -135,9 +142,12 @@ function removeTabFromAllAutoSyncGroups(tabId: number): void {
       group.tabIds.delete(tabId);
       logger.debug(`Removed tab ${tabId} from auto-sync group`, { normalizedUrl });
 
-      // If group has less than 2 tabs, stop auto-sync for that group
-      if (group.tabIds.size < 2 && group.isActive) {
-        stopAutoSyncForGroup(normalizedUrl);
+      // If group has less than 2 tabs, stop auto-sync and cancel retry for that group
+      if (group.tabIds.size < 2) {
+        cancelAutoSyncRetry(normalizedUrl);
+        if (group.isActive) {
+          stopAutoSyncForGroup(normalizedUrl);
+        }
       }
 
       // Remove empty groups
@@ -250,21 +260,37 @@ async function updateAutoSyncGroupInternal(
 }
 
 /**
+ * Cancel any pending retry timer for a group
+ */
+function cancelAutoSyncRetry(normalizedUrl: string): void {
+  const existingTimer = autoSyncRetryTimers.get(normalizedUrl);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+    autoSyncRetryTimers.delete(normalizedUrl);
+  }
+}
+
+/**
  * Start auto-sync for a specific URL group
  * Only sets isActive=true if at least 2 tabs successfully received the message
- * This allows retry when not all tabs are ready yet
+ * Schedules automatic retry if not enough tabs respond
  */
-async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
+async function startAutoSyncForGroup(normalizedUrl: string, retryCount: number = 0): Promise<void> {
   const group = autoSyncState.groups.get(normalizedUrl);
 
   if (!group || group.tabIds.size < 2) {
+    cancelAutoSyncRetry(normalizedUrl);
     return;
   }
 
   // Don't restart if already active
   if (group.isActive) {
+    cancelAutoSyncRetry(normalizedUrl);
     return;
   }
+
+  // Cancel any existing retry timer
+  cancelAutoSyncRetry(normalizedUrl);
 
   const tabIds = Array.from(group.tabIds);
 
@@ -299,9 +325,34 @@ async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
   const successCount = results.filter((r) => r.success).length;
 
   // Only mark as active if at least 2 tabs successfully received the message
-  // If fewer, keep isActive=false so we can retry when more tabs are ready
   if (successCount >= 2) {
     group.isActive = true;
+    logger.info('[AUTO-SYNC] Successfully started sync for group', {
+      normalizedUrl,
+      successCount,
+      tabIds,
+    });
+  } else if (retryCount < AUTO_SYNC_START_MAX_RETRIES) {
+    // Schedule a retry - content scripts might not be ready yet
+    logger.debug('[AUTO-SYNC] Not enough tabs ready, scheduling retry', {
+      normalizedUrl,
+      successCount,
+      retryCount: retryCount + 1,
+      maxRetries: AUTO_SYNC_START_MAX_RETRIES,
+    });
+
+    const timer = setTimeout(() => {
+      autoSyncRetryTimers.delete(normalizedUrl);
+      startAutoSyncForGroup(normalizedUrl, retryCount + 1);
+    }, AUTO_SYNC_START_RETRY_DELAY_MS);
+
+    autoSyncRetryTimers.set(normalizedUrl, timer);
+  } else {
+    logger.warn('[AUTO-SYNC] Failed to start sync after max retries', {
+      normalizedUrl,
+      successCount,
+      retryCount,
+    });
   }
 }
 
@@ -309,6 +360,9 @@ async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
  * Stop auto-sync for a specific URL group
  */
 async function stopAutoSyncForGroup(normalizedUrl: string): Promise<void> {
+  // Cancel any pending retry timer
+  cancelAutoSyncRetry(normalizedUrl);
+
   const group = autoSyncState.groups.get(normalizedUrl);
   if (!group) return;
 
@@ -403,6 +457,12 @@ async function toggleAutoSync(enabled: boolean): Promise<void> {
     // Re-initialize to scan tabs and create groups
     await initializeAutoSync();
   } else {
+    // Cancel all pending retry timers
+    for (const timer of autoSyncRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    autoSyncRetryTimers.clear();
+
     // Stop all active auto-sync groups
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
       if (group.isActive) {
@@ -1037,11 +1097,13 @@ onMessage('auto-sync:get-detailed-status', async ({ sender }) => {
   const totalSyncedTabs = activeGroups.reduce((sum, g) => sum + g.tabIds.size, 0);
 
   // Find current tab's group if sender has tabId
-  let currentTabGroup: {
-    normalizedUrl: string;
-    tabCount: number;
-    isActive: boolean;
-  } | undefined;
+  let currentTabGroup:
+    | {
+        normalizedUrl: string;
+        tabCount: number;
+        isActive: boolean;
+      }
+    | undefined;
 
   if (sender.tabId) {
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
