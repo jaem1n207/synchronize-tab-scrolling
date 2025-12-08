@@ -16,6 +16,12 @@ src/auto-imports.d.ts
 .eslintcache
 
 vite.config.*.timestamp-*
+
+# Environment files (may contain secrets)
+.env
+.env.*
+!.env.example
+
 # Sentry Config File
 .env.sentry-build-plugin
 
