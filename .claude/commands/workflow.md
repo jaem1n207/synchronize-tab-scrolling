@@ -172,8 +172,6 @@ graph TD
 ```
 ````
 
-````
-
 ## Sequential Thinking Process (Enhanced by Flags)
 
 ### Phase 1: Requirements Analysis
@@ -252,20 +250,23 @@ You are assigned Task-[ID] in AGENT_TODOS.md.
 **Dependencies**: [what you need from other agents]
 
 **Deliverables**:
+
 - [specific output 1]
 - [specific output 2]
 - [flag-specific deliverables]
 
 **Success Criteria**:
+
 - [measurable criterion 1]
 - [measurable criterion 2]
 - [enhanced criteria based on flags]
 
 **IMPORTANT**: Update AGENT_TODOS.md when you:
+
 - Start your task (status → 🟡 In Progress)
 - Complete your task (status → ✅ Complete)
 - Get blocked (status → 🔴 Blocked)
-````
+```
 
 ## Response Format with Flag Enhancements
 
