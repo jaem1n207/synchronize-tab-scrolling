@@ -2,7 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "default",
   "tailwind": {
-    "config": "tailwind.config.js",
+    "config": "uno.config.ts",
     "css": "src/shared/styles/main.css",
     "baseColor": "neutral",
     "cssVariables": true,
