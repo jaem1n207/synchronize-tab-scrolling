@@ -465,5 +465,29 @@
   },
   "advancedFeatures": {
     "message": "Advanced Features"
+  },
+  "autoSyncingTabs": {
+    "message": "Auto-syncing $COUNT$ tabs",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "Auto-syncing with $COUNT$ other tab(s)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "Auto-sync enabled"
+  },
+  "autoSyncDisabled": {
+    "message": "Auto-sync disabled"
   }
 }

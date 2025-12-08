@@ -465,5 +465,29 @@
   },
   "advancedFeatures": {
     "message": "高度な機能"
+  },
+  "autoSyncingTabs": {
+    "message": "$COUNT$個のタブを自動同期中",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "他の$COUNT$個のタブと自動同期中",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "自動同期が有効"
+  },
+  "autoSyncDisabled": {
+    "message": "自動同期が無効"
   }
 }

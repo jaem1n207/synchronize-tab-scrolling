@@ -60,6 +60,7 @@ export function ScrollSyncPopup() {
 
   // Browser storage-based settings (cross-context)
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [autoSyncTabCount, setAutoSyncTabCount] = useState(0);
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
 
   useEffect(() => {
@@ -588,6 +589,41 @@ export function ScrollSyncPopup() {
     }
   }, [actionsMenuOpen]);
 
+  // Fetch auto-sync detailed status when enabled
+  useEffect(() => {
+    const fetchAutoSyncStatus = async () => {
+      if (!autoSyncEnabled) {
+        setAutoSyncTabCount(0);
+        return;
+      }
+
+      try {
+        const response = (await sendMessage(
+          'auto-sync:get-detailed-status',
+          {},
+          'background',
+        )) as {
+          success: boolean;
+          totalSyncedTabs: number;
+        };
+
+        if (response?.success) {
+          setAutoSyncTabCount(response.totalSyncedTabs);
+        }
+      } catch {
+        // Ignore errors - status is optional
+      }
+    };
+
+    fetchAutoSyncStatus();
+
+    // Poll for updates while auto-sync is enabled
+    const interval = autoSyncEnabled ? setInterval(fetchAutoSyncStatus, 2000) : undefined;
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoSyncEnabled]);
+
   // Restore focus when clicking non-interactive areas
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -654,6 +690,7 @@ export function ScrollSyncPopup() {
           />
           <ActionsMenu
             autoSyncEnabled={autoSyncEnabled}
+            autoSyncTabCount={autoSyncTabCount}
             isSyncActive={syncStatus.isActive}
             open={actionsMenuOpen}
             sameDomainFilter={sameDomainFilter}

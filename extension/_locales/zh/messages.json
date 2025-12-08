@@ -465,5 +465,29 @@
   },
   "advancedFeatures": {
     "message": "高级功能"
+  },
+  "autoSyncingTabs": {
+    "message": "正在自动同步 $COUNT$ 个标签页",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "正在与其他 $COUNT$ 个标签页自动同步",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "自动同步已启用"
+  },
+  "autoSyncDisabled": {
+    "message": "自动同步已禁用"
   }
 }
