@@ -1,0 +1,8 @@
+---
+description: 
+globs: **/background/*.ts,**/contentScripts/**/*.tsx
+alwaysApply: false
+---
+- Implement a clear separation of concerns between different extension components
+- Use message passing for communication between different parts of the extension
+- Implement proper state management using chrome.storage API

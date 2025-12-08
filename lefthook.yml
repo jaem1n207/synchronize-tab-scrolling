@@ -1,14 +1,46 @@
-commit-msg:
-  commands:
-    'lint commit message':
-      run: bunx commitlint --edit $1
-
 pre-commit:
   parallel: true
   commands:
-    linter:
-      glob: '*.{svelte,js,ts}'
-      run: bunx eslint --fix {staged_files} && git update-index --again
-    style:
-      glob: '*.{html,svelte,js,ts,json,pcss,md,yml}'
-      run: bunx prettier --write {staged_files} && git update-index --again
+    lint-and-format-ts:
+      glob: '**/*.{ts,tsx}'
+      exclude: '{node_modules,extension/dist,build,dist}/**/*'
+      run: |
+        bunx prettier --write {staged_files} &&
+        NODE_OPTIONS='--experimental-strip-types' bunx eslint {staged_files} --fix --flag unstable_native_nodejs_ts_config --max-warnings=0
+    format-others:
+      glob: '**/*.{json,md,mdx,css,html,yml,yaml,scss}'
+      exclude: '{node_modules,extension/dist,build,dist,pnpm-lock.yaml}/**/*'
+      run: bunx prettier --write {staged_files}
+    typecheck:
+      glob: '**/*.{ts,tsx}'
+      exclude: '{node_modules,extension/dist,build,dist}/**/*'
+      run: bunx tsc --noEmit
+    i18n-validate:
+      glob: 'src/shared/i18n/_locales/**/*.json'
+      run: bunx esno scripts/validate-i18n.ts
+      skip:
+        - merge
+        - rebase
+
+# 종속성 변경 시 패키지 업데이트
+post-merge:
+  commands:
+    install-deps:
+      run: |
+        if git diff --name-only HEAD@{1} HEAD | grep -q "package.json\|pnpm-lock.yaml"; then
+          echo "Dependencies changed, running pnpm install..."
+          pnpm install
+        fi
+
+# 수동 실행용 헬스체크
+health:
+  parallel: true
+  commands:
+    lint:
+      run: NODE_OPTIONS='--experimental-strip-types' bunx eslint . --fix --flag unstable_native_nodejs_ts_config
+    format:
+      run: bunx prettier --write .
+    typecheck:
+      run: bunx tsc --noEmit
+    i18n-validate:
+      run: bunx esno scripts/validate-i18n.ts

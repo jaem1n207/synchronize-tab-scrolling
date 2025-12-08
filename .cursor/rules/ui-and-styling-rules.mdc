@@ -1,0 +1,11 @@
+---
+description: 
+globs: *.css,*.tsx
+alwaysApply: false
+---
+- Utilize Tailwind CSS utility classes for styling components.
+- Create responsive designs for popup and options pages
+- Use CSS Grid or Flexbox for layouts
+- Implement consistent styling across all extension UI elements
+- Follow Shaden UI component guidelines and best practices.
+- Ensure UI is responsive and accessible.

@@ -1,0 +1,460 @@
+{
+  "extName": {
+    "message": "टैब स्क्रॉल सिंक्रनाइज़ेशन"
+  },
+  "extDescription": {
+    "message": "ब्राउज़र एक्सटेंशन जो आपको कई टैब की स्क्रॉल स्थिति को सिंक्रनाइज़ करने देता है"
+  },
+  "searchPlaceholder": {
+    "message": "टैब खोजें"
+  },
+  "noSearchFound": {
+    "message": "आपकी खोज से मेल खाने वाले कोई टैब नहीं मिले"
+  },
+  "noTabsFound": {
+    "message": "कोई सिंक करने योग्य टैब नहीं मिले"
+  },
+  "startSync": {
+    "message": "सिंक शुरू करें"
+  },
+  "stopSync": {
+    "message": "सिंक बंद करें"
+  },
+  "syncValidationError": {
+    "message": "कृपया कम से कम 2 टैब चुनें"
+  },
+  "loading": {
+    "message": "लोड हो रहा है..."
+  },
+  "error": {
+    "message": "एक त्रुटि हुई"
+  },
+  "backgroundUpdate": {
+    "message": "पृष्ठभूमि अपडेट हो रहा है..."
+  },
+  "tabs": {
+    "message": "टैब"
+  },
+  "changeTheme": {
+    "message": "थीम बदलें"
+  },
+  "light": {
+    "message": "हल्का"
+  },
+  "dark": {
+    "message": "गहरा"
+  },
+  "system": {
+    "message": "सिस्टम"
+  },
+  "noTitle": {
+    "message": "कोई शीर्षक नहीं"
+  },
+  "tabSelectionHeading": {
+    "message": "सिंक करने के लिए टैब चुनें"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ चयनित",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "फिर से सिंक करें"
+  },
+  "minimize": {
+    "message": "छोटा करें"
+  },
+  "maximize": {
+    "message": "बड़ा करें"
+  },
+  "linkedTabs": {
+    "message": "लिंक किए गए टैब"
+  },
+  "currentTab": {
+    "message": "वर्तमान"
+  },
+  "switchToTab": {
+    "message": "इस टैब पर स्विच करें"
+  },
+  "connected": {
+    "message": "कनेक्टेड"
+  },
+  "disconnected": {
+    "message": "डिस्कनेक्टेड"
+  },
+  "errorLoadTabsFailed": {
+    "message": "टैब लोड करने में विफल। कृपया एक्सटेंशन को रीफ्रेश करें।"
+  },
+  "errorStartSyncFailed": {
+    "message": "सिंक्रनाइज़ेशन शुरू करने में विफल। कृपया पुनः प्रयास करें।"
+  },
+  "errorStopSyncFailed": {
+    "message": "चेतावनी: सिंक को ठीक से बंद करने में विफल। स्थानीय स्थिति साफ़ कर दी गई है।"
+  },
+  "errorSwitchTabFailed": {
+    "message": "टैब स्विच करने में विफल। टैब बंद हो गया हो सकता है।"
+  },
+  "errorMinTabsRequired": {
+    "message": "कृपया सिंक्रनाइज़ करने के लिए कम से कम 2 टैब चुनें।"
+  },
+  "successSyncStarted": {
+    "message": "$COUNT$ टैब के लिए सिंक्रनाइज़ेशन सफलतापूर्वक शुरू हुआ।",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "सिंक्रनाइज़ेशन सफलतापूर्वक बंद हुआ।"
+  },
+  "retry": {
+    "message": "पुनः प्रयास करें"
+  },
+  "dismiss": {
+    "message": "बंद करें"
+  },
+  "ineligibleWebStore": {
+    "message": "सुरक्षा प्रतिबंधों के कारण वेब स्टोर पेज सिंक्रनाइज़ नहीं किए जा सकते"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google सेवाओं के पेजों में प्रतिबंध हैं जो सिंक्रनाइज़ेशन को रोकते हैं"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "सुरक्षा प्रतिबंधों के कारण ब्राउज़र आंतरिक पेज सिंक्रनाइज़ नहीं किए जा सकते"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "विशेष प्रोटोकॉल पेज सिंक्रनाइज़ नहीं किए जा सकते"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "सुरक्षा प्रतिबंधों के कारण यह पेज सिंक्रनाइज़ नहीं किया जा सकता"
+  },
+  "syncControls": {
+    "message": "सिंक नियंत्रण"
+  },
+  "startSynchronization": {
+    "message": "सिंक्रनाइज़ेशन शुरू करें"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "शुरू करने के लिए कम से कम 2 टैब चुनें"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "शुरू करने के लिए कम से कम 2 टैब चुनें ($COUNT$ चयनित)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "सिंक्रनाइज़ेशन बंद करें"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "डिस्कनेक्ट किए गए टैब को फिर से सिंक करें"
+  },
+  "actionsButton": {
+    "message": "क्रियाएं"
+  },
+  "syncControlsHeading": {
+    "message": "सिंक नियंत्रण"
+  },
+  "selectionHeading": {
+    "message": "चयन"
+  },
+  "selectAllTabs": {
+    "message": "सभी टैब चुनें"
+  },
+  "clearAllSelections": {
+    "message": "सभी चयन साफ़ करें"
+  },
+  "filtersHeading": {
+    "message": "फ़िल्टर"
+  },
+  "sameDomainOnly": {
+    "message": "केवल समान डोमेन"
+  },
+  "sortByHeading": {
+    "message": "इसके अनुसार क्रमबद्ध करें"
+  },
+  "sortSimilarity": {
+    "message": "समानता (डोमेन समूहन)"
+  },
+  "sortRecent": {
+    "message": "हाल की विज़िट"
+  },
+  "footerActions": {
+    "message": "क्रियाएं"
+  },
+  "footerStartStop": {
+    "message": "शुरू/बंद"
+  },
+  "footerSelect": {
+    "message": "चुनें"
+  },
+  "syncingTabs": {
+    "message": "$COUNT$ टैब सिंक हो रहे हैं",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "कनेक्ट हो रहा है"
+  },
+  "availableTabs": {
+    "message": "उपलब्ध टैब"
+  },
+  "unavailableTabs": {
+    "message": "अनुपलब्ध टैब"
+  },
+  "searchTabsPlaceholder": {
+    "message": "शीर्षक या URL द्वारा टैब खोजें..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "\"$QUERY$\" से मेल खाने वाले कोई टैब नहीं मिले",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - सिंक के दौरान चयन नहीं बदल सकते",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "$TITLE$ चुनें",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "$TITLE$ नहीं चुन सकते",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome वेब स्टोर"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "सिंक नहीं कर सकते"
+  },
+  "syncActive": {
+    "message": "सिंक सक्रिय"
+  },
+  "syncInactive": {
+    "message": "सिंक निष्क्रिय"
+  },
+  "scrollSyncToolbar": {
+    "message": "स्क्रॉल सिंक टूलबार"
+  },
+  "urlSyncNavigation": {
+    "message": "URL सिंक"
+  },
+  "syncedTabs": {
+    "message": "सिंक किए गए टैब"
+  },
+  "current": {
+    "message": "वर्तमान"
+  },
+  "toggleShortcut": {
+    "message": "टॉगल"
+  },
+  "closeShortcut": {
+    "message": "बंद करें"
+  },
+  "openSyncControlPanel": {
+    "message": "सिंक कंट्रोल पैनल खोलें"
+  },
+  "connectingToTabs": {
+    "message": "$COUNT$ टैब से कनेक्ट हो रहा है...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "$COUNT$ टैब रीलोड हो रहे हैं...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "सिंक्रनाइज़ेशन बंद हो रहा है..."
+  },
+  "connectedToTabs": {
+    "message": "$TOTAL$ में से $COUNT$ टैब से कनेक्टेड ($FAILED$ विफल)।",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "$COUNT$ टैब से सफलतापूर्वक कनेक्टेड।",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "सिंक शुरू करने के लिए 2 या अधिक टैब चुनें"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "सिंक के दौरान $TITLE$ को हटा नहीं सकते",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "$TITLE$ हटाएं",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "$COUNT$ टैब चयनित",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "वर्तमान टैब"
+  },
+  "searchTabsLabel": {
+    "message": "टैब खोजें"
+  },
+  "untitled": {
+    "message": "बिना शीर्षक"
+  },
+  "failedToStartSync": {
+    "message": "सिंक शुरू करने में विफल: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "कनेक्शन टाइमआउट"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "चेतावनी: $ERROR$। स्थानीय स्थिति साफ़ कर दी गई है।",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "सिंक को ठीक से बंद करने में विफल"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "टैब से कनेक्ट करने में विफल। $DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "टैब 123: कनेक्शन टाइमआउट"
+      }
+    }
+  },
+  "hiddenByFilter": {
+    "message": "डोमेन फ़िल्टर द्वारा $COUNT$ टैब छिपाए गए",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "कोई टैब डोमेन फ़िल्टर से मेल नहीं खाता"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "\"$QUERY$\" से मेल खाने वाले टैब डोमेन फ़िल्टर द्वारा छिपाए गए हैं",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "गूगल"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "फ़िल्टर साफ़ करें"
+  },
+  "filterActive": {
+    "message": "फ़िल्टर सक्रिय"
+  },
+  "connectionLost": {
+    "message": "कनेक्शन टूट गया"
+  },
+  "reconnecting": {
+    "message": "पुनः कनेक्ट हो रहा है..."
+  },
+  "reconnectionSuccessful": {
+    "message": "पुनः कनेक्शन सफल"
+  },
+  "reconnectionFailed": {
+    "message": "पुनः कनेक्शन विफल"
+  },
+  "autoReconnecting": {
+    "message": "निष्क्रिय टैब को स्वचालित रूप से पुनः कनेक्ट कर रहा है..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ पुनः कनेक्ट हुआ",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ डिस्कनेक्ट (निष्क्रिय)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  }
+}

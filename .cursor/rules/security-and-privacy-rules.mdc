@@ -1,0 +1,9 @@
+---
+description: 
+globs: *.js,*.ts,*.tsx,*.html
+alwaysApply: false
+---
+- Implement Content Security Policy (CSP) in manifest.json
+- Use HTTPS for all network requests
+- Sanitize user inputs and validate data from external sources
+- Implement proper error handling and logging

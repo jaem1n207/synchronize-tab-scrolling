@@ -1,0 +1,460 @@
+{
+  "extName": {
+    "message": "Synchronize Tab Scrolling"
+  },
+  "extDescription": {
+    "message": "Browser extension that lets you synchronize the scrolling position of multiple tabs"
+  },
+  "searchPlaceholder": {
+    "message": "Search Tabs"
+  },
+  "noSearchFound": {
+    "message": "Unable to find any tabs matching your search"
+  },
+  "noTabsFound": {
+    "message": "No syncable tabs found"
+  },
+  "startSync": {
+    "message": "Start Sync"
+  },
+  "stopSync": {
+    "message": "Stop Sync"
+  },
+  "syncValidationError": {
+    "message": "Please select at least 2 tabs"
+  },
+  "loading": {
+    "message": "Loading..."
+  },
+  "error": {
+    "message": "An error occurred"
+  },
+  "backgroundUpdate": {
+    "message": "Background Updating..."
+  },
+  "tabs": {
+    "message": "Tabs"
+  },
+  "changeTheme": {
+    "message": "Change Theme"
+  },
+  "light": {
+    "message": "Light"
+  },
+  "dark": {
+    "message": "Dark"
+  },
+  "system": {
+    "message": "System"
+  },
+  "noTitle": {
+    "message": "No Title"
+  },
+  "tabSelectionHeading": {
+    "message": "Select Tabs to Sync"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ selected",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "Resync"
+  },
+  "minimize": {
+    "message": "Minimize"
+  },
+  "maximize": {
+    "message": "Maximize"
+  },
+  "linkedTabs": {
+    "message": "Linked Tabs"
+  },
+  "currentTab": {
+    "message": "Current"
+  },
+  "switchToTab": {
+    "message": "Switch to this tab"
+  },
+  "connected": {
+    "message": "Connected"
+  },
+  "disconnected": {
+    "message": "Disconnected"
+  },
+  "errorLoadTabsFailed": {
+    "message": "Failed to load tabs. Please refresh the extension."
+  },
+  "errorStartSyncFailed": {
+    "message": "Failed to start synchronization. Please try again."
+  },
+  "errorStopSyncFailed": {
+    "message": "Warning: Failed to properly stop sync. Local state has been cleared."
+  },
+  "errorSwitchTabFailed": {
+    "message": "Failed to switch to tab. The tab may have been closed."
+  },
+  "errorMinTabsRequired": {
+    "message": "Please select at least 2 tabs to synchronize."
+  },
+  "successSyncStarted": {
+    "message": "Successfully started synchronization for $COUNT$ tabs.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "Synchronization stopped successfully."
+  },
+  "retry": {
+    "message": "Retry"
+  },
+  "dismiss": {
+    "message": "Dismiss"
+  },
+  "ineligibleWebStore": {
+    "message": "Web store pages cannot be synchronized due to security restrictions"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google services pages have restrictions that prevent synchronization"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "Browser internal pages cannot be synchronized due to security restrictions"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "Special protocol pages cannot be synchronized"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "This page cannot be synchronized due to security restrictions"
+  },
+  "syncControls": {
+    "message": "Sync controls"
+  },
+  "startSynchronization": {
+    "message": "Start synchronization"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "Select at least 2 tabs to start"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "Select at least 2 tabs to start ($COUNT$ selected)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "Stop synchronization"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "Re-sync disconnected tabs"
+  },
+  "actionsButton": {
+    "message": "Actions"
+  },
+  "syncControlsHeading": {
+    "message": "Sync Controls"
+  },
+  "selectionHeading": {
+    "message": "Selection"
+  },
+  "selectAllTabs": {
+    "message": "Select All Tabs"
+  },
+  "clearAllSelections": {
+    "message": "Clear All Selections"
+  },
+  "filtersHeading": {
+    "message": "Filters"
+  },
+  "sameDomainOnly": {
+    "message": "Same Domain Only"
+  },
+  "sortByHeading": {
+    "message": "Sort By"
+  },
+  "sortSimilarity": {
+    "message": "Similarity (Domain Grouping)"
+  },
+  "sortRecent": {
+    "message": "Recent Visits"
+  },
+  "footerActions": {
+    "message": "Actions"
+  },
+  "footerStartStop": {
+    "message": "Start/Stop"
+  },
+  "footerSelect": {
+    "message": "Select"
+  },
+  "syncingTabs": {
+    "message": "Syncing $COUNT$ tabs",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "Connecting"
+  },
+  "availableTabs": {
+    "message": "Available Tabs"
+  },
+  "unavailableTabs": {
+    "message": "Unavailable Tabs"
+  },
+  "searchTabsPlaceholder": {
+    "message": "Search tabs by title or URL..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "No tabs found matching \"$QUERY$\"",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - Cannot change selection during sync",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "Select $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "Cannot select $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome Web Store"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "Cannot Sync"
+  },
+  "syncActive": {
+    "message": "Sync active"
+  },
+  "syncInactive": {
+    "message": "Sync inactive"
+  },
+  "scrollSyncToolbar": {
+    "message": "Scroll Sync Toolbar"
+  },
+  "urlSyncNavigation": {
+    "message": "URL Sync"
+  },
+  "syncedTabs": {
+    "message": "Synced Tabs"
+  },
+  "current": {
+    "message": "current"
+  },
+  "toggleShortcut": {
+    "message": "Toggle"
+  },
+  "closeShortcut": {
+    "message": "Close"
+  },
+  "openSyncControlPanel": {
+    "message": "Open sync control panel"
+  },
+  "connectingToTabs": {
+    "message": "Connecting to $COUNT$ tabs...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "Reloading $COUNT$ tabs...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "Stopping synchronization..."
+  },
+  "connectedToTabs": {
+    "message": "Connected to $COUNT$ of $TOTAL$ tabs ($FAILED$ failed).",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "Successfully connected to $COUNT$ tabs.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "Select 2 or more tabs to start syncing"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "Cannot remove $TITLE$ during sync",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "Remove $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "$COUNT$ tabs selected",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "Current tab"
+  },
+  "searchTabsLabel": {
+    "message": "Search tabs"
+  },
+  "untitled": {
+    "message": "Untitled"
+  },
+  "failedToStartSync": {
+    "message": "Failed to start synchronization: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Connection timeout"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "Warning: $ERROR$. Local state has been cleared.",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Failed to stop sync properly"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "Failed to connect to tabs. $DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "Tab 123: Connection timeout"
+      }
+    }
+  },
+  "hiddenByFilter": {
+    "message": "$COUNT$ tabs hidden by domain filter",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "No tabs match the domain filter"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "Tabs matching \"$QUERY$\" are hidden by domain filter",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "Clear filter"
+  },
+  "filterActive": {
+    "message": "Filter active"
+  },
+  "connectionLost": {
+    "message": "Connection lost"
+  },
+  "reconnecting": {
+    "message": "Reconnecting..."
+  },
+  "reconnectionSuccessful": {
+    "message": "Reconnection successful"
+  },
+  "reconnectionFailed": {
+    "message": "Reconnection failed"
+  },
+  "autoReconnecting": {
+    "message": "Auto-reconnecting idle tab..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ reconnected",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ disconnected (idle)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  }
+}

@@ -1,12 +1,29 @@
 .DS_Store
+.idea/
+.vite-ssg-dist
+.vite-ssg-temp
+*.crx
+*.local
+*.log
+*.pem
+*.xpi
+*.zip
+dist
+dist-ssr
+extension/manifest.json
 node_modules
-/build
-/.svelte-kit
-/package
+src/auto-imports.d.ts
+.eslintcache
+
+vite.config.*.timestamp-*
+
+# Environment files (may contain secrets)
 .env
 .env.*
 !.env.example
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
-*.zip
-.vscode
+
+# Sentry Config File
+.env.sentry-build-plugin
+
+# MCP configuration with sensitive tokens
+.mcp.json

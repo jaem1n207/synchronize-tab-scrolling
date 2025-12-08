@@ -1,13 +1,25 @@
 {
-  "$schema": "https://shadcn-svelte.com/schema.json",
+  "$schema": "https://ui.shadcn.com/schema.json",
   "style": "default",
   "tailwind": {
-    "config": "tailwind.config.ts",
-    "css": "src/app.pcss",
-    "baseColor": "gray"
+    "config": "tailwind.config.js",
+    "css": "src/shared/styles/main.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
   },
+  "rsc": false,
+  "tsx": true,
   "aliases": {
-    "components": "$lib/components",
-    "utils": "$lib/utils"
+    "components": "~/shared/components",
+    "utils": "~/shared/lib/utils",
+    "ui": "~/shared/components/ui"
+  },
+  "registries": {
+    "@aceternity": "https://ui.aceternity.com/registry/{name}.json",
+    "@originui": "https://originui.com/r/{name}.json",
+    "@cult": "https://cult-ui.com/r/{name}.json",
+    "@kibo": "https://www.kibo-ui.com/r/{name}.json",
+    "@reui": "https://reui.io/r/{name}.json"
   }
 }

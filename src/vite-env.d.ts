@@ -1,9 +1,4 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly __WATCH__: string | undefined;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
+declare const __DEV__: boolean;
+declare const __NAME__: string;

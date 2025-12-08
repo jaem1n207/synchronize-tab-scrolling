@@ -9,6 +9,6 @@ export default {
     '@semantic-release/changelog',
     ['@semantic-release/npm', { npmPublish: false }],
     '@semantic-release/github',
-    '@semantic-release/git'
-  ]
+    '@semantic-release/git',
+  ],
 };

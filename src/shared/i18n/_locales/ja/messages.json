@@ -1,0 +1,460 @@
+{
+  "extName": {
+    "message": "タブスクロール同期"
+  },
+  "extDescription": {
+    "message": "複数のタブのスクロール位置を同期できるブラウザ拡張機能"
+  },
+  "searchPlaceholder": {
+    "message": "タブを検索"
+  },
+  "noSearchFound": {
+    "message": "検索に一致するタブが見つかりません"
+  },
+  "noTabsFound": {
+    "message": "同期可能なタブが見つかりません"
+  },
+  "startSync": {
+    "message": "同期開始"
+  },
+  "stopSync": {
+    "message": "同期停止"
+  },
+  "syncValidationError": {
+    "message": "2つ以上のタブを選択してください"
+  },
+  "loading": {
+    "message": "読み込み中..."
+  },
+  "error": {
+    "message": "エラーが発生しました"
+  },
+  "backgroundUpdate": {
+    "message": "バックグラウンドで更新中..."
+  },
+  "tabs": {
+    "message": "タブ"
+  },
+  "changeTheme": {
+    "message": "テーマ変更"
+  },
+  "light": {
+    "message": "ライト"
+  },
+  "dark": {
+    "message": "ダーク"
+  },
+  "system": {
+    "message": "システム"
+  },
+  "noTitle": {
+    "message": "タイトルなし"
+  },
+  "tabSelectionHeading": {
+    "message": "同期するタブを選択"
+  },
+  "selectedCount": {
+    "message": "$COUNT$件選択中",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "再同期"
+  },
+  "minimize": {
+    "message": "最小化"
+  },
+  "maximize": {
+    "message": "最大化"
+  },
+  "linkedTabs": {
+    "message": "リンクされたタブ"
+  },
+  "currentTab": {
+    "message": "現在"
+  },
+  "switchToTab": {
+    "message": "このタブに切り替え"
+  },
+  "connected": {
+    "message": "接続済み"
+  },
+  "disconnected": {
+    "message": "切断済み"
+  },
+  "errorLoadTabsFailed": {
+    "message": "タブの読み込みに失敗しました。拡張機能を更新してください。"
+  },
+  "errorStartSyncFailed": {
+    "message": "同期の開始に失敗しました。もう一度お試しください。"
+  },
+  "errorStopSyncFailed": {
+    "message": "警告: 同期を正しく停止できませんでした。ローカル状態はクリアされました。"
+  },
+  "errorSwitchTabFailed": {
+    "message": "タブの切り替えに失敗しました。タブが閉じられた可能性があります。"
+  },
+  "errorMinTabsRequired": {
+    "message": "同期するには2つ以上のタブを選択してください。"
+  },
+  "successSyncStarted": {
+    "message": "$COUNT$個のタブの同期を開始しました。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "同期を停止しました。"
+  },
+  "retry": {
+    "message": "再試行"
+  },
+  "dismiss": {
+    "message": "閉じる"
+  },
+  "ineligibleWebStore": {
+    "message": "セキュリティ制限によりウェブストアページは同期できません"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Googleサービスページには同期を妨げる制限があります"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "セキュリティ制限によりブラウザ内部ページは同期できません"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "特殊プロトコルページは同期できません"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "セキュリティ制限によりこのページは同期できません"
+  },
+  "syncControls": {
+    "message": "同期コントロール"
+  },
+  "startSynchronization": {
+    "message": "同期を開始"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "開始するには2つ以上のタブを選択"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "開始するには2つ以上のタブを選択（$COUNT$件選択中）",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "同期を停止"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "切断されたタブを再同期"
+  },
+  "actionsButton": {
+    "message": "アクション"
+  },
+  "syncControlsHeading": {
+    "message": "同期コントロール"
+  },
+  "selectionHeading": {
+    "message": "選択"
+  },
+  "selectAllTabs": {
+    "message": "すべてのタブを選択"
+  },
+  "clearAllSelections": {
+    "message": "すべての選択を解除"
+  },
+  "filtersHeading": {
+    "message": "フィルター"
+  },
+  "sameDomainOnly": {
+    "message": "同じドメインのみ"
+  },
+  "sortByHeading": {
+    "message": "並び替え"
+  },
+  "sortSimilarity": {
+    "message": "類似性（ドメイングループ化）"
+  },
+  "sortRecent": {
+    "message": "最近の訪問"
+  },
+  "footerActions": {
+    "message": "アクション"
+  },
+  "footerStartStop": {
+    "message": "開始/停止"
+  },
+  "footerSelect": {
+    "message": "選択"
+  },
+  "syncingTabs": {
+    "message": "$COUNT$個のタブを同期中",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "接続中"
+  },
+  "availableTabs": {
+    "message": "利用可能なタブ"
+  },
+  "unavailableTabs": {
+    "message": "利用不可のタブ"
+  },
+  "searchTabsPlaceholder": {
+    "message": "タイトルまたはURLでタブを検索..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "「$QUERY$」に一致するタブが見つかりません",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - 同期中は選択を変更できません",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "$TITLE$を選択",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "$TITLE$を選択できません",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome Web Store"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "同期不可"
+  },
+  "syncActive": {
+    "message": "同期中"
+  },
+  "syncInactive": {
+    "message": "同期停止中"
+  },
+  "scrollSyncToolbar": {
+    "message": "スクロール同期ツールバー"
+  },
+  "urlSyncNavigation": {
+    "message": "URL同期"
+  },
+  "syncedTabs": {
+    "message": "同期済みタブ"
+  },
+  "current": {
+    "message": "現在"
+  },
+  "toggleShortcut": {
+    "message": "切替"
+  },
+  "closeShortcut": {
+    "message": "閉じる"
+  },
+  "openSyncControlPanel": {
+    "message": "同期コントロールパネルを開く"
+  },
+  "connectingToTabs": {
+    "message": "$COUNT$個のタブに接続中...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "$COUNT$個のタブを再読み込み中...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "同期を停止中..."
+  },
+  "connectedToTabs": {
+    "message": "$TOTAL$個中$COUNT$個のタブに接続しました（$FAILED$個失敗）。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "$COUNT$個のタブに接続しました。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "同期を開始するには2つ以上のタブを選択してください"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "同期中は$TITLE$を削除できません",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "$TITLE$を削除",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "$COUNT$個のタブを選択中",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "現在のタブ"
+  },
+  "searchTabsLabel": {
+    "message": "タブを検索"
+  },
+  "untitled": {
+    "message": "無題"
+  },
+  "failedToStartSync": {
+    "message": "同期の開始に失敗しました: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Connection timeout"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "警告: $ERROR$。ローカル状態はクリアされました。",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Failed to stop sync properly"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "タブへの接続に失敗しました。$DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "Tab 123: Connection timeout"
+      }
+    }
+  },
+  "hiddenByFilter": {
+    "message": "ドメインフィルターにより$COUNT$個のタブが非表示",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "ドメインフィルターに一致するタブがありません"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "「$QUERY$」に一致するタブがドメインフィルターにより非表示になっています",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "フィルターをクリア"
+  },
+  "filterActive": {
+    "message": "フィルター有効"
+  },
+  "connectionLost": {
+    "message": "接続が切断されました"
+  },
+  "reconnecting": {
+    "message": "再接続中..."
+  },
+  "reconnectionSuccessful": {
+    "message": "再接続成功"
+  },
+  "reconnectionFailed": {
+    "message": "再接続失敗"
+  },
+  "autoReconnecting": {
+    "message": "非アクティブなタブを自動再接続中..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ 再接続しました",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ 切断されました（非アクティブ）",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  }
+}

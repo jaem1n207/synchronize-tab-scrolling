@@ -1,0 +1,460 @@
+{
+  "extName": {
+    "message": "同步标签页滚动"
+  },
+  "extDescription": {
+    "message": "允许您同步多个浏览器标签页的滚动位置的浏览器扩展"
+  },
+  "searchPlaceholder": {
+    "message": "搜索标签页"
+  },
+  "noSearchFound": {
+    "message": "找不到与您的搜索匹配的标签页"
+  },
+  "noTabsFound": {
+    "message": "未找到可同步的标签页"
+  },
+  "startSync": {
+    "message": "开始同步"
+  },
+  "stopSync": {
+    "message": "停止同步"
+  },
+  "syncValidationError": {
+    "message": "请至少选择2个标签页"
+  },
+  "loading": {
+    "message": "加载中..."
+  },
+  "error": {
+    "message": "发生错误"
+  },
+  "backgroundUpdate": {
+    "message": "后台更新中..."
+  },
+  "tabs": {
+    "message": "标签页"
+  },
+  "changeTheme": {
+    "message": "更改主题"
+  },
+  "light": {
+    "message": "浅色"
+  },
+  "dark": {
+    "message": "深色"
+  },
+  "system": {
+    "message": "系统"
+  },
+  "noTitle": {
+    "message": "无标题"
+  },
+  "tabSelectionHeading": {
+    "message": "选择要同步的标签页"
+  },
+  "selectedCount": {
+    "message": "已选择$COUNT$个",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "重新同步"
+  },
+  "minimize": {
+    "message": "最小化"
+  },
+  "maximize": {
+    "message": "最大化"
+  },
+  "linkedTabs": {
+    "message": "已链接的标签页"
+  },
+  "currentTab": {
+    "message": "当前"
+  },
+  "switchToTab": {
+    "message": "切换到此标签页"
+  },
+  "connected": {
+    "message": "已连接"
+  },
+  "disconnected": {
+    "message": "已断开"
+  },
+  "errorLoadTabsFailed": {
+    "message": "加载标签页失败。请刷新扩展。"
+  },
+  "errorStartSyncFailed": {
+    "message": "启动同步失败。请重试。"
+  },
+  "errorStopSyncFailed": {
+    "message": "警告：未能正确停止同步。本地状态已清除。"
+  },
+  "errorSwitchTabFailed": {
+    "message": "切换标签页失败。该标签页可能已关闭。"
+  },
+  "errorMinTabsRequired": {
+    "message": "请至少选择2个标签页进行同步。"
+  },
+  "successSyncStarted": {
+    "message": "已成功开始同步$COUNT$个标签页。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "同步已成功停止。"
+  },
+  "retry": {
+    "message": "重试"
+  },
+  "dismiss": {
+    "message": "关闭"
+  },
+  "ineligibleWebStore": {
+    "message": "由于安全限制，无法同步网上应用店页面"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google服务页面存在阻止同步的限制"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "由于安全限制，无法同步浏览器内部页面"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "无法同步特殊协议页面"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "由于安全限制，无法同步此页面"
+  },
+  "syncControls": {
+    "message": "同步控制"
+  },
+  "startSynchronization": {
+    "message": "开始同步"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "至少选择2个标签页开始"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "至少选择2个标签页开始（已选择$COUNT$个）",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "停止同步"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "重新同步断开的标签页"
+  },
+  "actionsButton": {
+    "message": "操作"
+  },
+  "syncControlsHeading": {
+    "message": "同步控制"
+  },
+  "selectionHeading": {
+    "message": "选择"
+  },
+  "selectAllTabs": {
+    "message": "选择所有标签页"
+  },
+  "clearAllSelections": {
+    "message": "清除所有选择"
+  },
+  "filtersHeading": {
+    "message": "筛选"
+  },
+  "sameDomainOnly": {
+    "message": "仅相同域名"
+  },
+  "sortByHeading": {
+    "message": "排序方式"
+  },
+  "sortSimilarity": {
+    "message": "相似度（域名分组）"
+  },
+  "sortRecent": {
+    "message": "最近访问"
+  },
+  "footerActions": {
+    "message": "操作"
+  },
+  "footerStartStop": {
+    "message": "开始/停止"
+  },
+  "footerSelect": {
+    "message": "选择"
+  },
+  "syncingTabs": {
+    "message": "正在同步$COUNT$个标签页",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "连接中"
+  },
+  "availableTabs": {
+    "message": "可用标签页"
+  },
+  "unavailableTabs": {
+    "message": "不可用标签页"
+  },
+  "searchTabsPlaceholder": {
+    "message": "按标题或URL搜索标签页..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "未找到匹配\"$QUERY$\"的标签页",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - 同步期间无法更改选择",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "选择$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "无法选择$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome网上应用店"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "无法同步"
+  },
+  "syncActive": {
+    "message": "同步已激活"
+  },
+  "syncInactive": {
+    "message": "同步未激活"
+  },
+  "scrollSyncToolbar": {
+    "message": "滚动同步工具栏"
+  },
+  "urlSyncNavigation": {
+    "message": "URL同步"
+  },
+  "syncedTabs": {
+    "message": "已同步的标签页"
+  },
+  "current": {
+    "message": "当前"
+  },
+  "toggleShortcut": {
+    "message": "切换"
+  },
+  "closeShortcut": {
+    "message": "关闭"
+  },
+  "openSyncControlPanel": {
+    "message": "打开同步控制面板"
+  },
+  "connectingToTabs": {
+    "message": "正在连接$COUNT$个标签页...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "正在重新加载$COUNT$个标签页...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "正在停止同步..."
+  },
+  "connectedToTabs": {
+    "message": "已连接$COUNT$个标签页，共$TOTAL$个（$FAILED$个失败）。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "已成功连接到$COUNT$个标签页。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "选择2个或更多标签页开始同步"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "同步期间无法移除$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "移除$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "已选择$COUNT$个标签页",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "当前标签页"
+  },
+  "searchTabsLabel": {
+    "message": "搜索标签页"
+  },
+  "untitled": {
+    "message": "无标题"
+  },
+  "failedToStartSync": {
+    "message": "启动同步失败：$ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "连接超时"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "警告：$ERROR$。本地状态已清除。",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "未能正确停止同步"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "连接标签页失败。$DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "标签页123：连接超时"
+      }
+    }
+  },
+  "hiddenByFilter": {
+    "message": "域名筛选隐藏了$COUNT$个标签页",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "没有标签页匹配域名筛选"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "与\"$QUERY$\"匹配的标签页已被域名筛选隐藏",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "谷歌"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "清除筛选"
+  },
+  "filterActive": {
+    "message": "筛选已启用"
+  },
+  "connectionLost": {
+    "message": "连接已断开"
+  },
+  "reconnecting": {
+    "message": "正在重新连接..."
+  },
+  "reconnectionSuccessful": {
+    "message": "重新连接成功"
+  },
+  "reconnectionFailed": {
+    "message": "重新连接失败"
+  },
+  "autoReconnecting": {
+    "message": "正在自动重新连接空闲标签页..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ 已重新连接",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ 已断开连接（空闲）",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  }
+}

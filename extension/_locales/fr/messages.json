@@ -1,0 +1,460 @@
+{
+  "extName": {
+    "message": "Synchronisation du défilement des onglets"
+  },
+  "extDescription": {
+    "message": "Extension de navigateur qui vous permet de synchroniser la position de défilement de plusieurs onglets"
+  },
+  "searchPlaceholder": {
+    "message": "Rechercher des onglets"
+  },
+  "noSearchFound": {
+    "message": "Impossible de trouver des onglets correspondant à votre recherche"
+  },
+  "noTabsFound": {
+    "message": "Aucun onglet synchronisable trouvé"
+  },
+  "startSync": {
+    "message": "Démarrer la synchronisation"
+  },
+  "stopSync": {
+    "message": "Arrêter la synchronisation"
+  },
+  "syncValidationError": {
+    "message": "Veuillez sélectionner au moins 2 onglets"
+  },
+  "loading": {
+    "message": "Chargement..."
+  },
+  "error": {
+    "message": "Une erreur s'est produite"
+  },
+  "backgroundUpdate": {
+    "message": "Mise à jour en arrière-plan..."
+  },
+  "tabs": {
+    "message": "Onglets"
+  },
+  "changeTheme": {
+    "message": "Changer le thème"
+  },
+  "light": {
+    "message": "Clair"
+  },
+  "dark": {
+    "message": "Sombre"
+  },
+  "system": {
+    "message": "Système"
+  },
+  "noTitle": {
+    "message": "Sans titre"
+  },
+  "tabSelectionHeading": {
+    "message": "Sélectionner les onglets à synchroniser"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ sélectionné(s)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "Resynchroniser"
+  },
+  "minimize": {
+    "message": "Réduire"
+  },
+  "maximize": {
+    "message": "Agrandir"
+  },
+  "linkedTabs": {
+    "message": "Onglets liés"
+  },
+  "currentTab": {
+    "message": "Actuel"
+  },
+  "switchToTab": {
+    "message": "Basculer vers cet onglet"
+  },
+  "connected": {
+    "message": "Connecté"
+  },
+  "disconnected": {
+    "message": "Déconnecté"
+  },
+  "errorLoadTabsFailed": {
+    "message": "Échec du chargement des onglets. Veuillez actualiser l'extension."
+  },
+  "errorStartSyncFailed": {
+    "message": "Échec du démarrage de la synchronisation. Veuillez réessayer."
+  },
+  "errorStopSyncFailed": {
+    "message": "Avertissement : Échec de l'arrêt correct de la synchronisation. L'état local a été effacé."
+  },
+  "errorSwitchTabFailed": {
+    "message": "Échec du basculement vers l'onglet. L'onglet a peut-être été fermé."
+  },
+  "errorMinTabsRequired": {
+    "message": "Veuillez sélectionner au moins 2 onglets à synchroniser."
+  },
+  "successSyncStarted": {
+    "message": "Synchronisation démarrée avec succès pour $COUNT$ onglets.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "Synchronisation arrêtée avec succès."
+  },
+  "retry": {
+    "message": "Réessayer"
+  },
+  "dismiss": {
+    "message": "Fermer"
+  },
+  "ineligibleWebStore": {
+    "message": "Les pages des boutiques en ligne ne peuvent pas être synchronisées en raison de restrictions de sécurité"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Les pages des services Google ont des restrictions qui empêchent la synchronisation"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "Les pages internes du navigateur ne peuvent pas être synchronisées en raison de restrictions de sécurité"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "Les pages de protocole spécial ne peuvent pas être synchronisées"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "Cette page ne peut pas être synchronisée en raison de restrictions de sécurité"
+  },
+  "syncControls": {
+    "message": "Contrôles de synchronisation"
+  },
+  "startSynchronization": {
+    "message": "Démarrer la synchronisation"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "Sélectionnez au moins 2 onglets pour commencer"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "Sélectionnez au moins 2 onglets pour commencer ($COUNT$ sélectionné(s))",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "Arrêter la synchronisation"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "Resynchroniser les onglets déconnectés"
+  },
+  "actionsButton": {
+    "message": "Actions"
+  },
+  "syncControlsHeading": {
+    "message": "Contrôles de synchronisation"
+  },
+  "selectionHeading": {
+    "message": "Sélection"
+  },
+  "selectAllTabs": {
+    "message": "Sélectionner tous les onglets"
+  },
+  "clearAllSelections": {
+    "message": "Effacer toutes les sélections"
+  },
+  "filtersHeading": {
+    "message": "Filtres"
+  },
+  "sameDomainOnly": {
+    "message": "Même domaine uniquement"
+  },
+  "sortByHeading": {
+    "message": "Trier par"
+  },
+  "sortSimilarity": {
+    "message": "Similarité (groupement par domaine)"
+  },
+  "sortRecent": {
+    "message": "Visites récentes"
+  },
+  "footerActions": {
+    "message": "Actions"
+  },
+  "footerStartStop": {
+    "message": "Démarrer/Arrêter"
+  },
+  "footerSelect": {
+    "message": "Sélectionner"
+  },
+  "syncingTabs": {
+    "message": "Synchronisation de $COUNT$ onglets",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "Connexion"
+  },
+  "availableTabs": {
+    "message": "Onglets disponibles"
+  },
+  "unavailableTabs": {
+    "message": "Onglets non disponibles"
+  },
+  "searchTabsPlaceholder": {
+    "message": "Rechercher des onglets par titre ou URL..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "Aucun onglet trouvé correspondant à \"$QUERY$\"",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - Impossible de modifier la sélection pendant la synchronisation",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "Sélectionner $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "Impossible de sélectionner $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome Web Store"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "Synchronisation impossible"
+  },
+  "syncActive": {
+    "message": "Synchronisation active"
+  },
+  "syncInactive": {
+    "message": "Synchronisation inactive"
+  },
+  "scrollSyncToolbar": {
+    "message": "Barre d'outils de synchronisation du défilement"
+  },
+  "urlSyncNavigation": {
+    "message": "Synchronisation URL"
+  },
+  "syncedTabs": {
+    "message": "Onglets synchronisés"
+  },
+  "current": {
+    "message": "actuel"
+  },
+  "toggleShortcut": {
+    "message": "Basculer"
+  },
+  "closeShortcut": {
+    "message": "Fermer"
+  },
+  "openSyncControlPanel": {
+    "message": "Ouvrir le panneau de contrôle de synchronisation"
+  },
+  "connectingToTabs": {
+    "message": "Connexion à $COUNT$ onglets...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "Rechargement de $COUNT$ onglets...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "Arrêt de la synchronisation..."
+  },
+  "connectedToTabs": {
+    "message": "Connecté à $COUNT$ sur $TOTAL$ onglets ($FAILED$ échec(s)).",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "Connecté avec succès à $COUNT$ onglets.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "Sélectionnez 2 onglets ou plus pour commencer la synchronisation"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "Impossible de supprimer $TITLE$ pendant la synchronisation",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "Supprimer $TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "$COUNT$ onglets sélectionnés",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "Onglet actuel"
+  },
+  "searchTabsLabel": {
+    "message": "Rechercher des onglets"
+  },
+  "untitled": {
+    "message": "Sans titre"
+  },
+  "failedToStartSync": {
+    "message": "Échec du démarrage de la synchronisation : $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Délai de connexion dépassé"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "Avertissement : $ERROR$. L'état local a été effacé.",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "Échec de l'arrêt correct de la synchronisation"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "Échec de la connexion aux onglets. $DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "Onglet 123 : Délai de connexion dépassé"
+      }
+    }
+  },
+  "hiddenByFilter": {
+    "message": "$COUNT$ onglets masqués par le filtre de domaine",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "Aucun onglet ne correspond au filtre de domaine"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "Les onglets correspondant à \"$QUERY$\" sont masqués par le filtre de domaine",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "Effacer le filtre"
+  },
+  "filterActive": {
+    "message": "Filtre actif"
+  },
+  "connectionLost": {
+    "message": "Connexion perdue"
+  },
+  "reconnecting": {
+    "message": "Reconnexion en cours..."
+  },
+  "reconnectionSuccessful": {
+    "message": "Reconnexion réussie"
+  },
+  "reconnectionFailed": {
+    "message": "Échec de la reconnexion"
+  },
+  "autoReconnecting": {
+    "message": "Reconnexion automatique de l'onglet inactif..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ reconnecté",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ déconnecté (inactif)",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  }
+}

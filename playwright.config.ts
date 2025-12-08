@@ -1,12 +1,15 @@
-import type { PlaywrightTestConfig } from '@playwright/test';
+/**
+ * @see {@link https://playwright.dev/docs/chrome-extensions Chrome extensions | Playwright}
+ */
+import { defineConfig } from '@playwright/test';
 
-const config: PlaywrightTestConfig = {
+export default defineConfig({
+  testDir: './e2e',
+  retries: 2,
   webServer: {
-    command: 'npm run build && npm run preview',
-    port: 4173
+    command: 'npm run dev',
+    // start e2e test after the Vite server is fully prepared
+    url: 'http://localhost:3303/options/main.ts',
+    reuseExistingServer: true,
   },
-  testDir: 'tests',
-  testMatch: /(.+\.)?(test|spec)\.[jt]s/
-};
-
-export default config;
+});

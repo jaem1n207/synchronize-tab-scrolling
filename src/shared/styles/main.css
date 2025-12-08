@@ -1,0 +1,27 @@
+@layer base {
+  html,
+  body,
+  #app {
+    margin: 0;
+    padding: 0;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-balance;
+  }
+
+  p {
+    @apply text-pretty;
+  }
+
+  :root {
+    color-scheme: light only;
+  }
+
+  .dark {
+    color-scheme: dark only;
+  }
+}
