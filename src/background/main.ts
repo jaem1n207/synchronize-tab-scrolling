@@ -48,9 +48,44 @@ const autoSyncState: AutoSyncState = {
   excludedUrls: [],
 };
 
+// Track tabs that are in manual sync (excluded from auto-sync temporarily)
+const manualSyncOverriddenTabs = new Set<number>();
+
+/**
+ * Check if a tab is overridden by manual sync
+ */
+function isTabManuallyOverridden(tabId: number): boolean {
+  return manualSyncOverriddenTabs.has(tabId);
+}
+
+// Maximum tabs per auto-sync group to prevent performance issues
+const MAX_AUTO_SYNC_GROUP_SIZE = 10;
+
+// Mutex for auto-sync group updates to prevent race conditions
+let autoSyncMutex: Promise<void> = Promise.resolve();
+
+/**
+ * Execute a function with auto-sync mutex lock
+ * Prevents race conditions when multiple tabs update simultaneously
+ */
+async function withAutoSyncLock<T>(fn: () => Promise<T>): Promise<T> {
+  const previousMutex = autoSyncMutex;
+  let releaseLock: () => void;
+  autoSyncMutex = new Promise((resolve) => {
+    releaseLock = resolve;
+  });
+
+  try {
+    await previousMutex;
+    return await fn();
+  } finally {
+    releaseLock!();
+  }
+}
+
 /**
  * Normalize URL for auto-sync comparison
- * Strips query params and hash to match same base URLs
+ * Strips query params, hash, and default ports to match same base URLs
  */
 function normalizeUrlForAutoSync(url: string): string | null {
   try {
@@ -59,7 +94,19 @@ function normalizeUrlForAutoSync(url: string): string | null {
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       return null;
     }
-    return `${parsed.origin}${parsed.pathname}`;
+
+    // Normalize hostname - strip default ports (80 for http, 443 for https)
+    let normalizedHost = parsed.hostname;
+    if (parsed.port) {
+      const isDefaultPort =
+        (parsed.protocol === 'http:' && parsed.port === '80') ||
+        (parsed.protocol === 'https:' && parsed.port === '443');
+      if (!isDefaultPort) {
+        normalizedHost = `${parsed.hostname}:${parsed.port}`;
+      }
+    }
+
+    return `${parsed.protocol}//${normalizedHost}${parsed.pathname}`;
   } catch {
     return null;
   }
@@ -128,13 +175,24 @@ function isTabInActiveAutoSyncGroup(tabId: number): boolean {
 }
 
 /**
- * Update auto-sync group for a tab based on its URL
+ * Update auto-sync group for a tab based on its URL (with mutex lock)
  * @param tabId - The tab ID
  * @param url - The tab's URL
  * @param skipStartSync - If true, don't start sync even if group has 2+ tabs (used when page isn't fully loaded)
  * @returns The normalized URL if the tab was added to a group, null otherwise
  */
 async function updateAutoSyncGroup(
+  tabId: number,
+  url: string,
+  skipStartSync: boolean = false,
+): Promise<string | null> {
+  return withAutoSyncLock(() => updateAutoSyncGroupInternal(tabId, url, skipStartSync));
+}
+
+/**
+ * Internal implementation of updateAutoSyncGroup (called within mutex lock)
+ */
+async function updateAutoSyncGroupInternal(
   tabId: number,
   url: string,
   skipStartSync: boolean = false,
@@ -151,6 +209,12 @@ async function updateAutoSyncGroup(
     return null;
   }
 
+  // Skip tabs that are in manual sync (they take priority)
+  if (isTabManuallyOverridden(tabId)) {
+    logger.debug(`Tab ${tabId} is in manual sync, skipping auto-sync`);
+    return null;
+  }
+
   // Remove from all existing groups first
   removeTabFromAllAutoSyncGroups(tabId);
 
@@ -161,12 +225,18 @@ async function updateAutoSyncGroup(
     autoSyncState.groups.set(normalizedUrl, group);
   }
 
+  // Check group size limit to prevent performance issues
+  if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(tabId)) {
+    logger.warn('[AUTO-SYNC] Group size limit reached, tab not added', {
+      normalizedUrl,
+      currentSize: group.tabIds.size,
+      maxSize: MAX_AUTO_SYNC_GROUP_SIZE,
+      tabId,
+    });
+    return null;
+  }
+
   group.tabIds.add(tabId);
-  logger.debug(`Added tab ${tabId} to auto-sync group`, {
-    normalizedUrl,
-    groupSize: group.tabIds.size,
-    skipStartSync,
-  });
 
   // Start auto-sync if group has 2+ tabs and not already active (unless skipStartSync is true)
   if (!skipStartSync && group.tabIds.size >= 2 && !group.isActive) {
@@ -200,10 +270,11 @@ async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
 
   // Send scroll:start with isAutoSync flag to all tabs in group
   // Track which tabs successfully received the message
+  // Use retry with exponential backoff for tabs that aren't ready yet
   const results = await Promise.all(
     tabIds.map(async (tabId) => {
       try {
-        const response = await sendMessage(
+        const response = await sendMessageWithRetry<{ success: boolean; tabId: number }>(
           'scroll:start',
           {
             tabIds,
@@ -212,10 +283,11 @@ async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
             isAutoSync: true,
           },
           { context: 'content-script', tabId },
+          { maxRetries: 2, initialDelayMs: 500, timeoutMs: 2_000 },
         );
-        return { tabId, success: true, response };
+        return { tabId, success: response?.success === true, response };
       } catch (error) {
-        logger.error('[AUTO-SYNC] Tab message failed', {
+        logger.error('[AUTO-SYNC] Tab message failed after retries', {
           tabId,
           error: String(error),
         });
@@ -464,11 +536,60 @@ async function sendMessageWithTimeout<T>(
   ]);
 }
 
+// Helper function to send message with retry and exponential backoff
+async function sendMessageWithRetry<T>(
+  messageId: string,
+  data: unknown,
+  destination: { context: 'content-script'; tabId: number },
+  options: {
+    maxRetries?: number;
+    initialDelayMs?: number;
+    timeoutMs?: number;
+  } = {},
+): Promise<T> {
+  const { maxRetries = 3, initialDelayMs = 500, timeoutMs = 2_000 } = options;
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await sendMessageWithTimeout<T>(messageId, data, destination, timeoutMs);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt < maxRetries) {
+        // Exponential backoff: 500ms, 1000ms, 2000ms
+        const delayMs = initialDelayMs * Math.pow(2, attempt);
+        logger.debug(`Message to tab ${destination.tabId} failed, retrying in ${delayMs}ms`, {
+          attempt: attempt + 1,
+          maxRetries,
+          error: lastError.message,
+        });
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 // Scroll synchronization message handlers
 logger.info('Registering scroll:start handler');
 onMessage('scroll:start', async ({ data }) => {
   logger.info('Received scroll:start message', { data });
-  const payload = data as { tabIds: Array<number>; mode: string };
+  const payload = data as { tabIds: Array<number>; mode: string; isAutoSync?: boolean };
+
+  // If this is a manual sync (not auto-sync), handle conflict with auto-sync
+  if (!payload.isAutoSync) {
+    for (const tabId of payload.tabIds) {
+      // Mark tab as manually overridden (takes priority over auto-sync)
+      manualSyncOverriddenTabs.add(tabId);
+      // Remove from any auto-sync groups
+      removeTabFromAllAutoSyncGroups(tabId);
+    }
+    logger.debug('Manual sync started, tabs excluded from auto-sync', {
+      tabIds: payload.tabIds,
+    });
+  }
 
   // Initialize connection statuses as 'connecting'
   const connectionResults: Record<number, { success: boolean; error?: string }> = {};
@@ -572,7 +693,7 @@ onMessage('scroll:start', async ({ data }) => {
 
 onMessage('scroll:stop', async ({ data }) => {
   logger.info('Stopping scroll sync for tabs', { data });
-  const payload = data as { tabIds: Array<number> };
+  const payload = data as { tabIds: Array<number>; isAutoSync?: boolean };
 
   // Broadcast stop message to all selected tabs
   const promises = payload.tabIds.map((tabId) =>
@@ -582,6 +703,27 @@ onMessage('scroll:stop', async ({ data }) => {
   );
 
   await Promise.all(promises);
+
+  // If this was a manual sync stop, re-add tabs to auto-sync groups
+  if (!payload.isAutoSync && autoSyncState.enabled) {
+    for (const tabId of payload.tabIds) {
+      // Remove from manually overridden set
+      manualSyncOverriddenTabs.delete(tabId);
+
+      // Re-add to auto-sync group based on current URL
+      try {
+        const tab = await browser.tabs.get(tabId);
+        if (tab.url) {
+          await updateAutoSyncGroup(tabId, tab.url);
+        }
+      } catch {
+        // Tab may have been closed
+      }
+    }
+    logger.debug('Manual sync stopped, tabs returned to auto-sync', {
+      tabIds: payload.tabIds,
+    });
+  }
 
   // Clear sync state
   syncState.isActive = false;
@@ -895,6 +1037,9 @@ logger.info('All message handlers registered successfully');
 
 // Handle tab removal - remove from sync and stop if <2 tabs remain
 browser.tabs.onRemoved.addListener(async (tabId) => {
+  // Clean up manually overridden tabs set
+  manualSyncOverriddenTabs.delete(tabId);
+
   // Handle auto-sync group removal
   if (autoSyncState.enabled) {
     removeTabFromAllAutoSyncGroups(tabId);
