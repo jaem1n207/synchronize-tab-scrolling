@@ -25,6 +25,7 @@ const logger = new ExtensionLogger({ scope: 'scroll-sync' });
 
 // Sync state
 let isSyncActive = false;
+let isAutoSyncActive = false; // Track if current sync is from auto-sync feature
 let currentMode: SyncMode = 'ratio';
 let isManualScrollEnabled = false;
 let lastNavigationUrl = window.location.href;
@@ -572,12 +573,26 @@ function stopVisibilityChangeMonitoring() {
  * Initialize scroll sync system
  */
 export function initScrollSync() {
-  logger.info('Registering scroll sync message handlers');
+  logger.info('🔷 [CONTENT] initScrollSync() called - registering message handlers', {
+    url: window.location.href.substring(0, 80),
+    readyState: document.readyState,
+    timestamp: new Date().toISOString(),
+  });
 
   // Listen for start sync message
   onMessage('scroll:start', async ({ data }) => {
-    logger.info('Received scroll:start message', { data });
-    const payload = data as { tabIds: Array<number>; mode: SyncMode; currentTabId: number };
+    logger.info('🔷 [CONTENT] Received scroll:start message', {
+      data,
+      timestamp: new Date().toISOString(),
+      documentReadyState: document.readyState,
+      isSyncCurrentlyActive: isSyncActive,
+    });
+    const payload = data as {
+      tabIds: Array<number>;
+      mode: SyncMode;
+      currentTabId: number;
+      isAutoSync?: boolean;
+    };
 
     // Clean up any existing sync state before starting new sync
     // This is critical for re-sync scenarios where content script is already active
@@ -599,6 +614,7 @@ export function initScrollSync() {
 
     // Reset all state variables
     isSyncActive = true;
+    isAutoSyncActive = payload.isAutoSync ?? false;
     currentMode = payload.mode;
     currentTabId = payload.currentTabId;
     isManualScrollEnabled = false;
@@ -652,14 +668,32 @@ export function initScrollSync() {
     // Start visibility change monitoring for idle tab reconnection
     startVisibilityChangeMonitoring();
 
-    logger.info('Content script sync initialization complete');
+    logger.info('🔷 [CONTENT] Sync initialization complete', {
+      tabId: currentTabId,
+      mode: currentMode,
+      isAutoSync: isAutoSyncActive,
+      isSyncActive,
+    });
     return { success: true, tabId: currentTabId };
   });
 
   // Listen for stop sync message
   onMessage('scroll:stop', async ({ data }) => {
-    logger.info('Stopping scroll sync', { data });
+    const payload = data as { isAutoSync?: boolean };
+    logger.info('Stopping scroll sync', { data, isAutoSync: payload.isAutoSync });
+
+    // Only stop if the sync type matches (auto-sync stop only stops auto-sync)
+    if (payload.isAutoSync && !isAutoSyncActive) {
+      logger.debug('Ignoring auto-sync stop - current sync is manual');
+      return { success: false, reason: 'Not in auto-sync mode' };
+    }
+    if (!payload.isAutoSync && isAutoSyncActive) {
+      logger.debug('Ignoring manual sync stop - current sync is auto-sync');
+      return { success: false, reason: 'In auto-sync mode' };
+    }
+
     isSyncActive = false;
+    isAutoSyncActive = false;
 
     // Stop connection health check
     stopConnectionHealthCheck();
@@ -880,5 +914,47 @@ export function initScrollSync() {
     }
   });
 
-  logger.info('Scroll sync initialized');
+  // Listen for auto-sync status changes from background
+  onMessage('auto-sync:status-changed', async ({ data }) => {
+    const payload = data as { enabled: boolean };
+    logger.info('Auto-sync status changed', { enabled: payload.enabled });
+    // This is informational - actual sync start/stop is handled by scroll:start/stop
+  });
+
+  // Listen for auto-sync group updates from background
+  onMessage('auto-sync:group-updated', async ({ data }) => {
+    const payload = data as {
+      groups: Array<{
+        normalizedUrl: string;
+        tabIds: Array<number>;
+        isActive: boolean;
+      }>;
+    };
+    logger.debug('Auto-sync groups updated', { groupCount: payload.groups.length });
+    // This is informational for UI updates - sync control handled by scroll:start/stop
+  });
+
+  logger.info('🔷 [CONTENT] All message handlers registered successfully', {
+    handlers: [
+      'scroll:start',
+      'scroll:stop',
+      'scroll:sync',
+      'scroll:manual',
+      'scroll:ping',
+      'url:sync',
+      'auto-sync:status-changed',
+      'auto-sync:group-updated',
+    ],
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Get current auto-sync status
+ */
+export function getAutoSyncStatus(): { isActive: boolean; isAutoSync: boolean } {
+  return {
+    isActive: isSyncActive,
+    isAutoSync: isAutoSyncActive,
+  };
 }

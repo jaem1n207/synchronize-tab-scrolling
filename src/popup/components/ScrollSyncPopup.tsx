@@ -6,7 +6,14 @@ import browser from 'webextension-polyfill';
 import { useKeyboardShortcuts } from '~/shared/hooks/useKeyboardShortcuts';
 import { usePersistentState } from '~/shared/hooks/usePersistentState';
 import { t } from '~/shared/i18n';
-import { loadSelectedTabIds, saveSelectedTabIds } from '~/shared/lib/storage';
+import {
+  loadSelectedTabIds,
+  saveSelectedTabIds,
+  loadAutoSyncEnabled,
+  saveAutoSyncEnabled,
+  loadUrlSyncEnabled,
+  saveUrlSyncEnabled,
+} from '~/shared/lib/storage';
 import {
   sortTabsWithDomainGrouping,
   sortTabsByRecentVisits,
@@ -51,9 +58,21 @@ export function ScrollSyncPopup() {
     DEFAULT_PREFERENCES.filters.sameDomainOnly,
   );
 
+  // Browser storage-based settings (cross-context)
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
+
   useEffect(() => {
     const initialize = async () => {
       try {
+        // Load browser.storage-based settings
+        const [autoSyncSetting, urlSyncSetting] = await Promise.all([
+          loadAutoSyncEnabled(),
+          loadUrlSyncEnabled(),
+        ]);
+        setAutoSyncEnabled(autoSyncSetting);
+        setUrlSyncEnabled(urlSyncSetting);
+
         // Query background for current sync status
         let hasActiveSync = false;
         let syncedTabIds: Array<number> = [];
@@ -479,6 +498,25 @@ export function ScrollSyncPopup() {
     }
   }, [syncStatus.isActive]);
 
+  // Advanced feature toggle handlers
+  const handleAutoSyncChange = useCallback(async (enabled: boolean) => {
+    setAutoSyncEnabled(enabled);
+    await saveAutoSyncEnabled(enabled);
+    // Notify background script
+    sendMessage('auto-sync:status-changed', { enabled }, 'background').catch((err) => {
+      console.warn('[ScrollSyncPopup] Failed to notify background of auto-sync change:', err);
+    });
+  }, []);
+
+  const handleUrlSyncChange = useCallback(async (enabled: boolean) => {
+    setUrlSyncEnabled(enabled);
+    await saveUrlSyncEnabled(enabled);
+    // Notify background script
+    sendMessage('sync:url-enabled-changed', { enabled }, 'background').catch((err) => {
+      console.warn('[ScrollSyncPopup] Failed to notify background of URL sync change:', err);
+    });
+  }, []);
+
   // Keyboard shortcuts - using custom hook
   useKeyboardShortcuts(
     [
@@ -615,11 +653,14 @@ export function ScrollSyncPopup() {
             onStop={handleStop}
           />
           <ActionsMenu
+            autoSyncEnabled={autoSyncEnabled}
             isSyncActive={syncStatus.isActive}
             open={actionsMenuOpen}
             sameDomainFilter={sameDomainFilter}
             selectedCount={selectedTabIds.length}
             sortBy={sortBy}
+            urlSyncEnabled={urlSyncEnabled}
+            onAutoSyncChange={handleAutoSyncChange}
             onClearAll={handleClearAll}
             onOpenChange={setActionsMenuOpen}
             onSameDomainFilterChange={setSameDomainFilter}
@@ -627,6 +668,7 @@ export function ScrollSyncPopup() {
             onSortChange={setSortBy}
             onStartSync={handleStart}
             onStopSync={handleStop}
+            onUrlSyncChange={handleUrlSyncChange}
           />
         </div>
       </div>

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
+import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
 import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
@@ -19,8 +20,14 @@ import {
   PANEL_ANIMATIONS,
   prefersReducedMotion,
 } from '~/shared/lib/animations';
-import { loadManualScrollOffsets } from '~/shared/lib/storage';
+import {
+  loadAutoSyncEnabled,
+  loadManualScrollOffsets,
+  saveAutoSyncEnabled,
+} from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
+
+import { getAutoSyncStatus } from '../scrollSync';
 
 interface SyncControlPanelProps {
   urlSyncEnabled: boolean;
@@ -91,6 +98,8 @@ export const SyncControlPanel = ({
   const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = React.useState<Position>({ x: 0, y: 0 });
   const [syncedTabs, setSyncedTabs] = React.useState<SyncedTab[]>([]);
+  const [autoSyncEnabled, setAutoSyncEnabled] = React.useState(false);
+  const [isAutoSyncActive, setIsAutoSyncActive] = React.useState(false);
 
   const toolbarRef = React.useRef<HTMLButtonElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -346,6 +355,48 @@ export const SyncControlPanel = ({
     return unsubscribe;
   }, []);
 
+  // Load auto-sync state and set up message listeners
+  React.useEffect(() => {
+    // Load initial auto-sync enabled state
+    loadAutoSyncEnabled().then(setAutoSyncEnabled);
+
+    // Check current auto-sync status
+    const status = getAutoSyncStatus();
+    setIsAutoSyncActive(status.isAutoSync && status.isActive);
+
+    // Listen for auto-sync status changes
+    const unsubscribeStatusChanged = onMessage('auto-sync:status-changed', (message) => {
+      const data = message.data as { enabled: boolean };
+      setAutoSyncEnabled(data.enabled);
+    });
+
+    // Listen for auto-sync group updates
+    const unsubscribeGroupUpdated = onMessage('auto-sync:group-updated', () => {
+      // Re-check auto-sync status when groups change
+      const currentStatus = getAutoSyncStatus();
+      setIsAutoSyncActive(currentStatus.isAutoSync && currentStatus.isActive);
+    });
+
+    return () => {
+      unsubscribeStatusChanged();
+      unsubscribeGroupUpdated();
+    };
+  }, []);
+
+  // Handle auto-sync toggle
+  const handleAutoSyncToggle = React.useCallback(async (enabled: boolean) => {
+    try {
+      // Save to storage
+      await saveAutoSyncEnabled(enabled);
+      setAutoSyncEnabled(enabled);
+
+      // Notify background script
+      await sendMessage('auto-sync:status-changed', { enabled }, 'background');
+    } catch (error) {
+      console.error('Failed to toggle auto-sync:', error);
+    }
+  }, []);
+
   // Calculate popover side based on button position
   const popoverSide = position.x < window.innerWidth / 2 ? 'right' : 'left';
 
@@ -450,6 +501,20 @@ export const SyncControlPanel = ({
                     <span className="text-sm">{t('urlSyncNavigation')}</span>
                   </div>
                   <Switch checked={urlSyncEnabled} onCheckedChange={onToggle} />
+                </div>
+
+                {/* Auto-sync same URL toggle */}
+                <div className="flex items-center justify-between gap-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{t('autoSyncSameUrl')}</span>
+                    {isAutoSyncActive && (
+                      <Badge className="text-xs px-1.5 py-0" variant="secondary">
+                        {t('autoSyncActive')}
+                      </Badge>
+                    )}
+                  </div>
+                  <Switch checked={autoSyncEnabled} onCheckedChange={handleAutoSyncToggle} />
                 </div>
 
                 {/* Synced Tabs list with offsets */}

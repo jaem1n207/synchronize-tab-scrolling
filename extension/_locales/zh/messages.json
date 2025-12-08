@@ -456,5 +456,14 @@
         "example": "Google"
       }
     }
+  },
+  "autoSyncSameUrl": {
+    "message": "自动同步相同URL"
+  },
+  "autoSyncActive": {
+    "message": "自动"
+  },
+  "advancedFeatures": {
+    "message": "高级功能"
   }
 }

@@ -456,5 +456,14 @@
         "example": "Google"
       }
     }
+  },
+  "autoSyncSameUrl": {
+    "message": "同じURLを自動同期"
+  },
+  "autoSyncActive": {
+    "message": "自動"
+  },
+  "advancedFeatures": {
+    "message": "高度な機能"
   }
 }

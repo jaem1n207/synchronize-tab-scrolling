@@ -99,8 +99,40 @@ export interface UrlSyncEnabledChangedMessage {
 }
 
 /**
+ * Message for auto-sync status change notification
+ */
+export interface AutoSyncStatusChangedMessage {
+  enabled: boolean;
+}
+
+/**
+ * Auto-sync group information
+ */
+export interface AutoSyncGroupInfo {
+  normalizedUrl: string;
+  tabIds: Array<number>;
+  isActive: boolean;
+}
+
+/**
+ * Message for auto-sync group update notification
+ */
+export interface AutoSyncGroupUpdatedMessage {
+  groups: Array<AutoSyncGroupInfo>;
+}
+
+/**
  * Webext-bridge protocol message definitions
  */
+/**
+ * Response for auto-sync status request
+ */
+export interface AutoSyncStatusResponse {
+  success: boolean;
+  enabled: boolean;
+  groups: Array<AutoSyncGroupInfo>;
+}
+
 export interface ProtocolMap {
   'scroll:start': StartSyncMessage;
   'scroll:stop': StopSyncMessage;
@@ -112,4 +144,7 @@ export interface ProtocolMap {
   'element:match': ElementMatchMessage;
   'panel:position': PanelPositionMessage;
   'sync:url-enabled-changed': UrlSyncEnabledChangedMessage;
+  'auto-sync:status-changed': AutoSyncStatusChangedMessage;
+  'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
+  'auto-sync:get-status': AutoSyncStatusResponse;
 }
