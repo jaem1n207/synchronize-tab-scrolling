@@ -573,20 +573,8 @@ function stopVisibilityChangeMonitoring() {
  * Initialize scroll sync system
  */
 export function initScrollSync() {
-  logger.info('🔷 [CONTENT] initScrollSync() called - registering message handlers', {
-    url: window.location.href.substring(0, 80),
-    readyState: document.readyState,
-    timestamp: new Date().toISOString(),
-  });
-
   // Listen for start sync message
   onMessage('scroll:start', async ({ data }) => {
-    logger.info('🔷 [CONTENT] Received scroll:start message', {
-      data,
-      timestamp: new Date().toISOString(),
-      documentReadyState: document.readyState,
-      isSyncCurrentlyActive: isSyncActive,
-    });
     const payload = data as {
       tabIds: Array<number>;
       mode: SyncMode;
@@ -668,12 +656,6 @@ export function initScrollSync() {
     // Start visibility change monitoring for idle tab reconnection
     startVisibilityChangeMonitoring();
 
-    logger.info('🔷 [CONTENT] Sync initialization complete', {
-      tabId: currentTabId,
-      mode: currentMode,
-      isAutoSync: isAutoSyncActive,
-      isSyncActive,
-    });
     return { success: true, tabId: currentTabId };
   });
 
@@ -932,20 +914,6 @@ export function initScrollSync() {
     };
     logger.debug('Auto-sync groups updated', { groupCount: payload.groups.length });
     // This is informational for UI updates - sync control handled by scroll:start/stop
-  });
-
-  logger.info('🔷 [CONTENT] All message handlers registered successfully', {
-    handlers: [
-      'scroll:start',
-      'scroll:stop',
-      'scroll:sync',
-      'scroll:manual',
-      'scroll:ping',
-      'url:sync',
-      'auto-sync:status-changed',
-      'auto-sync:group-updated',
-    ],
-    timestamp: new Date().toISOString(),
   });
 }
 
