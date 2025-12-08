@@ -187,36 +187,21 @@ async function updateAutoSyncGroup(
 async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
   const group = autoSyncState.groups.get(normalizedUrl);
 
-  logger.info('🟣 [AUTO-SYNC] startAutoSyncForGroup called', {
-    normalizedUrl,
-    groupExists: !!group,
-    groupSize: group?.tabIds.size,
-    groupActive: group?.isActive,
-    tabIds: group ? Array.from(group.tabIds) : [],
-  });
-
   if (!group || group.tabIds.size < 2) {
-    logger.warn('🟣 [AUTO-SYNC] Cannot start - group missing or too small', {
-      normalizedUrl,
-      size: group?.tabIds.size,
-    });
     return;
   }
 
   // Don't restart if already active
   if (group.isActive) {
-    logger.debug('🟣 [AUTO-SYNC] Group already active, skipping', { normalizedUrl });
     return;
   }
 
   const tabIds = Array.from(group.tabIds);
-  logger.info('🟣 [AUTO-SYNC] Sending scroll:start to tabs', { normalizedUrl, tabIds });
 
   // Send scroll:start with isAutoSync flag to all tabs in group
   // Track which tabs successfully received the message
   const results = await Promise.all(
     tabIds.map(async (tabId) => {
-      logger.debug('🟣 [AUTO-SYNC] Sending to tab', { tabId, normalizedUrl });
       try {
         const response = await sendMessage(
           'scroll:start',
@@ -228,13 +213,11 @@ async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
           },
           { context: 'content-script', tabId },
         );
-        logger.info('🟣 [AUTO-SYNC] Tab responded', { tabId, response });
         return { tabId, success: true, response };
       } catch (error) {
-        logger.error('🟣 [AUTO-SYNC] Tab message failed', {
+        logger.error('[AUTO-SYNC] Tab message failed', {
           tabId,
           error: String(error),
-          errorStack: (error as Error)?.stack,
         });
         return { tabId, success: false, error: String(error) };
       }
@@ -242,27 +225,11 @@ async function startAutoSyncForGroup(normalizedUrl: string): Promise<void> {
   );
 
   const successCount = results.filter((r) => r.success).length;
-  logger.info('🟣 [AUTO-SYNC] Message results', {
-    normalizedUrl,
-    successCount,
-    totalTabs: tabIds.length,
-    results,
-  });
 
   // Only mark as active if at least 2 tabs successfully received the message
   // If fewer, keep isActive=false so we can retry when more tabs are ready
   if (successCount >= 2) {
     group.isActive = true;
-    logger.info('✅ [AUTO-SYNC] Group activated successfully', {
-      normalizedUrl,
-      successCount,
-    });
-  } else {
-    logger.warn('❌ [AUTO-SYNC] Group NOT activated - insufficient success', {
-      normalizedUrl,
-      successCount,
-      required: 2,
-    });
   }
 }
 
@@ -332,58 +299,24 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
  * Initialize auto-sync state from storage and scan existing tabs
  */
 async function initializeAutoSync(): Promise<void> {
-  logger.info('🟢 [AUTO-SYNC] initializeAutoSync started');
-
   try {
     autoSyncState.enabled = await loadAutoSyncEnabled();
     autoSyncState.excludedUrls = await loadAutoSyncExcludedUrls();
 
-    logger.info('🟢 [AUTO-SYNC] Loaded enabled state from storage', {
-      enabled: autoSyncState.enabled,
-      excludedUrlsCount: autoSyncState.excludedUrls.length,
-    });
-
     if (!autoSyncState.enabled) {
-      logger.info('🟢 [AUTO-SYNC] Auto-sync disabled, skipping scan');
       return;
     }
 
-    logger.info('🟢 [AUTO-SYNC] Scanning existing tabs...');
-
     // Scan all tabs and build groups
     const tabs = await browser.tabs.query({});
-    logger.info('🟢 [AUTO-SYNC] Found tabs to scan', {
-      tabCount: tabs.length,
-      tabs: tabs.map((t) => ({
-        id: t.id,
-        url: t.url?.substring(0, 80),
-        status: t.status,
-      })),
-    });
 
     for (const tab of tabs) {
       if (tab.id && tab.url) {
-        const normalizedUrl = normalizeUrlForAutoSync(tab.url);
-        logger.debug('🟢 [AUTO-SYNC] Processing tab', {
-          tabId: tab.id,
-          url: tab.url?.substring(0, 50),
-          normalizedUrl,
-        });
         await updateAutoSyncGroup(tab.id, tab.url);
       }
     }
-
-    logger.info('🟢 [AUTO-SYNC] Scan complete', {
-      groupCount: autoSyncState.groups.size,
-      groups: Array.from(autoSyncState.groups.entries()).map(([url, g]) => ({
-        url,
-        tabCount: g.tabIds.size,
-        tabIds: Array.from(g.tabIds),
-        isActive: g.isActive,
-      })),
-    });
   } catch (error) {
-    logger.error('🟢 [AUTO-SYNC] Failed to initialize auto-sync', { error });
+    logger.error('[AUTO-SYNC] Failed to initialize auto-sync', { error });
   }
 }
 
@@ -391,18 +324,12 @@ async function initializeAutoSync(): Promise<void> {
  * Toggle auto-sync enabled state
  */
 async function toggleAutoSync(enabled: boolean): Promise<void> {
-  logger.info('🟡 [AUTO-SYNC] toggleAutoSync called', {
-    enabled,
-    wasEnabled: autoSyncState.enabled,
-  });
   autoSyncState.enabled = enabled;
   await saveAutoSyncEnabled(enabled);
 
   if (enabled) {
     // Re-initialize to scan tabs and create groups
-    logger.info('🟡 [AUTO-SYNC] Calling initializeAutoSync...');
     await initializeAutoSync();
-    logger.info('🟡 [AUTO-SYNC] initializeAutoSync completed');
   } else {
     // Stop all active auto-sync groups
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
@@ -940,15 +867,7 @@ onMessage('scroll:reconnect', async ({ data }) => {
 // Handler for auto-sync status toggle from content script
 onMessage('auto-sync:status-changed', async ({ data }) => {
   const payload = data as { enabled: boolean };
-  logger.info('🔵 [AUTO-SYNC] Received status change from popup', {
-    enabled: payload.enabled,
-    currentState: autoSyncState.enabled,
-    timestamp: new Date().toISOString(),
-  });
   await toggleAutoSync(payload.enabled);
-  logger.info('🔵 [AUTO-SYNC] Status change complete', {
-    finalState: autoSyncState.enabled,
-  });
   return { success: true, enabled: autoSyncState.enabled };
 });
 
@@ -1043,13 +962,6 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Handle auto-sync group updates on URL change
   // Don't start sync yet - content script might not be ready
   if (autoSyncState.enabled && changeInfo.url) {
-    const normalizedUrl = normalizeUrlForAutoSync(changeInfo.url);
-    logger.info('🔶 [AUTO-SYNC] Tab URL changed', {
-      tabId,
-      url: changeInfo.url?.substring(0, 80),
-      normalizedUrl,
-      status: changeInfo.status,
-    });
     // skipStartSync=true because page is still loading, content script might not be ready
     await updateAutoSyncGroup(tabId, changeInfo.url, true);
   }
@@ -1059,52 +971,22 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     const normalizedUrl = normalizeUrlForAutoSync(tab.url);
     const existingGroup = normalizedUrl ? autoSyncState.groups.get(normalizedUrl) : null;
 
-    logger.info('🔶 [AUTO-SYNC] Tab load complete', {
-      tabId,
-      url: tab.url?.substring(0, 80),
-      normalizedUrl,
-      groupExists: !!existingGroup,
-      tabInGroup: existingGroup?.tabIds.has(tabId),
-      groupSize: existingGroup?.tabIds.size,
-      groupActive: existingGroup?.isActive,
-    });
-
     if (normalizedUrl) {
       // If tab is not in any group yet, add it
       if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
-        logger.info('🔶 [AUTO-SYNC] Adding tab to group (not in group yet)', {
-          tabId,
-          normalizedUrl,
-        });
         await updateAutoSyncGroup(tabId, tab.url);
       }
       // If tab is in group but sync not active, try to start sync now
       else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
         if (existingGroup.tabIds.size >= 2) {
-          logger.info('🔶 [AUTO-SYNC] Starting sync for group (tab in group, not active)', {
-            tabId,
-            normalizedUrl,
-            groupSize: existingGroup.tabIds.size,
-          });
           await startAutoSyncForGroup(normalizedUrl);
-        } else {
-          logger.debug('🔶 [AUTO-SYNC] Group too small to start sync', {
-            tabId,
-            normalizedUrl,
-            groupSize: existingGroup.tabIds.size,
-          });
         }
       }
       // If tab is in group and sync IS active, send scroll:start to this tab so it joins the sync
       else if (existingGroup && existingGroup.tabIds.has(tabId) && existingGroup.isActive) {
-        logger.info('🔶 [AUTO-SYNC] Joining existing active sync group', {
-          tabId,
-          normalizedUrl,
-          groupSize: existingGroup.tabIds.size,
-        });
         const tabIds = Array.from(existingGroup.tabIds);
         try {
-          const response = await sendMessage(
+          await sendMessage(
             'scroll:start',
             {
               tabIds,
@@ -1114,9 +996,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             },
             { context: 'content-script', tabId },
           );
-          logger.info('🔶 [AUTO-SYNC] Tab joined sync', { tabId, normalizedUrl, response });
         } catch (error) {
-          logger.error('🔶 [AUTO-SYNC] Failed to join sync', {
+          logger.error('[AUTO-SYNC] Failed to join sync', {
             tabId,
             normalizedUrl,
             error: String(error),
