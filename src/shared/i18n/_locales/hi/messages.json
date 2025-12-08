@@ -456,5 +456,14 @@
         "example": "Google"
       }
     }
+  },
+  "autoSyncSameUrl": {
+    "message": "समान URL ऑटो-सिंक"
+  },
+  "autoSyncActive": {
+    "message": "ऑटो"
+  },
+  "advancedFeatures": {
+    "message": "उन्नत सुविधाएँ"
   }
 }

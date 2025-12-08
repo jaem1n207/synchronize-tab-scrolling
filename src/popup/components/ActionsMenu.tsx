@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { Play, Pause, Check, X, Filter, ArrowUpDown } from 'lucide-react';
+import { Play, Pause, Check, X, Filter, ArrowUpDown, Link2, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { Button } from '~/shared/components/ui/button';
@@ -31,6 +31,10 @@ interface ActionsMenuProps {
   onSortChange: (sort: SortOption) => void;
   sameDomainFilter: boolean;
   onSameDomainFilterChange: (enabled: boolean) => void;
+  autoSyncEnabled: boolean;
+  onAutoSyncChange: (enabled: boolean) => void;
+  urlSyncEnabled: boolean;
+  onUrlSyncChange: (enabled: boolean) => void;
 }
 
 export function ActionsMenu({
@@ -46,6 +50,10 @@ export function ActionsMenu({
   onSortChange,
   sameDomainFilter,
   onSameDomainFilterChange,
+  autoSyncEnabled,
+  onAutoSyncChange,
+  urlSyncEnabled,
+  onUrlSyncChange,
 }: ActionsMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLDivElement>(null);
@@ -268,6 +276,36 @@ export function ActionsMenu({
                         <Kbd>⌘</Kbd>
                         <Kbd>2</Kbd>
                       </div>
+                    </CommandItem>
+                  </CommandGroup>
+
+                  <Separator />
+
+                  {/* Advanced Features */}
+                  <CommandGroup heading={t('advancedFeatures')}>
+                    <CommandItem
+                      onSelect={() => {
+                        onAutoSyncChange(!autoSyncEnabled);
+                        onOpenChange(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <Link2 aria-hidden="true" className="w-4 h-4" />
+                        <span>{t('autoSyncSameUrl')}</span>
+                      </div>
+                      {autoSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
+                    </CommandItem>
+                    <CommandItem
+                      onSelect={() => {
+                        onUrlSyncChange(!urlSyncEnabled);
+                        onOpenChange(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <Globe aria-hidden="true" className="w-4 h-4" />
+                        <span>{t('urlSyncNavigation')}</span>
+                      </div>
+                      {urlSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
                     </CommandItem>
                   </CommandGroup>
                 </CommandList>

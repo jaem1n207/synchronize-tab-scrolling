@@ -456,5 +456,14 @@
         "example": "Google"
       }
     }
+  },
+  "autoSyncSameUrl": {
+    "message": "Auto-sync same URL"
+  },
+  "autoSyncActive": {
+    "message": "Auto"
+  },
+  "advancedFeatures": {
+    "message": "Advanced Features"
   }
 }

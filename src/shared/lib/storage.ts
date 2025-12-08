@@ -18,6 +18,8 @@ const STORAGE_KEYS = {
   SELECTED_TAB_IDS: 'selectedTabIds',
   MANUAL_SCROLL_OFFSETS: 'manualScrollOffsets',
   URL_SYNC_ENABLED: 'urlSyncEnabled',
+  AUTO_SYNC_ENABLED: 'autoSyncEnabled',
+  AUTO_SYNC_EXCLUDED_URLS: 'autoSyncExcludedUrls',
 } as const;
 
 /**
@@ -255,6 +257,64 @@ export async function loadUrlSyncEnabled(): Promise<boolean> {
   } catch (error) {
     console.error('Failed to load URL sync enabled state:', error);
     return true;
+  }
+}
+
+/**
+ * Save auto-sync enabled state for same-URL tabs
+ * @param enabled - Whether auto-sync for same-URL tabs is enabled
+ */
+export async function saveAutoSyncEnabled(enabled: boolean): Promise<void> {
+  try {
+    await browser.storage.local.set({
+      [STORAGE_KEYS.AUTO_SYNC_ENABLED]: enabled,
+    });
+  } catch (error) {
+    console.error('Failed to save auto-sync enabled state:', error);
+  }
+}
+
+/**
+ * Load auto-sync enabled state for same-URL tabs
+ * @returns Whether auto-sync for same-URL tabs is enabled (default: false)
+ */
+export async function loadAutoSyncEnabled(): Promise<boolean> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.AUTO_SYNC_ENABLED);
+    return result[STORAGE_KEYS.AUTO_SYNC_ENABLED] !== undefined
+      ? (result[STORAGE_KEYS.AUTO_SYNC_ENABLED] as boolean)
+      : false; // Default to disabled
+  } catch (error) {
+    console.error('Failed to load auto-sync enabled state:', error);
+    return false;
+  }
+}
+
+/**
+ * Save auto-sync excluded URL patterns
+ * @param patterns - Array of URL patterns to exclude from auto-sync
+ */
+export async function saveAutoSyncExcludedUrls(patterns: Array<string>): Promise<void> {
+  try {
+    await browser.storage.local.set({
+      [STORAGE_KEYS.AUTO_SYNC_EXCLUDED_URLS]: patterns,
+    });
+  } catch (error) {
+    console.error('Failed to save auto-sync excluded URLs:', error);
+  }
+}
+
+/**
+ * Load auto-sync excluded URL patterns
+ * @returns Array of URL patterns excluded from auto-sync
+ */
+export async function loadAutoSyncExcludedUrls(): Promise<Array<string>> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.AUTO_SYNC_EXCLUDED_URLS);
+    return (result[STORAGE_KEYS.AUTO_SYNC_EXCLUDED_URLS] as Array<string>) || [];
+  } catch (error) {
+    console.error('Failed to load auto-sync excluded URLs:', error);
+    return [];
   }
 }
 

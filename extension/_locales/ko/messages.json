@@ -456,5 +456,14 @@
         "example": "Google"
       }
     }
+  },
+  "autoSyncSameUrl": {
+    "message": "동일 URL 자동 동기화"
+  },
+  "autoSyncActive": {
+    "message": "자동"
+  },
+  "advancedFeatures": {
+    "message": "고급 기능"
   }
 }

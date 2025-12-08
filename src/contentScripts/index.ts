@@ -10,10 +10,16 @@ import { initScrollSync } from './scrollSync';
   initializeSentry();
 
   const logger = new ExtensionLogger({ scope: 'content-script' });
-  logger.info('[scroll-sync] Content script loaded');
+  logger.info('🔷 [CONTENT] Content script loaded', {
+    url: window.location.href.substring(0, 80),
+    readyState: document.readyState,
+    timestamp: new Date().toISOString(),
+  });
 
   // Initialize scroll synchronization system
+  logger.info('🔷 [CONTENT] Calling initScrollSync()...');
   initScrollSync();
+  logger.info('🔷 [CONTENT] initScrollSync() completed - handlers registered');
 
   // Note: Keyboard handler requires tab ID which will be provided when sync starts
   // Cannot use browser.tabs.getCurrent() in content scripts due to Chrome restrictions
