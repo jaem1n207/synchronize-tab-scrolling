@@ -465,5 +465,29 @@
   },
   "advancedFeatures": {
     "message": "Fonctionnalités Avancées"
+  },
+  "autoSyncingTabs": {
+    "message": "Synchronisation auto de $COUNT$ onglets",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "Synchronisation auto avec $COUNT$ autre(s) onglet(s)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "Auto-sync activé"
+  },
+  "autoSyncDisabled": {
+    "message": "Auto-sync désactivé"
   }
 }

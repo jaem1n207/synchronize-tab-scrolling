@@ -100,6 +100,7 @@ export const SyncControlPanel = ({
   const [syncedTabs, setSyncedTabs] = React.useState<SyncedTab[]>([]);
   const [autoSyncEnabled, setAutoSyncEnabled] = React.useState(false);
   const [isAutoSyncActive, setIsAutoSyncActive] = React.useState(false);
+  const [autoSyncGroupCount, setAutoSyncGroupCount] = React.useState(0);
 
   const toolbarRef = React.useRef<HTMLButtonElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -355,33 +356,58 @@ export const SyncControlPanel = ({
     return unsubscribe;
   }, []);
 
+  // Fetch detailed auto-sync status from background
+  const fetchAutoSyncDetailedStatus = React.useCallback(async () => {
+    try {
+      const response = (await sendMessage('auto-sync:get-detailed-status', {}, 'background')) as {
+        success: boolean;
+        enabled: boolean;
+        currentTabGroup?: { tabCount: number; isActive: boolean };
+      };
+
+      if (response?.success && response.currentTabGroup) {
+        setIsAutoSyncActive(response.currentTabGroup.isActive);
+        // Show count of OTHER tabs (exclude current tab)
+        setAutoSyncGroupCount(Math.max(0, response.currentTabGroup.tabCount - 1));
+      } else {
+        setIsAutoSyncActive(false);
+        setAutoSyncGroupCount(0);
+      }
+    } catch {
+      // Fallback to local status check
+      const status = getAutoSyncStatus();
+      setIsAutoSyncActive(status.isAutoSync && status.isActive);
+      setAutoSyncGroupCount(0);
+    }
+  }, []);
+
   // Load auto-sync state and set up message listeners
   React.useEffect(() => {
     // Load initial auto-sync enabled state
     loadAutoSyncEnabled().then(setAutoSyncEnabled);
 
     // Check current auto-sync status
-    const status = getAutoSyncStatus();
-    setIsAutoSyncActive(status.isAutoSync && status.isActive);
+    fetchAutoSyncDetailedStatus();
 
     // Listen for auto-sync status changes
     const unsubscribeStatusChanged = onMessage('auto-sync:status-changed', (message) => {
       const data = message.data as { enabled: boolean };
       setAutoSyncEnabled(data.enabled);
+      // Refetch detailed status when toggle changes
+      fetchAutoSyncDetailedStatus();
     });
 
     // Listen for auto-sync group updates
     const unsubscribeGroupUpdated = onMessage('auto-sync:group-updated', () => {
       // Re-check auto-sync status when groups change
-      const currentStatus = getAutoSyncStatus();
-      setIsAutoSyncActive(currentStatus.isAutoSync && currentStatus.isActive);
+      fetchAutoSyncDetailedStatus();
     });
 
     return () => {
       unsubscribeStatusChanged();
       unsubscribeGroupUpdated();
     };
-  }, []);
+  }, [fetchAutoSyncDetailedStatus]);
 
   // Handle auto-sync toggle
   const handleAutoSyncToggle = React.useCallback(async (enabled: boolean) => {
@@ -508,9 +534,9 @@ export const SyncControlPanel = ({
                   <div className="flex items-center gap-2">
                     <Settings2 className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{t('autoSyncSameUrl')}</span>
-                    {isAutoSyncActive && (
+                    {isAutoSyncActive && autoSyncGroupCount > 0 && (
                       <Badge className="text-xs px-1.5 py-0" variant="secondary">
-                        {t('autoSyncActive')}
+                        {t('autoSyncingWithTabs', [String(autoSyncGroupCount)])}
                       </Badge>
                     )}
                   </div>

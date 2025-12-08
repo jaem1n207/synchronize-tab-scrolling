@@ -465,5 +465,29 @@
   },
   "advancedFeatures": {
     "message": "Funciones Avanzadas"
+  },
+  "autoSyncingTabs": {
+    "message": "Sincronizando $COUNT$ pestañas automáticamente",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "Sincronización automática con $COUNT$ otra(s) pestaña(s)",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "Auto-sync activado"
+  },
+  "autoSyncDisabled": {
+    "message": "Auto-sync desactivado"
   }
 }

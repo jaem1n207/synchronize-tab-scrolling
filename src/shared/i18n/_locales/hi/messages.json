@@ -465,5 +465,29 @@
   },
   "advancedFeatures": {
     "message": "उन्नत सुविधाएँ"
+  },
+  "autoSyncingTabs": {
+    "message": "$COUNT$ टैब ऑटो-सिंक हो रहे हैं",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "$COUNT$ अन्य टैब के साथ ऑटो-सिंक हो रहा है",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "ऑटो-सिंक सक्षम"
+  },
+  "autoSyncDisabled": {
+    "message": "ऑटो-सिंक अक्षम"
   }
 }

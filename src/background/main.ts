@@ -1031,6 +1031,40 @@ onMessage('auto-sync:get-status', async () => {
   };
 });
 
+// Handler for getting detailed auto-sync status (for UI display)
+onMessage('auto-sync:get-detailed-status', async ({ sender }) => {
+  const activeGroups = Array.from(autoSyncState.groups.values()).filter((g) => g.isActive);
+  const totalSyncedTabs = activeGroups.reduce((sum, g) => sum + g.tabIds.size, 0);
+
+  // Find current tab's group if sender has tabId
+  let currentTabGroup: {
+    normalizedUrl: string;
+    tabCount: number;
+    isActive: boolean;
+  } | undefined;
+
+  if (sender.tabId) {
+    for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
+      if (group.tabIds.has(sender.tabId)) {
+        currentTabGroup = {
+          normalizedUrl,
+          tabCount: group.tabIds.size,
+          isActive: group.isActive,
+        };
+        break;
+      }
+    }
+  }
+
+  return {
+    success: true,
+    enabled: autoSyncState.enabled,
+    activeGroupCount: activeGroups.length,
+    totalSyncedTabs,
+    currentTabGroup,
+  };
+});
+
 logger.info('All message handlers registered successfully');
 
 // Tab event listeners for sync persistence

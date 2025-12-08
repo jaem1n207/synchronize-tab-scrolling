@@ -32,6 +32,7 @@ interface ActionsMenuProps {
   sameDomainFilter: boolean;
   onSameDomainFilterChange: (enabled: boolean) => void;
   autoSyncEnabled: boolean;
+  autoSyncTabCount?: number;
   onAutoSyncChange: (enabled: boolean) => void;
   urlSyncEnabled: boolean;
   onUrlSyncChange: (enabled: boolean) => void;
@@ -51,6 +52,7 @@ export function ActionsMenu({
   sameDomainFilter,
   onSameDomainFilterChange,
   autoSyncEnabled,
+  autoSyncTabCount,
   onAutoSyncChange,
   urlSyncEnabled,
   onUrlSyncChange,
@@ -292,6 +294,11 @@ export function ActionsMenu({
                       <div className="flex items-center gap-2 flex-1">
                         <Link2 aria-hidden="true" className="w-4 h-4" />
                         <span>{t('autoSyncSameUrl')}</span>
+                        {autoSyncEnabled && autoSyncTabCount && autoSyncTabCount > 0 && (
+                          <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
+                            {autoSyncTabCount}
+                          </span>
+                        )}
                       </div>
                       {autoSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
                     </CommandItem>

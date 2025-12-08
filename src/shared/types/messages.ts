@@ -133,6 +133,21 @@ export interface AutoSyncStatusResponse {
   groups: Array<AutoSyncGroupInfo>;
 }
 
+/**
+ * Response for detailed auto-sync status (for UI display)
+ */
+export interface AutoSyncDetailedStatusResponse {
+  success: boolean;
+  enabled: boolean;
+  activeGroupCount: number;
+  totalSyncedTabs: number;
+  currentTabGroup?: {
+    normalizedUrl: string;
+    tabCount: number;
+    isActive: boolean;
+  };
+}
+
 export interface ProtocolMap {
   'scroll:start': StartSyncMessage;
   'scroll:stop': StopSyncMessage;

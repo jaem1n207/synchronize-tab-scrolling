@@ -465,5 +465,29 @@
   },
   "advancedFeatures": {
     "message": "고급 기능"
+  },
+  "autoSyncingTabs": {
+    "message": "$COUNT$개 탭 자동 동기화 중",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "$COUNT$개의 다른 탭과 자동 동기화 중",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "자동 동기화 활성화됨"
+  },
+  "autoSyncDisabled": {
+    "message": "자동 동기화 비활성화됨"
   }
 }
