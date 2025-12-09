@@ -60,6 +60,7 @@ export function ActionsMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLDivElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
+  const autoSyncItemRef = useRef<HTMLDivElement>(null);
 
   // Store focused element before opening and focus first item when opened
   useEffect(() => {
@@ -96,18 +97,15 @@ export function ActionsMenu({
     } else {
       onStartSync();
     }
-    onOpenChange(false);
-  }, [isSyncActive, onStartSync, onStopSync, onOpenChange]);
+  }, [isSyncActive, onStartSync, onStopSync]);
 
   const handleSelectAll = useCallback(() => {
     onSelectAll();
-    onOpenChange(false);
-  }, [onSelectAll, onOpenChange]);
+  }, [onSelectAll]);
 
   const handleClearAll = useCallback(() => {
     onClearAll();
-    onOpenChange(false);
-  }, [onClearAll, onOpenChange]);
+  }, [onClearAll]);
 
   return (
     <Popover modal open={open} onOpenChange={onOpenChange}>
@@ -224,7 +222,6 @@ export function ActionsMenu({
                     <CommandItem
                       onSelect={() => {
                         onSameDomainFilterChange(!sameDomainFilter);
-                        onOpenChange(false);
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
@@ -248,7 +245,6 @@ export function ActionsMenu({
                     <CommandItem
                       onSelect={() => {
                         onSortChange('similarity');
-                        onOpenChange(false);
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
@@ -266,7 +262,6 @@ export function ActionsMenu({
                     <CommandItem
                       onSelect={() => {
                         onSortChange('recent');
-                        onOpenChange(false);
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
@@ -286,15 +281,22 @@ export function ActionsMenu({
                   {/* Advanced Features */}
                   <CommandGroup heading={t('advancedFeatures')}>
                     <CommandItem
+                      ref={autoSyncItemRef}
+                      value="auto-sync-same-url"
                       onSelect={() => {
                         onAutoSyncChange(!autoSyncEnabled);
-                        onOpenChange(false);
+                        // Bug 14-2 fix: Use setTimeout(0) instead of requestAnimationFrame
+                        // requestAnimationFrame fires before React re-render completes,
+                        // setTimeout(0) uses macrotask queue which runs after re-render
+                        setTimeout(() => {
+                          autoSyncItemRef.current?.focus();
+                        }, 0);
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
                         <Link2 aria-hidden="true" className="w-4 h-4" />
                         <span>{t('autoSyncSameUrl')}</span>
-                        {autoSyncEnabled && autoSyncTabCount && autoSyncTabCount > 0 && (
+                        {autoSyncEnabled && autoSyncTabCount != null && autoSyncTabCount > 0 && (
                           <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
                             {autoSyncTabCount}
                           </span>
@@ -305,7 +307,6 @@ export function ActionsMenu({
                     <CommandItem
                       onSelect={() => {
                         onUrlSyncChange(!urlSyncEnabled);
-                        onOpenChange(false);
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">

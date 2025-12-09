@@ -80,8 +80,21 @@ const COMMON_RESTRICTED_PATTERNS = [
   'wss://',
 ];
 
-// 특수 도메인 패턴
-const SPECIAL_DOMAINS = ['figma.com', 'www.figma.com', 'notion.so', 'www.notion.so'];
+// 특수 도메인 패턴 (콘텐츠 스크립트 주입이 제한되거나 작동하지 않는 도메인)
+const SPECIAL_DOMAINS = [
+  'figma.com',
+  'www.figma.com',
+  'notion.so',
+  'www.notion.so',
+  'music.youtube.com',
+];
+
+// 특수 경로 패턴 (도메인 + 경로 조합으로 제한해야 하는 패턴)
+// 같은 도메인에서 특정 경로만 제한해야 할 때 사용
+const SPECIAL_PATH_PATTERNS = [
+  { domainSuffix: 'atlassian.net', pathPrefix: '/jira' },
+  { domainSuffix: 'atlassian.net', pathPrefix: '/wiki' },
+];
 
 /**
  * 브라우저 타입 감지
@@ -127,11 +140,23 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
     }
   }
 
-  // 특수 도메인 확인
+  // 특수 도메인 및 경로 패턴 확인
   try {
     const urlObj = new URL(normalizedUrl);
+
+    // 특수 도메인 확인
     if (SPECIAL_DOMAINS.includes(urlObj.hostname)) {
       return true;
+    }
+
+    // 특수 경로 패턴 확인 (JIRA, Confluence 등)
+    for (const pattern of SPECIAL_PATH_PATTERNS) {
+      if (
+        urlObj.hostname.endsWith(pattern.domainSuffix) &&
+        urlObj.pathname.startsWith(pattern.pathPrefix)
+      ) {
+        return true;
+      }
     }
   } catch {
     // URL 파싱 실패 시 제한된 것으로 간주

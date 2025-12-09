@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "自动同步已禁用"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "发现$COUNT$个相同URL的标签页。开始同步吗？",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "新标签页\"$TITLE$\"具有相同的URL。添加到同步吗？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "添加此标签页将重置您手动调整的滚动位置"
+  },
+  "startSyncButton": {
+    "message": "开始同步"
+  },
+  "addTabButton": {
+    "message": "添加标签页"
+  },
+  "notNowButton": {
+    "message": "稍后"
+  },
+  "skipButton": {
+    "message": "跳过"
   }
 }

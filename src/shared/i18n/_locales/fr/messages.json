@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "Auto-sync désactivé"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "$COUNT$ onglets avec la même URL trouvés. Démarrer la synchronisation ?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "Nouvel onglet \"$TITLE$\" a la même URL. Ajouter à la synchronisation ?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "L'ajout de cet onglet réinitialisera vos ajustements de position de défilement"
+  },
+  "startSyncButton": {
+    "message": "Démarrer Sync"
+  },
+  "addTabButton": {
+    "message": "Ajouter Onglet"
+  },
+  "notNowButton": {
+    "message": "Pas Maintenant"
+  },
+  "skipButton": {
+    "message": "Passer"
   }
 }

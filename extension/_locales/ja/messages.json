@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "自動同期が無効"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "同じURLのタブが$COUNT$個見つかりました。同期を開始しますか？",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "新しいタブ「$TITLE$」が同じURLです。同期に追加しますか？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "このタブを追加すると、手動で調整したスクロール位置がリセットされます"
+  },
+  "startSyncButton": {
+    "message": "同期開始"
+  },
+  "addTabButton": {
+    "message": "タブを追加"
+  },
+  "notNowButton": {
+    "message": "後で"
+  },
+  "skipButton": {
+    "message": "スキップ"
   }
 }
