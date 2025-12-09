@@ -93,6 +93,8 @@
     "@ffflorian/jszip-cli": "^3.8.2",
     "@iconify/json": "^2.2.353",
     "@playwright/test": "^1.53.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "@tanstack/eslint-plugin-query": "^5.81.2",
     "@types/eslint-plugin-jsx-a11y": "^6.10.0",
     "@types/fs-extra": "^11.0.4",
@@ -127,6 +129,7 @@
     "npm-run-all": "^4.1.5",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
+    "semantic-release": "^25.0.2",
     "shadcn": "^3.3.1",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.35.0",
@@ -140,5 +143,6 @@
     "web-ext": "^8.8.0",
     "webext-bridge": "^6.0.1",
     "webextension-polyfill": "^0.12.0"
-  }
+  },
+  "packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a"
 }
