@@ -1,3 +1,10 @@
+## [2.4.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.4.0...v2.4.1) (2025-12-09)
+
+
+### Bug Fixes
+
+* remove placeholder return statement in sentry initialization ([cae7433](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/cae74330e1547ffca26323d42a0a7139581fb995))
+
 # [2.4.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.3.2...v2.4.0) (2025-12-09)
 
 
