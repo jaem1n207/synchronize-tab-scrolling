@@ -5,11 +5,20 @@ import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
 import { loadUrlSyncEnabled, saveUrlSyncEnabled } from '~/shared/lib/storage';
+import type {
+  SyncSuggestionMessage,
+  AddTabToSyncMessage,
+  DismissAddTabToastMessage,
+  DismissSyncSuggestionToastMessage,
+} from '~/shared/types/messages';
 
 import { SyncControlPanel } from './components';
+import { SyncSuggestionToast, AddTabToSyncToast } from './components/SyncSuggestionToast';
 
 function PanelApp() {
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
+  const [syncSuggestion, setSyncSuggestion] = useState<SyncSuggestionMessage | null>(null);
+  const [addTabSuggestion, setAddTabSuggestion] = useState<AddTabToSyncMessage | null>(null);
 
   useEffect(() => {
     // Load URL sync state
@@ -27,6 +36,46 @@ function PanelApp() {
     };
   }, []);
 
+  // Listen for sync suggestion messages
+  useEffect(() => {
+    const unsubscribeSuggestion = onMessage('sync-suggestion:show', ({ data }) => {
+      setSyncSuggestion(data as unknown as SyncSuggestionMessage);
+    });
+
+    const unsubscribeAddTab = onMessage('sync-suggestion:add-tab', ({ data }) => {
+      setAddTabSuggestion(data as unknown as AddTabToSyncMessage);
+    });
+
+    // Issue 11 Fix: Listen for dismiss messages to close add-tab toast when another tab responds
+    const unsubscribeDismissAddTab = onMessage('sync-suggestion:dismiss-add-tab', ({ data }) => {
+      const payload = data as unknown as DismissAddTabToastMessage;
+      setAddTabSuggestion((current) => {
+        if (current?.tabId === payload.tabId) {
+          return null;
+        }
+        return current;
+      });
+    });
+
+    // Issue 12 Fix: Listen for dismiss messages to close sync suggestion toast when another tab responds
+    const unsubscribeDismissSyncSuggestion = onMessage('sync-suggestion:dismiss', ({ data }) => {
+      const payload = data as unknown as DismissSyncSuggestionToastMessage;
+      setSyncSuggestion((current) => {
+        if (current?.normalizedUrl === payload.normalizedUrl) {
+          return null;
+        }
+        return current;
+      });
+    });
+
+    return () => {
+      unsubscribeSuggestion();
+      unsubscribeAddTab();
+      unsubscribeDismissAddTab();
+      unsubscribeDismissSyncSuggestion();
+    };
+  }, []);
+
   const handleToggleUrlSync = useCallback(async () => {
     const newValue = !urlSyncEnabled;
     setUrlSyncEnabled(newValue);
@@ -40,7 +89,93 @@ function PanelApp() {
     }
   }, [urlSyncEnabled]);
 
-  return <SyncControlPanel urlSyncEnabled={urlSyncEnabled} onToggle={handleToggleUrlSync} />;
+  // Handle sync suggestion accept
+  const handleSyncSuggestionAccept = useCallback(async () => {
+    if (!syncSuggestion) return;
+
+    try {
+      await sendMessage(
+        'sync-suggestion:response',
+        { normalizedUrl: syncSuggestion.normalizedUrl, accepted: true },
+        'background',
+      );
+    } catch (error) {
+      console.error('Failed to send sync suggestion response', error);
+    }
+    setSyncSuggestion(null);
+  }, [syncSuggestion]);
+
+  // Handle sync suggestion reject
+  const handleSyncSuggestionReject = useCallback(async () => {
+    if (!syncSuggestion) return;
+
+    try {
+      await sendMessage(
+        'sync-suggestion:response',
+        { normalizedUrl: syncSuggestion.normalizedUrl, accepted: false },
+        'background',
+      );
+    } catch (error) {
+      console.error('Failed to send sync suggestion response', error);
+    }
+    setSyncSuggestion(null);
+  }, [syncSuggestion]);
+
+  // Handle add tab suggestion accept
+  const handleAddTabAccept = useCallback(async () => {
+    if (!addTabSuggestion) return;
+
+    try {
+      await sendMessage(
+        'sync-suggestion:add-tab-response',
+        { tabId: addTabSuggestion.tabId, accepted: true },
+        'background',
+      );
+    } catch (error) {
+      console.error('Failed to send add tab response', error);
+    }
+    setAddTabSuggestion(null);
+  }, [addTabSuggestion]);
+
+  // Handle add tab suggestion reject
+  const handleAddTabReject = useCallback(async () => {
+    if (!addTabSuggestion) return;
+
+    try {
+      await sendMessage(
+        'sync-suggestion:add-tab-response',
+        { tabId: addTabSuggestion.tabId, accepted: false },
+        'background',
+      );
+    } catch (error) {
+      console.error('Failed to send add tab response', error);
+    }
+    setAddTabSuggestion(null);
+  }, [addTabSuggestion]);
+
+  return (
+    <>
+      <SyncControlPanel urlSyncEnabled={urlSyncEnabled} onToggle={handleToggleUrlSync} />
+
+      {/* Sync suggestion toast */}
+      {syncSuggestion && (
+        <SyncSuggestionToast
+          suggestion={syncSuggestion}
+          onAccept={handleSyncSuggestionAccept}
+          onReject={handleSyncSuggestionReject}
+        />
+      )}
+
+      {/* Add tab to sync toast */}
+      {addTabSuggestion && (
+        <AddTabToSyncToast
+          suggestion={addTabSuggestion}
+          onAccept={handleAddTabAccept}
+          onReject={handleAddTabReject}
+        />
+      )}
+    </>
+  );
 }
 
 let panelRoot: ReturnType<typeof createRoot> | null = null;

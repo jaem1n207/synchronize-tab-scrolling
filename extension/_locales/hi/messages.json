@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "ऑटो-सिंक अक्षम"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "समान URL वाले $COUNT$ टैब मिले। सिंक शुरू करें?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "नया टैब \"$TITLE$\" समान URL है। सिंक में जोड़ें?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "इस टैब को जोड़ने से आपकी मैन्युअल स्क्रॉल स्थिति समायोजन रीसेट हो जाएंगी"
+  },
+  "startSyncButton": {
+    "message": "सिंक शुरू करें"
+  },
+  "addTabButton": {
+    "message": "टैब जोड़ें"
+  },
+  "notNowButton": {
+    "message": "अभी नहीं"
+  },
+  "skipButton": {
+    "message": "छोड़ें"
   }
 }

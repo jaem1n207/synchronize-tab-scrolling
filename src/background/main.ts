@@ -22,12 +22,14 @@ interface SyncState {
   linkedTabs: Array<number>;
   connectionStatuses: Record<number, 'connected' | 'disconnected' | 'error'>;
   mode?: string; // Store sync mode for restoration
+  lastActiveSyncedTabId: number | null; // Track the last active synced tab for toast targeting
 }
 
 let syncState: SyncState = {
   isActive: false,
   linkedTabs: [],
   connectionStatuses: {},
+  lastActiveSyncedTabId: null,
 };
 
 // Auto-sync state for same-URL tabs
@@ -54,9 +56,18 @@ const manualSyncOverriddenTabs = new Set<number>();
 // Track pending retry timers for auto-sync groups
 const autoSyncRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-// Max retries for starting auto-sync
-const AUTO_SYNC_START_MAX_RETRIES = 3;
-const AUTO_SYNC_START_RETRY_DELAY_MS = 2000;
+// Dismissed URL groups - user rejected sync suggestion (memory only, cleared on browser restart)
+const dismissedUrlGroups = new Set<string>();
+
+// Pending suggestions - prevent duplicate toasts for same URL group
+const pendingSuggestions = new Set<string>();
+
+// Flag to prevent re-entrant toggleAutoSync calls
+let isTogglingAutoSync = false;
+
+// Debounce toggle to prevent rapid on/off cycling issues
+let lastToggleTime = 0;
+const TOGGLE_DEBOUNCE_MS = 500;
 
 /**
  * Check if a tab is overridden by manual sync
@@ -99,6 +110,10 @@ function normalizeUrlForAutoSync(url: string): string | null {
     const parsed = new URL(url);
     // Exclude non-http protocols
     if (!['http:', 'https:'].includes(parsed.protocol)) {
+      logger.debug('[AUTO-SYNC] URL excluded - non-http protocol', {
+        url,
+        protocol: parsed.protocol,
+      });
       return null;
     }
 
@@ -113,8 +128,11 @@ function normalizeUrlForAutoSync(url: string): string | null {
       }
     }
 
-    return `${parsed.protocol}//${normalizedHost}${parsed.pathname}`;
-  } catch {
+    const normalized = `${parsed.protocol}//${normalizedHost}${parsed.pathname}`;
+    logger.debug('[AUTO-SYNC] URL normalized', { original: url, normalized });
+    return normalized;
+  } catch (error) {
+    logger.debug('[AUTO-SYNC] URL normalization failed', { url, error });
     return null;
   }
 }
@@ -189,14 +207,18 @@ function isTabInActiveAutoSyncGroup(tabId: number): boolean {
  * @param tabId - The tab ID
  * @param url - The tab's URL
  * @param skipStartSync - If true, don't start sync even if group has 2+ tabs (used when page isn't fully loaded)
+ * @param skipBroadcast - If true, don't broadcast group update (used during batch initialization)
  * @returns The normalized URL if the tab was added to a group, null otherwise
  */
 async function updateAutoSyncGroup(
   tabId: number,
   url: string,
   skipStartSync: boolean = false,
+  skipBroadcast: boolean = false,
 ): Promise<string | null> {
-  return withAutoSyncLock(() => updateAutoSyncGroupInternal(tabId, url, skipStartSync));
+  return withAutoSyncLock(() =>
+    updateAutoSyncGroupInternal(tabId, url, skipStartSync, skipBroadcast),
+  );
 }
 
 /**
@@ -206,33 +228,50 @@ async function updateAutoSyncGroupInternal(
   tabId: number,
   url: string,
   skipStartSync: boolean = false,
+  skipBroadcast: boolean = false,
 ): Promise<string | null> {
-  if (!autoSyncState.enabled) return null;
+  logger.info('[AUTO-SYNC] updateAutoSyncGroupInternal called', {
+    tabId,
+    url,
+    skipStartSync,
+    skipBroadcast,
+  });
+
+  if (!autoSyncState.enabled) {
+    logger.info('[AUTO-SYNC] Auto-sync disabled, skipping update');
+    return null;
+  }
 
   const normalizedUrl = normalizeUrlForAutoSync(url);
-  if (!normalizedUrl) return null;
+  if (!normalizedUrl) {
+    logger.info('[AUTO-SYNC] URL normalization returned null, skipping');
+    return null;
+  }
 
   // Check if URL is excluded
   if (isUrlExcluded(url, autoSyncState.excludedUrls)) {
-    logger.debug(`URL excluded from auto-sync`, { url, tabId });
+    logger.debug(`[AUTO-SYNC] URL excluded from auto-sync`, { url, tabId });
     removeTabFromAllAutoSyncGroups(tabId);
     return null;
   }
 
   // Skip tabs that are in manual sync (they take priority)
   if (isTabManuallyOverridden(tabId)) {
-    logger.debug(`Tab ${tabId} is in manual sync, skipping auto-sync`);
+    logger.debug(`[AUTO-SYNC] Tab ${tabId} is in manual sync, skipping auto-sync`);
     return null;
   }
 
   // Remove from all existing groups first
+  logger.info('[AUTO-SYNC] Removing tab from existing groups', { tabId });
   removeTabFromAllAutoSyncGroups(tabId);
 
   // Add to new group
   let group = autoSyncState.groups.get(normalizedUrl);
+  const isNewGroup = !group;
   if (!group) {
     group = { tabIds: new Set(), isActive: false };
     autoSyncState.groups.set(normalizedUrl, group);
+    logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
   }
 
   // Check group size limit to prevent performance issues
@@ -247,14 +286,36 @@ async function updateAutoSyncGroupInternal(
   }
 
   group.tabIds.add(tabId);
+  logger.info('[AUTO-SYNC] Tab added to group', {
+    tabId,
+    normalizedUrl,
+    groupSize: group.tabIds.size,
+    groupTabIds: Array.from(group.tabIds),
+    isNewGroup,
+    isActive: group.isActive,
+  });
 
-  // Start auto-sync if group has 2+ tabs and not already active (unless skipStartSync is true)
-  if (!skipStartSync && group.tabIds.size >= 2 && !group.isActive) {
-    await startAutoSyncForGroup(normalizedUrl);
+  // Show sync suggestion if group has 2+ tabs and not already active (unless skipStartSync is true)
+  const shouldShowSuggestion = !skipStartSync && group.tabIds.size >= 2 && !group.isActive;
+  logger.info('[AUTO-SYNC] Checking if should show suggestion', {
+    skipStartSync,
+    groupSize: group.tabIds.size,
+    isActive: group.isActive,
+    shouldShowSuggestion,
+  });
+
+  if (shouldShowSuggestion) {
+    logger.info('[AUTO-SYNC] Showing suggestion for group', {
+      normalizedUrl,
+      tabIds: Array.from(group.tabIds),
+    });
+    await showSyncSuggestion(normalizedUrl);
   }
 
-  // Broadcast group update to content scripts
-  await broadcastAutoSyncGroupUpdate();
+  // Broadcast group update to content scripts (unless skipBroadcast is true)
+  if (!skipBroadcast) {
+    await broadcastAutoSyncGroupUpdate();
+  }
 
   return normalizedUrl;
 }
@@ -267,92 +328,6 @@ function cancelAutoSyncRetry(normalizedUrl: string): void {
   if (existingTimer) {
     clearTimeout(existingTimer);
     autoSyncRetryTimers.delete(normalizedUrl);
-  }
-}
-
-/**
- * Start auto-sync for a specific URL group
- * Only sets isActive=true if at least 2 tabs successfully received the message
- * Schedules automatic retry if not enough tabs respond
- */
-async function startAutoSyncForGroup(normalizedUrl: string, retryCount: number = 0): Promise<void> {
-  const group = autoSyncState.groups.get(normalizedUrl);
-
-  if (!group || group.tabIds.size < 2) {
-    cancelAutoSyncRetry(normalizedUrl);
-    return;
-  }
-
-  // Don't restart if already active
-  if (group.isActive) {
-    cancelAutoSyncRetry(normalizedUrl);
-    return;
-  }
-
-  // Cancel any existing retry timer
-  cancelAutoSyncRetry(normalizedUrl);
-
-  const tabIds = Array.from(group.tabIds);
-
-  // Send scroll:start with isAutoSync flag to all tabs in group
-  // Track which tabs successfully received the message
-  // Use retry with exponential backoff for tabs that aren't ready yet
-  const results = await Promise.all(
-    tabIds.map(async (tabId) => {
-      try {
-        const response = await sendMessageWithRetry<{ success: boolean; tabId: number }>(
-          'scroll:start',
-          {
-            tabIds,
-            mode: 'ratio',
-            currentTabId: tabId,
-            isAutoSync: true,
-          },
-          { context: 'content-script', tabId },
-          { maxRetries: 2, initialDelayMs: 500, timeoutMs: 2_000 },
-        );
-        return { tabId, success: response?.success === true, response };
-      } catch (error) {
-        logger.error('[AUTO-SYNC] Tab message failed after retries', {
-          tabId,
-          error: String(error),
-        });
-        return { tabId, success: false, error: String(error) };
-      }
-    }),
-  );
-
-  const successCount = results.filter((r) => r.success).length;
-
-  // Only mark as active if at least 2 tabs successfully received the message
-  if (successCount >= 2) {
-    group.isActive = true;
-    logger.info('[AUTO-SYNC] Successfully started sync for group', {
-      normalizedUrl,
-      successCount,
-      tabIds,
-    });
-  } else if (retryCount < AUTO_SYNC_START_MAX_RETRIES) {
-    // Schedule a retry - content scripts might not be ready yet
-    logger.debug('[AUTO-SYNC] Not enough tabs ready, scheduling retry', {
-      normalizedUrl,
-      successCount,
-      retryCount: retryCount + 1,
-      maxRetries: AUTO_SYNC_START_MAX_RETRIES,
-    });
-
-    const timer = setTimeout(() => {
-      autoSyncRetryTimers.delete(normalizedUrl);
-      startAutoSyncForGroup(normalizedUrl, retryCount + 1);
-    }, AUTO_SYNC_START_RETRY_DELAY_MS);
-
-    autoSyncRetryTimers.set(normalizedUrl, timer);
-  } else {
-    logger.warn('[AUTO-SYNC] Failed to start sync after max retries', {
-      normalizedUrl,
-      successCount,
-      retryCount,
-    });
   }
 }
 
@@ -383,6 +358,185 @@ async function stopAutoSyncForGroup(normalizedUrl: string): Promise<void> {
 }
 
 /**
+ * Show sync suggestion toast to a tab in the group
+ * Instead of auto-starting sync, we ask the user for confirmation
+ *
+ * IMPORTANT: We send to a tab that's IN the group, not necessarily the active tab.
+ * If the active tab is in the group, we prefer it (better UX).
+ * Otherwise, we send to the first tab in the group (guaranteed to have content script ready).
+ * This prevents hanging when active tab's content script isn't responding.
+ */
+async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
+  const group = autoSyncState.groups.get(normalizedUrl);
+
+  if (!group || group.tabIds.size < 2) {
+    logger.debug('[AUTO-SYNC] Cannot show suggestion - group not found or too small', {
+      normalizedUrl,
+      groupExists: !!group,
+      groupSize: group?.tabIds.size,
+    });
+    return;
+  }
+
+  // Don't show if already dismissed by user
+  if (dismissedUrlGroups.has(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping suggestion - URL group dismissed by user', {
+      normalizedUrl,
+    });
+    return;
+  }
+
+  // Don't show duplicate suggestions
+  if (pendingSuggestions.has(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping suggestion - already pending', { normalizedUrl });
+    return;
+  }
+
+  // Get tab titles for the suggestion message
+  const tabIds = Array.from(group.tabIds);
+  const tabTitles: string[] = [];
+
+  for (const tabId of tabIds) {
+    try {
+      const tab = await browser.tabs.get(tabId);
+      tabTitles.push(tab.title || 'Untitled');
+    } catch {
+      tabTitles.push('Untitled');
+    }
+  }
+
+  // Issue 12 Fix: Send toast to ALL tabs in the group
+  // This ensures the user sees the toast regardless of which tab they're viewing
+  const uniqueTargetTabs = [...new Set(tabIds)];
+
+  if (uniqueTargetTabs.length === 0) {
+    logger.debug('[AUTO-SYNC] No tabs found for sync suggestion');
+    return;
+  }
+
+  // Mark as pending to prevent duplicates
+  pendingSuggestions.add(normalizedUrl);
+
+  logger.info('[AUTO-SYNC] Showing sync suggestion toast on ALL tabs', {
+    normalizedUrl,
+    targetTabs: uniqueTargetTabs,
+    tabCount: tabIds.length,
+    tabTitles,
+  });
+
+  // Send toast to all tabs in parallel
+  const results = await Promise.allSettled(
+    uniqueTargetTabs.map(async (targetTabId) => {
+      try {
+        await sendMessageWithTimeout(
+          'sync-suggestion:show',
+          {
+            normalizedUrl,
+            tabCount: tabIds.length,
+            tabIds,
+            tabTitles,
+          },
+          { context: 'content-script', tabId: targetTabId },
+          2_000, // 2 second timeout
+        );
+        return { tabId: targetTabId, success: true };
+      } catch (error) {
+        return {
+          tabId: targetTabId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
+
+  const successCount = results.filter((r) => r.status === 'fulfilled' && r.value.success).length;
+
+  logger.info('[AUTO-SYNC] Sync suggestion sent', {
+    totalTabs: uniqueTargetTabs.length,
+    successCount,
+    results: results.map((r) => (r.status === 'fulfilled' ? r.value : { error: r.reason })),
+  });
+
+  // If all sends failed, remove from pending suggestions
+  if (successCount === 0) {
+    pendingSuggestions.delete(normalizedUrl);
+  }
+}
+
+/**
+ * Show add-tab suggestion toast when a new tab with same URL is detected
+ * while manual sync is already active
+ *
+ * IMPORTANT: We send the toast to an already-synced tab, NOT the newly created tab.
+ * This is because when a new tab is created, the browser makes it active immediately,
+ * but its content script may not have initialized yet. Synced tabs are guaranteed
+ * to have their content scripts ready.
+ */
+async function showAddTabSuggestion(
+  tabId: number,
+  tabTitle: string,
+  normalizedUrl: string,
+): Promise<void> {
+  // Check if there are manual offsets that would be reset
+  // For now, we'll assume no manual offsets (could be enhanced later)
+  const hasManualOffsets = false;
+
+  // Issue 10 Fix: Send toast to ALL tabs (synced tabs + new tab)
+  // This ensures the user sees the toast regardless of which tab they're viewing
+  const allTargetTabs = [...syncState.linkedTabs, tabId];
+  // Remove duplicates (in case new tab is somehow already in linkedTabs)
+  const uniqueTargetTabs = [...new Set(allTargetTabs)];
+
+  if (uniqueTargetTabs.length === 0) {
+    logger.debug('[AUTO-SYNC] No tabs found for add-tab suggestion');
+    return;
+  }
+
+  logger.info('[AUTO-SYNC] Showing add-tab suggestion toast on ALL tabs', {
+    newTabId: tabId,
+    tabTitle,
+    syncedTabs: syncState.linkedTabs,
+    allTargetTabs: uniqueTargetTabs,
+    hasManualOffsets,
+  });
+
+  // Send toast to all tabs in parallel
+  const results = await Promise.allSettled(
+    uniqueTargetTabs.map(async (targetTabId) => {
+      try {
+        await sendMessageWithTimeout(
+          'sync-suggestion:add-tab',
+          {
+            tabId,
+            tabTitle,
+            hasManualOffsets,
+            normalizedUrl,
+          },
+          { context: 'content-script', tabId: targetTabId },
+          2_000, // 2 second timeout
+        );
+        return { tabId: targetTabId, success: true };
+      } catch (error) {
+        return {
+          tabId: targetTabId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
+
+  const successCount = results.filter((r) => r.status === 'fulfilled' && r.value.success).length;
+
+  logger.info('[AUTO-SYNC] Add-tab suggestion sent', {
+    totalTabs: uniqueTargetTabs.length,
+    successCount,
+    results: results.map((r) => (r.status === 'fulfilled' ? r.value : { error: r.reason })),
+  });
+}
+
+/**
  * Broadcast auto-sync group update to all content scripts
  */
 async function broadcastAutoSyncGroupUpdate(): Promise<void> {
@@ -404,21 +558,42 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
     }
   }
 
-  // Broadcast to all tabs in groups
-  const promises = Array.from(allTabIds).map(async (tabId) => {
-    try {
-      await sendMessage(
-        'auto-sync:group-updated',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { groups } as any,
-        { context: 'content-script', tabId },
-      );
-    } catch (error) {
-      logger.debug(`Failed to broadcast auto-sync group update to tab ${tabId}`, { error });
-    }
+  logger.info('[AUTO-SYNC] Broadcasting group update', {
+    groupCount: groups.length,
+    tabCount: allTabIds.size,
   });
 
-  await Promise.all(promises);
+  // Timeout for each message (3 seconds)
+  const MESSAGE_TIMEOUT = 3000;
+
+  // Helper to send message with timeout
+  const sendWithTimeout = async (tabId: number): Promise<void> => {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Message timeout')), MESSAGE_TIMEOUT);
+    });
+
+    try {
+      await Promise.race([
+        sendMessage(
+          'auto-sync:group-updated',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          { groups } as any,
+          { context: 'content-script', tabId },
+        ),
+        timeoutPromise,
+      ]);
+    } catch (error) {
+      // Log as debug since this is expected for tabs with no content script
+      logger.debug(`[AUTO-SYNC] Failed to broadcast to tab ${tabId}`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
+
+  // Broadcast to all tabs in groups with timeout protection
+  await Promise.all(Array.from(allTabIds).map(sendWithTimeout));
+
+  logger.info('[AUTO-SYNC] Broadcast complete');
 }
 
 /**
@@ -426,21 +601,122 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
  */
 async function initializeAutoSync(): Promise<void> {
   try {
+    logger.info('[AUTO-SYNC] Initializing auto-sync...');
     autoSyncState.enabled = await loadAutoSyncEnabled();
     autoSyncState.excludedUrls = await loadAutoSyncExcludedUrls();
 
+    logger.info('[AUTO-SYNC] State loaded', {
+      enabled: autoSyncState.enabled,
+      excludedUrls: autoSyncState.excludedUrls,
+    });
+
     if (!autoSyncState.enabled) {
+      logger.info('[AUTO-SYNC] Auto-sync is disabled, skipping initialization');
       return;
     }
 
     // Scan all tabs and build groups
+    // Skip broadcast and start sync during scanning - do it once at the end
     const tabs = await browser.tabs.query({});
+    logger.info('[AUTO-SYNC] Scanning tabs', { tabCount: tabs.length });
 
     for (const tab of tabs) {
       if (tab.id && tab.url) {
-        await updateAutoSyncGroup(tab.id, tab.url);
+        logger.info('[AUTO-SYNC] Processing tab', { tabId: tab.id, url: tab.url });
+        // skipStartSync=true, skipBroadcast=true during batch initialization
+        await updateAutoSyncGroup(tab.id, tab.url, true, true);
       }
     }
+
+    logger.info('[AUTO-SYNC] Tab scanning complete, checking for eligible groups', {
+      groupCount: autoSyncState.groups.size,
+      groups: Array.from(autoSyncState.groups.entries()).map(([url, g]) => ({
+        url,
+        tabCount: g.tabIds.size,
+        tabIds: Array.from(g.tabIds),
+        isActive: g.isActive,
+      })),
+    });
+
+    // Bug 14-1 fix: Inject content scripts into pre-existing tabs
+    // Manifest-declared content scripts only inject into NEW tabs after extension installation
+    // For tabs that existed before installation, we need to programmatically inject
+    for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
+      if (group.tabIds.size >= 2) {
+        const tabIds = Array.from(group.tabIds);
+        logger.info('[AUTO-SYNC] Injecting content scripts for group', {
+          normalizedUrl,
+          tabIds,
+        });
+
+        // Inject content scripts in parallel
+        const injectionResults = await Promise.allSettled(
+          tabIds.map(async (tabId) => {
+            try {
+              await browser.scripting.executeScript({
+                target: { tabId },
+                files: ['dist/contentScripts/index.global.js'],
+              });
+              logger.info('[AUTO-SYNC] Content script injected', { tabId });
+              return { tabId, success: true };
+            } catch (error) {
+              logger.warn('[AUTO-SYNC] Content script injection failed', { tabId, error });
+              return { tabId, success: false };
+            }
+          }),
+        );
+
+        // Remove tabs where injection failed from the group
+        for (const result of injectionResults) {
+          if (result.status === 'fulfilled' && !result.value.success) {
+            group.tabIds.delete(result.value.tabId);
+            logger.info('[AUTO-SYNC] Removed tab from group due to injection failure', {
+              tabId: result.value.tabId,
+              normalizedUrl,
+            });
+          }
+        }
+
+        // If group now has fewer than 2 tabs, delete it
+        if (group.tabIds.size < 2) {
+          autoSyncState.groups.delete(normalizedUrl);
+          logger.info('[AUTO-SYNC] Deleted group due to insufficient tabs after injection', {
+            normalizedUrl,
+          });
+        }
+      }
+    }
+
+    // Wait for content scripts to fully initialize after injection
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Show suggestions for groups with 2+ tabs (instead of auto-starting)
+    for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
+      if (group.tabIds.size >= 2 && !group.isActive) {
+        logger.info('[AUTO-SYNC] Scheduling suggestion for group during init', {
+          normalizedUrl,
+          tabIds: Array.from(group.tabIds),
+        });
+        // Show suggestion (no additional delay needed since we already waited)
+        if (!pendingSuggestions.has(normalizedUrl) && !dismissedUrlGroups.has(normalizedUrl)) {
+          await showSyncSuggestion(normalizedUrl);
+        }
+      }
+    }
+
+    // Broadcast group update once at the end
+    logger.info('[AUTO-SYNC] Broadcasting group update');
+    await broadcastAutoSyncGroupUpdate();
+
+    logger.info('[AUTO-SYNC] Initialization complete', {
+      groupCount: autoSyncState.groups.size,
+      groups: Array.from(autoSyncState.groups.entries()).map(([url, g]) => ({
+        url,
+        tabCount: g.tabIds.size,
+        tabIds: Array.from(g.tabIds),
+        isActive: g.isActive,
+      })),
+    });
   } catch (error) {
     logger.error('[AUTO-SYNC] Failed to initialize auto-sync', { error });
   }
@@ -450,45 +726,107 @@ async function initializeAutoSync(): Promise<void> {
  * Toggle auto-sync enabled state
  */
 async function toggleAutoSync(enabled: boolean): Promise<void> {
-  autoSyncState.enabled = enabled;
-  await saveAutoSyncEnabled(enabled);
+  // Debounce rapid toggling to prevent race conditions
+  const now = Date.now();
+  if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
+    logger.info('[AUTO-SYNC] toggleAutoSync debounced', {
+      enabled,
+      timeSinceLastToggle: now - lastToggleTime,
+    });
+    return;
+  }
+  lastToggleTime = now;
 
-  if (enabled) {
-    // Re-initialize to scan tabs and create groups
-    await initializeAutoSync();
-  } else {
-    // Cancel all pending retry timers
-    for (const timer of autoSyncRetryTimers.values()) {
-      clearTimeout(timer);
-    }
-    autoSyncRetryTimers.clear();
-
-    // Stop all active auto-sync groups
-    for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
-      if (group.isActive) {
-        await stopAutoSyncForGroup(normalizedUrl);
-      }
-    }
-    // Clear all groups
-    autoSyncState.groups.clear();
+  // Prevent re-entrant calls (can happen from storage change listener)
+  if (isTogglingAutoSync) {
+    logger.info('[AUTO-SYNC] toggleAutoSync skipped - already in progress', { enabled });
+    return;
   }
 
-  // Broadcast status change to all tabs
-  const tabs = await browser.tabs.query({});
-  const promises = tabs.map(async (tab) => {
-    if (tab.id) {
-      try {
-        await sendMessage(
-          'auto-sync:status-changed',
-          { enabled },
-          { context: 'content-script', tabId: tab.id },
-        );
-      } catch {
-        // Tab may not have content script
-      }
-    }
+  // Skip if state hasn't changed
+  if (autoSyncState.enabled === enabled) {
+    logger.info('[AUTO-SYNC] toggleAutoSync skipped - state unchanged', { enabled });
+    return;
+  }
+
+  isTogglingAutoSync = true;
+  logger.info('[AUTO-SYNC] toggleAutoSync called', {
+    enabled,
+    previousState: autoSyncState.enabled,
   });
-  await Promise.all(promises);
+
+  try {
+    autoSyncState.enabled = enabled;
+    await saveAutoSyncEnabled(enabled);
+
+    if (enabled) {
+      // Clean up any stale state before re-initialization
+      logger.info('[AUTO-SYNC] Enabling - clearing stale state before initialization');
+      autoSyncState.groups.clear();
+
+      // Clear dismissed and pending suggestions for fresh start
+      dismissedUrlGroups.clear();
+      pendingSuggestions.clear();
+
+      // Cancel any pending retry timers from previous session
+      for (const timer of autoSyncRetryTimers.values()) {
+        clearTimeout(timer);
+      }
+      autoSyncRetryTimers.clear();
+
+      // Small delay to ensure content scripts are ready after rapid toggle
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Re-initialize to scan tabs and create groups
+      logger.info('[AUTO-SYNC] Enabling - calling initializeAutoSync');
+      await initializeAutoSync();
+    } else {
+      // Cancel all pending retry timers
+      logger.info('[AUTO-SYNC] Disabling - clearing retry timers', {
+        timerCount: autoSyncRetryTimers.size,
+      });
+      for (const timer of autoSyncRetryTimers.values()) {
+        clearTimeout(timer);
+      }
+      autoSyncRetryTimers.clear();
+
+      // Clear dismissed and pending suggestions
+      dismissedUrlGroups.clear();
+      pendingSuggestions.clear();
+
+      // Stop all active auto-sync groups
+      logger.info('[AUTO-SYNC] Stopping all active groups', {
+        groupCount: autoSyncState.groups.size,
+      });
+      for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
+        if (group.isActive) {
+          await stopAutoSyncForGroup(normalizedUrl);
+        }
+      }
+      // Clear all groups
+      autoSyncState.groups.clear();
+      logger.info('[AUTO-SYNC] All groups cleared');
+    }
+
+    // Broadcast status change to all tabs
+    const tabs = await browser.tabs.query({});
+    const promises = tabs.map(async (tab) => {
+      if (tab.id) {
+        try {
+          await sendMessage(
+            'auto-sync:status-changed',
+            { enabled },
+            { context: 'content-script', tabId: tab.id },
+          );
+        } catch {
+          // Tab may not have content script
+        }
+      }
+    });
+    await Promise.all(promises);
+  } finally {
+    isTogglingAutoSync = false;
+  }
 }
 
 // Helper to persist sync state to storage
@@ -594,42 +932,6 @@ async function sendMessageWithTimeout<T>(
       setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs),
     ),
   ]);
-}
-
-// Helper function to send message with retry and exponential backoff
-async function sendMessageWithRetry<T>(
-  messageId: string,
-  data: unknown,
-  destination: { context: 'content-script'; tabId: number },
-  options: {
-    maxRetries?: number;
-    initialDelayMs?: number;
-    timeoutMs?: number;
-  } = {},
-): Promise<T> {
-  const { maxRetries = 3, initialDelayMs = 500, timeoutMs = 2_000 } = options;
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await sendMessageWithTimeout<T>(messageId, data, destination, timeoutMs);
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      if (attempt < maxRetries) {
-        // Exponential backoff: 500ms, 1000ms, 2000ms
-        const delayMs = initialDelayMs * Math.pow(2, attempt);
-        logger.debug(`Message to tab ${destination.tabId} failed, retrying in ${delayMs}ms`, {
-          attempt: attempt + 1,
-          maxRetries,
-          error: lastError.message,
-        });
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-
-  throw lastError;
 }
 
 // Scroll synchronization message handlers
@@ -1093,8 +1395,22 @@ onMessage('auto-sync:get-status', async () => {
 
 // Handler for getting detailed auto-sync status (for UI display)
 onMessage('auto-sync:get-detailed-status', async ({ sender }) => {
+  logger.debug('[AUTO-SYNC] get-detailed-status request', { senderTabId: sender.tabId });
+
+  const allGroups = Array.from(autoSyncState.groups.entries()).map(([url, g]) => ({
+    url,
+    tabCount: g.tabIds.size,
+    tabIds: Array.from(g.tabIds),
+    isActive: g.isActive,
+  }));
   const activeGroups = Array.from(autoSyncState.groups.values()).filter((g) => g.isActive);
   const totalSyncedTabs = activeGroups.reduce((sum, g) => sum + g.tabIds.size, 0);
+
+  // Count all tabs in groups with 2+ tabs (potential sync candidates)
+  // This is different from totalSyncedTabs which only counts actively syncing tabs
+  const potentialSyncTabs = Array.from(autoSyncState.groups.values())
+    .filter((g) => g.tabIds.size >= 2)
+    .reduce((sum, g) => sum + g.tabIds.size, 0);
 
   // Find current tab's group if sender has tabId
   let currentTabGroup:
@@ -1118,13 +1434,239 @@ onMessage('auto-sync:get-detailed-status', async ({ sender }) => {
     }
   }
 
-  return {
+  const response = {
     success: true,
     enabled: autoSyncState.enabled,
     activeGroupCount: activeGroups.length,
     totalSyncedTabs,
+    potentialSyncTabs,
     currentTabGroup,
   };
+
+  logger.debug('[AUTO-SYNC] get-detailed-status response', {
+    ...response,
+    allGroups,
+    groupCount: autoSyncState.groups.size,
+  });
+
+  return response;
+});
+
+// Handler for sync suggestion response (user accepted or rejected)
+onMessage('sync-suggestion:response', async ({ data }) => {
+  const payload = data as { normalizedUrl: string; accepted: boolean };
+  logger.info('[AUTO-SYNC] Received sync suggestion response', payload);
+
+  // Remove from pending suggestions
+  pendingSuggestions.delete(payload.normalizedUrl);
+
+  // Issue 12 Fix: Broadcast dismiss message to ALL tabs in the group
+  // This closes the toast on all tabs when one tab responds
+  const group = autoSyncState.groups.get(payload.normalizedUrl);
+  if (group) {
+    const uniqueTargetTabs = Array.from(group.tabIds);
+
+    // Send dismiss message to all tabs in parallel (fire-and-forget, don't wait)
+    Promise.allSettled(
+      uniqueTargetTabs.map((targetTabId) =>
+        sendMessageWithTimeout(
+          'sync-suggestion:dismiss',
+          { normalizedUrl: payload.normalizedUrl },
+          { context: 'content-script', tabId: targetTabId },
+          1_000, // 1 second timeout
+        ).catch(() => {
+          // Ignore errors - tab may have been closed or content script not ready
+        }),
+      ),
+    ).then((results) => {
+      const successCount = results.filter((r) => r.status === 'fulfilled').length;
+      logger.debug('[AUTO-SYNC] Dismiss sync suggestion toast broadcast', {
+        totalTabs: uniqueTargetTabs.length,
+        successCount,
+      });
+    });
+  }
+
+  if (payload.accepted) {
+    // User accepted - start manual sync for this group
+    const group = autoSyncState.groups.get(payload.normalizedUrl);
+    if (group && group.tabIds.size >= 2) {
+      const tabIds = Array.from(group.tabIds);
+      logger.info('[AUTO-SYNC] Starting manual sync from suggestion acceptance', {
+        normalizedUrl: payload.normalizedUrl,
+        tabIds,
+      });
+
+      // Mark tabs as manually overridden so they won't be auto-synced again
+      for (const tabId of tabIds) {
+        manualSyncOverriddenTabs.add(tabId);
+      }
+
+      // Remove from auto-sync groups
+      autoSyncState.groups.delete(payload.normalizedUrl);
+
+      // ✅ FIX: Set syncState BEFORE starting connections to prevent race condition
+      // This allows new tabs created during connection phase to be detected
+      syncState.isActive = true;
+      syncState.linkedTabs = tabIds;
+      syncState.mode = 'ratio';
+
+      // Start manual sync by sending scroll:start to background (which triggers the full flow)
+      // This will handle the connection tracking and status broadcasting
+      const connectionResults: Record<number, { success: boolean; error?: string }> = {};
+
+      const promises = tabIds.map(async (tabId) => {
+        try {
+          const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+            'scroll:start',
+            {
+              tabIds,
+              mode: 'ratio',
+              currentTabId: tabId,
+              isAutoSync: false, // This is now manual sync
+            },
+            { context: 'content-script', tabId },
+            2_000,
+          );
+
+          if (response && response.success && response.tabId === tabId) {
+            connectionResults[tabId] = { success: true };
+            syncState.connectionStatuses[tabId] = 'connected';
+          } else {
+            connectionResults[tabId] = { success: false, error: 'Invalid acknowledgment' };
+            syncState.connectionStatuses[tabId] = 'error';
+          }
+        } catch (error) {
+          connectionResults[tabId] = { success: false, error: String(error) };
+          syncState.connectionStatuses[tabId] = 'error';
+        }
+      });
+
+      await Promise.all(promises);
+
+      // Check if at least 2 tabs connected
+      const successfulConnections = Object.entries(connectionResults).filter(
+        ([, result]) => result.success,
+      );
+      const connectedTabIds = successfulConnections.map(([tabId]) => Number(tabId));
+
+      if (connectedTabIds.length >= 2) {
+        // Update linkedTabs to only include successfully connected tabs
+        syncState.linkedTabs = connectedTabIds;
+        await persistSyncState();
+        await broadcastSyncStatus();
+        logger.info('[AUTO-SYNC] Manual sync started from suggestion', { connectedTabIds });
+      } else {
+        // Not enough connections - reset syncState
+        syncState.isActive = false;
+        syncState.linkedTabs = [];
+        syncState.connectionStatuses = {};
+        logger.warn('[AUTO-SYNC] Failed to start sync - not enough tabs connected', {
+          connectionResults,
+        });
+      }
+    }
+  } else {
+    // User rejected - add to dismissed groups
+    dismissedUrlGroups.add(payload.normalizedUrl);
+    logger.info('[AUTO-SYNC] User dismissed sync suggestion', {
+      normalizedUrl: payload.normalizedUrl,
+    });
+  }
+
+  return { success: true };
+});
+
+// Handler for add-tab suggestion response (user accepted or rejected adding new tab to existing sync)
+onMessage('sync-suggestion:add-tab-response', async ({ data }) => {
+  const payload = data as { tabId: number; accepted: boolean };
+  logger.info('[AUTO-SYNC] Received add-tab suggestion response', payload);
+
+  // Issue 10 Fix: Broadcast dismiss message to ALL tabs (synced + new tab)
+  // This closes the toast on all tabs when one tab responds
+  const allTargetTabs = [...syncState.linkedTabs, payload.tabId];
+  const uniqueTargetTabs = [...new Set(allTargetTabs)];
+
+  // Send dismiss message to all tabs in parallel (fire-and-forget, don't wait)
+  Promise.allSettled(
+    uniqueTargetTabs.map((targetTabId) =>
+      sendMessageWithTimeout(
+        'sync-suggestion:dismiss-add-tab',
+        { tabId: payload.tabId },
+        { context: 'content-script', tabId: targetTabId },
+        1_000, // 1 second timeout
+      ).catch(() => {
+        // Ignore errors - tab may have been closed or content script not ready
+      }),
+    ),
+  ).then((results) => {
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    logger.debug('[AUTO-SYNC] Dismiss add-tab toast broadcast', {
+      totalTabs: uniqueTargetTabs.length,
+      successCount,
+    });
+  });
+
+  if (payload.accepted && syncState.isActive) {
+    // User accepted - add tab to existing manual sync
+    const tabId = payload.tabId;
+
+    // Verify tab still exists
+    try {
+      const tab = await browser.tabs.get(tabId);
+      if (!tab) {
+        return { success: false, error: 'Tab no longer exists' };
+      }
+
+      // Mark as manually overridden
+      manualSyncOverriddenTabs.add(tabId);
+
+      // Remove from any auto-sync groups
+      removeTabFromAllAutoSyncGroups(tabId);
+
+      // Add to manual sync
+      const newTabIds = [...syncState.linkedTabs, tabId];
+
+      // Send scroll:start to all tabs with updated tab list
+      const promises = newTabIds.map(async (tId) => {
+        try {
+          const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+            'scroll:start',
+            {
+              tabIds: newTabIds,
+              mode: syncState.mode || 'ratio',
+              currentTabId: tId,
+              isAutoSync: false,
+            },
+            { context: 'content-script', tabId: tId },
+            2_000,
+          );
+
+          if (response && response.success && response.tabId === tId) {
+            syncState.connectionStatuses[tId] = 'connected';
+          } else {
+            syncState.connectionStatuses[tId] = 'error';
+          }
+        } catch {
+          syncState.connectionStatuses[tId] = 'error';
+        }
+      });
+
+      await Promise.all(promises);
+
+      // Update sync state
+      syncState.linkedTabs = newTabIds;
+      await persistSyncState();
+      await broadcastSyncStatus();
+
+      logger.info('[AUTO-SYNC] Added tab to manual sync', { tabId, newTabIds });
+    } catch (error) {
+      logger.error('[AUTO-SYNC] Failed to add tab to sync', { tabId, error });
+      return { success: false, error: String(error) };
+    }
+  }
+
+  return { success: true };
 });
 
 logger.info('All message handlers registered successfully');
@@ -1183,6 +1725,24 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
 
 // Handle new tab creation for auto-sync
 browser.tabs.onCreated.addListener(async (tab) => {
+  // ✅ Bug 9-1 Fix: Record the current active synced tab BEFORE browser switches to new tab
+  // This ensures lastActiveSyncedTabId is set correctly for Add-Tab toast targeting
+  if (syncState.isActive) {
+    try {
+      const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+      const activeTab = activeTabs[0];
+      if (activeTab?.id && syncState.linkedTabs.includes(activeTab.id)) {
+        syncState.lastActiveSyncedTabId = activeTab.id;
+        logger.debug('[AUTO-SYNC] Recorded lastActiveSyncedTabId in onCreated', {
+          lastActiveSyncedTabId: activeTab.id,
+          newTabId: tab.id,
+        });
+      }
+    } catch {
+      // Ignore errors when querying tabs
+    }
+  }
+
   if (!autoSyncState.enabled || !tab.id) {
     return;
   }
@@ -1193,60 +1753,102 @@ browser.tabs.onCreated.addListener(async (tab) => {
     logger.debug(`New tab ${tab.id} created with URL, adding to auto-sync group (pending)`, {
       url: tab.url,
     });
-    // skipStartSync=true because content script isn't ready yet
-    await updateAutoSyncGroup(tab.id, tab.url, true);
+    // skipStartSync=true, skipBroadcast=true because content script isn't ready yet
+    await updateAutoSyncGroup(tab.id, tab.url, true, true);
+
+    // ✅ FIX: Show suggestion after content script is ready (delayed)
+    // This ensures instant toast display when a new same-URL tab is created
+    const normalizedUrl = normalizeUrlForAutoSync(tab.url);
+    if (normalizedUrl) {
+      const group = autoSyncState.groups.get(normalizedUrl);
+      if (group && group.tabIds.size >= 2 && !group.isActive) {
+        // Schedule toast display after content script initializes
+        setTimeout(async () => {
+          // Re-check conditions (state might have changed)
+          const currentGroup = autoSyncState.groups.get(normalizedUrl);
+          if (
+            currentGroup &&
+            currentGroup.tabIds.size >= 2 &&
+            !currentGroup.isActive &&
+            !pendingSuggestions.has(normalizedUrl) &&
+            !dismissedUrlGroups.has(normalizedUrl)
+          ) {
+            logger.info('[AUTO-SYNC] Showing delayed suggestion after tab creation', {
+              tabId: tab.id,
+              normalizedUrl,
+            });
+            await showSyncSuggestion(normalizedUrl);
+          }
+        }, 500); // 500ms delay for content script initialization
+      }
+    }
   }
 });
 
 // Handle tab updates (refresh, URL change) - auto-reconnect synced tabs
 browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Handle auto-sync group updates on URL change
-  // Don't start sync yet - content script might not be ready
-  if (autoSyncState.enabled && changeInfo.url) {
-    // skipStartSync=true because page is still loading, content script might not be ready
-    await updateAutoSyncGroup(tabId, changeInfo.url, true);
-  }
-
-  // When page load completes, content script should be ready - now we can start sync
-  if (autoSyncState.enabled && changeInfo.status === 'complete' && tab.url) {
-    const normalizedUrl = normalizeUrlForAutoSync(tab.url);
-    const existingGroup = normalizedUrl ? autoSyncState.groups.get(normalizedUrl) : null;
+  // Process URL changes IMMEDIATELY (don't wait for status=complete)
+  // This enables instant toast display when URL is known
+  if (changeInfo.url || (changeInfo.status === 'loading' && tab.url)) {
+    const url = changeInfo.url || tab.url || '';
+    const normalizedUrl = normalizeUrlForAutoSync(url);
 
     if (normalizedUrl) {
-      // If tab is not in any group yet, add it
-      if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
-        await updateAutoSyncGroup(tabId, tab.url);
-      }
-      // If tab is in group but sync not active, try to start sync now
-      else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
-        if (existingGroup.tabIds.size >= 2) {
-          await startAutoSyncForGroup(normalizedUrl);
-        }
-      }
-      // If tab is in group and sync IS active, send scroll:start to this tab so it joins the sync
-      else if (existingGroup && existingGroup.tabIds.has(tabId) && existingGroup.isActive) {
-        const tabIds = Array.from(existingGroup.tabIds);
-        try {
-          await sendMessage(
-            'scroll:start',
-            {
-              tabIds,
-              mode: 'ratio',
-              currentTabId: tabId,
-              isAutoSync: true,
-            },
-            { context: 'content-script', tabId },
-          );
-        } catch (error) {
-          logger.error('[AUTO-SYNC] Failed to join sync', {
+      // 1. Check if this tab should be offered to add to existing manual sync
+      // We send toast to an already-synced tab (content script is ready), not to the new tab
+      if (syncState.isActive && !syncState.linkedTabs.includes(tabId)) {
+        // Check if any synced tab has the same normalized URL
+        const syncedTabsWithSameUrl = await Promise.all(
+          syncState.linkedTabs.map(async (syncedTabId) => {
+            try {
+              const syncedTab = await browser.tabs.get(syncedTabId);
+              const syncedNormalizedUrl = syncedTab.url
+                ? normalizeUrlForAutoSync(syncedTab.url)
+                : null;
+              return syncedNormalizedUrl === normalizedUrl;
+            } catch {
+              return false;
+            }
+          }),
+        );
+
+        if (syncedTabsWithSameUrl.some((match) => match)) {
+          // This tab has same URL as a synced tab - offer to add it
+          logger.info('[AUTO-SYNC] Detected new tab with same URL as synced tab (immediate)', {
             tabId,
             normalizedUrl,
-            error: String(error),
+            trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
           });
+          await showAddTabSuggestion(tabId, tab.title || 'Untitled', normalizedUrl);
+        }
+      }
+
+      // 2. Handle auto-sync group updates and show suggestion immediately
+      if (autoSyncState.enabled) {
+        const existingGroup = autoSyncState.groups.get(normalizedUrl);
+
+        // If tab is not in any group yet, add it and possibly show suggestion
+        if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
+          // Don't skip suggestion - we want immediate toast display
+          await updateAutoSyncGroup(tabId, url);
+        }
+        // If tab is in group but sync not active, show suggestion now
+        // ✅ FIX: Add pendingSuggestions and dismissedUrlGroups checks to prevent repeated toasts
+        else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
+          if (
+            existingGroup.tabIds.size >= 2 &&
+            !pendingSuggestions.has(normalizedUrl) &&
+            !dismissedUrlGroups.has(normalizedUrl)
+          ) {
+            await showSyncSuggestion(normalizedUrl);
+          }
         }
       }
     }
   }
+
+  // Note: We removed the duplicate logic from changeInfo.status === 'complete' block
+  // since it's now handled above when URL is first detected
 
   // Check if this tab is in our synced list (manual sync)
   if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
@@ -1369,6 +1971,11 @@ async function reinjectContentScript(tabId: number): Promise<boolean> {
 
 // Handle tab activation - check content script health and reconnect if needed
 browser.tabs.onActivated.addListener(async ({ tabId }) => {
+  // Track the last active synced tab for toast targeting (Bug 8-2 fix)
+  if (syncState.isActive && syncState.linkedTabs.includes(tabId)) {
+    syncState.lastActiveSyncedTabId = tabId;
+  }
+
   if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
     return;
   }

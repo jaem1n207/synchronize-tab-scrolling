@@ -598,17 +598,15 @@ export function ScrollSyncPopup() {
       }
 
       try {
-        const response = (await sendMessage(
-          'auto-sync:get-detailed-status',
-          {},
-          'background',
-        )) as {
+        const response = (await sendMessage('auto-sync:get-detailed-status', {}, 'background')) as {
           success: boolean;
-          totalSyncedTabs: number;
+          potentialSyncTabs: number;
         };
 
         if (response?.success) {
-          setAutoSyncTabCount(response.totalSyncedTabs);
+          // Use potentialSyncTabs (tabs in groups with 2+ same-URL tabs)
+          // instead of totalSyncedTabs (only actively syncing tabs)
+          setAutoSyncTabCount(response.potentialSyncTabs);
         }
       } catch {
         // Ignore errors - status is optional

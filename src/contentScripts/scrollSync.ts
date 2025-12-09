@@ -16,10 +16,15 @@ import {
   loadUrlSyncEnabled,
   saveManualScrollOffset,
 } from '~/shared/lib/storage';
-import type { SyncMode } from '~/shared/types/messages';
+import type { SyncMode, SyncSuggestionMessage, AddTabToSyncMessage } from '~/shared/types/messages';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
 import { hidePanel, showPanel } from './panel';
+import {
+  showSyncSuggestionToast,
+  showAddTabSuggestionToast,
+  hideSuggestionToasts,
+} from './suggestionToast';
 
 const logger = new ExtensionLogger({ scope: 'scroll-sync' });
 
@@ -582,6 +587,9 @@ export function initScrollSync() {
       isAutoSync?: boolean;
     };
 
+    // Hide any pending suggestion toasts since sync is starting
+    hideSuggestionToasts();
+
     // Clean up any existing sync state before starting new sync
     // This is critical for re-sync scenarios where content script is already active
     if (isSyncActive) {
@@ -914,6 +922,28 @@ export function initScrollSync() {
     };
     logger.debug('Auto-sync groups updated', { groupCount: payload.groups.length });
     // This is informational for UI updates - sync control handled by scroll:start/stop
+  });
+
+  // Listen for sync suggestion toast from background (auto-sync suggestion-based flow)
+  onMessage('sync-suggestion:show', async ({ data }) => {
+    const payload = data as unknown as SyncSuggestionMessage;
+    logger.info('Showing sync suggestion toast', {
+      normalizedUrl: payload.normalizedUrl,
+      tabCount: payload.tabCount,
+    });
+    showSyncSuggestionToast(payload);
+    return { success: true };
+  });
+
+  // Listen for add tab to sync suggestion from background
+  onMessage('sync-suggestion:add-tab', async ({ data }) => {
+    const payload = data as unknown as AddTabToSyncMessage;
+    logger.info('Showing add tab suggestion toast', {
+      tabId: payload.tabId,
+      tabTitle: payload.tabTitle,
+    });
+    showAddTabSuggestionToast(payload);
+    return { success: true };
   });
 }
 

@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "Auto-Sync deaktiviert"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "$COUNT$ Tabs mit gleicher URL gefunden. Synchronisation starten?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "Neuer Tab \"$TITLE$\" hat die gleiche URL. Zur Synchronisation hinzufügen?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "Das Hinzufügen dieses Tabs setzt Ihre manuell angepasste Scrollposition zurück"
+  },
+  "startSyncButton": {
+    "message": "Sync starten"
+  },
+  "addTabButton": {
+    "message": "Tab hinzufügen"
+  },
+  "notNowButton": {
+    "message": "Nicht jetzt"
+  },
+  "skipButton": {
+    "message": "Überspringen"
   }
 }

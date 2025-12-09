@@ -458,7 +458,7 @@
     }
   },
   "autoSyncSameUrl": {
-    "message": "Auto-sync same URL"
+    "message": "Suggest sync for same URL"
   },
   "autoSyncActive": {
     "message": "Auto"
@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "Auto-sync disabled"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "Found $COUNT$ tabs with same URL. Start sync?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "New tab \"$TITLE$\" has same URL. Add to sync?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "Adding this tab will reset your scroll position adjustments"
+  },
+  "startSyncButton": {
+    "message": "Start Sync"
+  },
+  "addTabButton": {
+    "message": "Add Tab"
+  },
+  "notNowButton": {
+    "message": "Not Now"
+  },
+  "skipButton": {
+    "message": "Skip"
   }
 }

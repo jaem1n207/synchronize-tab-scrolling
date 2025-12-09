@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "자동 동기화 비활성화됨"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "동일한 URL의 탭 $COUNT$개를 발견했습니다. 동기화를 시작할까요?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "새 탭 \"$TITLE$\"이(가) 동일한 URL입니다. 동기화에 추가할까요?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "이 탭을 추가하면 수동으로 조정한 스크롤 위치가 초기화됩니다"
+  },
+  "startSyncButton": {
+    "message": "동기화 시작"
+  },
+  "addTabButton": {
+    "message": "탭 추가"
+  },
+  "notNowButton": {
+    "message": "나중에"
+  },
+  "skipButton": {
+    "message": "건너뛰기"
   }
 }

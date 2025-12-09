@@ -489,5 +489,38 @@
   },
   "autoSyncDisabled": {
     "message": "Auto-sync desactivado"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "Se encontraron $COUNT$ pestañas con la misma URL. ¿Iniciar sincronización?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "Nueva pestaña \"$TITLE$\" tiene la misma URL. ¿Agregar a la sincronización?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "Agregar esta pestaña restablecerá los ajustes de posición de desplazamiento"
+  },
+  "startSyncButton": {
+    "message": "Iniciar Sync"
+  },
+  "addTabButton": {
+    "message": "Agregar Pestaña"
+  },
+  "notNowButton": {
+    "message": "Ahora No"
+  },
+  "skipButton": {
+    "message": "Omitir"
   }
 }

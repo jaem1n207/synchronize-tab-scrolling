@@ -148,6 +148,56 @@ export interface AutoSyncDetailedStatusResponse {
   };
 }
 
+/**
+ * Message to show sync suggestion toast (same-URL tabs detected)
+ */
+export interface SyncSuggestionMessage {
+  normalizedUrl: string;
+  tabCount: number;
+  tabIds: Array<number>;
+  tabTitles: Array<string>;
+}
+
+/**
+ * Response to sync suggestion (user accepted or rejected)
+ */
+export interface SyncSuggestionResponseMessage {
+  normalizedUrl: string;
+  accepted: boolean;
+}
+
+/**
+ * Message to suggest adding a new tab to existing manual sync
+ */
+export interface AddTabToSyncMessage {
+  tabId: number;
+  tabTitle: string;
+  hasManualOffsets: boolean;
+  normalizedUrl: string;
+}
+
+/**
+ * Response to add tab suggestion (user accepted or rejected)
+ */
+export interface AddTabToSyncResponseMessage {
+  tabId: number;
+  accepted: boolean;
+}
+
+/**
+ * Message to dismiss add-tab toast on all tabs (when one tab responds)
+ */
+export interface DismissAddTabToastMessage {
+  tabId: number;
+}
+
+/**
+ * Message to dismiss sync suggestion toast on all tabs (when one tab responds)
+ */
+export interface DismissSyncSuggestionToastMessage {
+  normalizedUrl: string;
+}
+
 export interface ProtocolMap {
   'scroll:start': StartSyncMessage;
   'scroll:stop': StopSyncMessage;
@@ -162,4 +212,10 @@ export interface ProtocolMap {
   'auto-sync:status-changed': AutoSyncStatusChangedMessage;
   'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
   'auto-sync:get-status': AutoSyncStatusResponse;
+  'sync-suggestion:show': SyncSuggestionMessage;
+  'sync-suggestion:response': SyncSuggestionResponseMessage;
+  'sync-suggestion:add-tab': AddTabToSyncMessage;
+  'sync-suggestion:add-tab-response': AddTabToSyncResponseMessage;
+  'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
+  'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
 }
