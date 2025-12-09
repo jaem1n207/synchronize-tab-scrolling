@@ -179,6 +179,69 @@ stateDiagram-v2
     Error --> [*]: user action
 ```
 
+### Auto-Sync Detection System
+
+Automatically detects tabs with the same URL and suggests scroll synchronization via toast notifications.
+
+**URL Normalization:**
+
+URLs are normalized before comparison to group tabs with essentially the same content:
+
+- Remove query parameters and hash fragments
+- Strip default ports (80 for HTTP, 443 for HTTPS)
+- Exclude non-HTTP/HTTPS protocols
+- Case-insensitive hostname comparison
+
+**State Management:**
+
+```typescript
+interface AutoSyncState {
+  enabled: boolean;
+  groups: Map<string, AutoSyncGroup>; // normalizedUrl → group
+  excludedUrls: Array<string>;
+}
+
+interface AutoSyncGroup {
+  tabIds: Set<number>;
+  isActive: boolean;
+}
+```
+
+**Message Flow:**
+
+```mermaid
+sequenceDiagram
+    participant Tab as New Tab
+    participant BG as Background Script
+    participant CS as Content Scripts
+
+    Tab->>BG: tabs.onCreated / tabs.onUpdated
+    BG->>BG: Normalize URL
+    BG->>BG: Update AutoSyncGroup
+    alt 2+ tabs with same URL
+        BG->>CS: sync-suggestion:show (to all tabs in group)
+        CS->>CS: Render toast in Shadow DOM
+        alt User clicks "Start Sync"
+            CS->>BG: sync-suggestion:response (accepted)
+            BG->>CS: Start manual sync
+        else User clicks "Not Now"
+            CS->>BG: sync-suggestion:response (rejected)
+            BG->>BG: Add URL to dismissedUrlGroups
+        else Auto-dismiss (10s)
+            CS->>BG: sync-suggestion:response (dismissed)
+        end
+        BG->>CS: sync-suggestion:hide (to all tabs)
+    end
+```
+
+**Key Implementation Details:**
+
+- Toast renders in Shadow DOM for style isolation
+- All tabs in a group receive toast simultaneously
+- `dismissedUrlGroups` persists only for browser session (memory-only)
+- Retry mechanism handles content scripts not ready (500ms delay, 3 retries)
+- Manual sync takes priority over auto-sync (`manualSyncOverriddenTabs`)
+
 ---
 
 ## Tech Stack
