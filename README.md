@@ -141,6 +141,25 @@ flowchart TD
     D --> E["Sync continues from new alignment"]
 ```
 
+### URL Navigation Sync
+
+When you click a link in one tab, all linked tabs navigate to the same URL together.
+
+### Auto-Sync Suggestion
+
+When you open multiple tabs with the same URL, a toast notification appears in the bottom-right corner of each tab, making it easy to start scroll sync with one click.
+
+```mermaid
+flowchart LR
+    A[Open same URL in 2+ tabs] --> B[Toast appears]
+    B --> C{User choice}
+    C -->|Start Sync| D[Sync begins]
+    C -->|Not Now| E[Dismissed for session]
+    B --> F[Auto-dismiss after 10s]
+```
+
+This feature is **enabled by default**. You can disable it anytime in the **Actions menu** → **"Suggest sync for same URL"**.
+
 ### Auto-Reconnection
 
 If a tab loses connection (e.g., after your computer sleeps), the extension automatically reconnects and resumes syncing—no manual intervention needed.
@@ -151,10 +170,6 @@ flowchart LR
     B --> C[Reconnect]
     C --> D[Resume sync]
 ```
-
-### URL Navigation Sync
-
-When you click a link in one tab, all linked tabs navigate to the same URL together.
 
 ---
 
