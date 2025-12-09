@@ -187,6 +187,70 @@ export function ActionsMenu({
 
                   <Separator />
 
+                  {/* Advanced Features */}
+                  <CommandGroup heading={t('advancedFeatures')}>
+                    <CommandItem
+                      ref={autoSyncItemRef}
+                      value="auto-sync-same-url"
+                      onSelect={() => {
+                        onAutoSyncChange(!autoSyncEnabled);
+                        // Bug 14-2 fix: Use setTimeout(0) instead of requestAnimationFrame
+                        // requestAnimationFrame fires before React re-render completes,
+                        // setTimeout(0) uses macrotask queue which runs after re-render
+                        setTimeout(() => {
+                          autoSyncItemRef.current?.focus();
+                        }, 0);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <Link2 aria-hidden="true" className="w-4 h-4" />
+                        <span>{t('autoSyncSameUrl')}</span>
+                        {autoSyncEnabled && autoSyncTabCount != null && autoSyncTabCount > 0 && (
+                          <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
+                            {autoSyncTabCount}
+                          </span>
+                        )}
+                      </div>
+                      {autoSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
+                    </CommandItem>
+                    <CommandItem
+                      onSelect={() => {
+                        onUrlSyncChange(!urlSyncEnabled);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <Globe aria-hidden="true" className="w-4 h-4" />
+                        <span>{t('urlSyncNavigation')}</span>
+                      </div>
+                      {urlSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
+                    </CommandItem>
+                  </CommandGroup>
+
+                  <Separator />
+
+                  {/* Filter Options */}
+                  <CommandGroup heading={t('filtersHeading')}>
+                    <CommandItem
+                      onSelect={() => {
+                        onSameDomainFilterChange(!sameDomainFilter);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <Filter aria-hidden="true" className="w-4 h-4" />
+                        <span>{t('sameDomainOnly')}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {sameDomainFilter && <Check aria-hidden="true" className="w-4 h-4" />}
+                        <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                          <Kbd>⌘</Kbd>
+                          <Kbd>D</Kbd>
+                        </div>
+                      </div>
+                    </CommandItem>
+                  </CommandGroup>
+
+                  <Separator />
+
                   {/* Selection Controls */}
                   <CommandGroup heading={t('selectionHeading')}>
                     <CommandItem disabled={isSyncActive} onSelect={handleSelectAll}>
@@ -211,29 +275,6 @@ export function ActionsMenu({
                         <Kbd>⌘</Kbd>
                         <Kbd>⇧</Kbd>
                         <Kbd>X</Kbd>
-                      </div>
-                    </CommandItem>
-                  </CommandGroup>
-
-                  <Separator />
-
-                  {/* Filter Options */}
-                  <CommandGroup heading={t('filtersHeading')}>
-                    <CommandItem
-                      onSelect={() => {
-                        onSameDomainFilterChange(!sameDomainFilter);
-                      }}
-                    >
-                      <div className="flex items-center gap-2 flex-1">
-                        <Filter aria-hidden="true" className="w-4 h-4" />
-                        <span>{t('sameDomainOnly')}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {sameDomainFilter && <Check aria-hidden="true" className="w-4 h-4" />}
-                        <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                          <Kbd>⌘</Kbd>
-                          <Kbd>D</Kbd>
-                        </div>
                       </div>
                     </CommandItem>
                   </CommandGroup>
@@ -273,47 +314,6 @@ export function ActionsMenu({
                         <Kbd>⌘</Kbd>
                         <Kbd>2</Kbd>
                       </div>
-                    </CommandItem>
-                  </CommandGroup>
-
-                  <Separator />
-
-                  {/* Advanced Features */}
-                  <CommandGroup heading={t('advancedFeatures')}>
-                    <CommandItem
-                      ref={autoSyncItemRef}
-                      value="auto-sync-same-url"
-                      onSelect={() => {
-                        onAutoSyncChange(!autoSyncEnabled);
-                        // Bug 14-2 fix: Use setTimeout(0) instead of requestAnimationFrame
-                        // requestAnimationFrame fires before React re-render completes,
-                        // setTimeout(0) uses macrotask queue which runs after re-render
-                        setTimeout(() => {
-                          autoSyncItemRef.current?.focus();
-                        }, 0);
-                      }}
-                    >
-                      <div className="flex items-center gap-2 flex-1">
-                        <Link2 aria-hidden="true" className="w-4 h-4" />
-                        <span>{t('autoSyncSameUrl')}</span>
-                        {autoSyncEnabled && autoSyncTabCount != null && autoSyncTabCount > 0 && (
-                          <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
-                            {autoSyncTabCount}
-                          </span>
-                        )}
-                      </div>
-                      {autoSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
-                    </CommandItem>
-                    <CommandItem
-                      onSelect={() => {
-                        onUrlSyncChange(!urlSyncEnabled);
-                      }}
-                    >
-                      <div className="flex items-center gap-2 flex-1">
-                        <Globe aria-hidden="true" className="w-4 h-4" />
-                        <span>{t('urlSyncNavigation')}</span>
-                      </div>
-                      {urlSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
                     </CommandItem>
                   </CommandGroup>
                 </CommandList>
