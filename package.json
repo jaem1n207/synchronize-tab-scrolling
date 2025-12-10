@@ -84,7 +84,7 @@
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
+    "@eslint/js": "^9.39.1",
     "@ffflorian/jszip-cli": "^3.8.2",
     "@iconify/json": "^2.2.353",
     "@playwright/test": "^1.53.1",
