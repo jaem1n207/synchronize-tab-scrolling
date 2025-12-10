@@ -1800,6 +1800,23 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
     await broadcastAutoSyncGroupUpdate();
   }
 
+  // Dismiss Add-Tab toast for the closed tab
+  // This handles the case where a new tab (not yet synced) is closed
+  // while the Add-Tab toast is being shown to synced tabs
+  if (syncState.isActive && syncState.linkedTabs.length > 0) {
+    const dismissPromises = syncState.linkedTabs.map((linkedTabId) =>
+      sendMessageWithTimeout(
+        'sync-suggestion:dismiss-add-tab',
+        { tabId }, // The tab that was just closed
+        { context: 'content-script', tabId: linkedTabId },
+        1_000,
+      ).catch(() => {
+        // Ignore errors - tab may have been closed
+      }),
+    );
+    await Promise.allSettled(dismissPromises);
+  }
+
   // Handle manual sync removal
   if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
     return;
