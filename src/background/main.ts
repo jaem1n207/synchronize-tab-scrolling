@@ -1144,7 +1144,7 @@ onMessage('scroll:start', async ({ data }) => {
         'scroll:start',
         { ...payload, currentTabId: tabId },
         { context: 'content-script', tabId },
-        2_000, // 2 second timeout
+        1_000, // 1 second timeout
       );
 
       // Validate acknowledgment
