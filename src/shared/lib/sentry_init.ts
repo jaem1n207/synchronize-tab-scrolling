@@ -1,5 +1,23 @@
-import * as Sentry from '@sentry/react';
+import {
+  BrowserClient,
+  defaultStackParser,
+  getDefaultIntegrations,
+  makeFetchTransport,
+  Scope,
+  type SeverityLevel,
+  type ErrorEvent,
+  type EventHint,
+} from '@sentry/browser';
 import browser from 'webextension-polyfill';
+
+// Filter integrations that use global state (not compatible with browser extensions)
+// See: https://docs.sentry.io/platforms/javascript/best-practices/browser-extensions/
+const integrations = getDefaultIntegrations({}).filter(
+  (defaultIntegration) =>
+    !['BrowserApiErrors', 'Breadcrumbs', 'GlobalHandlers'].includes(defaultIntegration.name),
+);
+
+let sentryScope: Scope | null = null;
 
 export const initializeSentry = (): void => {
   const dsn =
@@ -11,25 +29,15 @@ export const initializeSentry = (): void => {
   }
 
   try {
-    Sentry.init({
-      dsn: dsn,
+    const client = new BrowserClient({
+      dsn,
       release: `synchronize-tab-scrolling@${browser.runtime.getManifest().version}`,
-      environment: process.env.NODE_ENV, // 'development' 또는 'production'
-      // Setting this option to true will send default PII data to Sentry.
-      // For example, automatic IP address collection on events
+      environment: process.env.NODE_ENV,
       sendDefaultPii: true,
-      integrations: [
-        Sentry.replayIntegration({
-          // Session Replay 마스킹 옵션 (필요시 설정)
-          // maskAllText: true,
-          // blockAllMedia: true,
-        }),
-      ],
-      // Session Replay
-      // 무료 플랜 최적화: 일반 세션은 리플레이하지 않고, 에러 발생 세션만 리플레이합니다.
-      replaysSessionSampleRate: 0.0, // This sets the sample rate at 0%.
-      replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
-      beforeSend(event, hint) {
+      transport: makeFetchTransport,
+      stackParser: defaultStackParser,
+      integrations,
+      beforeSend(event: ErrorEvent, hint: EventHint): ErrorEvent | null {
         const error = hint.originalException;
         if (error && typeof error === 'string' && error.includes('특정 에러 메시지')) {
           return null;
@@ -46,15 +54,51 @@ export const initializeSentry = (): void => {
       },
     });
 
-    // 사용자 정보 설정
-    // Sentry.setUser({ id: 'user_id', email: 'user@example.com' });
-
-    // 태그 또는 추가 데이터 설정
-    // Sentry.setTag('page_locale', 'ko-KR');
-    // Sentry.setExtra('custom_data', { foo: 'bar' });
+    sentryScope = new Scope();
+    sentryScope.setClient(client);
+    client.init();
 
     console.info('Sentry가 성공적으로 초기화되었습니다.');
   } catch (error) {
     console.error('Sentry 초기화 중 오류 발생:', error);
   }
+};
+
+export const getSentryScope = (): Scope | null => sentryScope;
+
+export const captureException = (
+  error: Error,
+  context?: {
+    extra?: Record<string, unknown>;
+    tags?: Record<string, string>;
+    level?: SeverityLevel;
+  },
+): string | undefined => {
+  if (!sentryScope) return undefined;
+
+  return sentryScope.captureException(error, {
+    captureContext: {
+      extra: context?.extra,
+      tags: context?.tags,
+      level: context?.level,
+    },
+  });
+};
+
+export const captureMessage = (
+  message: string,
+  context?: {
+    level?: SeverityLevel;
+    extra?: Record<string, unknown>;
+    tags?: Record<string, string>;
+  },
+): string | undefined => {
+  if (!sentryScope) return undefined;
+
+  return sentryScope.captureMessage(message, context?.level ?? 'info', {
+    captureContext: {
+      extra: context?.extra,
+      tags: context?.tags,
+    },
+  });
 };
