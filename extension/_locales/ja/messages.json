@@ -427,6 +427,9 @@
   "connectionLost": {
     "message": "接続が切断されました"
   },
+  "reconnect": {
+    "message": "再接続"
+  },
   "reconnecting": {
     "message": "再接続中..."
   },

@@ -32,6 +32,8 @@ import { getAutoSyncStatus } from '../scrollSync';
 interface SyncControlPanelProps {
   urlSyncEnabled: boolean;
   onToggle: () => void;
+  isConnectionHealthy?: boolean;
+  onReconnect?: () => void;
   className?: string;
 }
 
@@ -90,6 +92,8 @@ CustomPopoverContent.displayName = 'CustomPopoverContent';
 export const SyncControlPanel = ({
   urlSyncEnabled,
   onToggle,
+  isConnectionHealthy = true,
+  onReconnect,
   className,
 }: SyncControlPanelProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -476,13 +480,21 @@ export const SyncControlPanel = ({
             {/* Status indicator */}
             <div className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
               <div
-                aria-label={urlSyncEnabled ? t('syncActive') : t('syncInactive')}
+                aria-label={
+                  !isConnectionHealthy
+                    ? t('connectionLost')
+                    : urlSyncEnabled
+                      ? t('syncActive')
+                      : t('syncInactive')
+                }
                 className={cn(
                   'h-3 w-3 rounded-full',
                   'border-2',
                   systemTheme === 'dark' ? 'border-white' : 'border-black',
                   'transition-colors duration-200',
-                  urlSyncEnabled ? 'bg-blue-500' : 'bg-gray-400',
+                  !isConnectionHealthy && 'bg-amber-500 animate-pulse',
+                  isConnectionHealthy && urlSyncEnabled && 'bg-blue-500',
+                  isConnectionHealthy && !urlSyncEnabled && 'bg-gray-400',
                 )}
                 role="status"
               />
@@ -519,6 +531,18 @@ export const SyncControlPanel = ({
                 <div className="text-sm font-medium border-b border-border/70 pb-2">
                   {t('scrollSyncToolbar')}
                 </div>
+
+                {/* Connection lost warning */}
+                {!isConnectionHealthy && onReconnect && (
+                  <div className="flex items-center justify-between gap-3 py-2 px-3 bg-amber-500/10 rounded-md border border-amber-500/30">
+                    <span className="text-sm text-amber-600 dark:text-amber-400">
+                      {t('connectionLost')}
+                    </span>
+                    <Button size="sm" variant="outline" onClick={onReconnect}>
+                      {t('reconnect')}
+                    </Button>
+                  </div>
+                )}
 
                 {/* URL Sync Navigation toggle */}
                 <div className="flex items-center justify-between gap-3 py-2">

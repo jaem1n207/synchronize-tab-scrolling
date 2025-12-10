@@ -427,6 +427,9 @@
   "connectionLost": {
     "message": "연결이 끊어졌습니다"
   },
+  "reconnect": {
+    "message": "재연결"
+  },
   "reconnecting": {
     "message": "재연결 중..."
   },

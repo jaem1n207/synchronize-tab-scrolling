@@ -427,6 +427,9 @@
   "connectionLost": {
     "message": "连接已断开"
   },
+  "reconnect": {
+    "message": "重新连接"
+  },
   "reconnecting": {
     "message": "正在重新连接..."
   },

@@ -427,6 +427,9 @@
   "connectionLost": {
     "message": "कनेक्शन टूट गया"
   },
+  "reconnect": {
+    "message": "पुनः कनेक्ट करें"
+  },
   "reconnecting": {
     "message": "पुनः कनेक्ट हो रहा है..."
   },

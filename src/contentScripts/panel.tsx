@@ -15,10 +15,29 @@ import type {
 import { SyncControlPanel } from './components';
 import { SyncSuggestionToast, AddTabToSyncToast } from './components/SyncSuggestionToast';
 
+// Custom event type for connection status
+interface ConnectionStatusEvent extends CustomEvent {
+  detail: { isConnected: boolean; tabId: number };
+}
+
 function PanelApp() {
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
   const [syncSuggestion, setSyncSuggestion] = useState<SyncSuggestionMessage | null>(null);
   const [addTabSuggestion, setAddTabSuggestion] = useState<AddTabToSyncMessage | null>(null);
+  const [isConnectionHealthy, setIsConnectionHealthy] = useState(true);
+
+  // Listen for connection status events from scrollSync.ts via CustomEvent
+  useEffect(() => {
+    const handleConnectionStatus = (event: Event) => {
+      const customEvent = event as ConnectionStatusEvent;
+      setIsConnectionHealthy(customEvent.detail.isConnected);
+    };
+
+    window.addEventListener('scroll-sync-connection-status', handleConnectionStatus);
+    return () => {
+      window.removeEventListener('scroll-sync-connection-status', handleConnectionStatus);
+    };
+  }, []);
 
   useEffect(() => {
     // Load URL sync state
@@ -153,9 +172,24 @@ function PanelApp() {
     setAddTabSuggestion(null);
   }, [addTabSuggestion]);
 
+  // Handle manual reconnection attempt
+  const handleManualReconnect = useCallback(async () => {
+    try {
+      await sendMessage('scroll:reconnect', { tabId: 0, timestamp: Date.now() }, 'background');
+      // Note: tabId 0 will be resolved by the background script from sender info
+    } catch (error) {
+      console.error('Manual reconnection failed', error);
+    }
+  }, []);
+
   return (
     <>
-      <SyncControlPanel urlSyncEnabled={urlSyncEnabled} onToggle={handleToggleUrlSync} />
+      <SyncControlPanel
+        isConnectionHealthy={isConnectionHealthy}
+        urlSyncEnabled={urlSyncEnabled}
+        onReconnect={handleManualReconnect}
+        onToggle={handleToggleUrlSync}
+      />
 
       {/* Sync suggestion toast */}
       {syncSuggestion && (
@@ -190,12 +224,40 @@ function getSystemTheme(): 'light' | 'dark' {
 }
 
 export function showPanel() {
-  if (panelContainer) {
-    panelContainer.style.display = 'block';
-    return;
+  // 1. Check for existing panel elements in DOM (handles re-injection scenario)
+  const existingPanels = document.querySelectorAll('#scroll-sync-panel-root');
+
+  if (existingPanels.length > 0) {
+    if (!panelContainer) {
+      // Re-injection scenario: module state was reset but DOM elements exist
+      // Clean up orphaned elements before creating new one
+      console.info('[panel] Found orphaned panel elements, cleaning up', {
+        count: existingPanels.length,
+      });
+      existingPanels.forEach((panel) => panel.remove());
+    } else if (document.body.contains(panelContainer)) {
+      // Normal case: reuse existing panel
+      panelContainer.style.display = 'block';
+      return;
+    } else {
+      // Edge case: panelContainer reference exists but not in DOM
+      // Clean up stale reference and orphaned elements
+      console.info('[panel] Panel container detached from DOM, cleaning up');
+      existingPanels.forEach((panel) => panel.remove());
+      panelContainer = null;
+      panelRoot = null;
+    }
   }
 
-  // Create root container following Vercel toolbar pattern
+  // 2. Clean up any existing theme listener before creating new one
+  if (themeChangeListener) {
+    window
+      .matchMedia('(prefers-color-scheme: dark)')
+      .removeEventListener('change', themeChangeListener);
+    themeChangeListener = null;
+  }
+
+  // 3. Create root container following Vercel toolbar pattern
   panelContainer = document.createElement('div');
   panelContainer.id = 'scroll-sync-panel-root';
   panelContainer.className = 'tailwind tailwind-no-preflight';

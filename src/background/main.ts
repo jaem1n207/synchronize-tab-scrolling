@@ -32,6 +32,74 @@ let syncState: SyncState = {
   lastActiveSyncedTabId: null,
 };
 
+// Keep-alive mechanism to prevent service worker termination during active sync
+// Chrome MV3 service workers terminate after ~30 seconds of inactivity
+let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+const KEEP_ALIVE_INTERVAL_MS = 25000; // 25 seconds (before 30s termination)
+
+/**
+ * Start keep-alive mechanism to prevent service worker termination
+ * Also periodically checks health of all synced tabs
+ */
+function startKeepAlive() {
+  if (keepAliveInterval) {
+    logger.debug('Keep-alive already running');
+    return;
+  }
+
+  keepAliveInterval = setInterval(async () => {
+    logger.debug('Keep-alive ping', {
+      syncActive: syncState.isActive,
+      linkedTabs: syncState.linkedTabs.length,
+    });
+
+    // If sync is active, check health of all tabs
+    if (syncState.isActive && syncState.linkedTabs.length > 0) {
+      await checkAllTabsHealth();
+    }
+  }, KEEP_ALIVE_INTERVAL_MS);
+
+  logger.info('Keep-alive started');
+}
+
+/**
+ * Stop keep-alive mechanism
+ */
+function stopKeepAlive() {
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = null;
+    logger.info('Keep-alive stopped');
+  }
+}
+
+/**
+ * Check health of all synced tabs and attempt recovery if needed
+ */
+async function checkAllTabsHealth() {
+  if (!syncState.isActive) return;
+
+  logger.debug('Checking health of all synced tabs', {
+    tabCount: syncState.linkedTabs.length,
+  });
+
+  for (const tabId of syncState.linkedTabs) {
+    const isAlive = await isContentScriptAlive(tabId);
+
+    if (!isAlive && syncState.connectionStatuses[tabId] === 'connected') {
+      logger.warn(`Tab ${tabId} lost connection during keep-alive check, attempting recovery`);
+
+      // Try to re-inject content script
+      const success = await reinjectContentScript(tabId);
+      if (!success) {
+        logger.error(`Failed to recover tab ${tabId} during keep-alive check`);
+        syncState.connectionStatuses[tabId] = 'error';
+        await persistSyncState();
+      }
+    }
+  }
+}
+
 // Auto-sync state for same-URL tabs
 interface AutoSyncGroup {
   tabIds: Set<number>;
@@ -980,6 +1048,9 @@ async function restoreSyncState() {
 
           await Promise.all(reconnectPromises);
           await broadcastSyncStatus();
+
+          // Start keep-alive after restoring sync
+          startKeepAlive();
         } else {
           // Not enough tabs, clear sync state
           logger.info(
@@ -1139,6 +1210,9 @@ onMessage('scroll:start', async ({ data }) => {
   syncState.linkedTabs = connectedTabIds;
   syncState.mode = payload.mode;
 
+  // Start keep-alive mechanism to prevent service worker termination
+  startKeepAlive();
+
   // Persist state to survive service worker restarts
   await persistSyncState();
 
@@ -1202,6 +1276,9 @@ onMessage('scroll:stop', async ({ data }) => {
       tabIds: payload.tabIds,
     });
   }
+
+  // Stop keep-alive mechanism
+  stopKeepAlive();
 
   // Clear sync state
   syncState.isActive = false;
@@ -1482,6 +1559,27 @@ onMessage('scroll:reconnect', async ({ data }) => {
     }
     return { success: false, reason: 'Connection failed' };
   }
+});
+
+// Handler for content script re-injection request (when all reconnection attempts fail)
+onMessage('scroll:request-reinject', async ({ data }) => {
+  const payload = data as { tabId: number };
+  logger.info('Received content script re-inject request', { tabId: payload.tabId });
+
+  // Check if tab is in any active sync
+  const isInManualSync = syncState.isActive && syncState.linkedTabs.includes(payload.tabId);
+  const isInAutoSync = isTabInActiveAutoSyncGroup(payload.tabId);
+
+  if (!isInManualSync && !isInAutoSync) {
+    logger.debug('Tab not in any active sync, ignoring re-inject request', {
+      tabId: payload.tabId,
+    });
+    return { success: false, reason: 'Tab not in sync' };
+  }
+
+  // Re-inject content script
+  const success = await reinjectContentScript(payload.tabId);
+  return { success };
 });
 
 // Handler for auto-sync status toggle from content script
@@ -1850,6 +1948,9 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
       ),
     );
     await Promise.all(promises);
+
+    // Stop keep-alive mechanism
+    stopKeepAlive();
 
     // Clear sync state
     syncState.isActive = false;

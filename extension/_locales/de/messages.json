@@ -427,6 +427,9 @@
   "connectionLost": {
     "message": "Verbindung verloren"
   },
+  "reconnect": {
+    "message": "Erneut verbinden"
+  },
   "reconnecting": {
     "message": "Verbindung wird wiederhergestellt..."
   },

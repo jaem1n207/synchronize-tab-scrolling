@@ -24,6 +24,12 @@ let currentAddTabSuggestion: AddTabToSyncMessage | null = null;
 let cssLoaded = false;
 let cssLoadPromise: Promise<void> | null = null;
 
+// Memory leak fix: Store theme listener reference for cleanup
+let toastThemeChangeListener: ((e: MediaQueryListEvent) => void) | null = null;
+
+// Memory leak fix: Prevent duplicate onMessage handler registration on re-injection
+let messageHandlersRegistered = false;
+
 /**
  * Detect system theme preference
  */
@@ -32,11 +38,48 @@ function getSystemTheme(): 'light' | 'dark' {
 }
 
 /**
+ * Register message handlers for toast dismiss events
+ * Only registers once to prevent accumulation on content script re-injection
+ */
+function registerMessageHandlers() {
+  if (messageHandlersRegistered) return;
+
+  // Issue 10 Fix: Listen for dismiss messages from background script
+  // When one tab responds to add-tab suggestion, all tabs receive this message to close their toasts
+  onMessage('sync-suggestion:dismiss-add-tab', ({ data }) => {
+    const payload = data as unknown as DismissAddTabToastMessage;
+    dismissAddTabToast(payload.tabId);
+  });
+
+  // Issue 12 Fix: Listen for dismiss messages from background script
+  // When one tab responds to sync suggestion, all tabs receive this message to close their toasts
+  onMessage('sync-suggestion:dismiss', ({ data }) => {
+    const payload = data as unknown as DismissSyncSuggestionToastMessage;
+    dismissSyncSuggestionToast(payload.normalizedUrl);
+  });
+
+  messageHandlersRegistered = true;
+}
+
+/**
  * Create the toast container if it doesn't exist
  * Also recreates if the container was removed from DOM
  * Returns a Promise that resolves when CSS is loaded
  */
 async function ensureToastContainer(): Promise<void> {
+  // Register message handlers on first call (prevents accumulation on re-injection)
+  registerMessageHandlers();
+
+  // Check for orphaned containers in DOM (re-injection scenario)
+  // When content script is re-injected, module state resets but DOM elements remain
+  const existingContainers = document.querySelectorAll('#scroll-sync-suggestion-toast-root');
+  if (existingContainers.length > 0 && !toastContainer) {
+    console.info('[SuggestionToast] Found orphaned toast containers, cleaning up', {
+      count: existingContainers.length,
+    });
+    existingContainers.forEach((container) => container.remove());
+  }
+
   // Check if container exists AND is actually attached to the DOM AND CSS is loaded
   // This handles cases where the website might have removed our container
   if (toastContainer && document.body.contains(toastContainer) && cssLoaded) {
@@ -64,6 +107,14 @@ async function ensureToastContainer(): Promise<void> {
     cssLoadPromise = null;
   }
 
+  // Clean up existing theme listener before creating new one
+  if (toastThemeChangeListener) {
+    window
+      .matchMedia('(prefers-color-scheme: dark)')
+      .removeEventListener('change', toastThemeChangeListener);
+    toastThemeChangeListener = null;
+  }
+
   // Create root container
   toastContainer = document.createElement('div');
   toastContainer.id = 'scroll-sync-suggestion-toast-root';
@@ -79,11 +130,12 @@ async function ensureToastContainer(): Promise<void> {
   const themeWrapper = document.createElement('div');
   themeWrapper.className = getSystemTheme();
 
-  // Listen for system theme changes
+  // Listen for system theme changes (store reference for cleanup)
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  mediaQuery.addEventListener('change', (e: MediaQueryListEvent) => {
+  toastThemeChangeListener = (e: MediaQueryListEvent) => {
     themeWrapper.className = e.matches ? 'dark' : 'light';
-  });
+  };
+  mediaQuery.addEventListener('change', toastThemeChangeListener);
 
   themeWrapper.style.cssText = `
     position: fixed;
@@ -413,6 +465,14 @@ export function hideSuggestionToasts() {
  * Cleanup suggestion toast container
  */
 export function destroySuggestionToast() {
+  // Clean up theme listener to prevent memory leak
+  if (toastThemeChangeListener) {
+    window
+      .matchMedia('(prefers-color-scheme: dark)')
+      .removeEventListener('change', toastThemeChangeListener);
+    toastThemeChangeListener = null;
+  }
+
   if (toastRoot) {
     toastRoot.unmount();
     toastRoot = null;
@@ -440,13 +500,6 @@ export function dismissAddTabToast(tabId: number) {
   }
 }
 
-// Issue 10 Fix: Listen for dismiss messages from background script
-// When one tab responds to add-tab suggestion, all tabs receive this message to close their toasts
-onMessage('sync-suggestion:dismiss-add-tab', ({ data }) => {
-  const payload = data as unknown as DismissAddTabToastMessage;
-  dismissAddTabToast(payload.tabId);
-});
-
 /**
  * Dismiss sync suggestion toast if it matches the given normalizedUrl
  * Issue 12 Fix: Called when another tab responds to the sync suggestion
@@ -457,10 +510,3 @@ export function dismissSyncSuggestionToast(normalizedUrl: string) {
     renderToast();
   }
 }
-
-// Issue 12 Fix: Listen for dismiss messages from background script
-// When one tab responds to sync suggestion, all tabs receive this message to close their toasts
-onMessage('sync-suggestion:dismiss', ({ data }) => {
-  const payload = data as unknown as DismissSyncSuggestionToastMessage;
-  dismissSyncSuggestionToast(payload.normalizedUrl);
-});

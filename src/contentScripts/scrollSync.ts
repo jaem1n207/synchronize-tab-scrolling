@@ -19,7 +19,7 @@ import {
 import type { SyncMode, SyncSuggestionMessage, AddTabToSyncMessage } from '~/shared/types/messages';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
-import { hidePanel, showPanel } from './panel';
+import { destroyPanel, hidePanel, showPanel } from './panel';
 import {
   showSyncSuggestionToast,
   showAddTabSuggestionToast,
@@ -66,6 +66,10 @@ const CONNECTION_TIMEOUT_THRESHOLD = 60000; // Consider disconnected after 60 se
 // Visibility change handler for idle tab reconnection
 let visibilityChangeHandler: (() => void) | null = null;
 let isReconnecting = false; // Prevent duplicate reconnection attempts
+
+// Reconnection retry mechanism
+const MAX_RECONNECTION_ATTEMPTS = 3;
+const RECONNECTION_BACKOFF_MS = [500, 1000, 2000]; // Exponential backoff delays
 
 /**
  * Get current scroll information
@@ -318,6 +322,11 @@ async function handleScrollCore() {
   // Broadcast to other tabs via background script
   sendMessage('scroll:sync', message, 'background').catch((error) => {
     logger.error('Failed to send scroll sync message', { error });
+    // Message failure indicates connection problem - trigger reconnection
+    if (!isReconnecting) {
+      logger.info('Initiating reconnection due to scroll sync message failure');
+      requestReconnection();
+    }
   });
 }
 
@@ -455,44 +464,80 @@ function stopConnectionHealthCheck() {
 }
 
 /**
+ * Dispatch connection status event via CustomEvent
+ * This is used for same-page communication to the panel component
+ * (sendMessage to 'content-script' context doesn't work reliably in MV3)
+ */
+function dispatchConnectionStatusEvent(isConnected: boolean) {
+  window.dispatchEvent(
+    new CustomEvent('scroll-sync-connection-status', {
+      detail: { isConnected, tabId: currentTabId },
+    }),
+  );
+}
+
+/**
  * Show reconnection prompt to user
  */
 function showReconnectionPrompt() {
-  logger.info('Showing reconnection prompt');
-  // Send message to panel to show reconnection UI
-  sendMessage('connection:lost', {}, 'content-script').catch((error) => {
-    logger.error('Failed to send connection lost message', { error });
-  });
+  logger.info('Connection lost, notifying panel');
+  dispatchConnectionStatusEvent(false);
 }
 
 /**
  * Hide reconnection prompt
  */
 function hideReconnectionPrompt() {
-  logger.info('Hiding reconnection prompt');
-  // Send message to panel to hide reconnection UI
-  sendMessage('connection:restored', {}, 'content-script').catch((error) => {
-    logger.error('Failed to send connection restored message', { error });
-  });
+  logger.info('Connection restored, notifying panel');
+  dispatchConnectionStatusEvent(true);
+}
+
+/**
+ * Request content script re-injection from background
+ * Called when all reconnection attempts fail
+ */
+async function requestContentScriptReinject(): Promise<void> {
+  logger.info('Requesting content script re-injection', { tabId: currentTabId });
+  try {
+    await sendMessage('scroll:request-reinject', { tabId: currentTabId }, 'background');
+  } catch (error) {
+    logger.error('Failed to request reinject', { error });
+  }
 }
 
 /**
  * Request reconnection from background script
  * Called when tab becomes visible after being idle/suspended
+ * Implements retry mechanism with exponential backoff
  */
-async function requestReconnection() {
-  if (isReconnecting) {
+async function requestReconnection(attemptNumber = 0): Promise<boolean> {
+  // Only check isReconnecting for the first attempt
+  if (isReconnecting && attemptNumber === 0) {
     logger.debug('Reconnection already in progress, skipping');
-    return;
+    return false;
   }
 
   if (!isSyncActive || !currentTabId) {
     logger.debug('Sync not active or no tab ID, skipping reconnection');
-    return;
+    return false;
+  }
+
+  // Check if max attempts reached
+  if (attemptNumber >= MAX_RECONNECTION_ATTEMPTS) {
+    logger.warn('All reconnection attempts failed, requesting content script re-injection', {
+      attempts: attemptNumber,
+    });
+    isReconnecting = false;
+    await requestContentScriptReinject();
+    return false;
   }
 
   isReconnecting = true;
-  logger.info('Requesting reconnection after tab became visible', { currentTabId });
+  logger.info('Requesting reconnection', {
+    currentTabId,
+    attemptNumber,
+    maxAttempts: MAX_RECONNECTION_ATTEMPTS,
+  });
 
   try {
     // Send reconnection request to background script
@@ -503,18 +548,30 @@ async function requestReconnection() {
     );
 
     if (response && (response as { success: boolean }).success) {
-      logger.info('Reconnection successful');
+      logger.info('Reconnection successful', { attemptNumber });
       lastSuccessfulSync = Date.now();
       isConnectionHealthy = true;
       hideReconnectionPrompt();
+      isReconnecting = false;
+      return true;
     } else {
-      logger.warn('Reconnection failed', { response });
+      logger.warn('Reconnection attempt failed', { attemptNumber, response });
     }
   } catch (error) {
-    logger.error('Failed to request reconnection', { error });
-  } finally {
-    isReconnecting = false;
+    logger.warn('Reconnection attempt error', { attemptNumber, error });
   }
+
+  // Wait with exponential backoff before retry
+  const backoffMs = RECONNECTION_BACKOFF_MS[attemptNumber] || 2000;
+  logger.debug('Waiting before next reconnection attempt', {
+    backoffMs,
+    nextAttempt: attemptNumber + 1,
+  });
+  await new Promise((resolve) => setTimeout(resolve, backoffMs));
+
+  // Recursive retry
+  isReconnecting = false;
+  return requestReconnection(attemptNumber + 1);
 }
 
 /**
@@ -606,6 +663,19 @@ export function initScrollSync() {
 
       // Stop old connection health check
       stopConnectionHealthCheck();
+
+      // Destroy existing panel to ensure clean re-initialization
+      destroyPanel();
+    }
+
+    // Detect re-injection scenario: module was reloaded but DOM elements remain
+    // This handles cases where content script was re-injected and module state was reset
+    const existingPanels = document.querySelectorAll('#scroll-sync-panel-root');
+    if (existingPanels.length > 0) {
+      logger.info('Detected orphaned panel elements (likely re-injection), cleaning up', {
+        count: existingPanels.length,
+      });
+      existingPanels.forEach((panel) => panel.remove());
     }
 
     // Reset all state variables
