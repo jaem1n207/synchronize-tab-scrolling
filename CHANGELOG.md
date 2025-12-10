@@ -1,3 +1,10 @@
+## [2.5.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.5.0...v2.5.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* **deps:** update dependency lucide-react to ^0.556.0 ([2816470](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/2816470988d644d4dc34f2fa3d251459001192ca))
+
 # [2.5.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.4.1...v2.5.0) (2025-12-10)
 
 
