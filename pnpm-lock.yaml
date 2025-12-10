@@ -139,8 +139,8 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1
       czg:
-        specifier: ^1.11.2
-        version: 1.11.2
+        specifier: ^1.12.0
+        version: 1.12.0
       esbuild:
         specifier: ^0.27.0
         version: 0.27.1
@@ -3270,8 +3270,8 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
-  czg@1.11.2:
-    resolution: {integrity: sha512-39FMIqz6xuelBvNa/jPc918CAgDNABfYnDT7wPbWaQGZ2a+sDBuI+X1pQ71jkFD32DcWkD/pVpZqlyvgtMJdGA==}
+  czg@1.12.0:
+    resolution: {integrity: sha512-LGltcoZ5m7vhe3WNw16QXqd5WurnHegx9V15MwZJtFAU2AVCYLCqDbwxPUgZOnAcdzzooq33ONcU148HOQsjdA==}
     engines: {node: '>=v12.20.0'}
     hasBin: true
 
@@ -10286,7 +10286,7 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  czg@1.11.2: {}
+  czg@1.12.0: {}
 
   damerau-levenshtein@1.0.8: {}
 
