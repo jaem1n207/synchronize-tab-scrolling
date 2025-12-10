@@ -411,7 +411,7 @@ export function ScrollSyncPopup() {
       const TIMEOUT_SYMBOL = Symbol('timeout');
       await Promise.race([
         stopPromise,
-        new Promise((_, reject) => setTimeout(() => reject(TIMEOUT_SYMBOL), 2_000)),
+        new Promise((_, reject) => setTimeout(() => reject(TIMEOUT_SYMBOL), 1_000)),
       ]);
 
       // Success - update state
