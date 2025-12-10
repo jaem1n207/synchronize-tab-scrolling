@@ -21,6 +21,8 @@ let toastRoot: ReturnType<typeof createRoot> | null = null;
 let toastContainer: HTMLDivElement | null = null;
 let currentSuggestion: SyncSuggestionMessage | null = null;
 let currentAddTabSuggestion: AddTabToSyncMessage | null = null;
+let cssLoaded = false;
+let cssLoadPromise: Promise<void> | null = null;
 
 /**
  * Detect system theme preference
@@ -31,9 +33,36 @@ function getSystemTheme(): 'light' | 'dark' {
 
 /**
  * Create the toast container if it doesn't exist
+ * Also recreates if the container was removed from DOM
+ * Returns a Promise that resolves when CSS is loaded
  */
-function ensureToastContainer() {
-  if (toastContainer) return;
+async function ensureToastContainer(): Promise<void> {
+  // Check if container exists AND is actually attached to the DOM AND CSS is loaded
+  // This handles cases where the website might have removed our container
+  if (toastContainer && document.body.contains(toastContainer) && cssLoaded) {
+    return;
+  }
+
+  // If CSS is loading, wait for it
+  if (cssLoadPromise && toastContainer && document.body.contains(toastContainer)) {
+    await cssLoadPromise;
+    return;
+  }
+
+  // Clean up stale references if container exists but was detached from DOM
+  if (toastContainer) {
+    if (toastRoot) {
+      try {
+        toastRoot.unmount();
+      } catch {
+        // Already unmounted or invalid - ignore
+      }
+      toastRoot = null;
+    }
+    toastContainer = null;
+    cssLoaded = false;
+    cssLoadPromise = null;
+  }
 
   // Create root container
   toastContainer = document.createElement('div');
@@ -79,13 +108,28 @@ function ensureToastContainer() {
   appContainer.id = 'scroll-sync-suggestion-app';
   contentWrapper.appendChild(appContainer);
 
-  // Inject extension CSS into shadow DOM
-  const extensionStyleLink = document.createElement('link');
-  extensionStyleLink.rel = 'stylesheet';
-  extensionStyleLink.href = browser.runtime.getURL(
-    'dist/contentScripts/synchronize-tab-scrolling.css',
-  );
-  styleContainer.appendChild(extensionStyleLink);
+  // Inject extension CSS into shadow DOM with load tracking
+  cssLoadPromise = new Promise<void>((resolve) => {
+    const extensionStyleLink = document.createElement('link');
+    extensionStyleLink.rel = 'stylesheet';
+    extensionStyleLink.href = browser.runtime.getURL(
+      'dist/contentScripts/synchronize-tab-scrolling.css',
+    );
+
+    extensionStyleLink.onload = () => {
+      cssLoaded = true;
+      resolve();
+    };
+
+    // Error fallback - proceed anyway to avoid blocking indefinitely
+    extensionStyleLink.onerror = () => {
+      console.error('[SuggestionToast] Failed to load CSS, proceeding anyway');
+      cssLoaded = true;
+      resolve();
+    };
+
+    styleContainer.appendChild(extensionStyleLink);
+  });
 
   // Add theme CSS variables
   const baseStyle = document.createElement('style');
@@ -225,6 +269,9 @@ function ensureToastContainer() {
 
   // Create React root
   toastRoot = createRoot(appContainer);
+
+  // Wait for CSS to load before returning
+  await cssLoadPromise;
 }
 
 /**
@@ -320,8 +367,26 @@ function renderToast() {
 /**
  * Show sync suggestion toast
  */
-export function showSyncSuggestionToast(suggestion: SyncSuggestionMessage) {
-  ensureToastContainer();
+export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage) {
+  // Debug logging to diagnose toast display issues
+  console.log('[SuggestionToast] showSyncSuggestionToast called', {
+    normalizedUrl: suggestion.normalizedUrl,
+    tabCount: suggestion.tabCount,
+    hasContainer: !!toastContainer,
+    containerInDOM: toastContainer ? document.body.contains(toastContainer) : false,
+    hasRoot: !!toastRoot,
+    cssLoaded,
+  });
+
+  await ensureToastContainer();
+
+  console.log('[SuggestionToast] After ensureToastContainer (CSS loaded)', {
+    hasContainer: !!toastContainer,
+    containerInDOM: toastContainer ? document.body.contains(toastContainer) : false,
+    hasRoot: !!toastRoot,
+    cssLoaded,
+  });
+
   currentSuggestion = suggestion;
   renderToast();
 }
@@ -329,8 +394,8 @@ export function showSyncSuggestionToast(suggestion: SyncSuggestionMessage) {
 /**
  * Show add tab suggestion toast
  */
-export function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage) {
-  ensureToastContainer();
+export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage) {
+  await ensureToastContainer();
   currentAddTabSuggestion = suggestion;
   renderToast();
 }
@@ -360,6 +425,8 @@ export function destroySuggestionToast() {
 
   currentSuggestion = null;
   currentAddTabSuggestion = null;
+  cssLoaded = false;
+  cssLoadPromise = null;
 }
 
 /**

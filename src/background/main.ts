@@ -154,7 +154,7 @@ function isUrlExcluded(url: string, patterns: Array<string>): boolean {
 /**
  * Remove tab from all auto-sync groups
  */
-function removeTabFromAllAutoSyncGroups(tabId: number): void {
+async function removeTabFromAllAutoSyncGroups(tabId: number): Promise<void> {
   for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
     if (group.tabIds.has(tabId)) {
       group.tabIds.delete(tabId);
@@ -164,7 +164,7 @@ function removeTabFromAllAutoSyncGroups(tabId: number): void {
       if (group.tabIds.size < 2) {
         cancelAutoSyncRetry(normalizedUrl);
         if (group.isActive) {
-          stopAutoSyncForGroup(normalizedUrl);
+          await stopAutoSyncForGroup(normalizedUrl);
         }
       }
 
@@ -251,7 +251,7 @@ async function updateAutoSyncGroupInternal(
   // Check if URL is excluded
   if (isUrlExcluded(url, autoSyncState.excludedUrls)) {
     logger.debug(`[AUTO-SYNC] URL excluded from auto-sync`, { url, tabId });
-    removeTabFromAllAutoSyncGroups(tabId);
+    await removeTabFromAllAutoSyncGroups(tabId);
     return null;
   }
 
@@ -263,7 +263,7 @@ async function updateAutoSyncGroupInternal(
 
   // Remove from all existing groups first
   logger.info('[AUTO-SYNC] Removing tab from existing groups', { tabId });
-  removeTabFromAllAutoSyncGroups(tabId);
+  await removeTabFromAllAutoSyncGroups(tabId);
 
   // Add to new group
   let group = autoSyncState.groups.get(normalizedUrl);
@@ -355,6 +355,9 @@ async function stopAutoSyncForGroup(normalizedUrl: string): Promise<void> {
 
   await Promise.all(promises);
   group.isActive = false;
+
+  // Clear pending suggestion for this group to allow new suggestions after sync stops
+  pendingSuggestions.delete(normalizedUrl);
 }
 
 /**
@@ -368,6 +371,17 @@ async function stopAutoSyncForGroup(normalizedUrl: string): Promise<void> {
  */
 async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   const group = autoSyncState.groups.get(normalizedUrl);
+
+  // Comprehensive debug logging for troubleshooting toast display issues
+  logger.info('[AUTO-SYNC] showSyncSuggestion called', {
+    normalizedUrl,
+    groupExists: !!group,
+    groupSize: group?.tabIds.size,
+    groupTabIds: group ? Array.from(group.tabIds) : [],
+    isActive: group?.isActive,
+    isPending: pendingSuggestions.has(normalizedUrl),
+    isDismissed: dismissedUrlGroups.has(normalizedUrl),
+  });
 
   if (!group || group.tabIds.size < 2) {
     logger.debug('[AUTO-SYNC] Cannot show suggestion - group not found or too small', {
@@ -458,6 +472,14 @@ async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
       }
     }),
   );
+
+  // Log ping results summary
+  logger.info('[AUTO-SYNC] Ping results summary', {
+    normalizedUrl,
+    totalTabs: uniqueTargetTabs.length,
+    tabsNeedingInjection: tabsNeedingInjection.length,
+    hasActiveSyncTab,
+  });
 
   // If any tab is already syncing, skip showing suggestion
   if (hasActiveSyncTab) {
@@ -1025,7 +1047,7 @@ onMessage('scroll:start', async ({ data }) => {
       // Mark tab as manually overridden (takes priority over auto-sync)
       manualSyncOverriddenTabs.add(tabId);
       // Remove from any auto-sync groups
-      removeTabFromAllAutoSyncGroups(tabId);
+      await removeTabFromAllAutoSyncGroups(tabId);
     }
     logger.debug('Manual sync started, tabs excluded from auto-sync', {
       tabIds: payload.tabIds,
@@ -1144,6 +1166,21 @@ onMessage('scroll:stop', async ({ data }) => {
   );
 
   await Promise.all(promises);
+
+  // Also stop any auto-sync groups that contain these tabs
+  // This ensures auto-sync state is cleared when user stops from popup
+  for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
+    if (group.isActive) {
+      const hasStoppedTab = payload.tabIds.some((tabId) => group.tabIds.has(tabId));
+      if (hasStoppedTab) {
+        logger.info('[AUTO-SYNC] Clearing auto-sync group due to manual stop', {
+          normalizedUrl,
+          stoppedTabIds: payload.tabIds,
+        });
+        group.isActive = false;
+      }
+    }
+  }
 
   // If this was a manual sync stop, re-add tabs to auto-sync groups
   if (!payload.isAutoSync && autoSyncState.enabled) {
@@ -1394,7 +1431,7 @@ onMessage('scroll:reconnect', async ({ data }) => {
     }
     // Remove tab from auto-sync groups
     if (isInAutoSync) {
-      removeTabFromAllAutoSyncGroups(payload.tabId);
+      await removeTabFromAllAutoSyncGroups(payload.tabId);
     }
     return { success: false, reason: 'Tab no longer exists' };
   }
@@ -1701,7 +1738,7 @@ onMessage('sync-suggestion:add-tab-response', async ({ data }) => {
       manualSyncOverriddenTabs.add(tabId);
 
       // Remove from any auto-sync groups
-      removeTabFromAllAutoSyncGroups(tabId);
+      await removeTabFromAllAutoSyncGroups(tabId);
 
       // Add to manual sync
       const newTabIds = [...syncState.linkedTabs, tabId];
@@ -1759,7 +1796,7 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
 
   // Handle auto-sync group removal
   if (autoSyncState.enabled) {
-    removeTabFromAllAutoSyncGroups(tabId);
+    await removeTabFromAllAutoSyncGroups(tabId);
     await broadcastAutoSyncGroupUpdate();
   }
 
@@ -1778,8 +1815,17 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
   if (syncState.linkedTabs.length < 2) {
     logger.info('Less than 2 tabs remaining, stopping sync');
 
+    // ✅ FIX: Store remaining tabs before clearing sync state
+    const remainingTabs = [...syncState.linkedTabs];
+
+    // ✅ FIX: Remove remaining tabs from manualSyncOverriddenTabs
+    // This allows them to rejoin auto-sync groups when new same-URL tabs are created
+    for (const remainingTabId of remainingTabs) {
+      manualSyncOverriddenTabs.delete(remainingTabId);
+    }
+
     // Stop sync for remaining tabs
-    const promises = syncState.linkedTabs.map((remainingTabId) =>
+    const promises = remainingTabs.map((remainingTabId) =>
       sendMessage('scroll:stop', {}, { context: 'content-script', tabId: remainingTabId }).catch(
         (error) => {
           logger.error(`Failed to send stop message to tab ${remainingTabId}`, { error });
@@ -1794,6 +1840,20 @@ browser.tabs.onRemoved.addListener(async (tabId) => {
     syncState.connectionStatuses = {};
     syncState.mode = undefined;
     await persistSyncState();
+
+    // ✅ FIX: Re-add remaining tabs to auto-sync groups if auto-sync is enabled
+    if (autoSyncState.enabled) {
+      for (const remainingTabId of remainingTabs) {
+        try {
+          const tab = await browser.tabs.get(remainingTabId);
+          if (tab.url) {
+            await updateAutoSyncGroup(remainingTabId, tab.url);
+          }
+        } catch {
+          // Tab may have been closed
+        }
+      }
+    }
   } else {
     // Continue sync with remaining tabs, broadcast updated status
     logger.info(`Continuing sync with ${syncState.linkedTabs.length} tabs`);

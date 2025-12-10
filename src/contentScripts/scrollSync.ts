@@ -672,15 +672,14 @@ export function initScrollSync() {
     const payload = data as { isAutoSync?: boolean };
     logger.info('Stopping scroll sync', { data, isAutoSync: payload.isAutoSync });
 
-    // Only stop if the sync type matches (auto-sync stop only stops auto-sync)
+    // Auto-sync stop should only stop auto-sync (not interfere with manual sync)
+    // But manual stop (from popup) should work regardless of sync type
     if (payload.isAutoSync && !isAutoSyncActive) {
       logger.debug('Ignoring auto-sync stop - current sync is manual');
       return { success: false, reason: 'Not in auto-sync mode' };
     }
-    if (!payload.isAutoSync && isAutoSyncActive) {
-      logger.debug('Ignoring manual sync stop - current sync is auto-sync');
-      return { success: false, reason: 'In auto-sync mode' };
-    }
+    // Note: Manual stop (without isAutoSync flag) now works for both sync types
+    // This allows users to stop sync from popup even when auto-sync is active
 
     isSyncActive = false;
     isAutoSyncActive = false;
