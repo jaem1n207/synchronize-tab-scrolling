@@ -1,3 +1,19 @@
+# [2.5.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.4.1...v2.5.0) (2025-12-10)
+
+
+### Features
+
+* enhance auto-sync functionality with content script injection ([98d2985](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/98d29850569ee72bdcd0a62e22a326b5898faae2))
+* enhance tab closure handling in auto-sync ([c803642](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c803642cc8279d5fdde3af80c3f4f56d4141a466))
+* integrate Sentry for enhanced error tracking and reporting ([a3d2d96](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/a3d2d962919e648d3dba482ae4c19ba7ca2fe627))
+
+
+### Performance Improvements
+
+* reduce scroll sync start timeout from 2s to 1s ([26698a6](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/26698a6abe20326208f32d673b2d5ef0f14d29fd))
+* reduce scroll sync stop timeout from 2s to 1s ([e3bd3cb](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e3bd3cb18b027356d3f3d123a76ff143e02ea562))
+* remove duplicate-element, memory leak fixes and cleanup enhancement ([3e28cb8](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/3e28cb84b0228f73b3e883fba01a3257ab7c50b2))
+
 ## [2.4.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.4.0...v2.4.1) (2025-12-09)
 
 
