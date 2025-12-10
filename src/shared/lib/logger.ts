@@ -1,4 +1,4 @@
-import { captureException, captureMessage, getSentryScope } from './sentry_init';
+import { captureException, getSentryScope } from './sentry_init';
 
 import type { SeverityLevel } from '@sentry/browser';
 
@@ -84,42 +84,37 @@ export class ExtensionLogger {
         break;
     }
 
-    // 2. Sentry로 로그 전송
+    // 2. Sentry로 로그 전송 - error 레벨만 전송
+    // info, warn, debug는 Sentry rate limit 초과 방지를 위해 console에만 출력
+    if (level !== 'error') return;
+
     const sentryScope = getSentryScope();
     if (!sentryScope) return;
 
     const sentryLevel = this.mapToSentryLevel(level);
     const tags = { scope: this.scope };
 
-    if (level === 'error') {
-      const errorInstanceFromArgs = args.find((arg) => arg instanceof Error) as Error | undefined;
-      let exceptionToCapture: Error;
-      let extraForSentry: Record<string, unknown> = {};
+    const errorInstanceFromArgs = args.find((arg) => arg instanceof Error) as Error | undefined;
+    let exceptionToCapture: Error;
+    let extraForSentry: Record<string, unknown> = {};
 
-      if (errorInstanceFromArgs) {
-        exceptionToCapture = errorInstanceFromArgs;
-        const remainingArgs = args.filter((arg) => arg !== errorInstanceFromArgs);
-        extraForSentry = this.getSerializableArgs(remainingArgs);
-        if (message !== exceptionToCapture.message) {
-          extraForSentry.contextualMessage = message;
-        }
-      } else {
-        exceptionToCapture = new Error(message);
-        extraForSentry = this.getSerializableArgs(args);
+    if (errorInstanceFromArgs) {
+      exceptionToCapture = errorInstanceFromArgs;
+      const remainingArgs = args.filter((arg) => arg !== errorInstanceFromArgs);
+      extraForSentry = this.getSerializableArgs(remainingArgs);
+      if (message !== exceptionToCapture.message) {
+        extraForSentry.contextualMessage = message;
       }
-
-      captureException(exceptionToCapture, {
-        level: sentryLevel,
-        extra: extraForSentry,
-        tags,
-      });
     } else {
-      captureMessage(message, {
-        level: sentryLevel,
-        extra: this.getSerializableArgs(args),
-        tags,
-      });
+      exceptionToCapture = new Error(message);
+      extraForSentry = this.getSerializableArgs(args);
     }
+
+    captureException(exceptionToCapture, {
+      level: sentryLevel,
+      extra: extraForSentry,
+      tags,
+    });
   }
 
   info(message: string, ...args: unknown[]): Promise<void> {
