@@ -417,6 +417,85 @@ async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   // Mark as pending to prevent duplicates
   pendingSuggestions.add(normalizedUrl);
 
+  // Check which tabs need content script injection
+  // Only inject into tabs that don't respond to ping (no content script yet)
+  // Also check if any tab is already syncing - if so, skip showing suggestion
+  logger.info('[AUTO-SYNC] Checking content script status before showing suggestion', {
+    normalizedUrl,
+    targetTabs: uniqueTargetTabs,
+  });
+
+  const tabsNeedingInjection: number[] = [];
+  let hasActiveSyncTab = false;
+
+  await Promise.allSettled(
+    uniqueTargetTabs.map(async (tabId) => {
+      try {
+        const response = await sendMessageWithTimeout<{
+          success: boolean;
+          tabId: number;
+          isSyncActive: boolean;
+        }>(
+          'scroll:ping',
+          { tabId, timestamp: Date.now() },
+          { context: 'content-script', tabId },
+          500,
+        );
+
+        if (response?.success) {
+          logger.debug('[AUTO-SYNC] Content script already exists', {
+            tabId,
+            isSyncActive: response.isSyncActive,
+          });
+          // Check if this tab is already syncing
+          if (response.isSyncActive) {
+            hasActiveSyncTab = true;
+          }
+        }
+      } catch {
+        // No response means no content script - needs injection
+        tabsNeedingInjection.push(tabId);
+      }
+    }),
+  );
+
+  // If any tab is already syncing, skip showing suggestion
+  if (hasActiveSyncTab) {
+    logger.info('[AUTO-SYNC] Skipping suggestion - tabs are already syncing', {
+      normalizedUrl,
+    });
+    pendingSuggestions.delete(normalizedUrl);
+    return;
+  }
+
+  // Only inject into tabs without content scripts
+  if (tabsNeedingInjection.length > 0) {
+    logger.info('[AUTO-SYNC] Injecting content scripts into tabs without scripts', {
+      normalizedUrl,
+      tabsNeedingInjection,
+    });
+
+    await Promise.allSettled(
+      tabsNeedingInjection.map(async (tabId) => {
+        try {
+          await browser.scripting.executeScript({
+            target: { tabId },
+            files: ['dist/contentScripts/index.global.js'],
+          });
+          logger.debug('[AUTO-SYNC] Content script injected for suggestion', { tabId });
+        } catch (error) {
+          logger.debug('[AUTO-SYNC] Content script injection failed', {
+            tabId,
+            error,
+          });
+        }
+      }),
+    );
+
+    // Wait for content scripts to initialize
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
   logger.info('[AUTO-SYNC] Showing sync suggestion toast on ALL tabs', {
     normalizedUrl,
     targetTabs: uniqueTargetTabs,

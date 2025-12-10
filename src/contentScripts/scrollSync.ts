@@ -851,7 +851,7 @@ export function initScrollSync() {
   onMessage('scroll:ping', async ({ data }) => {
     const payload = data as { tabId: number; timestamp: number };
     logger.debug('Received ping from background', { payload, isSyncActive, currentTabId });
-    return { success: true, tabId: currentTabId, timestamp: Date.now() };
+    return { success: true, tabId: currentTabId, timestamp: Date.now(), isSyncActive };
   });
 
   // Listen for URL sync from other tabs (P1)
