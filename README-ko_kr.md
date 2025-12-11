@@ -97,6 +97,9 @@
 - 확장 프로그램 스토어
 - Google 서비스 (문서, 드라이브, Gmail, 스프레드시트 등)
 - 일부 웹 앱 (Figma, JIRA, Microsoft Office Online, Notion 등)
+- 검색 엔진 결과 페이지 (Google 검색, 네이버, Bing, DuckDuckGo 등)
+- PDF 파일 및 PDF 뷰어
+- 로그인/인증 페이지
 - 특수 URL (`view-source:`, `data:`, `file://`)
 
 이런 탭은 선택 목록에서 비활성화돼요.

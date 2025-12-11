@@ -97,6 +97,9 @@ Due to browser security restrictions, the extension cannot sync these pages:
 - Extension stores
 - Google services (Docs, Drive, Gmail, Sheets, etc.)
 - Some web apps (Figma, JIRA, Microsoft Office Online, Notion, etc.)
+- Search engine results (Google Search, Naver, Bing, DuckDuckGo, etc.)
+- PDF files and PDF viewers
+- Login/authentication pages
 - Special URLs (`view-source:`, `data:`, `file://`)
 
 These tabs will appear disabled in the selection list.
