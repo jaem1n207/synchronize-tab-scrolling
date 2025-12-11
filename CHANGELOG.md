@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.5.1...v2.6.0) (2025-12-11)
+
+
+### Features
+
+* enhance auto-sync functionality by adding url exclusion checks for local development servers and forbidden urls ([a86c2a6](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/a86c2a6a57f9849b5bf24ba94446f59917b27dca))
+
 ## [2.5.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.5.0...v2.5.1) (2025-12-10)
 
 
