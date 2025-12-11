@@ -9,6 +9,7 @@ import {
   loadUrlSyncEnabled,
   saveAutoSyncEnabled,
 } from '~/shared/lib/storage';
+import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
 // Sentry 초기화
@@ -220,6 +221,29 @@ function isUrlExcluded(url: string, patterns: Array<string>): boolean {
 }
 
 /**
+ * Check if URL is a local development server
+ * Development servers are excluded from auto-sync suggestions but not from manual sync
+ */
+function isLocalDevelopmentServer(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+
+    // Check for localhost and common local development patterns
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0' ||
+      hostname.endsWith('.localhost') ||
+      // IPv6 loopback
+      hostname === '[::1]'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Remove tab from all auto-sync groups
  */
 async function removeTabFromAllAutoSyncGroups(tabId: number): Promise<void> {
@@ -316,7 +340,21 @@ async function updateAutoSyncGroupInternal(
     return null;
   }
 
-  // Check if URL is excluded
+  // Check if URL is forbidden (search engines, PDF viewers, auth pages, etc.)
+  if (isForbiddenUrl(url)) {
+    logger.debug(`[AUTO-SYNC] URL is forbidden, skipping auto-sync`, { url, tabId });
+    await removeTabFromAllAutoSyncGroups(tabId);
+    return null;
+  }
+
+  // Check if URL is a local development server (excluded from auto-sync suggestions only)
+  if (isLocalDevelopmentServer(url)) {
+    logger.debug(`[AUTO-SYNC] URL is local dev server, skipping auto-sync`, { url, tabId });
+    await removeTabFromAllAutoSyncGroups(tabId);
+    return null;
+  }
+
+  // Check if URL is excluded by user patterns
   if (isUrlExcluded(url, autoSyncState.excludedUrls)) {
     logger.debug(`[AUTO-SYNC] URL excluded from auto-sync`, { url, tabId });
     await removeTabFromAllAutoSyncGroups(tabId);

@@ -96,6 +96,49 @@ const SPECIAL_PATH_PATTERNS = [
   { domainSuffix: 'atlassian.net', pathPrefix: '/wiki' },
 ];
 
+// 검색 엔진 패턴 (스크롤 동기화가 무의미한 검색 결과 페이지)
+const SEARCH_ENGINE_PATTERNS: Array<{ domain: string; pathPrefix?: string }> = [
+  { domain: 'google.com', pathPrefix: '/search' },
+  { domain: 'www.google.com', pathPrefix: '/search' },
+  { domain: 'search.naver.com' },
+  { domain: 'bing.com', pathPrefix: '/search' },
+  { domain: 'www.bing.com', pathPrefix: '/search' },
+  { domain: 'duckduckgo.com' },
+  { domain: 'www.duckduckgo.com' },
+  { domain: 'search.yahoo.com' },
+  { domain: 'www.baidu.com', pathPrefix: '/s' },
+  { domain: 'search.daum.net' },
+];
+
+// PDF 뷰어 경로 패턴
+const PDF_VIEWER_PATH_PATTERNS = ['/pdf', '/viewer', '/pdfviewer'];
+
+// 인증/로그인 페이지 도메인 접두사
+const AUTH_DOMAIN_PREFIXES = [
+  'accounts.',
+  'login.',
+  'auth.',
+  'signin.',
+  'signup.',
+  'sso.',
+  'id.',
+  'oauth.',
+];
+
+// 인증/로그인 페이지 경로 패턴
+const AUTH_PATH_PATTERNS = [
+  '/login',
+  '/signin',
+  '/signup',
+  '/sign-in',
+  '/sign-up',
+  '/auth',
+  '/oauth',
+  '/sso',
+  '/register',
+  '/authenticate',
+];
+
 /**
  * 브라우저 타입 감지
  */
@@ -157,6 +200,41 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
       ) {
         return true;
       }
+    }
+
+    // 검색 엔진 확인
+    for (const pattern of SEARCH_ENGINE_PATTERNS) {
+      if (urlObj.hostname === pattern.domain || urlObj.hostname.endsWith('.' + pattern.domain)) {
+        // pathPrefix가 지정된 경우 경로도 확인
+        if (pattern.pathPrefix) {
+          if (urlObj.pathname.startsWith(pattern.pathPrefix)) {
+            return true;
+          }
+        } else {
+          // pathPrefix가 없으면 도메인만으로 차단
+          return true;
+        }
+      }
+    }
+
+    // PDF 뷰어 경로 확인
+    if (PDF_VIEWER_PATH_PATTERNS.some((pattern) => urlObj.pathname.startsWith(pattern))) {
+      return true;
+    }
+
+    // PDF 파일 직접 접근 확인
+    if (urlObj.pathname.endsWith('.pdf')) {
+      return true;
+    }
+
+    // 인증/로그인 페이지 도메인 접두사 확인
+    if (AUTH_DOMAIN_PREFIXES.some((prefix) => urlObj.hostname.startsWith(prefix))) {
+      return true;
+    }
+
+    // 인증/로그인 페이지 경로 패턴 확인
+    if (AUTH_PATH_PATTERNS.some((pattern) => urlObj.pathname.startsWith(pattern))) {
+      return true;
     }
   } catch {
     // URL 파싱 실패 시 제한된 것으로 간주
