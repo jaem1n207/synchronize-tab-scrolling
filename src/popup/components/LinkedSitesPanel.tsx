@@ -1,7 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
 
-import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
-
 import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
 import { Button } from '~/shared/components/ui/button';
 import {
@@ -14,6 +12,10 @@ import { cn } from '~/shared/lib/utils';
 import { StatusIndicator } from './StatusIndicator';
 
 import type { TabInfo, ConnectionStatus } from '../types';
+
+import IconChevronDown from '~icons/lucide/chevron-down';
+import IconChevronUp from '~icons/lucide/chevron-up';
+import IconRotateCcw from '~icons/lucide/rotate-ccw';
 
 interface LinkedSitesPanelProps {
   linkedTabs: Array<TabInfo>;
@@ -78,9 +80,9 @@ export function LinkedSitesPanel({
       >
         <span>Linked Sites ({linkedTabs.length})</span>
         {isExpanded ? (
-          <ChevronUp aria-hidden="true" className="w-4 h-4" />
+          <IconChevronUp aria-hidden="true" className="w-4 h-4" />
         ) : (
-          <ChevronDown aria-hidden="true" className="w-4 h-4" />
+          <IconChevronDown aria-hidden="true" className="w-4 h-4" />
         )}
       </button>
 
@@ -135,7 +137,7 @@ export function LinkedSitesPanel({
                       variant="ghost"
                       onClick={(e) => handleResetOffset(tab.id, e)}
                     >
-                      <RotateCcw aria-hidden="true" className="h-3 w-3" />
+                      <IconRotateCcw aria-hidden="true" className="h-3 w-3" />
                     </Button>
                   )}
                 </Button>

@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import * as PopoverPrimitive from '@radix-ui/react-popover';
-import { Menu, Settings2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
@@ -28,6 +27,9 @@ import {
 import { cn } from '~/shared/lib/utils';
 
 import { getAutoSyncStatus } from '../scrollSync';
+
+import IconMenu from '~icons/lucide/menu';
+import IconSettings2 from '~icons/lucide/settings-2';
 
 interface SyncControlPanelProps {
   urlSyncEnabled: boolean;
@@ -475,7 +477,7 @@ export const SyncControlPanel = ({
             type="button"
             onMouseDown={handleMouseDown}
           >
-            <Menu className="h-4 w-4" />
+            <IconMenu className="h-4 w-4" />
 
             {/* Status indicator */}
             <div className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
@@ -547,7 +549,7 @@ export const SyncControlPanel = ({
                 {/* URL Sync Navigation toggle */}
                 <div className="flex items-center justify-between gap-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    <IconSettings2 className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{t('urlSyncNavigation')}</span>
                   </div>
                   <Switch checked={urlSyncEnabled} onCheckedChange={onToggle} />
@@ -556,7 +558,7 @@ export const SyncControlPanel = ({
                 {/* Auto-sync same URL toggle */}
                 <div className="flex items-center justify-between gap-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    <IconSettings2 className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{t('autoSyncSameUrl')}</span>
                     {isAutoSyncActive && autoSyncGroupCount > 0 && (
                       <Badge className="text-xs px-1.5 py-0" variant="secondary">

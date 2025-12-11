@@ -1,6 +1,5 @@
 import * as React from 'react';
 
-import { Link2, X, Plus } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 import { Button } from '~/shared/components/ui/button';
@@ -13,6 +12,10 @@ import {
 } from '~/shared/lib/animations';
 import { cn } from '~/shared/lib/utils';
 import type { SyncSuggestionMessage, AddTabToSyncMessage } from '~/shared/types/messages';
+
+import IconLink2 from '~icons/lucide/link-2';
+import IconPlus from '~icons/lucide/plus';
+import IconX from '~icons/lucide/x';
 
 const AUTO_DISMISS_DELAY_MS = 10_000;
 
@@ -111,7 +114,7 @@ export function SyncSuggestionToast({
           {/* Header */}
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center pointer-events-none">
-              <Link2 className="w-5 h-5 text-primary" />
+              <IconLink2 className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0 pointer-events-none">
               {/* Line 1: Title (no truncation) */}
@@ -134,7 +137,7 @@ export function SyncSuggestionToast({
               type="button"
               onClick={handleReject}
             >
-              <X className="w-4 h-4 text-muted-foreground" />
+              <IconX className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 
@@ -238,7 +241,7 @@ export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }:
           {/* Header */}
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center pointer-events-none">
-              <Plus className="w-5 h-5 text-primary" />
+              <IconPlus className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1 min-w-0 pointer-events-none">
               {/* Line 1: Title (no truncation) */}
@@ -264,7 +267,7 @@ export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }:
               type="button"
               onClick={handleReject}
             >
-              <X className="w-4 h-4 text-muted-foreground" />
+              <IconX className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 

@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
-import { Minimize2, Maximize2, GripVertical } from 'lucide-react';
-
 import { Button } from '~/shared/components/ui/button';
 import {
   PANEL_ANIMATIONS,
@@ -11,6 +9,10 @@ import {
 import { cn } from '~/shared/lib/utils';
 
 import type { PanelPosition } from '../types';
+
+import IconGripVertical from '~icons/lucide/grip-vertical';
+import IconMaximize2 from '~icons/lucide/maximize-2';
+import IconMinimize2 from '~icons/lucide/minimize-2';
 
 interface DraggableControlPanelProps {
   isMinimized: boolean;
@@ -176,7 +178,7 @@ export function DraggableControlPanel({
         {!isMinimized && (
           <>
             <div className="flex items-center gap-2">
-              <GripVertical aria-hidden="true" className="w-4 h-4 text-muted-foreground" />
+              <IconGripVertical aria-hidden="true" className="w-4 h-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Sync Control</h2>
             </div>
             <Button
@@ -187,7 +189,7 @@ export function DraggableControlPanel({
               variant="ghost"
               onClick={onToggleMinimize}
             >
-              <Minimize2 aria-hidden="true" className="w-4 h-4" />
+              <IconMinimize2 aria-hidden="true" className="w-4 h-4" />
             </Button>
           </>
         )}
@@ -200,7 +202,7 @@ export function DraggableControlPanel({
             variant="ghost"
             onClick={onToggleMinimize}
           >
-            <Maximize2 aria-hidden="true" className="w-4 h-4" />
+            <IconMaximize2 aria-hidden="true" className="w-4 h-4" />
           </Button>
         )}
       </div>

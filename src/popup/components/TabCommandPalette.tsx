@@ -1,7 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useImperativeHandle } from 'react';
 
-import { AlertCircle, Check, Filter } from 'lucide-react';
-
 import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
 import { Checkbox } from '~/shared/components/ui/checkbox';
@@ -26,6 +24,10 @@ import { sortTabsWithDomainGrouping } from '~/shared/lib/tab-similarity';
 import { cn } from '~/shared/lib/utils';
 
 import type { TabInfo } from '../types';
+
+import IconAlertCircle from '~icons/lucide/alert-circle';
+import IconCheck from '~icons/lucide/check';
+import IconFilter from '~icons/lucide/filter';
 
 export interface TabCommandPaletteHandle {
   focus: () => void;
@@ -279,7 +281,10 @@ export function TabCommandPalette({
                           </div>
 
                           {isSelected && (
-                            <Check aria-hidden="true" className="w-4 h-4 shrink-0 text-primary" />
+                            <IconCheck
+                              aria-hidden="true"
+                              className="w-4 h-4 shrink-0 text-primary"
+                            />
                           )}
                         </CommandItem>
                       );
@@ -347,7 +352,7 @@ export function TabCommandPalette({
                                 </span>
                               </div>
 
-                              <AlertCircle
+                              <IconAlertCircle
                                 aria-hidden="true"
                                 className="w-4 h-4 shrink-0 text-destructive"
                               />
@@ -355,7 +360,7 @@ export function TabCommandPalette({
                           </TooltipTrigger>
                           <TooltipContent className="max-w-[280px]" side="right">
                             <div className="flex items-start gap-2">
-                              <AlertCircle className="w-4 h-4 shrink-0 text-destructive mt-0.5" />
+                              <IconAlertCircle className="w-4 h-4 shrink-0 text-destructive mt-0.5" />
                               <div>
                                 <p className="font-medium text-xs mb-1">{t('cannotSync')}</p>
                                 <p className="text-xs text-muted-foreground">
@@ -372,7 +377,7 @@ export function TabCommandPalette({
 
               {sameDomainFilter && totalTabCount !== undefined && tabs.length < totalTabCount && (
                 <div className="flex items-center justify-center gap-2 py-2 px-3 text-xs text-muted-foreground border-t">
-                  <Filter className="w-3 h-3" />
+                  <IconFilter className="w-3 h-3" />
                   <span>{t('hiddenByFilter', [String(totalTabCount - tabs.length)])}</span>
                 </div>
               )}

@@ -1,4 +1,3 @@
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
@@ -13,6 +12,10 @@ import {
 } from '~/shared/lib/animations';
 
 import type { TabInfo, ConnectionStatus } from '../types';
+
+import IconCheckCircle2 from '~icons/lucide/check-circle-2';
+import IconLoader2 from '~icons/lucide/loader-2';
+import IconXCircle from '~icons/lucide/x-circle';
 
 interface SyncStatusHeaderProps {
   isActive: boolean;
@@ -42,7 +45,7 @@ export function SyncStatusHeader({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Badge className="flex items-center gap-1.5" variant="default">
-                <Loader2 aria-hidden="true" className="w-3 h-3 animate-spin" />
+                <IconLoader2 aria-hidden="true" className="w-3 h-3 animate-spin" />
                 <span>{t('syncingTabs', [String(connectedTabs.length)])}</span>
               </Badge>
             </div>
@@ -73,19 +76,19 @@ export function SyncStatusHeader({
                       </span>
 
                       {isConnected && (
-                        <CheckCircle2
+                        <IconCheckCircle2
                           aria-label={t('connected')}
                           className="w-3 h-3 shrink-0 text-green-600"
                         />
                       )}
                       {isError && (
-                        <XCircle
+                        <IconXCircle
                           aria-label={t('disconnected')}
                           className="w-3 h-3 shrink-0 text-destructive"
                         />
                       )}
                       {status === 'connecting' && (
-                        <Loader2
+                        <IconLoader2
                           aria-label={t('connecting')}
                           className="w-3 h-3 shrink-0 animate-spin text-muted-foreground"
                         />

@@ -1,4 +1,3 @@
-import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
@@ -13,6 +12,8 @@ import {
 } from '~/shared/lib/animations';
 
 import type { TabInfo } from '../types';
+
+import IconX from '~icons/lucide/x';
 
 interface SelectedTabsChipsProps {
   tabs: Array<TabInfo>;
@@ -70,7 +71,7 @@ export function SelectedTabsChips({ tabs, isSyncActive, onRemoveTab }: SelectedT
                       }
                     }}
                   >
-                    <X aria-hidden="true" className="h-3 w-3" />
+                    <IconX aria-hidden="true" className="h-3 w-3" />
                   </Button>
                 </Badge>
               </motion.div>

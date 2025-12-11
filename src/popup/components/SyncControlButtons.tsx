@@ -1,7 +1,5 @@
 import { useCallback } from 'react';
 
-import { Play, Square, RefreshCw } from 'lucide-react';
-
 import { Button } from '~/shared/components/ui/button';
 import { Kbd } from '~/shared/components/ui/kbd';
 import {
@@ -11,6 +9,10 @@ import {
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
 import { t } from '~/shared/i18n';
+
+import IconPlay from '~icons/lucide/play';
+import IconRefreshCw from '~icons/lucide/refresh-cw';
+import IconSquare from '~icons/lucide/square';
 
 interface SyncControlButtonsProps {
   isActive: boolean;
@@ -59,7 +61,7 @@ export function SyncControlButtons({
                 onClick={onStart}
                 onKeyDown={(e) => handleKeyDown(e, onStart, !canStart)}
               >
-                <Play aria-hidden="true" className="w-4 h-4" />
+                <IconPlay aria-hidden="true" className="w-4 h-4" />
                 {t('startSync')}
                 <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                   <Kbd>⌘</Kbd>
@@ -82,7 +84,7 @@ export function SyncControlButtons({
             onClick={onStop}
             onKeyDown={(e) => handleKeyDown(e, onStop, false)}
           >
-            <Square aria-hidden="true" className="w-4 h-4" />
+            <IconSquare aria-hidden="true" className="w-4 h-4" />
             {t('stopSync')}
             <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
               <Kbd>⌘</Kbd>
@@ -101,7 +103,7 @@ export function SyncControlButtons({
                 onClick={onResync}
                 onKeyDown={(e) => handleKeyDown(e, onResync, false)}
               >
-                <RefreshCw aria-hidden="true" className="w-4 h-4" />
+                <IconRefreshCw aria-hidden="true" className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

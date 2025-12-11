@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { Play, Pause, Check, X, Filter, ArrowUpDown, Link2, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { Button } from '~/shared/components/ui/button';
@@ -17,6 +16,15 @@ import {
 } from '~/shared/lib/animations';
 
 import type { SortOption } from '../types/filters';
+
+import IconArrowUpDown from '~icons/lucide/arrow-up-down';
+import IconCheck from '~icons/lucide/check';
+import IconFilter from '~icons/lucide/filter';
+import IconGlobe from '~icons/lucide/globe';
+import IconLink2 from '~icons/lucide/link-2';
+import IconPause from '~icons/lucide/pause';
+import IconPlay from '~icons/lucide/play';
+import IconX from '~icons/lucide/x';
 
 interface ActionsMenuProps {
   open: boolean;
@@ -172,9 +180,9 @@ export function ActionsMenu({
                     >
                       <div className="flex items-center gap-2 flex-1">
                         {isSyncActive ? (
-                          <Pause aria-hidden="true" className="w-4 h-4" />
+                          <IconPause aria-hidden="true" className="w-4 h-4" />
                         ) : (
-                          <Play aria-hidden="true" className="w-4 h-4" />
+                          <IconPlay aria-hidden="true" className="w-4 h-4" />
                         )}
                         <span>{isSyncActive ? t('stopSync') : t('startSync')}</span>
                       </div>
@@ -203,7 +211,7 @@ export function ActionsMenu({
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
-                        <Link2 aria-hidden="true" className="w-4 h-4" />
+                        <IconLink2 aria-hidden="true" className="w-4 h-4" />
                         <span>{t('autoSyncSameUrl')}</span>
                         {autoSyncEnabled && autoSyncTabCount != null && autoSyncTabCount > 0 && (
                           <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded-full">
@@ -211,7 +219,7 @@ export function ActionsMenu({
                           </span>
                         )}
                       </div>
-                      {autoSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
+                      {autoSyncEnabled && <IconCheck aria-hidden="true" className="w-4 h-4" />}
                     </CommandItem>
                     <CommandItem
                       onSelect={() => {
@@ -219,10 +227,10 @@ export function ActionsMenu({
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
-                        <Globe aria-hidden="true" className="w-4 h-4" />
+                        <IconGlobe aria-hidden="true" className="w-4 h-4" />
                         <span>{t('urlSyncNavigation')}</span>
                       </div>
-                      {urlSyncEnabled && <Check aria-hidden="true" className="w-4 h-4" />}
+                      {urlSyncEnabled && <IconCheck aria-hidden="true" className="w-4 h-4" />}
                     </CommandItem>
                   </CommandGroup>
 
@@ -236,11 +244,11 @@ export function ActionsMenu({
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
-                        <Filter aria-hidden="true" className="w-4 h-4" />
+                        <IconFilter aria-hidden="true" className="w-4 h-4" />
                         <span>{t('sameDomainOnly')}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {sameDomainFilter && <Check aria-hidden="true" className="w-4 h-4" />}
+                        {sameDomainFilter && <IconCheck aria-hidden="true" className="w-4 h-4" />}
                         <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                           <Kbd>⌘</Kbd>
                           <Kbd>D</Kbd>
@@ -255,7 +263,7 @@ export function ActionsMenu({
                   <CommandGroup heading={t('selectionHeading')}>
                     <CommandItem disabled={isSyncActive} onSelect={handleSelectAll}>
                       <div className="flex items-center gap-2 flex-1">
-                        <Check aria-hidden="true" className="w-4 h-4" />
+                        <IconCheck aria-hidden="true" className="w-4 h-4" />
                         <span>{t('selectAllTabs')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
@@ -268,7 +276,7 @@ export function ActionsMenu({
                       onSelect={handleClearAll}
                     >
                       <div className="flex items-center gap-2 flex-1">
-                        <X aria-hidden="true" className="w-4 h-4" />
+                        <IconX aria-hidden="true" className="w-4 h-4" />
                         <span>{t('clearAllSelections')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
@@ -290,9 +298,9 @@ export function ActionsMenu({
                     >
                       <div className="flex items-center gap-2 flex-1">
                         {sortBy === 'similarity' && (
-                          <Check aria-hidden="true" className="w-4 h-4" />
+                          <IconCheck aria-hidden="true" className="w-4 h-4" />
                         )}
-                        <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
+                        <IconArrowUpDown aria-hidden="true" className="w-4 h-4" />
                         <span>{t('sortSimilarity')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
@@ -306,8 +314,10 @@ export function ActionsMenu({
                       }}
                     >
                       <div className="flex items-center gap-2 flex-1">
-                        {sortBy === 'recent' && <Check aria-hidden="true" className="w-4 h-4" />}
-                        <ArrowUpDown aria-hidden="true" className="w-4 h-4" />
+                        {sortBy === 'recent' && (
+                          <IconCheck aria-hidden="true" className="w-4 h-4" />
+                        )}
+                        <IconArrowUpDown aria-hidden="true" className="w-4 h-4" />
                         <span>{t('sortRecent')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">

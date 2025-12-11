@@ -1,7 +1,5 @@
 import { useCallback } from 'react';
 
-import { Check } from 'lucide-react';
-
 import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avatar';
 import { Button } from '~/shared/components/ui/button';
 import {
@@ -13,6 +11,8 @@ import {
 import { cn } from '~/shared/lib/utils';
 
 import type { TabInfo } from '../types';
+
+import IconCheck from '~icons/lucide/check';
 
 interface TabSelectionListProps {
   tabs: Array<TabInfo>;
@@ -124,7 +124,7 @@ export function TabSelectionList({ tabs, selectedTabIds, onToggleTab }: TabSelec
                   </span>
                 )}
               </div>
-              {isSelected && <Check aria-hidden="true" className="w-4 h-4 shrink-0" />}
+              {isSelected && <IconCheck aria-hidden="true" className="w-4 h-4 shrink-0" />}
             </Button>
           );
 

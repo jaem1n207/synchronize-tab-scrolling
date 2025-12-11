@@ -83,6 +83,12 @@ export default tsEslint.config(
     },
     rules: {
       ...importPlugin.configs.recommended.rules,
+      'import/no-unresolved': [
+        'error',
+        {
+          ignore: ['^~icons/'],
+        },
+      ],
       'import/order': [
         'error',
         {
