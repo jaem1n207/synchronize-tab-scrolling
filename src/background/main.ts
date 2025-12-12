@@ -134,9 +134,12 @@ const pendingSuggestions = new Set<string>();
 // Flag to prevent re-entrant toggleAutoSync calls
 let isTogglingAutoSync = false;
 
-// Debounce toggle to prevent rapid on/off cycling issues
-let lastToggleTime = 0;
-const TOGGLE_DEBOUNCE_MS = 500;
+// Flag to track if initialization is running (to handle toggle during init)
+let isInitializingAutoSync = false;
+
+// Simple queue-based toggle to prevent race conditions
+// When toggle is in progress, queue the latest request and process after completion
+let pendingToggleRequest: boolean | null = null;
 
 /**
  * Check if a tab is overridden by manual sync
@@ -770,8 +773,8 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
     tabCount: allTabIds.size,
   });
 
-  // Timeout for each message (3 seconds)
-  const MESSAGE_TIMEOUT = 3000;
+  // Timeout for each message (1 second - reduced from 3s for faster response)
+  const MESSAGE_TIMEOUT = 1000;
 
   // Helper to send message with timeout
   const sendWithTimeout = async (tabId: number): Promise<void> => {
@@ -806,10 +809,26 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
 /**
  * Initialize auto-sync state from storage and scan existing tabs
  */
-async function initializeAutoSync(): Promise<void> {
+async function initializeAutoSync(overrideEnabled?: boolean): Promise<void> {
+  // Prevent concurrent initialization
+  if (isInitializingAutoSync) {
+    logger.info('[AUTO-SYNC] initializeAutoSync skipped - already initializing');
+    return;
+  }
+
+  isInitializingAutoSync = true;
+
   try {
     logger.info('[AUTO-SYNC] Initializing auto-sync...');
-    autoSyncState.enabled = await loadAutoSyncEnabled();
+
+    // If enabled state is provided (from toggleAutoSync), use it directly
+    // Otherwise load from storage (for initial startup)
+    // This prevents race condition where storage read returns stale value
+    if (overrideEnabled !== undefined) {
+      autoSyncState.enabled = overrideEnabled;
+    } else {
+      autoSyncState.enabled = await loadAutoSyncEnabled();
+    }
     autoSyncState.excludedUrls = await loadAutoSyncExcludedUrls();
 
     logger.info('[AUTO-SYNC] State loaded', {
@@ -895,7 +914,8 @@ async function initializeAutoSync(): Promise<void> {
     }
 
     // Wait for content scripts to fully initialize after injection
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Reduced from 500ms to 100ms for faster toast display
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Show suggestions for groups with 2+ tabs (instead of auto-starting)
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
@@ -911,9 +931,9 @@ async function initializeAutoSync(): Promise<void> {
       }
     }
 
-    // Broadcast group update once at the end
-    logger.info('[AUTO-SYNC] Broadcasting group update');
-    await broadcastAutoSyncGroupUpdate();
+    // Broadcast group update once at the end (fire-and-forget for faster response)
+    logger.info('[AUTO-SYNC] Broadcasting group update (async)');
+    void broadcastAutoSyncGroupUpdate();
 
     logger.info('[AUTO-SYNC] Initialization complete', {
       groupCount: autoSyncState.groups.size,
@@ -926,28 +946,38 @@ async function initializeAutoSync(): Promise<void> {
     });
   } catch (error) {
     logger.error('[AUTO-SYNC] Failed to initialize auto-sync', { error });
+  } finally {
+    isInitializingAutoSync = false;
   }
 }
 
 /**
  * Toggle auto-sync enabled state
+ * Uses simple queue-based approach: if toggle is in progress, queue request and process after completion
  */
 async function toggleAutoSync(enabled: boolean): Promise<void> {
-  // Debounce rapid toggling to prevent race conditions
-  const now = Date.now();
-  if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
-    logger.info('[AUTO-SYNC] toggleAutoSync debounced', {
-      enabled,
-      timeSinceLastToggle: now - lastToggleTime,
-    });
+  // If toggle is already in progress, queue this request
+  if (isTogglingAutoSync) {
+    logger.info('[AUTO-SYNC] toggleAutoSync queuing request (toggle in progress)', { enabled });
+    pendingToggleRequest = enabled;
     return;
   }
-  lastToggleTime = now;
 
-  // Prevent re-entrant calls (can happen from storage change listener)
-  if (isTogglingAutoSync) {
-    logger.info('[AUTO-SYNC] toggleAutoSync skipped - already in progress', { enabled });
-    return;
+  // Wait for any ongoing initialization to complete before toggling
+  // This prevents race conditions where toggle modifies state while init is reading it
+  if (isInitializingAutoSync) {
+    logger.info('[AUTO-SYNC] toggleAutoSync waiting for initialization to complete', { enabled });
+    // Poll until initialization completes (max 10 seconds)
+    const maxWait = 10000;
+    const pollInterval = 100;
+    let waited = 0;
+    while (isInitializingAutoSync && waited < maxWait) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      waited += pollInterval;
+    }
+    if (isInitializingAutoSync) {
+      logger.warn('[AUTO-SYNC] toggleAutoSync timed out waiting for initialization');
+    }
   }
 
   // Skip if state hasn't changed
@@ -985,8 +1015,9 @@ async function toggleAutoSync(enabled: boolean): Promise<void> {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Re-initialize to scan tabs and create groups
+      // Pass true directly to prevent storage race condition (stale value read)
       logger.info('[AUTO-SYNC] Enabling - calling initializeAutoSync');
-      await initializeAutoSync();
+      await initializeAutoSync(true);
     } else {
       // Cancel all pending retry timers
       logger.info('[AUTO-SYNC] Disabling - clearing retry timers', {
@@ -1015,24 +1046,44 @@ async function toggleAutoSync(enabled: boolean): Promise<void> {
       logger.info('[AUTO-SYNC] All groups cleared');
     }
 
-    // Broadcast status change to all tabs
+    // Broadcast status change to all tabs (fire-and-forget for immediate response)
     const tabs = await browser.tabs.query({});
-    const promises = tabs.map(async (tab) => {
-      if (tab.id) {
-        try {
-          await sendMessage(
-            'auto-sync:status-changed',
-            { enabled },
-            { context: 'content-script', tabId: tab.id },
-          );
-        } catch {
-          // Tab may not have content script
-        }
-      }
-    });
-    await Promise.all(promises);
+    void (async () => {
+      const BROADCAST_TIMEOUT = 500;
+      await Promise.allSettled(
+        tabs.map(async (tab) => {
+          if (tab.id) {
+            try {
+              await Promise.race([
+                sendMessage(
+                  'auto-sync:status-changed',
+                  { enabled },
+                  { context: 'content-script', tabId: tab.id },
+                ),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('timeout')), BROADCAST_TIMEOUT),
+                ),
+              ]);
+            } catch {
+              // Tab may not have content script or timed out
+            }
+          }
+        }),
+      );
+      logger.info('[AUTO-SYNC] Status broadcast complete (async)');
+    })();
   } finally {
     isTogglingAutoSync = false;
+
+    // Process any queued request after current toggle completes
+    if (pendingToggleRequest !== null) {
+      const queuedState = pendingToggleRequest;
+      pendingToggleRequest = null;
+      logger.info('[AUTO-SYNC] Processing queued toggle request', { enabled: queuedState });
+      // Call directly instead of setTimeout for better service worker compatibility
+      // Using void to handle the promise without blocking
+      void toggleAutoSync(queuedState);
+    }
   }
 }
 
@@ -2343,12 +2394,10 @@ browser.storage.onChanged.addListener(async (changes, areaName) => {
       newValue?: boolean;
       oldValue?: boolean;
     };
-    if (newValue !== oldValue) {
+    if (newValue !== oldValue && newValue !== undefined) {
       logger.info('Auto-sync enabled changed via storage', { newValue, oldValue });
-      // Only trigger if the state actually changed and doesn't match current state
-      if (newValue !== autoSyncState.enabled) {
-        await toggleAutoSync(newValue ?? false);
-      }
+      // toggleAutoSync handles queuing internally if toggle is in progress
+      await toggleAutoSync(newValue);
     }
   }
 });
