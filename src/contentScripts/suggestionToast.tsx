@@ -342,7 +342,12 @@ function renderToast() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send sync suggestion response', error);
+      // Gracefully handle extension context invalidation (happens during rapid toggle)
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+      } else {
+        console.error('Failed to send sync suggestion response', error);
+      }
     }
     currentSuggestion = null;
     renderToast();
@@ -358,7 +363,11 @@ function renderToast() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send sync suggestion response', error);
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+      } else {
+        console.error('Failed to send sync suggestion response', error);
+      }
     }
     currentSuggestion = null;
     renderToast();
@@ -374,7 +383,11 @@ function renderToast() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send add tab response', error);
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+      } else {
+        console.error('Failed to send add tab response', error);
+      }
     }
     currentAddTabSuggestion = null;
     renderToast();
@@ -390,7 +403,11 @@ function renderToast() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send add tab response', error);
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+      } else {
+        console.error('Failed to send add tab response', error);
+      }
     }
     currentAddTabSuggestion = null;
     renderToast();

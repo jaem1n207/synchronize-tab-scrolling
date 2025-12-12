@@ -119,7 +119,12 @@ function PanelApp() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send sync suggestion response', error);
+      // Gracefully handle extension context invalidation (happens during rapid toggle)
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[Panel] Extension context invalidated, closing suggestion');
+      } else {
+        console.error('Failed to send sync suggestion response', error);
+      }
     }
     setSyncSuggestion(null);
   }, [syncSuggestion]);
@@ -135,7 +140,11 @@ function PanelApp() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send sync suggestion response', error);
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[Panel] Extension context invalidated, closing suggestion');
+      } else {
+        console.error('Failed to send sync suggestion response', error);
+      }
     }
     setSyncSuggestion(null);
   }, [syncSuggestion]);
@@ -151,7 +160,11 @@ function PanelApp() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send add tab response', error);
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[Panel] Extension context invalidated, closing suggestion');
+      } else {
+        console.error('Failed to send add tab response', error);
+      }
     }
     setAddTabSuggestion(null);
   }, [addTabSuggestion]);
@@ -167,7 +180,11 @@ function PanelApp() {
         'background',
       );
     } catch (error) {
-      console.error('Failed to send add tab response', error);
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        console.warn('[Panel] Extension context invalidated, closing suggestion');
+      } else {
+        console.error('Failed to send add tab response', error);
+      }
     }
     setAddTabSuggestion(null);
   }, [addTabSuggestion]);

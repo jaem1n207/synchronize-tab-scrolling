@@ -6,8 +6,9 @@ import { cn } from '~/shared/lib/utils';
 
 import IconCheck from '~icons/lucide/check';
 
-export interface CheckboxProps
-  extends React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root> {
+export interface CheckboxProps extends React.ComponentPropsWithoutRef<
+  typeof CheckboxPrimitive.Root
+> {
   ref?: React.Ref<React.ComponentRef<typeof CheckboxPrimitive.Root>>;
 }
 

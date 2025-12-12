@@ -6,8 +6,9 @@ import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 
 import { cn } from '~/shared/lib/utils';
 
-export interface ScrollAreaProps
-  extends React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.Root> {
+export interface ScrollAreaProps extends React.ComponentPropsWithoutRef<
+  typeof ScrollAreaPrimitive.Root
+> {
   ref?: React.Ref<React.ComponentRef<typeof ScrollAreaPrimitive.Root>>;
 }
 
@@ -28,8 +29,9 @@ function ScrollArea({ ref, className, children, ...props }: ScrollAreaProps) {
 }
 ScrollArea.displayName = ScrollAreaPrimitive.Root.displayName;
 
-export interface ScrollBarProps
-  extends React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar> {
+export interface ScrollBarProps extends React.ComponentPropsWithoutRef<
+  typeof ScrollAreaPrimitive.ScrollAreaScrollbar
+> {
   ref?: React.Ref<React.ComponentRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>>;
 }
 

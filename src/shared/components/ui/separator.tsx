@@ -4,8 +4,9 @@ import * as SeparatorPrimitive from '@radix-ui/react-separator';
 
 import { cn } from '~/shared/lib/utils';
 
-export interface SeparatorProps
-  extends React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root> {
+export interface SeparatorProps extends React.ComponentPropsWithoutRef<
+  typeof SeparatorPrimitive.Root
+> {
   ref?: React.Ref<React.ComponentRef<typeof SeparatorPrimitive.Root>>;
 }
 
