@@ -102,7 +102,7 @@
     "@unocss/preset-wind4": "^66.3.2",
     "@unocss/reset": "^66.3.2",
     "@vitejs/plugin-react": "^4.6.0",
-    "chokidar": "^4.0.1",
+    "chokidar": "^5.0.0",
     "cross-env": "^7.0.3",
     "crx": "^5.0.1",
     "czg": "^1.12.0",
