@@ -1,3 +1,12 @@
+## [2.6.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.6.0...v2.6.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* **auto-sync:** show toast suggestion immediately after toggle ([3e86d81](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/3e86d81f01d3745b0d594e352050315a949030be))
+* enhance suggestion handling for newly joined tabs ([3fea213](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/3fea213986f072ac7da60c7cdcca4373938c2307))
+* improve error logging for extension context invalidation ([2f12160](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/2f12160ff2b23e20003bd4d1059f37c80954490f))
+
 # [2.6.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.5.1...v2.6.0) (2025-12-11)
 
 
