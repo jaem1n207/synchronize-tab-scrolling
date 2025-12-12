@@ -413,12 +413,22 @@ async function updateAutoSyncGroupInternal(
     shouldShowSuggestion,
   });
 
-  if (shouldShowSuggestion) {
-    logger.info('[AUTO-SYNC] Showing suggestion for group', {
-      normalizedUrl,
-      tabIds: Array.from(group.tabIds),
-    });
-    await showSyncSuggestion(normalizedUrl);
+  if (shouldShowSuggestion && !dismissedUrlGroups.has(normalizedUrl)) {
+    // If suggestion already pending (toast showing on other tabs), send to this new tab only
+    if (pendingSuggestions.has(normalizedUrl)) {
+      logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab (from updateAutoSyncGroup)', {
+        tabId,
+        normalizedUrl,
+      });
+      await sendSuggestionToSingleTab(tabId, normalizedUrl, group);
+    } else {
+      // New group - broadcast to all tabs
+      logger.info('[AUTO-SYNC] Showing suggestion for group', {
+        normalizedUrl,
+        tabIds: Array.from(group.tabIds),
+      });
+      await showSyncSuggestion(normalizedUrl);
+    }
   }
 
   // Broadcast group update to content scripts (unless skipBroadcast is true)
@@ -671,6 +681,62 @@ async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   // If all sends failed, remove from pending suggestions
   if (successCount === 0) {
     pendingSuggestions.delete(normalizedUrl);
+  }
+}
+
+/**
+ * Send sync suggestion toast to a single newly joined tab
+ * Used when a new tab joins an existing pending group (toast already showing on other tabs)
+ */
+async function sendSuggestionToSingleTab(
+  tabId: number,
+  normalizedUrl: string,
+  group: AutoSyncGroup,
+): Promise<void> {
+  const tabIds = Array.from(group.tabIds);
+  const tabTitles: string[] = [];
+
+  for (const id of tabIds) {
+    try {
+      const tab = await browser.tabs.get(id);
+      tabTitles.push(tab.title || 'Untitled');
+    } catch {
+      tabTitles.push('Untitled');
+    }
+  }
+
+  // Check if content script is ready, inject if needed
+  try {
+    await sendMessage('ping', {}, { context: 'content-script', tabId });
+  } catch {
+    // Content script not ready, inject it
+    try {
+      await browser.scripting.executeScript({
+        target: { tabId },
+        files: ['dist/contentScripts/index.global.js'],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    } catch (error) {
+      logger.warn('[AUTO-SYNC] Failed to inject content script for new tab', { tabId, error });
+      return;
+    }
+  }
+
+  // Send toast to the single new tab
+  try {
+    await sendMessage(
+      'sync-suggestion:show',
+      {
+        normalizedUrl,
+        tabIds,
+        tabTitles,
+        tabCount: tabIds.length,
+      },
+      { context: 'content-script', tabId },
+    );
+    logger.info('[AUTO-SYNC] Sent suggestion to newly joined tab', { tabId, normalizedUrl });
+  } catch (error) {
+    logger.warn('[AUTO-SYNC] Failed to send suggestion to new tab', { tabId, error });
   }
 }
 
@@ -2116,14 +2182,23 @@ browser.tabs.onCreated.addListener(async (tab) => {
             currentGroup &&
             currentGroup.tabIds.size >= 2 &&
             !currentGroup.isActive &&
-            !pendingSuggestions.has(normalizedUrl) &&
             !dismissedUrlGroups.has(normalizedUrl)
           ) {
-            logger.info('[AUTO-SYNC] Showing delayed suggestion after tab creation', {
-              tabId: tab.id,
-              normalizedUrl,
-            });
-            await showSyncSuggestion(normalizedUrl);
+            // If suggestion already pending (toast showing on other tabs), send to this new tab only
+            if (pendingSuggestions.has(normalizedUrl) && tab.id !== undefined) {
+              logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab', {
+                tabId: tab.id,
+                normalizedUrl,
+              });
+              await sendSuggestionToSingleTab(tab.id, normalizedUrl, currentGroup);
+            } else {
+              // New group - broadcast to all tabs
+              logger.info('[AUTO-SYNC] Showing delayed suggestion after tab creation', {
+                tabId: tab.id,
+                normalizedUrl,
+              });
+              await showSyncSuggestion(normalizedUrl);
+            }
           }
         }, 500); // 500ms delay for content script initialization
       }
