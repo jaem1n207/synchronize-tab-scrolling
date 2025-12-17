@@ -49,6 +49,14 @@ When you read two documents side by sideâ€”like an original and its translationâ
 
 ---
 
+## Demo Video
+
+<a href="https://youtu.be/cpLPy5OlJ8g?si=dfDTYmt7NbakQocG">
+  <img src="https://img.youtube.com/vi/cpLPy5OlJ8g/0.jpg" alt="Demo Video" width="480" height="360" />
+</a>
+
+---
+
 ## How to Use
 
 ### Step 1: Install
@@ -78,14 +86,6 @@ When comparing documents like originals and translations, content lengths often 
 ### Step 5: Stop syncing
 
 Click the extension icon again and select **"Stop Sync"**, or simply close the synced tabs.
-
----
-
-## Demo Video
-
-<a href="https://youtu.be/cpLPy5OlJ8g?si=dfDTYmt7NbakQocG">
-  <img src="https://img.youtube.com/vi/cpLPy5OlJ8g/0.jpg" alt="Demo Video" width="480" height="360" />
-</a>
 
 ---
 

@@ -49,6 +49,14 @@
 
 ---
 
+## 사용 영상
+
+<a href="https://youtu.be/cpLPy5OlJ8g?si=dfDTYmt7NbakQocG">
+  <img src="https://img.youtube.com/vi/cpLPy5OlJ8g/0.jpg" alt="사용 영상" width="480" height="360" />
+</a>
+
+---
+
 ## 사용 방법
 
 ### 1단계: 설치
@@ -78,14 +86,6 @@
 ### 5단계: 동기화 중지
 
 확장 프로그램 아이콘을 다시 클릭해서 **"동기화 해제"**를 선택하거나, 동기화된 탭을 닫으면 돼요.
-
----
-
-## 사용 영상
-
-<a href="https://youtu.be/cpLPy5OlJ8g?si=dfDTYmt7NbakQocG">
-  <img src="https://img.youtube.com/vi/cpLPy5OlJ8g/0.jpg" alt="사용 영상" width="480" height="360" />
-</a>
 
 ---
 
