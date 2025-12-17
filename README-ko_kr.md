@@ -83,8 +83,8 @@
 
 ## 사용 영상
 
-<a href="https://www.youtube.com/watch?v=DxFYu6XHGJY">
-  <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="사용 영상" width="480" height="360" />
+<a href="https://youtu.be/cpLPy5OlJ8g?si=dfDTYmt7NbakQocG">
+  <img src="https://img.youtube.com/vi/cpLPy5OlJ8g/0.jpg" alt="사용 영상" width="480" height="360" />
 </a>
 
 ---
@@ -180,16 +180,17 @@ flowchart LR
 
 확장 프로그램 인터페이스는 **9개 언어**로 제공돼요:
 
-| 언어                | 코드 |
-| ------------------- | ---- |
-| English (영어)      | en   |
-| 한국어              | ko   |
-| 日本語 (일본어)     | ja   |
-| Français (프랑스어) | fr   |
-| Español (스페인어)  | es   |
-| Deutsch (독일어)    | de   |
-| 中文 (중국어)       | zh   |
-| हिन्दी (힌디어)     | hi   |
+| 언어                | 코드  |
+| ------------------- | ----- |
+| English (영어)      | en    |
+| 한국어              | ko    |
+| 日本語 (일본어)     | ja    |
+| Français (프랑스어) | fr    |
+| Español (스페인어)  | es    |
+| Deutsch (독일어)    | de    |
+| 중국어 (중국)       | zh_CN |
+| 중국어 (대만)       | zh_TW |
+| हिन्दी (힌디어)     | hi    |
 
 ---
 

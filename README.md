@@ -83,8 +83,8 @@ Click the extension icon again and select **"Stop Sync"**, or simply close the s
 
 ## Demo Video
 
-<a href="https://www.youtube.com/watch?v=DxFYu6XHGJY">
-  <img src="https://img.youtube.com/vi/DxFYu6XHGJY/0.jpg" alt="Demo Video" width="480" height="360" />
+<a href="https://youtu.be/cpLPy5OlJ8g?si=dfDTYmt7NbakQocG">
+  <img src="https://img.youtube.com/vi/cpLPy5OlJ8g/0.jpg" alt="Demo Video" width="480" height="360" />
 </a>
 
 ---
@@ -180,16 +180,17 @@ flowchart LR
 
 The extension interface is available in **9 languages**:
 
-| Language          | Code |
-| ----------------- | ---- |
-| English           | en   |
-| 한국어 (Korean)   | ko   |
-| 日本語 (Japanese) | ja   |
-| Français (French) | fr   |
-| Español (Spanish) | es   |
-| Deutsch (German)  | de   |
-| 中文 (Chinese)    | zh   |
-| हिन्दी (Hindi)    | hi   |
+| Language          | Code  |
+| ----------------- | ----- |
+| English           | en    |
+| 한국어 (Korean)   | ko    |
+| 日本語 (Japanese) | ja    |
+| Français (French) | fr    |
+| Español (Spanish) | es    |
+| Deutsch (German)  | de    |
+| Chinese (China)   | zh_CN |
+| Chinese (Taiwan)  | zh_TW |
+| हिन्दी (Hindi)    | hi    |
 
 ---
 

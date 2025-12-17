@@ -1,0 +1,529 @@
+{
+  "extName": {
+    "message": "同步標籤頁捲動"
+  },
+  "extDescription": {
+    "message": "允許您同步多個瀏覽器標籤頁的捲動位置的瀏覽器擴充功能"
+  },
+  "searchPlaceholder": {
+    "message": "搜尋標籤頁"
+  },
+  "noSearchFound": {
+    "message": "找不到與您的搜尋符合的標籤頁"
+  },
+  "noTabsFound": {
+    "message": "未找到可同步的標籤頁"
+  },
+  "startSync": {
+    "message": "開始同步"
+  },
+  "stopSync": {
+    "message": "停止同步"
+  },
+  "syncValidationError": {
+    "message": "請至少選擇2個標籤頁"
+  },
+  "loading": {
+    "message": "載入中..."
+  },
+  "error": {
+    "message": "發生錯誤"
+  },
+  "backgroundUpdate": {
+    "message": "後台更新中..."
+  },
+  "tabs": {
+    "message": "標籤頁"
+  },
+  "changeTheme": {
+    "message": "更改主題"
+  },
+  "light": {
+    "message": "淺色"
+  },
+  "dark": {
+    "message": "深色"
+  },
+  "system": {
+    "message": "系統"
+  },
+  "noTitle": {
+    "message": "無標題"
+  },
+  "tabSelectionHeading": {
+    "message": "選擇要同步的標籤頁"
+  },
+  "selectedCount": {
+    "message": "已選擇$COUNT$個",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "resync": {
+    "message": "重新同步"
+  },
+  "minimize": {
+    "message": "最小化"
+  },
+  "maximize": {
+    "message": "最大化"
+  },
+  "linkedTabs": {
+    "message": "已連結的標籤頁"
+  },
+  "currentTab": {
+    "message": "當前"
+  },
+  "switchToTab": {
+    "message": "切換到此標籤頁"
+  },
+  "connected": {
+    "message": "已連接"
+  },
+  "disconnected": {
+    "message": "已中斷"
+  },
+  "errorLoadTabsFailed": {
+    "message": "載入標籤頁失敗。請重新整理擴充功能。"
+  },
+  "errorStartSyncFailed": {
+    "message": "啟動同步失敗。請重試。"
+  },
+  "errorStopSyncFailed": {
+    "message": "警告：未能正確停止同步。本機狀態已清除。"
+  },
+  "errorSwitchTabFailed": {
+    "message": "切換標籤頁失敗。該標籤頁可能已關閉。"
+  },
+  "errorMinTabsRequired": {
+    "message": "請至少選擇2個標籤頁進行同步。"
+  },
+  "successSyncStarted": {
+    "message": "已成功開始同步$COUNT$個標籤頁。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "successSyncStopped": {
+    "message": "同步已成功停止。"
+  },
+  "retry": {
+    "message": "重試"
+  },
+  "dismiss": {
+    "message": "關閉"
+  },
+  "ineligibleWebStore": {
+    "message": "由於安全限制，無法同步線上應用程式商店頁面"
+  },
+  "ineligibleGoogleServices": {
+    "message": "Google服務頁面存在阻止同步的限制"
+  },
+  "ineligibleBrowserInternal": {
+    "message": "由於安全限制，無法同步瀏覽器內部頁面"
+  },
+  "ineligibleSpecialProtocol": {
+    "message": "無法同步特殊協定頁面"
+  },
+  "ineligibleSecurityRestriction": {
+    "message": "由於安全限制，無法同步此頁面"
+  },
+  "syncControls": {
+    "message": "同步控制"
+  },
+  "startSynchronization": {
+    "message": "開始同步"
+  },
+  "selectAtLeastTwoTabs": {
+    "message": "至少選擇2個標籤頁開始"
+  },
+  "selectAtLeastTwoTabsCount": {
+    "message": "至少選擇2個標籤頁開始（已選擇$COUNT$個）",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "1"
+      }
+    }
+  },
+  "stopSynchronization": {
+    "message": "停止同步"
+  },
+  "resyncDisconnectedTabs": {
+    "message": "重新同步中斷的標籤頁"
+  },
+  "actionsButton": {
+    "message": "操作"
+  },
+  "syncControlsHeading": {
+    "message": "同步控制"
+  },
+  "selectionHeading": {
+    "message": "選擇"
+  },
+  "selectAllTabs": {
+    "message": "選擇所有標籤頁"
+  },
+  "clearAllSelections": {
+    "message": "清除所有選擇"
+  },
+  "filtersHeading": {
+    "message": "篩選"
+  },
+  "sameDomainOnly": {
+    "message": "僅相同網域"
+  },
+  "sortByHeading": {
+    "message": "排序方式"
+  },
+  "sortSimilarity": {
+    "message": "相似度（網域分組）"
+  },
+  "sortRecent": {
+    "message": "最近訪問"
+  },
+  "footerActions": {
+    "message": "操作"
+  },
+  "footerStartStop": {
+    "message": "開始/停止"
+  },
+  "footerSelect": {
+    "message": "選擇"
+  },
+  "syncingTabs": {
+    "message": "正在同步$COUNT$個標籤頁",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "connecting": {
+    "message": "連接中"
+  },
+  "availableTabs": {
+    "message": "可用標籤頁"
+  },
+  "unavailableTabs": {
+    "message": "不可用標籤頁"
+  },
+  "searchTabsPlaceholder": {
+    "message": "按標題或URL搜尋標籤頁..."
+  },
+  "noTabsMatchingSearch": {
+    "message": "未找到符合\"$QUERY$\"的標籤頁",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "google"
+      }
+    }
+  },
+  "cannotChangeSelectionDuringSync": {
+    "message": "$TITLE$ - 同步期間無法更改選擇",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "selectTab": {
+    "message": "選擇$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "cannotSelectTab": {
+    "message": "無法選擇$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Chrome線上應用程式商店"
+      }
+    }
+  },
+  "cannotSync": {
+    "message": "無法同步"
+  },
+  "syncActive": {
+    "message": "同步已啟用"
+  },
+  "syncInactive": {
+    "message": "同步未啟用"
+  },
+  "scrollSyncToolbar": {
+    "message": "捲動同步工具列"
+  },
+  "urlSyncNavigation": {
+    "message": "URL同步"
+  },
+  "syncedTabs": {
+    "message": "已同步的標籤頁"
+  },
+  "current": {
+    "message": "當前"
+  },
+  "toggleShortcut": {
+    "message": "切換"
+  },
+  "closeShortcut": {
+    "message": "關閉"
+  },
+  "openSyncControlPanel": {
+    "message": "開啟同步控制面板"
+  },
+  "connectingToTabs": {
+    "message": "正在連接$COUNT$個標籤頁...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "reloadingTabs": {
+    "message": "正在重新載入$COUNT$個標籤頁...",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "stoppingSynchronization": {
+    "message": "正在停止同步..."
+  },
+  "connectedToTabs": {
+    "message": "已連接$COUNT$個標籤頁，共$TOTAL$個（$FAILED$個失敗）。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      },
+      "total": {
+        "content": "$2",
+        "example": "3"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "1"
+      }
+    }
+  },
+  "successfullyConnectedToTabs": {
+    "message": "已成功連接到$COUNT$個標籤頁。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "selectTwoOrMoreTabs": {
+    "message": "選擇2個或更多標籤頁開始同步"
+  },
+  "cannotRemoveTabDuringSync": {
+    "message": "同步期間無法移除$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "removeTab": {
+    "message": "移除$TITLE$",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabsSelectedLabel": {
+    "message": "已選擇$COUNT$個標籤頁",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "currentTabLabel": {
+    "message": "當前標籤頁"
+  },
+  "searchTabsLabel": {
+    "message": "搜尋標籤頁"
+  },
+  "untitled": {
+    "message": "無標題"
+  },
+  "failedToStartSync": {
+    "message": "啟動同步失敗：$ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "連接逾時"
+      }
+    }
+  },
+  "warningStopSyncFailed": {
+    "message": "警告：$ERROR$。本機狀態已清除。",
+    "placeholders": {
+      "error": {
+        "content": "$1",
+        "example": "未能正確停止同步"
+      }
+    }
+  },
+  "failedToConnectToTabs": {
+    "message": "連接標籤頁失敗。$DETAILS$",
+    "placeholders": {
+      "details": {
+        "content": "$1",
+        "example": "標籤頁123：連接逾時"
+      }
+    }
+  },
+  "hiddenByFilter": {
+    "message": "網域篩選隱藏了$COUNT$個標籤頁",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "noTabsMatchingFilter": {
+    "message": "沒有標籤頁符合網域篩選"
+  },
+  "tabsMatchingSearchHiddenByFilter": {
+    "message": "與\"$QUERY$\"符合的標籤頁已被網域篩選隱藏",
+    "placeholders": {
+      "query": {
+        "content": "$1",
+        "example": "谷歌"
+      }
+    }
+  },
+  "clearDomainFilter": {
+    "message": "清除篩選"
+  },
+  "filterActive": {
+    "message": "篩選已啟用"
+  },
+  "connectionLost": {
+    "message": "連接已中斷"
+  },
+  "reconnect": {
+    "message": "重新連接"
+  },
+  "reconnecting": {
+    "message": "正在重新連接..."
+  },
+  "reconnectionSuccessful": {
+    "message": "重新連接成功"
+  },
+  "reconnectionFailed": {
+    "message": "重新連接失敗"
+  },
+  "autoReconnecting": {
+    "message": "正在自動重新連接閒置標籤頁..."
+  },
+  "tabReconnected": {
+    "message": "$TITLE$ 已重新連接",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "tabDisconnectedIdle": {
+    "message": "$TITLE$ 已中斷連接（閒置）",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google"
+      }
+    }
+  },
+  "autoSyncSameUrl": {
+    "message": "自動同步相同URL"
+  },
+  "autoSyncActive": {
+    "message": "自動"
+  },
+  "advancedFeatures": {
+    "message": "進階功能"
+  },
+  "autoSyncingTabs": {
+    "message": "正在自動同步 $COUNT$ 個標籤頁",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "autoSyncingWithTabs": {
+    "message": "正在與其他 $COUNT$ 個標籤頁自動同步",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "autoSyncEnabled": {
+    "message": "自動同步已啟用"
+  },
+  "autoSyncDisabled": {
+    "message": "自動同步已停用"
+  },
+  "foundTabsWithSameUrl": {
+    "message": "發現$COUNT$個相同URL的標籤頁。開始同步嗎？",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "newTabSameUrl": {
+    "message": "新標籤頁\"$TITLE$\"具有相同的URL。新增至同步嗎？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "warningResetScrollOffsets": {
+    "message": "新增此標籤頁將重設您手動調整的捲動位置"
+  },
+  "startSyncButton": {
+    "message": "開始同步"
+  },
+  "addTabButton": {
+    "message": "新增標籤頁"
+  },
+  "notNowButton": {
+    "message": "稍後"
+  },
+  "skipButton": {
+    "message": "跳過"
+  }
+}
