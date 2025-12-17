@@ -1,3 +1,10 @@
+## [2.7.2](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.1...v2.7.2) (2025-12-17)
+
+
+### Bug Fixes
+
+* update icon paths in manifest for consistency ([5ab5304](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/5ab530498f6e3988c6c65fb6d8119b47c00577c8))
+
 ## [2.7.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.0...v2.7.1) (2025-12-17)
 
 

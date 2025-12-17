@@ -1,7 +1,7 @@
 {
   "name": "synchronize-tab-scrolling",
   "displayName": "Synchronize Tab Scrolling",
-  "version": "2.7.1",
+  "version": "2.7.2",
   "private": true,
   "description": "Sync scroll positions across browser tabs - Perfect for comparing documents, code changes, or data side by side.",
   "author": "jaem1n207 <tech.jmtt@gmail.com>",
