@@ -19,9 +19,9 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
     default_locale: 'en',
     action: {
       default_icon: {
-        '16': 'icons/icon16.png',
-        '32': 'icons/icon32.png',
-        '64': 'icons/icon64.png',
+        '16': 'icons/logo-16.png',
+        '32': 'icons/logo-32.png',
+        '64': 'icons/logo-64.png',
       },
       default_popup: './dist/popup/index.html',
     },
