@@ -1,3 +1,10 @@
+## [2.7.3](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.2...v2.7.3) (2025-12-17)
+
+
+### Bug Fixes
+
+* remove 'activeTab' permission from manifest ([dfe9ca1](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/dfe9ca1d07543be4d94f0c168b2ae10d7cf2f4a3))
+
 ## [2.7.2](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.1...v2.7.2) (2025-12-17)
 
 
