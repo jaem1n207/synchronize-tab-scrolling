@@ -85,20 +85,3 @@ export const captureException = (
   });
 };
 
-export const captureMessage = (
-  message: string,
-  context?: {
-    level?: SeverityLevel;
-    extra?: Record<string, unknown>;
-    tags?: Record<string, string>;
-  },
-): string | undefined => {
-  if (!sentryScope) return undefined;
-
-  return sentryScope.captureMessage(message, context?.level ?? 'info', {
-    captureContext: {
-      extra: context?.extra,
-      tags: context?.tags,
-    },
-  });
-};

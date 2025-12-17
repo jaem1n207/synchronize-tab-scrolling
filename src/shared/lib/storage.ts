@@ -5,14 +5,12 @@
 
 import browser from 'webextension-polyfill';
 
-import type { PanelPosition } from '~/popup/types';
 import type { SyncMode } from '~/shared/types/messages';
 
 /**
  * Storage keys
  */
 const STORAGE_KEYS = {
-  PANEL_POSITION: 'panelPosition',
   SYNC_MODE: 'syncMode',
   IS_PANEL_MINIMIZED: 'isPanelMinimized',
   SELECTED_TAB_IDS: 'selectedTabIds',
@@ -21,32 +19,6 @@ const STORAGE_KEYS = {
   AUTO_SYNC_ENABLED: 'autoSyncEnabled',
   AUTO_SYNC_EXCLUDED_URLS: 'autoSyncExcludedUrls',
 } as const;
-
-/**
- * Save panel position
- */
-export async function savePanelPosition(position: PanelPosition): Promise<void> {
-  try {
-    await browser.storage.local.set({
-      [STORAGE_KEYS.PANEL_POSITION]: position,
-    });
-  } catch (error) {
-    console.error('Failed to save panel position:', error);
-  }
-}
-
-/**
- * Load panel position
- */
-export async function loadPanelPosition(): Promise<PanelPosition | null> {
-  try {
-    const result = await browser.storage.local.get(STORAGE_KEYS.PANEL_POSITION);
-    return (result[STORAGE_KEYS.PANEL_POSITION] as PanelPosition) || null;
-  } catch (error) {
-    console.error('Failed to load panel position:', error);
-    return null;
-  }
-}
 
 /**
  * Save sync mode preference

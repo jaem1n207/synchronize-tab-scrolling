@@ -16,12 +16,6 @@ export interface SyncStatus {
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'connecting';
 
-export interface PanelPosition {
-  x: number;
-  y: number;
-  snapped: boolean;
-}
-
 export type ErrorSeverity = 'info' | 'warning' | 'error';
 
 export interface ErrorState {
