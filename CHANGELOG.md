@@ -1,3 +1,10 @@
+# [2.7.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.6.1...v2.7.0) (2025-12-17)
+
+
+### Features
+
+* add chinese-taiwan localization files ([41d2747](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/41d2747990fd4585ab95a810834f57216d032b69))
+
 ## [2.6.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.6.0...v2.6.1) (2025-12-12)
 
 
