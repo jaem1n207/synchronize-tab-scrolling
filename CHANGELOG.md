@@ -1,3 +1,10 @@
+## [2.7.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.0...v2.7.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* correct icon paths and shorten description for chrome web store ([766043e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/766043e7b878834307c4f86a0583609359ef856a))
+
 # [2.7.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.6.1...v2.7.0) (2025-12-17)
 
 
