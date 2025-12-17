@@ -1,3 +1,10 @@
+## [2.7.4](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.3...v2.7.4) (2025-12-17)
+
+
+### Bug Fixes
+
+* firefox support and modify manifest for compatibility ([3f2c10c](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/3f2c10c52d60c4b8525660162ee1d9acf8fb94c1))
+
 ## [2.7.3](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.2...v2.7.3) (2025-12-17)
 
 
