@@ -18,7 +18,11 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
     description: pkg.description,
     default_locale: 'en',
     action: {
-      default_icon: './icons/logo-512.png',
+      default_icon: {
+        '16': 'icons/icon16.png',
+        '32': 'icons/icon32.png',
+        '64': 'icons/icon64.png',
+      },
       default_popup: './dist/popup/index.html',
     },
     background: isFirefox
@@ -30,9 +34,10 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
           service_worker: './dist/background/index.mjs',
         },
     icons: {
-      16: './icons/logo-512.png',
-      48: './icons/logo-512.png',
-      128: './icons/logo-512.png',
+      16: 'icons/logo-16.png',
+      48: 'icons/logo-48.png',
+      128: 'icons/logo-128.png',
+      512: 'icons/logo-512.png',
     },
     permissions: ['tabs', 'storage', 'activeTab', 'scripting'],
     host_permissions: ['*://*/*'],

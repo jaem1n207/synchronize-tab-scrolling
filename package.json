@@ -3,7 +3,7 @@
   "displayName": "Synchronize Tab Scrolling",
   "version": "2.7.0",
   "private": true,
-  "description": "Synchronize scroll positions across browser tabs - Perfect for comparing documents, reviewing code changes, or analyzing data side by side.",
+  "description": "Sync scroll positions across browser tabs - Perfect for comparing documents, code changes, or data side by side.",
   "author": "jaem1n207 <tech.jmtt@gmail.com>",
   "license": "MIT",
   "repository": {
