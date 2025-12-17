@@ -2279,7 +2279,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // URL changed - broadcast to other synced tabs for cross-domain navigation support
   // Content script's MutationObserver only handles SPA navigation; this handles hard navigation
   if (changeInfo.url) {
-    logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: changeInfo.url });
+    const newUrl = changeInfo.url;
+    logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: newUrl });
 
     const urlSyncEnabled = await loadUrlSyncEnabled();
     if (urlSyncEnabled) {
@@ -2288,7 +2289,7 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         targetTabIds.map((targetTabId) =>
           sendMessage(
             'url:sync',
-            { url: changeInfo.url, sourceTabId: tabId },
+            { url: newUrl, sourceTabId: tabId },
             { context: 'content-script', tabId: targetTabId },
           ).catch((error) => {
             logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });

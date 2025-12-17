@@ -137,6 +137,241 @@ declare module 'webext-bridge' {
     TAB_ACTIVATED: {
       tabId: number;
     };
+
+    // Legacy scroll sync protocols
+    'scroll:start': ProtocolWithReturn<
+      {
+        tabIds: number[];
+        mode: string;
+        currentTabId: number;
+        isAutoSync?: boolean;
+      },
+      {
+        success: boolean;
+        connectedTabs: number[];
+        connectionResults: Record<number, { success: boolean; error?: string }>;
+        error?: string;
+      }
+    >;
+
+    'scroll:stop': ProtocolWithReturn<
+      {
+        tabIds?: number[];
+        isAutoSync?: boolean;
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'scroll:sync': ProtocolWithReturn<
+      {
+        scrollTop: number;
+        scrollHeight: number;
+        clientHeight: number;
+        sourceTabId: number;
+        mode: string;
+        timestamp: number;
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'scroll:manual': ProtocolWithReturn<
+      {
+        tabId: number;
+        enabled: boolean;
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'scroll:ping': ProtocolWithReturn<
+      {
+        tabId: number;
+        timestamp: number;
+      },
+      {
+        success: boolean;
+        timestamp: number;
+        tabId: number;
+        isSyncActive?: boolean;
+      }
+    >;
+
+    'scroll:reconnect': ProtocolWithReturn<
+      {
+        tabId: number;
+        timestamp: number;
+      },
+      {
+        success: boolean;
+        reason?: string;
+      }
+    >;
+
+    'scroll:request-reinject': ProtocolWithReturn<
+      {
+        tabId: number;
+      },
+      {
+        success: boolean;
+        reason?: string;
+      }
+    >;
+
+    'sync:status': {
+      linkedTabs: Array<{
+        id: number;
+        title: string;
+        url: string;
+        favIconUrl?: string;
+        eligible: boolean;
+      }>;
+      connectionStatuses: Record<number, 'connected' | 'disconnected' | 'error'>;
+      currentTabId: number;
+    };
+
+    'sync:get-status': ProtocolWithReturn<
+      Record<string, never>,
+      {
+        success: boolean;
+        isActive: boolean;
+        linkedTabs: Array<{
+          id: number;
+          title: string;
+          url: string;
+          favIconUrl?: string;
+          eligible: boolean;
+        }>;
+        connectedTabs?: number[];
+        connectionStatuses: Record<number, 'connected' | 'disconnected' | 'error'>;
+        currentTabId?: number;
+      }
+    >;
+
+    'url:sync': ProtocolWithReturn<
+      {
+        url: string;
+        sourceTabId: number;
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'sync:url-enabled-changed': ProtocolWithReturn<
+      {
+        enabled: boolean;
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'auto-sync:status-changed': ProtocolWithReturn<
+      {
+        enabled: boolean;
+      },
+      {
+        success: boolean;
+        enabled: boolean;
+      }
+    >;
+
+    'auto-sync:get-status': ProtocolWithReturn<
+      undefined,
+      {
+        success: boolean;
+        enabled: boolean;
+        groups: Array<{
+          normalizedUrl: string;
+          tabIds: number[];
+          isActive: boolean;
+        }>;
+      }
+    >;
+
+    'auto-sync:get-detailed-status': ProtocolWithReturn<
+      Record<string, never>,
+      {
+        success: boolean;
+        enabled: boolean;
+        activeGroupCount: number;
+        totalSyncedTabs: number;
+        potentialSyncTabs: number;
+        currentTabGroup?: {
+          normalizedUrl: string;
+          tabCount: number;
+          isActive: boolean;
+        };
+      }
+    >;
+
+    'auto-sync:group-updated': {
+      groups: Array<{
+        normalizedUrl: string;
+        tabIds: number[];
+        isActive: boolean;
+      }>;
+    };
+
+    'sync-suggestion:show': ProtocolWithReturn<
+      {
+        normalizedUrl: string;
+        tabCount: number;
+        tabIds: number[];
+        tabTitles: string[];
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'sync-suggestion:response': ProtocolWithReturn<
+      {
+        normalizedUrl: string;
+        accepted: boolean;
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'sync-suggestion:add-tab': ProtocolWithReturn<
+      {
+        tabId: number;
+        tabTitle: string;
+        hasManualOffsets: boolean;
+        normalizedUrl: string;
+      },
+      {
+        success: boolean;
+      }
+    >;
+
+    'sync-suggestion:add-tab-response': ProtocolWithReturn<
+      {
+        tabId: number;
+        accepted: boolean;
+      },
+      {
+        success: boolean;
+        error?: string;
+      }
+    >;
+
+    'sync-suggestion:dismiss': {
+      normalizedUrl: string;
+    };
+
+    'sync-suggestion:dismiss-add-tab': {
+      tabId: number;
+    };
+
+    ping: Record<string, never>;
   }
 }
 

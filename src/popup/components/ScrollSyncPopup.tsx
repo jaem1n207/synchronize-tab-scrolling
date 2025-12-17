@@ -298,6 +298,7 @@ export function ScrollSyncPopup() {
           {
             tabIds: selectedTabIds,
             mode: 'ratio', // Default to ratio mode, can be made configurable later
+            currentTabId: selectedTabIds[0], // Use first selected tab as current
           },
           'background',
         )) as {
@@ -598,10 +599,7 @@ export function ScrollSyncPopup() {
       }
 
       try {
-        const response = (await sendMessage('auto-sync:get-detailed-status', {}, 'background')) as {
-          success: boolean;
-          potentialSyncTabs: number;
-        };
+        const response = await sendMessage('auto-sync:get-detailed-status', {}, 'background');
 
         if (response?.success) {
           // Use potentialSyncTabs (tabs in groups with 2+ same-URL tabs)

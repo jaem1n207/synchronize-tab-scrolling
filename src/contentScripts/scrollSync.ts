@@ -734,7 +734,11 @@ export function initScrollSync() {
     // Start visibility change monitoring for idle tab reconnection
     startVisibilityChangeMonitoring();
 
-    return { success: true, tabId: currentTabId };
+    return {
+      success: true,
+      connectedTabs: [currentTabId],
+      connectionResults: { [currentTabId]: { success: true } },
+    };
   });
 
   // Listen for stop sync message
@@ -785,12 +789,12 @@ export function initScrollSync() {
     // Hide draggable control panel
     hidePanel();
 
-    return { success: true, tabId: currentTabId };
+    return { success: true };
   });
 
   // Listen for scroll sync from other tabs
   onMessage('scroll:sync', async ({ data }) => {
-    if (!isSyncActive) return;
+    if (!isSyncActive) return { success: false };
 
     const payload = data as {
       scrollTop: number;
@@ -802,7 +806,7 @@ export function initScrollSync() {
     };
 
     // Don't sync if this is the source tab
-    if (payload.sourceTabId === currentTabId) return;
+    if (payload.sourceTabId === currentTabId) return { success: true };
 
     // Update last successful sync time for connection health monitoring
     lastSuccessfulSync = Date.now();
@@ -818,7 +822,7 @@ export function initScrollSync() {
         sourceRatio,
         frozenBaseline: lastSyncedRatioSnapshot,
       });
-      return;
+      return { success: true };
     }
 
     // Get my document dimensions
@@ -881,6 +885,8 @@ export function initScrollSync() {
         behavior: 'auto',
       });
     }
+
+    return { success: true };
   });
 
   // Listen for manual scroll toggle (P1)
@@ -890,7 +896,7 @@ export function initScrollSync() {
 
     // Only apply to this specific tab
     if (payload.tabId !== currentTabId) {
-      return;
+      return { success: true };
     }
 
     // Snapshot baseline ratio when ENTERING manual mode
@@ -914,6 +920,8 @@ export function initScrollSync() {
         currentTabId,
       });
     }
+
+    return { success: true };
   });
 
   // Listen for ping from background to verify content script is alive
@@ -925,18 +933,18 @@ export function initScrollSync() {
 
   // Listen for URL sync from other tabs (P1)
   onMessage('url:sync', async ({ data }) => {
-    if (!isSyncActive) return;
+    if (!isSyncActive) return { success: true };
 
     const payload = data as { url: string; sourceTabId: number };
 
     // Don't navigate if this is the source tab
-    if (payload.sourceTabId === currentTabId) return;
+    if (payload.sourceTabId === currentTabId) return { success: true };
 
     // Check if URL sync is enabled
     const urlSyncEnabled = await loadUrlSyncEnabled();
     if (!urlSyncEnabled) {
       logger.debug('URL sync is disabled, ignoring navigation request');
-      return;
+      return { success: true };
     }
 
     logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
@@ -971,6 +979,8 @@ export function initScrollSync() {
       });
       window.location.href = payload.url;
     }
+
+    return { success: true };
   });
 
   // Listen for auto-sync status changes from background
@@ -978,6 +988,7 @@ export function initScrollSync() {
     const payload = data as { enabled: boolean };
     logger.info('Auto-sync status changed', { enabled: payload.enabled });
     // This is informational - actual sync start/stop is handled by scroll:start/stop
+    return { success: true, enabled: payload.enabled };
   });
 
   // Listen for auto-sync group updates from background
