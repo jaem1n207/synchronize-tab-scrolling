@@ -19,7 +19,7 @@
       "Bash(vite:*)"
     ],
     "deny": ["Bash(curl:*)", "Bash(wget:*)", "Bash(rm -rf:*)"],
-    "defaultMode": "allowEdits"
+    "defaultMode": "default"
   },
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "60000",
