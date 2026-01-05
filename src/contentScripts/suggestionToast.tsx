@@ -191,6 +191,14 @@ async function ensureToastContainer(): Promise<void> {
       display: block;
     }
 
+    /* Reset font-size to prevent inheritance from host page */
+    /* This ensures consistent font sizes across all websites */
+    .light, .dark {
+      font-size: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.5;
+    }
+
     .light {
       --background: 0 0% 100%;
       --foreground: 0 0% 3.9%;
