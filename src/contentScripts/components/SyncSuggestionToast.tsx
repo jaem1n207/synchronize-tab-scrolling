@@ -97,7 +97,8 @@ export function SyncSuggestionToast({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           className={cn(
             'fixed bottom-6 right-6 z-[2147483647]',
-            'max-w-sm w-full',
+            'min-w-[320px] max-w-sm w-full',
+            'max-h-[90vh] overflow-y-auto',
             'rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl',
             'p-4',
             'pointer-events-auto',
@@ -105,6 +106,12 @@ export function SyncSuggestionToast({
           )}
           exit={reducedMotion ? undefined : { opacity: 0, y: 20, scale: 0.95 }}
           initial={reducedMotion ? false : { opacity: 0, y: 20, scale: 0.95 }}
+          style={{
+            fontSize: '16px',
+            fontFamily:
+              "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+            lineHeight: '1.5',
+          }}
           transition={getMotionTransition(
             ANIMATION_DURATIONS.normal,
             EASING_FUNCTIONS.easeOutCubic,
@@ -224,7 +231,8 @@ export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }:
           animate={{ opacity: 1, y: 0, scale: 1 }}
           className={cn(
             'fixed bottom-6 right-6 z-[2147483647]',
-            'max-w-sm w-full',
+            'min-w-[320px] max-w-sm w-full',
+            'max-h-[90vh] overflow-y-auto',
             'rounded-lg border bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl',
             'p-4',
             'pointer-events-auto',
@@ -232,6 +240,12 @@ export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }:
           )}
           exit={reducedMotion ? undefined : { opacity: 0, y: 20, scale: 0.95 }}
           initial={reducedMotion ? false : { opacity: 0, y: 20, scale: 0.95 }}
+          style={{
+            fontSize: '16px',
+            fontFamily:
+              "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+            lineHeight: '1.5',
+          }}
           transition={getMotionTransition(
             ANIMATION_DURATIONS.normal,
             EASING_FUNCTIONS.easeOutCubic,

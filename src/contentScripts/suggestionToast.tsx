@@ -155,9 +155,14 @@ async function ensureToastContainer(): Promise<void> {
   const styleContainer = document.createElement('div');
   contentWrapper.appendChild(styleContainer);
 
-  // Create app container
+  // Create app container with explicit font size reset
   const appContainer = document.createElement('div');
   appContainer.id = 'scroll-sync-suggestion-app';
+  appContainer.style.cssText = `
+    font-size: 16px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.5;
+  `;
   contentWrapper.appendChild(appContainer);
 
   // Inject extension CSS into shadow DOM with load tracking
@@ -197,6 +202,49 @@ async function ensureToastContainer(): Promise<void> {
       font-size: 16px;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.5;
+    }
+
+    /* CRITICAL FIX: Override rem-based text size classes with absolute pixel values
+     * rem units in Shadow DOM still reference the host document's root font-size,
+     * causing inconsistent sizes across different websites.
+     * These pixel overrides ensure consistent appearance regardless of host styles.
+     */
+    .text-xs { font-size: 12px !important; }
+    .text-sm { font-size: 14px !important; }
+    .text-base { font-size: 16px !important; }
+
+    /* Scrollbar styling for better UX when content overflows */
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .light *::-webkit-scrollbar-track {
+      background: hsl(0 0% 96.1%);
+      border-radius: 4px;
+    }
+
+    .light *::-webkit-scrollbar-thumb {
+      background: hsl(0 0% 89.8%);
+      border-radius: 4px;
+    }
+
+    .light *::-webkit-scrollbar-thumb:hover {
+      background: hsl(0 0% 80%);
+    }
+
+    .dark *::-webkit-scrollbar-track {
+      background: hsl(0 0% 14.9%);
+      border-radius: 4px;
+    }
+
+    .dark *::-webkit-scrollbar-thumb {
+      background: hsl(0 0% 25%);
+      border-radius: 4px;
+    }
+
+    .dark *::-webkit-scrollbar-thumb:hover {
+      background: hsl(0 0% 35%);
     }
 
     .light {
