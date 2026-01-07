@@ -1,7 +1,7 @@
 {
   "name": "synchronize-tab-scrolling",
   "displayName": "Synchronize Tab Scrolling",
-  "version": "2.7.4",
+  "version": "2.8.0",
   "private": true,
   "description": "Scroll once, sync everywhere. Compare documents, code, or translations side by side with one-click sync.",
   "author": "jaem1n207 <tech.jmtt@gmail.com>",

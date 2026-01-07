@@ -1,3 +1,10 @@
+# [2.8.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.4...v2.8.0) (2026-01-07)
+
+
+### Features
+
+* implement locale-aware URL synchronization and add tests for locale utilities ([36bc7a0](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/36bc7a07cf81c85f36b81b0fbfe2e59efabe87cf))
+
 ## [2.7.4](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.3...v2.7.4) (2025-12-17)
 
 
