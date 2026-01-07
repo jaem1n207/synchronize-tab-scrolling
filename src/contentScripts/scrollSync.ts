@@ -8,6 +8,7 @@
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
+import { applyLocalePreservingSync } from '~/shared/lib/locale-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
@@ -947,26 +948,21 @@ export function initScrollSync() {
     logger.debug('Cleared manual scroll offset before URL navigation', { currentTabId });
 
     try {
-      // Parse URLs to preserve target's query parameters and hash fragment
-      const sourceUrl = new URL(payload.url);
-      const targetUrl = new URL(window.location.href);
+      // Apply locale-preserving URL sync
+      // Preserves target tab's locale code while syncing path changes
+      const finalUrl = applyLocalePreservingSync(payload.url, window.location.href);
 
-      // Build new URL: source's base (origin + pathname) + target's query + target's hash
-      const newBase = `${sourceUrl.origin}${sourceUrl.pathname}`;
-      const finalUrl = newBase + targetUrl.search + targetUrl.hash;
-
-      logger.debug('URL sync with query and hash preservation', {
+      logger.debug('URL sync with locale and query/hash preservation', {
         sourceUrl: payload.url,
-        targetSearch: targetUrl.search,
-        targetHash: targetUrl.hash,
+        targetUrl: window.location.href,
         finalUrl,
       });
 
-      // Navigate to the new URL with preserved query and hash
+      // Navigate to the new URL with preserved locale, query, and hash
       window.location.href = finalUrl;
     } catch (error) {
-      // Fallback: use source URL as-is if parsing fails
-      logger.warn('Failed to parse URL for query/hash preservation, using source URL directly', {
+      // Fallback: use source URL as-is if locale-aware sync fails
+      logger.warn('Locale-aware URL sync failed, using source URL directly', {
         error,
       });
       window.location.href = payload.url;
