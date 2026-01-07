@@ -7,6 +7,7 @@ import { Command, CommandGroup, CommandItem, CommandList } from '~/shared/compon
 import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Separator } from '~/shared/components/ui/separator';
+import { useModifierKey } from '~/shared/hooks/useModifierKey';
 import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
@@ -65,6 +66,7 @@ export function ActionsMenu({
   urlSyncEnabled,
   onUrlSyncChange,
 }: ActionsMenuProps) {
+  const { modKey, shiftKey } = useModifierKey();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLDivElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
@@ -137,7 +139,7 @@ export function ActionsMenu({
             />
           )}
           <div className="flex items-center gap-0.5">
-            <Kbd>⌘</Kbd>
+            <Kbd>{modKey}</Kbd>
             <Kbd>K</Kbd>
           </div>
         </Button>
@@ -187,7 +189,7 @@ export function ActionsMenu({
                         <span>{isSyncActive ? t('stopSync') : t('startSync')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Kbd>⌘</Kbd>
+                        <Kbd>{modKey}</Kbd>
                         <Kbd>S</Kbd>
                       </div>
                     </CommandItem>
@@ -250,7 +252,7 @@ export function ActionsMenu({
                       <div className="flex items-center gap-2">
                         {sameDomainFilter && <IconCheck aria-hidden="true" className="w-4 h-4" />}
                         <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                          <Kbd>⌘</Kbd>
+                          <Kbd>{modKey}</Kbd>
                           <Kbd>D</Kbd>
                         </div>
                       </div>
@@ -267,7 +269,7 @@ export function ActionsMenu({
                         <span>{t('selectAllTabs')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Kbd>⌘</Kbd>
+                        <Kbd>{modKey}</Kbd>
                         <Kbd>A</Kbd>
                       </div>
                     </CommandItem>
@@ -280,8 +282,8 @@ export function ActionsMenu({
                         <span>{t('clearAllSelections')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Kbd>⌘</Kbd>
-                        <Kbd>⇧</Kbd>
+                        <Kbd>{modKey}</Kbd>
+                        <Kbd>{shiftKey}</Kbd>
                         <Kbd>X</Kbd>
                       </div>
                     </CommandItem>
@@ -304,7 +306,7 @@ export function ActionsMenu({
                         <span>{t('sortSimilarity')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Kbd>⌘</Kbd>
+                        <Kbd>{modKey}</Kbd>
                         <Kbd>1</Kbd>
                       </div>
                     </CommandItem>
@@ -321,7 +323,7 @@ export function ActionsMenu({
                         <span>{t('sortRecent')}</span>
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Kbd>⌘</Kbd>
+                        <Kbd>{modKey}</Kbd>
                         <Kbd>2</Kbd>
                       </div>
                     </CommandItem>

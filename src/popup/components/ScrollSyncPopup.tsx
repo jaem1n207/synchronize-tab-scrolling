@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { useHotkeys } from 'react-hotkeys-hook';
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
 
-import { useKeyboardShortcuts } from '~/shared/hooks/useKeyboardShortcuts';
 import { usePersistentState } from '~/shared/hooks/usePersistentState';
 import { t } from '~/shared/i18n';
 import {
@@ -519,64 +519,63 @@ export function ScrollSyncPopup() {
     });
   }, []);
 
-  // Keyboard shortcuts - using custom hook
-  useKeyboardShortcuts(
-    [
-      {
-        key: 's',
-        mod: true,
-        handler: () => {
-          if (syncStatus.isActive) {
-            handleStop();
-          } else if (selectedTabIds.length >= 2) {
-            handleStart();
-          }
-        },
-      },
-      {
-        key: 'a',
-        mod: true,
-        handler: handleSelectAll,
-        enabled: !syncStatus.isActive,
-      },
-      {
-        key: 'x',
-        mod: true,
-        shift: true,
-        handler: handleClearAll,
-        enabled: !syncStatus.isActive,
-      },
-      {
-        key: 'd',
-        mod: true,
-        handler: () => {
-          setSameDomainFilter((prev) => !prev);
-        },
-      },
-      {
-        key: '1',
-        mod: true,
-        handler: () => {
-          setSortBy('similarity');
-        },
-      },
-      {
-        key: '2',
-        mod: true,
-        handler: () => {
-          setSortBy('recent');
-        },
-      },
-    ],
-    [
-      syncStatus.isActive,
-      selectedTabIds,
-      handleStart,
-      handleStop,
-      handleSelectAll,
-      handleClearAll,
-      setSortBy,
-    ],
+  // Keyboard shortcuts - using react-hotkeys-hook
+  // Mod+S: Toggle sync start/stop
+  useHotkeys(
+    'mod+s',
+    () => {
+      if (syncStatus.isActive) {
+        handleStop();
+      } else if (selectedTabIds.length >= 2) {
+        handleStart();
+      }
+    },
+    { preventDefault: true },
+    [syncStatus.isActive, selectedTabIds, handleStart, handleStop],
+  );
+
+  // Mod+A: Select all (only when sync is not active)
+  useHotkeys('mod+a', handleSelectAll, { preventDefault: true, enabled: !syncStatus.isActive }, [
+    syncStatus.isActive,
+    handleSelectAll,
+  ]);
+
+  // Mod+Shift+X: Clear all (only when sync is not active)
+  useHotkeys(
+    'mod+shift+x',
+    handleClearAll,
+    { preventDefault: true, enabled: !syncStatus.isActive },
+    [syncStatus.isActive, handleClearAll],
+  );
+
+  // Mod+D: Toggle same domain filter
+  useHotkeys(
+    'mod+d',
+    () => {
+      setSameDomainFilter((prev) => !prev);
+    },
+    { preventDefault: true },
+    [setSameDomainFilter],
+  );
+
+  // Mod+1: Sort by similarity
+  useHotkeys(
+    'mod+1',
+    () => {
+      setSortBy('similarity');
+    },
+    { preventDefault: true },
+    [setSortBy],
+  );
+
+  // Mod+2: Sort by recent
+  useHotkeys(
+    'mod+2',
+    () => {
+      setSortBy('recent');
+    },
+    { preventDefault: true },
+    [setSortBy],
   );
 
   const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(

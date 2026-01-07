@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
+import { useModifierKey } from '~/shared/hooks/useModifierKey';
 import { t } from '~/shared/i18n';
 
 import IconPlay from '~icons/lucide/play';
@@ -31,6 +32,7 @@ export function SyncControlButtons({
   onStop,
   onResync,
 }: SyncControlButtonsProps) {
+  const { modKey } = useModifierKey();
   const canStart = selectedCount >= 2;
 
   const handleKeyDown = useCallback(
@@ -64,7 +66,7 @@ export function SyncControlButtons({
                 <IconPlay aria-hidden="true" className="w-4 h-4" />
                 {t('startSync')}
                 <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                  <Kbd>⌘</Kbd>
+                  <Kbd>{modKey}</Kbd>
                   <Kbd>S</Kbd>
                 </div>
               </Button>
@@ -87,7 +89,7 @@ export function SyncControlButtons({
             <IconSquare aria-hidden="true" className="w-4 h-4" />
             {t('stopSync')}
             <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-              <Kbd>⌘</Kbd>
+              <Kbd>{modKey}</Kbd>
               <Kbd>S</Kbd>
             </div>
           </Button>
