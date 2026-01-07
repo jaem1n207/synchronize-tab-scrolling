@@ -253,15 +253,3 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
 
   return false;
 }
-
-/**
- * URL에서 도메인 추출
- */
-export function extractDomain(url: string): string | null {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname;
-  } catch {
-    return null;
-  }
-}

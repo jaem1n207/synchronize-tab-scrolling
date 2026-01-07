@@ -24,7 +24,7 @@ function hasKoreanChars(str: string): boolean {
  * Examples:
  * - matchesKoreanSearch('구글 크롬', 'ㄱㄱㅋㄹ') → true (chosung match)
  * - matchesKoreanSearch('구글', 'ㄱㄱ') → true (chosung match)
- * - matchesKoreanSearch('키친', '킻') → true (partial jamo match)
+ * - matchesKoreanSearch('구글', '국') → true (partial jamo match)
  * - matchesKoreanSearch('구글', '구') → true (regular substring match)
  * - matchesKoreanSearch('Google', 'goo') → true (case-insensitive match)
  *
@@ -53,7 +53,7 @@ export function matchesKoreanSearch(text: string, query: string): boolean {
     return chosungWithoutSpaces.includes(queryWithoutSpaces);
   }
 
-  // Try jamo-based partial matching for Korean text (e.g., "킻" matches "키친")
+  // Try jamo-based partial matching for Korean text (e.g., "국" matches "구글")
   if (hasKoreanChars(normalizedQuery) || hasKoreanChars(normalizedText)) {
     try {
       // Disassemble both query and text into jamo components
