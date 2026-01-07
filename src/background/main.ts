@@ -12,6 +12,9 @@ import {
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
+import type { JsonValue } from '@sentry/browser/build/npm/types/integrations/featureFlags/openfeature/types';
+import type { Destination } from 'webext-bridge';
+
 // Sentry 초기화
 initializeSentry();
 
@@ -1535,8 +1538,8 @@ async function broadcastSyncStatus() {
   const promises = syncState.linkedTabs.map(async (tabId) => {
     await sendMessage(
       'sync:status',
-      { ...statusPayload, currentTabId: tabId },
-      { context: 'content-script', tabId },
+      { ...statusPayload, currentTabId: tabId } as JsonValue,
+      { context: 'content-script', tabId } as Destination,
     ).catch((error) => {
       logger.debug(`Failed to send sync status to tab ${tabId}`, { error });
     });
@@ -2288,8 +2291,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         targetTabIds.map((targetTabId) =>
           sendMessage(
             'url:sync',
-            { url: changeInfo.url, sourceTabId: tabId },
-            { context: 'content-script', tabId: targetTabId },
+            { url: changeInfo.url, sourceTabId: tabId } as JsonValue,
+            { context: 'content-script', tabId: targetTabId } as Destination,
           ).catch((error) => {
             logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
           }),
