@@ -48,7 +48,6 @@ function PanelApp() {
       const { enabled } = data as { enabled: boolean };
       setUrlSyncEnabled(enabled);
       saveUrlSyncEnabled(enabled);
-      return { success: true };
     });
 
     return () => {
@@ -60,12 +59,10 @@ function PanelApp() {
   useEffect(() => {
     const unsubscribeSuggestion = onMessage('sync-suggestion:show', ({ data }) => {
       setSyncSuggestion(data as unknown as SyncSuggestionMessage);
-      return { success: true };
     });
 
     const unsubscribeAddTab = onMessage('sync-suggestion:add-tab', ({ data }) => {
       setAddTabSuggestion(data as unknown as AddTabToSyncMessage);
-      return { success: true };
     });
 
     // Issue 11 Fix: Listen for dismiss messages to close add-tab toast when another tab responds

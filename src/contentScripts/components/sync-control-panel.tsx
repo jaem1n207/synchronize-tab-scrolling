@@ -401,7 +401,6 @@ export const SyncControlPanel = ({
       setAutoSyncEnabled(data.enabled);
       // Refetch detailed status when toggle changes
       fetchAutoSyncDetailedStatus();
-      return { success: true, enabled: data.enabled };
     });
 
     // Listen for auto-sync group updates
