@@ -1,3 +1,10 @@
+## [2.8.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.8.0...v2.8.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* replace select all and clear all handlers with a unified toggle all tabs handler in ActionsMenu and ScrollSyncPopup ([8665906](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/866590615ad7515faf393fa761e257cdadfed64b))
+
 # [2.8.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.7.4...v2.8.0) (2026-01-07)
 
 
