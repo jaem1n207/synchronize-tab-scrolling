@@ -34,8 +34,7 @@ interface ActionsMenuProps {
   selectedCount: number;
   onStartSync: () => void;
   onStopSync: () => void;
-  onSelectAll: () => void;
-  onClearAll: () => void;
+  onToggleAllTabs: () => void;
   sortBy: SortOption;
   onSortChange: (sort: SortOption) => void;
   sameDomainFilter: boolean;
@@ -54,8 +53,7 @@ export function ActionsMenu({
   selectedCount,
   onStartSync,
   onStopSync,
-  onSelectAll,
-  onClearAll,
+  onToggleAllTabs,
   sortBy,
   onSortChange,
   sameDomainFilter,
@@ -108,14 +106,6 @@ export function ActionsMenu({
       onStartSync();
     }
   }, [isSyncActive, onStartSync, onStopSync]);
-
-  const handleSelectAll = useCallback(() => {
-    onSelectAll();
-  }, [onSelectAll]);
-
-  const handleClearAll = useCallback(() => {
-    onClearAll();
-  }, [onClearAll]);
 
   return (
     <Popover modal open={open} onOpenChange={onOpenChange}>
@@ -263,23 +253,19 @@ export function ActionsMenu({
 
                   {/* Selection Controls */}
                   <CommandGroup heading={t('selectionHeading')}>
-                    <CommandItem disabled={isSyncActive} onSelect={handleSelectAll}>
+                    <CommandItem disabled={isSyncActive} onSelect={onToggleAllTabs}>
                       <div className="flex items-center gap-2 flex-1">
-                        <IconCheck aria-hidden="true" className="w-4 h-4" />
-                        <span>{t('selectAllTabs')}</span>
-                      </div>
-                      <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Kbd>{modKey}</Kbd>
-                        <Kbd>A</Kbd>
-                      </div>
-                    </CommandItem>
-                    <CommandItem
-                      disabled={isSyncActive || selectedCount === 0}
-                      onSelect={handleClearAll}
-                    >
-                      <div className="flex items-center gap-2 flex-1">
-                        <IconX aria-hidden="true" className="w-4 h-4" />
-                        <span>{t('clearAllSelections')}</span>
+                        {selectedCount > 0 ? (
+                          <>
+                            <IconX aria-hidden="true" className="w-4 h-4" />
+                            <span>{t('clearAllSelections')}</span>
+                          </>
+                        ) : (
+                          <>
+                            <IconCheck aria-hidden="true" className="w-4 h-4" />
+                            <span>{t('selectAllTabs')}</span>
+                          </>
+                        )}
                       </div>
                       <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
                         <Kbd>{modKey}</Kbd>

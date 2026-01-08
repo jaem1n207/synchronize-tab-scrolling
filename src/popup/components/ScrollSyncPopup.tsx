@@ -500,6 +500,18 @@ export function ScrollSyncPopup() {
     }
   }, [syncStatus.isActive]);
 
+  const handleToggleAllTabs = useCallback(() => {
+    if (!syncStatus.isActive) {
+      if (selectedTabIds.length > 0) {
+        // Has selections → clear all
+        handleClearAll();
+      } else {
+        // No selections → select all
+        handleSelectAll();
+      }
+    }
+  }, [syncStatus.isActive, selectedTabIds.length, handleSelectAll, handleClearAll]);
+
   // Advanced feature toggle handlers
   const handleAutoSyncChange = useCallback(async (enabled: boolean) => {
     setAutoSyncEnabled(enabled);
@@ -534,16 +546,10 @@ export function ScrollSyncPopup() {
         },
       },
       {
-        key: 'a',
-        mod: true,
-        handler: handleSelectAll,
-        enabled: !syncStatus.isActive,
-      },
-      {
         key: 'x',
         mod: true,
         shift: true,
-        handler: handleClearAll,
+        handler: handleToggleAllTabs,
         enabled: !syncStatus.isActive,
       },
       {
@@ -568,15 +574,7 @@ export function ScrollSyncPopup() {
         },
       },
     ],
-    [
-      syncStatus.isActive,
-      selectedTabIds,
-      handleStart,
-      handleStop,
-      handleSelectAll,
-      handleClearAll,
-      setSortBy,
-    ],
+    [syncStatus.isActive, selectedTabIds, handleStart, handleStop, handleToggleAllTabs, setSortBy],
   );
 
   const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(
@@ -694,13 +692,12 @@ export function ScrollSyncPopup() {
             sortBy={sortBy}
             urlSyncEnabled={urlSyncEnabled}
             onAutoSyncChange={handleAutoSyncChange}
-            onClearAll={handleClearAll}
             onOpenChange={setActionsMenuOpen}
             onSameDomainFilterChange={setSameDomainFilter}
-            onSelectAll={handleSelectAll}
             onSortChange={setSortBy}
             onStartSync={handleStart}
             onStopSync={handleStop}
+            onToggleAllTabs={handleToggleAllTabs}
             onUrlSyncChange={handleUrlSyncChange}
           />
         </div>
