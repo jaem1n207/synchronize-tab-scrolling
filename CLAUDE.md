@@ -14,7 +14,6 @@ This is a cross-browser extension (Chrome, Edge, Firefox, Brave) for synchronizi
 - **State Management**: React Query (@tanstack/react-query)
 - **Extension API**: webextension-polyfill for cross-browser compatibility
 - **Messaging**: webext-bridge for content script communication
-- **Error Tracking**: Sentry
 - **Icons**: unplugin-icons
 
 ## Development Commands
@@ -96,9 +95,8 @@ pnpm start:firefox   # Firefox
    - Background ↔ Content Script messaging for scroll sync
 
 3. **Error Handling**:
-   - Comprehensive Sentry integration with React 19 error hooks
+   - Comprehensive error logging with React 19 error hooks
    - Separate logger instances per component scope
-   - Performance tracking with Sentry spans
 
 4. **Development Features**:
    - HMR support for faster development

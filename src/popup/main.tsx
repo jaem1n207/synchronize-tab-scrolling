@@ -4,14 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createRoot } from 'react-dom/client';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { captureException, initializeSentry } from '~/shared/lib/sentry_init';
 
 import { ScrollSyncPopup } from './components/ScrollSyncPopup';
 
 import '~/shared/styles';
-
-// Sentry 초기화 실행
-initializeSentry();
 
 const logger = new ExtensionLogger({ scope: 'popup-page' });
 
@@ -36,40 +32,20 @@ function init() {
     throw new Error('Can not find #app element');
   }
 
-  // React 19+ 에러 훅과 Sentry 통합
+  // React 19+ 에러 훅
   const root = createRoot(appContainer, {
     onUncaughtError: (error, errorInfo) => {
-      captureException(error as Error, {
-        extra: {
-          context: 'React uncaught error in popup page',
-          componentStack: errorInfo?.componentStack,
-        },
-      });
       logger.error(error as Error, {
         context: 'React uncaught error in popup page',
         componentStack: errorInfo?.componentStack,
       });
     },
     onCaughtError: (error, errorInfo) => {
-      captureException(error as Error, {
-        extra: {
-          context: 'React caught error (in ErrorBoundary) in popup page',
-          componentStack: errorInfo?.componentStack,
-        },
-        level: 'warning',
-      });
       logger.warn('Popup Page: React caught error (in ErrorBoundary)', error, {
         componentStack: errorInfo?.componentStack,
       });
     },
     onRecoverableError: (error, errorInfo) => {
-      captureException(error as Error, {
-        extra: {
-          context: 'React recoverable error in popup page',
-          componentStack: errorInfo?.componentStack,
-        },
-        level: 'warning',
-      });
       logger.warn('Popup Page: React recoverable error', error, {
         componentStack: errorInfo?.componentStack,
       });

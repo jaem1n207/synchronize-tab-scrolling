@@ -2,7 +2,6 @@ import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { initializeSentry } from '~/shared/lib/sentry_init';
 import {
   loadAutoSyncEnabled,
   loadAutoSyncExcludedUrls,
@@ -12,11 +11,7 @@ import {
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
-import type { JsonValue } from '@sentry/browser/build/npm/types/integrations/featureFlags/openfeature/types';
 import type { Destination } from 'webext-bridge';
-
-// Sentry 초기화
-initializeSentry();
 
 const logger = new ExtensionLogger({ scope: 'background' });
 
@@ -1538,7 +1533,8 @@ async function broadcastSyncStatus() {
   const promises = syncState.linkedTabs.map(async (tabId) => {
     await sendMessage(
       'sync:status',
-      { ...statusPayload, currentTabId: tabId } as JsonValue,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { ...statusPayload, currentTabId: tabId } as any,
       { context: 'content-script', tabId } as Destination,
     ).catch((error) => {
       logger.debug(`Failed to send sync status to tab ${tabId}`, { error });
@@ -2291,7 +2287,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         targetTabIds.map((targetTabId) =>
           sendMessage(
             'url:sync',
-            { url: changeInfo.url, sourceTabId: tabId } as JsonValue,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            { url: changeInfo.url, sourceTabId: tabId } as any,
             { context: 'content-script', tabId: targetTabId } as Destination,
           ).catch((error) => {
             logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
