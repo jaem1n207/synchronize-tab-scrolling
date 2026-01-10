@@ -1,3 +1,10 @@
+## [2.8.2](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.8.1...v2.8.2) (2026-01-10)
+
+
+### Bug Fixes
+
+* update control key representation in SyncControlPanel to use platform-specific values from useModifierKey hook ([cef461b](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/cef461bf1c47b79454175e5683256dd8b43180c9))
+
 ## [2.8.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.8.0...v2.8.1) (2026-01-08)
 
 
