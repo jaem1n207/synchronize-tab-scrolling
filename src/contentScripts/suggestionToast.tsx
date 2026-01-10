@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
+import { ExtensionLogger } from '~/shared/lib/logger';
 import type {
   SyncSuggestionMessage,
   AddTabToSyncMessage,
@@ -16,6 +17,8 @@ import type {
 } from '~/shared/types/messages';
 
 import { SyncSuggestionToast, AddTabToSyncToast } from './components/SyncSuggestionToast';
+
+const logger = new ExtensionLogger({ scope: 'suggestion-toast' });
 
 let toastRoot: ReturnType<typeof createRoot> | null = null;
 let toastContainer: HTMLDivElement | null = null;
@@ -74,7 +77,7 @@ async function ensureToastContainer(): Promise<void> {
   // When content script is re-injected, module state resets but DOM elements remain
   const existingContainers = document.querySelectorAll('#scroll-sync-suggestion-toast-root');
   if (existingContainers.length > 0 && !toastContainer) {
-    console.info('[SuggestionToast] Found orphaned toast containers, cleaning up', {
+    logger.info('[SuggestionToast] Found orphaned toast containers, cleaning up', {
       count: existingContainers.length,
     });
     existingContainers.forEach((container) => container.remove());
@@ -180,7 +183,7 @@ async function ensureToastContainer(): Promise<void> {
 
     // Error fallback - proceed anyway to avoid blocking indefinitely
     extensionStyleLink.onerror = () => {
-      console.error('[SuggestionToast] Failed to load CSS, proceeding anyway');
+      logger.error('[SuggestionToast] Failed to load CSS, proceeding anyway');
       cssLoaded = true;
       resolve();
     };
@@ -400,9 +403,9 @@ function renderToast() {
     } catch (error) {
       // Gracefully handle extension context invalidation (happens during rapid toggle)
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+        await logger.warn('[SuggestionToast] Extension context invalidated, closing toast');
       } else {
-        console.error('Failed to send sync suggestion response', error);
+        await logger.error('Failed to send sync suggestion response', error);
       }
     }
     currentSuggestion = null;
@@ -420,9 +423,9 @@ function renderToast() {
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+        await logger.warn('[SuggestionToast] Extension context invalidated, closing toast');
       } else {
-        console.error('Failed to send sync suggestion response', error);
+        await logger.error('Failed to send sync suggestion response', error);
       }
     }
     currentSuggestion = null;
@@ -440,9 +443,9 @@ function renderToast() {
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+        await logger.warn('[SuggestionToast] Extension context invalidated, closing toast');
       } else {
-        console.error('Failed to send add tab response', error);
+        await logger.error('Failed to send add tab response', error);
       }
     }
     currentAddTabSuggestion = null;
@@ -460,9 +463,9 @@ function renderToast() {
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[SuggestionToast] Extension context invalidated, closing toast');
+        await logger.warn('[SuggestionToast] Extension context invalidated, closing toast');
       } else {
-        console.error('Failed to send add tab response', error);
+        await logger.error('Failed to send add tab response', error);
       }
     }
     currentAddTabSuggestion = null;
@@ -494,7 +497,7 @@ function renderToast() {
  */
 export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage) {
   // Debug logging to diagnose toast display issues
-  console.log('[SuggestionToast] showSyncSuggestionToast called', {
+  logger.debug('[SuggestionToast] showSyncSuggestionToast called', {
     normalizedUrl: suggestion.normalizedUrl,
     tabCount: suggestion.tabCount,
     hasContainer: !!toastContainer,
@@ -505,7 +508,7 @@ export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage)
 
   await ensureToastContainer();
 
-  console.log('[SuggestionToast] After ensureToastContainer (CSS loaded)', {
+  logger.debug('[SuggestionToast] After ensureToastContainer (CSS loaded)', {
     hasContainer: !!toastContainer,
     containerInDOM: toastContainer ? document.body.contains(toastContainer) : false,
     hasRoot: !!toastRoot,

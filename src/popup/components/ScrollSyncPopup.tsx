@@ -6,6 +6,7 @@ import browser from 'webextension-polyfill';
 import { useKeyboardShortcuts } from '~/shared/hooks/useKeyboardShortcuts';
 import { usePersistentState } from '~/shared/hooks/usePersistentState';
 import { t } from '~/shared/i18n';
+import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadSelectedTabIds,
   saveSelectedTabIds,
@@ -32,6 +33,8 @@ import { TabCommandPalette, type TabCommandPaletteHandle } from './TabCommandPal
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 import type { SortOption } from '../types/filters';
+
+const logger = new ExtensionLogger({ scope: 'popup' });
 
 export function ScrollSyncPopup() {
   const [selectedTabIds, setSelectedTabIds] = useState<Array<number>>([]);
@@ -159,14 +162,14 @@ export function ScrollSyncPopup() {
 
           // If some tabs are missing, update selectedTabIds to only include valid ones
           if (validSelectedIds.length !== syncedTabIds.length) {
-            console.warn(
+            logger.warn(
               '[ScrollSyncPopup] Some synced tabs no longer available, updating selection',
             );
             setSelectedTabIds(validSelectedIds);
 
             // If fewer than 2 valid tabs remain, sync state is inconsistent
             if (validSelectedIds.length < 2) {
-              console.warn(
+              logger.warn(
                 '[ScrollSyncPopup] Sync state inconsistent: fewer than 2 tabs available. Resetting sync status.',
               );
               setSyncStatus({
@@ -176,7 +179,7 @@ export function ScrollSyncPopup() {
               });
               // Notify background to stop sync
               sendMessage('scroll:stop', { tabIds: syncedTabIds }, 'background').catch((err) => {
-                console.warn('[ScrollSyncPopup] Failed to stop sync in background:', err);
+                logger.warn('[ScrollSyncPopup] Failed to stop sync in background:', err);
               });
             }
           }
@@ -189,7 +192,7 @@ export function ScrollSyncPopup() {
           }
         }
       } catch (error) {
-        console.error('Failed to initialize popup:', error);
+        logger.error('Failed to initialize popup:', error);
         setError({
           message: t('errorLoadTabsFailed'),
           severity: 'error',
@@ -276,7 +279,7 @@ export function ScrollSyncPopup() {
           await Promise.all(
             selectedTabIds.map((tabId) =>
               browser.tabs.reload(tabId).catch((err) => {
-                console.warn(`Failed to reload tab ${tabId}:`, err);
+                logger.warn(`Failed to reload tab ${tabId}:`, err);
               }),
             ),
           );
@@ -367,7 +370,7 @@ export function ScrollSyncPopup() {
           });
         }
       } catch (error) {
-        console.error('Failed to start sync:', error);
+        logger.error('Failed to start sync:', error);
         setError({
           message: t('failedToStartSync', [error instanceof Error ? error.message : String(error)]),
           severity: 'error',
@@ -437,7 +440,7 @@ export function ScrollSyncPopup() {
 
       // Timeout is expected behavior - treat as success since local state is cleared
       if (typeof error === 'symbol') {
-        console.warn('Stop sync timed out, but local state was cleared successfully');
+        logger.warn('Stop sync timed out, but local state was cleared successfully');
         setError({
           message: t('successSyncStopped'),
           severity: 'info',
@@ -445,7 +448,7 @@ export function ScrollSyncPopup() {
         });
       } else {
         // Actual error - show warning
-        console.error('Failed to stop sync:', error);
+        logger.error('Failed to stop sync:', error);
         setError({
           message: t('warningStopSyncFailed', [
             error instanceof Error ? error.message : t('errorStopSyncFailed'),
@@ -518,7 +521,7 @@ export function ScrollSyncPopup() {
     await saveAutoSyncEnabled(enabled);
     // Notify background script
     sendMessage('auto-sync:status-changed', { enabled }, 'background').catch((err) => {
-      console.warn('[ScrollSyncPopup] Failed to notify background of auto-sync change:', err);
+      logger.warn('[ScrollSyncPopup] Failed to notify background of auto-sync change:', err);
     });
   }, []);
 
@@ -527,7 +530,7 @@ export function ScrollSyncPopup() {
     await saveUrlSyncEnabled(enabled);
     // Notify background script
     sendMessage('sync:url-enabled-changed', { enabled }, 'background').catch((err) => {
-      console.warn('[ScrollSyncPopup] Failed to notify background of URL sync change:', err);
+      logger.warn('[ScrollSyncPopup] Failed to notify background of URL sync change:', err);
     });
   }, []);
 

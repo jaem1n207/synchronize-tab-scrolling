@@ -4,6 +4,10 @@
  * 각 탭의 언어 설정을 유지하면서 경로만 동기화하기 위한 기능 제공
  */
 
+import { ExtensionLogger } from './logger';
+
+const logger = new ExtensionLogger({ scope: 'locale-utils' });
+
 // 2글자 기본 로케일 코드 (ISO 639-1)
 // O(1) 조회를 위해 Set 사용
 // prettier-ignore
@@ -208,7 +212,7 @@ export function applyLocalePreservingSync(sourceUrl: string, targetUrl: string):
     return finalUrl;
   } catch (error) {
     // URL 파싱 실패 시 소스 URL을 그대로 반환
-    console.warn('Failed to apply locale-preserving sync, using source URL', { error });
+    logger.warn('Failed to apply locale-preserving sync, using source URL', { error });
     return sourceUrl;
   }
 }

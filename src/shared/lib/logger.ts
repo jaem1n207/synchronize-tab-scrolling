@@ -64,24 +64,24 @@ export class ExtensionLogger {
   }
 
   async log(level: LogLevel, message: string, ...args: unknown[]): Promise<void> {
-    // 1. 콘솔에 로그 출력
-    const consoleMessage = this.formatConsoleMessage(level, message, args);
-    switch (level) {
-      case 'error':
-        console.error(consoleMessage);
-        break;
-      case 'warn':
-        console.warn(consoleMessage);
-        break;
-      case 'info':
-        console.info(consoleMessage);
-        break;
-      case 'debug':
-      default:
-        if (process.env.NODE_ENV !== 'production') {
+    // 1. Console output - only in development mode
+    if (__DEV__) {
+      const consoleMessage = this.formatConsoleMessage(level, message, args);
+      switch (level) {
+        case 'error':
+          console.error(consoleMessage);
+          break;
+        case 'warn':
+          console.warn(consoleMessage);
+          break;
+        case 'info':
+          console.info(consoleMessage);
+          break;
+        case 'debug':
+        default:
           console.debug(consoleMessage);
-        }
-        break;
+          break;
+      }
     }
 
     // 2. Sentry로 로그 전송 - error 레벨만 전송

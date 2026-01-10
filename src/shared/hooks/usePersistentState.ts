@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 
+import { ExtensionLogger } from '~/shared/lib/logger';
+
+const logger = new ExtensionLogger({ scope: 'persistent-state' });
+
 /**
  * Custom hook for state that persists to localStorage
  * @param key - localStorage key
@@ -16,7 +20,7 @@ export function usePersistentState<T>(
       const storedValue = localStorage.getItem(key);
       return storedValue !== null ? (JSON.parse(storedValue) as T) : initialValue;
     } catch (error) {
-      console.error(`Failed to load ${key} from localStorage:`, error);
+      logger.error(`Failed to load ${key} from localStorage:`, error);
       return initialValue;
     }
   });
@@ -26,7 +30,7 @@ export function usePersistentState<T>(
     try {
       localStorage.setItem(key, JSON.stringify(state));
     } catch (error) {
-      console.error(`Failed to save ${key} to localStorage:`, error);
+      logger.error(`Failed to save ${key} to localStorage:`, error);
     }
   }, [key, state]);
 

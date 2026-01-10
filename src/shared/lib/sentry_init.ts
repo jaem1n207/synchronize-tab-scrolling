@@ -24,7 +24,11 @@ export const initializeSentry = (): void => {
     'https://3fa7b6b2a6c5e4cc0018e61cf4f417eb@o4509283258990592.ingest.us.sentry.io/4509283262398464';
 
   if (!dsn) {
-    console.warn('Sentry DSN이 유효하지 않거나 설정되지 않았습니다. Sentry 로깅이 비활성화됩니다.');
+    if (__DEV__) {
+      console.warn(
+        'Sentry DSN이 유효하지 않거나 설정되지 않았습니다. Sentry 로깅이 비활성화됩니다.',
+      );
+    }
     return;
   }
 
@@ -58,9 +62,13 @@ export const initializeSentry = (): void => {
     sentryScope.setClient(client);
     client.init();
 
-    console.info('Sentry가 성공적으로 초기화되었습니다.');
+    if (__DEV__) {
+      console.info('Sentry가 성공적으로 초기화되었습니다.');
+    }
   } catch (error) {
-    console.error('Sentry 초기화 중 오류 발생:', error);
+    if (__DEV__) {
+      console.error('Sentry 초기화 중 오류 발생:', error);
+    }
   }
 };
 

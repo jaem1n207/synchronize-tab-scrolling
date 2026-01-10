@@ -19,6 +19,7 @@ import {
   PANEL_ANIMATIONS,
   prefersReducedMotion,
 } from '~/shared/lib/animations';
+import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadAutoSyncEnabled,
   loadManualScrollOffsets,
@@ -27,6 +28,8 @@ import {
 import { cn } from '~/shared/lib/utils';
 
 import { getAutoSyncStatus } from '../scrollSync';
+
+const logger = new ExtensionLogger({ scope: 'sync-control-panel' });
 
 import IconMenu from '~icons/lucide/menu';
 import IconSettings2 from '~icons/lucide/settings-2';
@@ -226,7 +229,7 @@ export const SyncControlPanel = ({
             );
           }
         } catch (error) {
-          console.error('Failed to broadcast panel position:', error);
+          await logger.error('Failed to broadcast panel position:', error);
         }
 
         // Mark as dragged to prevent popover from opening
@@ -277,7 +280,7 @@ export const SyncControlPanel = ({
 
       setSyncedTabs(tabs);
     } catch (error) {
-      console.error('Failed to load synced tabs with offsets:', error);
+      await logger.error('Failed to load synced tabs with offsets:', error);
       setSyncedTabs([]);
     }
   }, []);
@@ -425,7 +428,7 @@ export const SyncControlPanel = ({
       // Notify background script
       await sendMessage('auto-sync:status-changed', { enabled }, 'background');
     } catch (error) {
-      console.error('Failed to toggle auto-sync:', error);
+      await logger.error('Failed to toggle auto-sync:', error);
     }
   }, []);
 

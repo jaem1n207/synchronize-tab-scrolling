@@ -7,6 +7,10 @@ import browser from 'webextension-polyfill';
 
 import type { SyncMode } from '~/shared/types/messages';
 
+import { ExtensionLogger } from './logger';
+
+const logger = new ExtensionLogger({ scope: 'storage' });
+
 /**
  * Storage keys
  */
@@ -29,7 +33,7 @@ export async function saveSyncMode(mode: SyncMode): Promise<void> {
       [STORAGE_KEYS.SYNC_MODE]: mode,
     });
   } catch (error) {
-    console.error('Failed to save sync mode:', error);
+    await logger.error('Failed to save sync mode:', error);
   }
 }
 
@@ -41,7 +45,7 @@ export async function loadSyncMode(): Promise<SyncMode> {
     const result = await browser.storage.local.get(STORAGE_KEYS.SYNC_MODE);
     return (result[STORAGE_KEYS.SYNC_MODE] as SyncMode) || 'ratio';
   } catch (error) {
-    console.error('Failed to load sync mode:', error);
+    await logger.error('Failed to load sync mode:', error);
     return 'ratio';
   }
 }
@@ -55,7 +59,7 @@ export async function savePanelMinimized(isMinimized: boolean): Promise<void> {
       [STORAGE_KEYS.IS_PANEL_MINIMIZED]: isMinimized,
     });
   } catch (error) {
-    console.error('Failed to save panel minimized state:', error);
+    await logger.error('Failed to save panel minimized state:', error);
   }
 }
 
@@ -67,7 +71,7 @@ export async function loadPanelMinimized(): Promise<boolean> {
     const result = await browser.storage.local.get(STORAGE_KEYS.IS_PANEL_MINIMIZED);
     return (result[STORAGE_KEYS.IS_PANEL_MINIMIZED] as boolean) || false;
   } catch (error) {
-    console.error('Failed to load panel minimized state:', error);
+    await logger.error('Failed to load panel minimized state:', error);
     return false;
   }
 }
@@ -81,7 +85,7 @@ export async function saveSelectedTabIds(tabIds: Array<number>): Promise<void> {
       [STORAGE_KEYS.SELECTED_TAB_IDS]: tabIds,
     });
   } catch (error) {
-    console.error('Failed to save selected tab IDs:', error);
+    await logger.error('Failed to save selected tab IDs:', error);
   }
 }
 
@@ -93,7 +97,7 @@ export async function loadSelectedTabIds(): Promise<Array<number>> {
     const result = await browser.storage.local.get(STORAGE_KEYS.SELECTED_TAB_IDS);
     return (result[STORAGE_KEYS.SELECTED_TAB_IDS] as Array<number>) || [];
   } catch (error) {
-    console.error('Failed to load selected tab IDs:', error);
+    await logger.error('Failed to load selected tab IDs:', error);
     return [];
   }
 }
@@ -131,7 +135,7 @@ export async function loadManualScrollOffsets(): Promise<Record<number, ManualSc
     }
     return converted;
   } catch (error) {
-    console.error('Failed to load manual scroll offsets:', error);
+    await logger.error('Failed to load manual scroll offsets:', error);
     return {};
   }
 }
@@ -154,7 +158,7 @@ export async function saveManualScrollOffset(
       [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
     });
   } catch (error) {
-    console.error('Failed to save manual scroll offset:', error);
+    await logger.error('Failed to save manual scroll offset:', error);
   }
 }
 
@@ -168,7 +172,7 @@ export async function getManualScrollOffset(tabId: number): Promise<ManualScroll
     const offsets = await loadManualScrollOffsets();
     return offsets[tabId] || { ratio: 0, pixels: 0 };
   } catch (error) {
-    console.error('Failed to get manual scroll offset:', error);
+    await logger.error('Failed to get manual scroll offset:', error);
     return { ratio: 0, pixels: 0 };
   }
 }
@@ -185,7 +189,7 @@ export async function clearManualScrollOffset(tabId: number): Promise<void> {
       [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
     });
   } catch (error) {
-    console.error('Failed to clear manual scroll offset:', error);
+    await logger.error('Failed to clear manual scroll offset:', error);
   }
 }
 
@@ -198,7 +202,7 @@ export async function clearAllManualScrollOffsets(): Promise<void> {
       [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: {},
     });
   } catch (error) {
-    console.error('Failed to clear all manual scroll offsets:', error);
+    await logger.error('Failed to clear all manual scroll offsets:', error);
   }
 }
 
@@ -212,7 +216,7 @@ export async function saveUrlSyncEnabled(enabled: boolean): Promise<void> {
       [STORAGE_KEYS.URL_SYNC_ENABLED]: enabled,
     });
   } catch (error) {
-    console.error('Failed to save URL sync enabled state:', error);
+    await logger.error('Failed to save URL sync enabled state:', error);
   }
 }
 
@@ -227,7 +231,7 @@ export async function loadUrlSyncEnabled(): Promise<boolean> {
       ? (result[STORAGE_KEYS.URL_SYNC_ENABLED] as boolean)
       : true; // Default to enabled
   } catch (error) {
-    console.error('Failed to load URL sync enabled state:', error);
+    await logger.error('Failed to load URL sync enabled state:', error);
     return true;
   }
 }
@@ -242,7 +246,7 @@ export async function saveAutoSyncEnabled(enabled: boolean): Promise<void> {
       [STORAGE_KEYS.AUTO_SYNC_ENABLED]: enabled,
     });
   } catch (error) {
-    console.error('Failed to save auto-sync enabled state:', error);
+    await logger.error('Failed to save auto-sync enabled state:', error);
   }
 }
 
@@ -257,7 +261,7 @@ export async function loadAutoSyncEnabled(): Promise<boolean> {
       ? (result[STORAGE_KEYS.AUTO_SYNC_ENABLED] as boolean)
       : true; // Default to disabled
   } catch (error) {
-    console.error('Failed to load auto-sync enabled state:', error);
+    await logger.error('Failed to load auto-sync enabled state:', error);
     return true;
   }
 }
@@ -272,7 +276,7 @@ export async function saveAutoSyncExcludedUrls(patterns: Array<string>): Promise
       [STORAGE_KEYS.AUTO_SYNC_EXCLUDED_URLS]: patterns,
     });
   } catch (error) {
-    console.error('Failed to save auto-sync excluded URLs:', error);
+    await logger.error('Failed to save auto-sync excluded URLs:', error);
   }
 }
 
@@ -285,7 +289,7 @@ export async function loadAutoSyncExcludedUrls(): Promise<Array<string>> {
     const result = await browser.storage.local.get(STORAGE_KEYS.AUTO_SYNC_EXCLUDED_URLS);
     return (result[STORAGE_KEYS.AUTO_SYNC_EXCLUDED_URLS] as Array<string>) || [];
   } catch (error) {
-    console.error('Failed to load auto-sync excluded URLs:', error);
+    await logger.error('Failed to load auto-sync excluded URLs:', error);
     return [];
   }
 }
@@ -297,6 +301,6 @@ export async function clearStorage(): Promise<void> {
   try {
     await browser.storage.local.clear();
   } catch (error) {
-    console.error('Failed to clear storage:', error);
+    await logger.error('Failed to clear storage:', error);
   }
 }

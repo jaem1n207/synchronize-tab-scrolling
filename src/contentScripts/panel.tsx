@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
+import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadUrlSyncEnabled, saveUrlSyncEnabled } from '~/shared/lib/storage';
 import type {
   SyncSuggestionMessage,
@@ -14,6 +15,8 @@ import type {
 
 import { SyncControlPanel } from './components';
 import { SyncSuggestionToast, AddTabToSyncToast } from './components/SyncSuggestionToast';
+
+const logger = new ExtensionLogger({ scope: 'panel' });
 
 // Custom event type for connection status
 interface ConnectionStatusEvent extends CustomEvent {
@@ -104,7 +107,7 @@ function PanelApp() {
     try {
       await sendMessage('sync:url-enabled-changed', { enabled: newValue }, 'background');
     } catch (error) {
-      console.error('Failed to broadcast URL sync enabled change', error);
+      await logger.error('Failed to broadcast URL sync enabled change', error);
     }
   }, [urlSyncEnabled]);
 
@@ -121,9 +124,9 @@ function PanelApp() {
     } catch (error) {
       // Gracefully handle extension context invalidation (happens during rapid toggle)
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[Panel] Extension context invalidated, closing suggestion');
+        await logger.warn('[Panel] Extension context invalidated, closing suggestion');
       } else {
-        console.error('Failed to send sync suggestion response', error);
+        await logger.error('Failed to send sync suggestion response', error);
       }
     }
     setSyncSuggestion(null);
@@ -141,9 +144,9 @@ function PanelApp() {
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[Panel] Extension context invalidated, closing suggestion');
+        await logger.warn('[Panel] Extension context invalidated, closing suggestion');
       } else {
-        console.error('Failed to send sync suggestion response', error);
+        await logger.error('Failed to send sync suggestion response', error);
       }
     }
     setSyncSuggestion(null);
@@ -161,9 +164,9 @@ function PanelApp() {
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[Panel] Extension context invalidated, closing suggestion');
+        await logger.warn('[Panel] Extension context invalidated, closing suggestion');
       } else {
-        console.error('Failed to send add tab response', error);
+        await logger.error('Failed to send add tab response', error);
       }
     }
     setAddTabSuggestion(null);
@@ -181,9 +184,9 @@ function PanelApp() {
       );
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
-        console.warn('[Panel] Extension context invalidated, closing suggestion');
+        await logger.warn('[Panel] Extension context invalidated, closing suggestion');
       } else {
-        console.error('Failed to send add tab response', error);
+        await logger.error('Failed to send add tab response', error);
       }
     }
     setAddTabSuggestion(null);
@@ -195,7 +198,7 @@ function PanelApp() {
       await sendMessage('scroll:reconnect', { tabId: 0, timestamp: Date.now() }, 'background');
       // Note: tabId 0 will be resolved by the background script from sender info
     } catch (error) {
-      console.error('Manual reconnection failed', error);
+      await logger.error('Manual reconnection failed', error);
     }
   }, []);
 
@@ -248,7 +251,7 @@ export function showPanel() {
     if (!panelContainer) {
       // Re-injection scenario: module state was reset but DOM elements exist
       // Clean up orphaned elements before creating new one
-      console.info('[panel] Found orphaned panel elements, cleaning up', {
+      logger.info('[panel] Found orphaned panel elements, cleaning up', {
         count: existingPanels.length,
       });
       existingPanels.forEach((panel) => panel.remove());
@@ -259,7 +262,7 @@ export function showPanel() {
     } else {
       // Edge case: panelContainer reference exists but not in DOM
       // Clean up stale reference and orphaned elements
-      console.info('[panel] Panel container detached from DOM, cleaning up');
+      logger.info('[panel] Panel container detached from DOM, cleaning up');
       existingPanels.forEach((panel) => panel.remove());
       panelContainer = null;
       panelRoot = null;
