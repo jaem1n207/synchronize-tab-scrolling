@@ -11,6 +11,7 @@ import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
 import { useSystemTheme } from '~/shared/hooks/use-system-theme';
+import { useModifierKey } from '~/shared/hooks/useModifierKey';
 import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
@@ -119,6 +120,7 @@ export const SyncControlPanel = ({
   const ctrlOnlyRef = React.useRef<boolean>(false);
 
   const systemTheme = useSystemTheme();
+  const { controlKey } = useModifierKey();
 
   const snapToEdge = React.useCallback((pos: Position): Position => {
     const centerX = window.innerWidth / 2;
@@ -520,7 +522,7 @@ export const SyncControlPanel = ({
                       systemTheme === 'dark' ? 'bg-black/20 text-black' : 'bg-white/20 text-white',
                     )}
                   >
-                    ⌃
+                    {controlKey}
                   </Kbd>
                 </div>
               </div>
@@ -605,7 +607,7 @@ export const SyncControlPanel = ({
                 <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground border-t border-border/70 pt-2">
                   <div className="flex items-center gap-1.5">
                     <span>{t('toggleShortcut')}</span>
-                    <Kbd className="text-xs">⌃</Kbd>
+                    <Kbd className="text-xs">{controlKey}</Kbd>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span>{t('closeShortcut')}</span>

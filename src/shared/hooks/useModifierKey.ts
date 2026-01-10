@@ -9,6 +9,8 @@ export interface ModifierKeys {
   shiftKey: string;
   /** Alt/Option key: ⌥ on macOS, Alt on Windows/Linux */
   altKey: string;
+  /** Control key: ⌃ on macOS, Ctrl on Windows/Linux */
+  controlKey: string;
 }
 
 /**
@@ -33,6 +35,7 @@ export function useModifierKey(): ModifierKeys {
       modKey: platform === 'macos' ? '⌘' : 'Ctrl',
       shiftKey: '⇧',
       altKey: platform === 'macos' ? '⌥' : 'Alt',
+      controlKey: platform === 'macos' ? '⌃' : 'Ctrl',
     };
   }, []);
 }
