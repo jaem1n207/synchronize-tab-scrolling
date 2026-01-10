@@ -1,3 +1,10 @@
+## [2.8.3](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.8.2...v2.8.3) (2026-01-10)
+
+
+### Bug Fixes
+
+* update manifest to include package type and adjust web accessible resources for Firefox compatibility ([45ec8f9](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/45ec8f9a59e65dc8c0c5c6e9e736c4b6478a959a))
+
 ## [2.8.2](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.8.1...v2.8.2) (2026-01-10)
 
 
