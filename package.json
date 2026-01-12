@@ -99,7 +99,7 @@
     "@types/react-dom": "^19.2.2",
     "@types/webextension-polyfill": "^0.12.1",
     "@unocss/preset-wind4": "^66.3.2",
-    "@unocss/reset": "^66.3.2",
+    "@unocss/reset": "^66.5.12",
     "@vitejs/plugin-react": "^4.6.0",
     "chokidar": "^4.0.1",
     "cross-env": "^7.0.3",
