@@ -10,8 +10,8 @@ import { Button } from '~/shared/components/ui/button';
 import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
-import { useSystemTheme } from '~/shared/hooks/use-system-theme';
 import { useModifierKey } from '~/shared/hooks/use-modifier-key';
+import { useSystemTheme } from '~/shared/hooks/use-system-theme';
 import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
@@ -28,7 +28,7 @@ import {
 } from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
 
-import { getAutoSyncStatus } from '../scrollSync';
+import { getAutoSyncStatus } from '../scroll-sync';
 
 const logger = new ExtensionLogger({ scope: 'sync-control-panel' });
 

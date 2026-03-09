@@ -19,13 +19,13 @@ import {
 } from '~/shared/lib/storage';
 import type { SyncMode, SyncSuggestionMessage, AddTabToSyncMessage } from '~/shared/types/messages';
 
-import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboardHandler';
+import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
 import { destroyPanel, hidePanel, showPanel } from './panel';
 import {
   showSyncSuggestionToast,
   showAddTabSuggestionToast,
   hideSuggestionToasts,
-} from './suggestionToast';
+} from './suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'scroll-sync' });
 

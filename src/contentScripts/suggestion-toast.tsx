@@ -16,7 +16,7 @@ import type {
   DismissSyncSuggestionToastMessage,
 } from '~/shared/types/messages';
 
-import { SyncSuggestionToast, AddTabToSyncToast } from './components/SyncSuggestionToast';
+import { SyncSuggestionToast, AddTabToSyncToast } from './components/sync-suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'suggestion-toast' });
 
