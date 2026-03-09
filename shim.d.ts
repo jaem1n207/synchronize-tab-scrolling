@@ -1,4 +1,3 @@
-import type { JsonValue } from 'type-fest';
 import type { AttributifyAttributes } from 'unocss/preset-attributify';
 import type { ProtocolWithReturn } from 'webext-bridge';
 
@@ -32,26 +31,26 @@ declare module 'react' {
 
 declare module 'webext-bridge' {
   export interface ProtocolMap {
-    'scroll:start': ProtocolWithReturn<StartSyncMessage, JsonValue>;
-    'scroll:stop': ProtocolWithReturn<StopSyncMessage, JsonValue>;
-    'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, JsonValue>;
-    'scroll:manual': ProtocolWithReturn<ManualScrollMessage, JsonValue>;
+    'scroll:start': ProtocolWithReturn<StartSyncMessage, unknown>;
+    'scroll:stop': ProtocolWithReturn<StopSyncMessage, unknown>;
+    'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
+    'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
     'scroll:baseline-update': SyncBaselineUpdateMessage;
-    'scroll:ping': ProtocolWithReturn<ScrollPingMessage, JsonValue>;
-    'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, JsonValue>;
-    'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, JsonValue>;
+    'scroll:ping': ProtocolWithReturn<ScrollPingMessage, unknown>;
+    'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
+    'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;
     'sync:status': SyncStatusBroadcastMessage;
-    'url:sync': ProtocolWithReturn<UrlSyncMessage, JsonValue>;
+    'url:sync': ProtocolWithReturn<UrlSyncMessage, unknown>;
     'element:match': ElementMatchMessage;
     'panel:position': PanelPositionMessage;
-    'sync:url-enabled-changed': ProtocolWithReturn<UrlSyncEnabledChangedMessage, JsonValue>;
-    'auto-sync:status-changed': ProtocolWithReturn<AutoSyncStatusChangedMessage, JsonValue>;
+    'sync:url-enabled-changed': ProtocolWithReturn<UrlSyncEnabledChangedMessage, unknown>;
+    'auto-sync:status-changed': ProtocolWithReturn<AutoSyncStatusChangedMessage, unknown>;
     'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
-    'auto-sync:get-status': ProtocolWithReturn<JsonValue, JsonValue>;
-    'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, JsonValue>;
-    'sync-suggestion:response': ProtocolWithReturn<SyncSuggestionResponseMessage, JsonValue>;
-    'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, JsonValue>;
-    'sync-suggestion:add-tab-response': ProtocolWithReturn<AddTabToSyncResponseMessage, JsonValue>;
+    'auto-sync:get-status': ProtocolWithReturn<Record<string, never>, unknown>;
+    'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, unknown>;
+    'sync-suggestion:response': ProtocolWithReturn<SyncSuggestionResponseMessage, unknown>;
+    'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, unknown>;
+    'sync-suggestion:add-tab-response': ProtocolWithReturn<AddTabToSyncResponseMessage, unknown>;
     'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
     'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
   }

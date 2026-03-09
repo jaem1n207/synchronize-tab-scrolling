@@ -1,3 +1,4 @@
+import type { JsonValue } from 'type-fest';
 import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
@@ -12,8 +13,6 @@ import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-state';
 import type { AutoSyncGroupInfo, SyncMode } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
-
-import type { Destination } from 'webext-bridge';
 
 const logger = new ExtensionLogger({ scope: 'background' });
 
@@ -829,12 +828,7 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
 
     try {
       await Promise.race([
-        sendMessage(
-          'auto-sync:group-updated',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { groups } as any,
-          { context: 'content-script', tabId },
-        ),
+        sendMessage('auto-sync:group-updated', { groups }, { context: 'content-script', tabId }),
         timeoutPromise,
       ]);
     } catch (error) {
@@ -1224,20 +1218,19 @@ browser.runtime.onInstalled.addListener((): void => {
 // Log when background script loads
 logger.info('Background script loaded, registering message handlers');
 
-// Helper function to send message with timeout
-async function sendMessageWithTimeout<T>(
+async function sendMessageWithTimeout<T extends JsonValue = JsonValue>(
   messageId: string,
-  data: unknown,
+  data: JsonValue,
   destination: { context: 'content-script'; tabId: number },
   timeoutMs: number = 2_000,
 ): Promise<T> {
-  return Promise.race([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sendMessage(messageId, data as any, destination) as Promise<T>,
+  const result = await Promise.race([
+    sendMessage(messageId, data, destination),
     new Promise<never>((__, reject) =>
       setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs),
     ),
   ]);
+  return result as T;
 }
 
 // Scroll synchronization message handlers
@@ -1514,9 +1507,8 @@ async function broadcastSyncStatus() {
   const promises = syncState.linkedTabs.map(async (tabId) => {
     await sendMessage(
       'sync:status',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { ...statusPayload, currentTabId: tabId } as any,
-      { context: 'content-script', tabId } as Destination,
+      { ...statusPayload, currentTabId: tabId },
+      { context: 'content-script', tabId },
     ).catch((error) => {
       logger.debug(`Failed to send sync status to tab ${tabId}`, { error });
     });
@@ -2259,7 +2251,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // URL changed - broadcast to other synced tabs for cross-domain navigation support
   // Content script's MutationObserver only handles SPA navigation; this handles hard navigation
   if (changeInfo.url) {
-    logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: changeInfo.url });
+    const changedUrl = changeInfo.url;
+    logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: changedUrl });
 
     const urlSyncEnabled = await loadUrlSyncEnabled();
     if (urlSyncEnabled) {
@@ -2268,9 +2261,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         targetTabIds.map((targetTabId) =>
           sendMessage(
             'url:sync',
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            { url: changeInfo.url, sourceTabId: tabId } as any,
-            { context: 'content-script', tabId: targetTabId } as Destination,
+            { url: changedUrl, sourceTabId: tabId },
+            { context: 'content-script', tabId: targetTabId },
           ).catch((error) => {
             logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
           }),
