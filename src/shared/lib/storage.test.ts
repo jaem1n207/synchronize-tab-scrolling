@@ -9,6 +9,7 @@ import {
   loadAutoSyncExcludedUrls,
   loadManualScrollOffsets,
   loadPanelMinimized,
+  loadPanelPosition,
   loadSelectedTabIds,
   loadSyncMode,
   loadUrlSyncEnabled,
@@ -16,6 +17,7 @@ import {
   saveAutoSyncExcludedUrls,
   saveManualScrollOffset,
   savePanelMinimized,
+  savePanelPosition,
   saveSelectedTabIds,
   saveSyncMode,
   saveUrlSyncEnabled,
@@ -534,6 +536,60 @@ describe('loadAutoSyncExcludedUrls', () => {
 
     await expect(loadAutoSyncExcludedUrls()).resolves.toEqual([]);
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to load auto-sync excluded URLs:', error);
+  });
+});
+
+describe('savePanelPosition', () => {
+  it('saves panel position', async () => {
+    storageSetMock.mockResolvedValue(undefined);
+
+    await savePanelPosition({ x: 100, y: 200 });
+
+    expect(storageSetMock).toHaveBeenCalledWith({ panelPosition: { x: 100, y: 200 } });
+  });
+
+  it('logs an error when save fails', async () => {
+    const error = new Error('set failed');
+    storageSetMock.mockRejectedValue(error);
+
+    await savePanelPosition({ x: 50, y: 50 });
+
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to save panel position:', error);
+  });
+});
+
+describe('loadPanelPosition', () => {
+  it('returns stored panel position', async () => {
+    storageGetMock.mockResolvedValue({ panelPosition: { x: 150, y: 300 } });
+
+    await expect(loadPanelPosition()).resolves.toEqual({ x: 150, y: 300 });
+    expect(storageGetMock).toHaveBeenCalledWith('panelPosition');
+  });
+
+  it('returns null when key is missing', async () => {
+    storageGetMock.mockResolvedValue({});
+
+    await expect(loadPanelPosition()).resolves.toBeNull();
+  });
+
+  it('returns null when stored value has invalid shape', async () => {
+    storageGetMock.mockResolvedValue({ panelPosition: { x: 'not-a-number', y: 200 } });
+
+    await expect(loadPanelPosition()).resolves.toBeNull();
+  });
+
+  it('returns null when stored value is missing coordinates', async () => {
+    storageGetMock.mockResolvedValue({ panelPosition: { x: 100 } });
+
+    await expect(loadPanelPosition()).resolves.toBeNull();
+  });
+
+  it('returns null and logs error when load fails', async () => {
+    const error = new Error('get failed');
+    storageGetMock.mockRejectedValue(error);
+
+    await expect(loadPanelPosition()).resolves.toBeNull();
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to load panel position:', error);
   });
 });
 
