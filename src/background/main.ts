@@ -1233,7 +1233,7 @@ if (import.meta.hot) {
   // eslint-disable-next-line import/no-unresolved
   import('/@vite/client');
   // load latest content script
-  import('./contentScriptHMR');
+  import('./content-script-hmr');
 }
 
 browser.runtime.onInstalled.addListener((): void => {
