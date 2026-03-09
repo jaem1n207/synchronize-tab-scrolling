@@ -1,3 +1,4 @@
+export type { AutoSyncGroup, AutoSyncState } from './auto-sync-state';
 export type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
@@ -28,3 +29,4 @@ export type {
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
 } from './messages';
+export type { SyncState } from './sync-state';

@@ -9,20 +9,13 @@ import {
   saveAutoSyncEnabled,
 } from '~/shared/lib/storage';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
-import type { AutoSyncGroupInfo } from '~/shared/types/messages';
+import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-state';
+import type { AutoSyncGroupInfo, SyncMode } from '~/shared/types/messages';
+import type { SyncState } from '~/shared/types/sync-state';
 
 import type { Destination } from 'webext-bridge';
 
 const logger = new ExtensionLogger({ scope: 'background' });
-
-// Sync state management
-interface SyncState {
-  isActive: boolean;
-  linkedTabs: Array<number>;
-  connectionStatuses: Record<number, 'connected' | 'disconnected' | 'error'>;
-  mode?: string; // Store sync mode for restoration
-  lastActiveSyncedTabId: number | null; // Track the last active synced tab for toast targeting
-}
 
 let syncState: SyncState = {
   isActive: false,
@@ -97,18 +90,6 @@ async function checkAllTabsHealth() {
       }
     }
   }
-}
-
-// Auto-sync state for same-URL tabs
-interface AutoSyncGroup {
-  tabIds: Set<number>;
-  isActive: boolean;
-}
-
-interface AutoSyncState {
-  enabled: boolean;
-  groups: Map<string, AutoSyncGroup>; // normalizedUrl → group
-  excludedUrls: Array<string>;
 }
 
 const autoSyncState: AutoSyncState = {
@@ -1263,7 +1244,7 @@ async function sendMessageWithTimeout<T>(
 logger.info('Registering scroll:start handler');
 onMessage('scroll:start', async ({ data }) => {
   logger.info('Received scroll:start message', { data });
-  const payload = data as { tabIds: Array<number>; mode: string; isAutoSync?: boolean };
+  const payload = data as { tabIds: Array<number>; mode: SyncMode; isAutoSync?: boolean };
 
   // If this is a manual sync (not auto-sync), handle conflict with auto-sync
   if (!payload.isAutoSync) {
@@ -1451,7 +1432,7 @@ onMessage('scroll:sync', async ({ data, sender }) => {
     scrollHeight: number;
     clientHeight: number;
     sourceTabId: number;
-    mode: string;
+    mode: SyncMode;
     timestamp: number;
   };
 
