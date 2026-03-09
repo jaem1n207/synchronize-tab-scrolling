@@ -8,6 +8,11 @@ import {
   loadUrlSyncEnabled,
   saveAutoSyncEnabled,
 } from '~/shared/lib/storage';
+import {
+  isLocalDevelopmentServer,
+  isUrlExcluded,
+  normalizeUrlForAutoSync,
+} from '~/shared/lib/auto-sync-url-utils';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-state';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
@@ -149,79 +154,6 @@ async function withAutoSyncLock<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } finally {
     releaseLock!();
-  }
-}
-
-/**
- * Normalize URL for auto-sync comparison
- * Strips query params, hash, and default ports to match same base URLs
- */
-function normalizeUrlForAutoSync(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    // Exclude non-http protocols
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      logger.debug('[AUTO-SYNC] URL excluded - non-http protocol', {
-        url,
-        protocol: parsed.protocol,
-      });
-      return null;
-    }
-
-    // Normalize hostname - strip default ports (80 for http, 443 for https)
-    let normalizedHost = parsed.hostname;
-    if (parsed.port) {
-      const isDefaultPort =
-        (parsed.protocol === 'http:' && parsed.port === '80') ||
-        (parsed.protocol === 'https:' && parsed.port === '443');
-      if (!isDefaultPort) {
-        normalizedHost = `${parsed.hostname}:${parsed.port}`;
-      }
-    }
-
-    const normalized = `${parsed.protocol}//${normalizedHost}${parsed.pathname}`;
-    logger.debug('[AUTO-SYNC] URL normalized', { original: url, normalized });
-    return normalized;
-  } catch (error) {
-    logger.debug('[AUTO-SYNC] URL normalization failed', { url, error });
-    return null;
-  }
-}
-
-/**
- * Check if URL matches any excluded pattern
- */
-function isUrlExcluded(url: string, patterns: Array<string>): boolean {
-  return patterns.some((pattern) => {
-    try {
-      const regex = new RegExp(pattern.replace(/\*/g, '.*').replace(/\//g, '\\/'));
-      return regex.test(url);
-    } catch {
-      return false;
-    }
-  });
-}
-
-/**
- * Check if URL is a local development server
- * Development servers are excluded from auto-sync suggestions but not from manual sync
- */
-function isLocalDevelopmentServer(url: string): boolean {
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname.toLowerCase();
-
-    // Check for localhost and common local development patterns
-    return (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '0.0.0.0' ||
-      hostname.endsWith('.localhost') ||
-      // IPv6 loopback
-      hostname === '[::1]'
-    );
-  } catch {
-    return false;
   }
 }
 

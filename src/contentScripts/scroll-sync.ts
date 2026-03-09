@@ -12,6 +12,12 @@ import { applyLocalePreservingSync } from '~/shared/lib/locale-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
+  calculateScrollRatio,
+  clampScrollOffset,
+  clampScrollPosition,
+  findNearestIndex,
+} from '~/shared/lib/scroll-math';
+import {
   clearManualScrollOffset,
   getManualScrollOffset,
   loadUrlSyncEnabled,
@@ -88,8 +94,7 @@ function getScrollInfo() {
  */
 function getScrollRatio(): number {
   const { scrollTop, scrollHeight, clientHeight } = getScrollInfo();
-  const maxScroll = scrollHeight - clientHeight;
-  return maxScroll > 0 ? scrollTop / maxScroll : 0;
+  return calculateScrollRatio(scrollTop, scrollHeight, clientHeight);
 }
 
 /**
@@ -112,12 +117,7 @@ async function exitWheelManualMode() {
   const currentRatio = getScrollRatio();
   const offsetRatio = currentRatio - wheelBaselineSnapshot;
 
-  // Clamp offset to reasonable range (±50% of document)
-  const maxReasonableOffset = 0.5;
-  const clampedOffsetRatio = Math.max(
-    -maxReasonableOffset,
-    Math.min(maxReasonableOffset, offsetRatio),
-  );
+  const clampedOffsetRatio = clampScrollOffset(offsetRatio);
 
   // Calculate pixel offset for display
   const { scrollHeight, clientHeight } = getScrollInfo();
@@ -244,24 +244,10 @@ function findSemanticElements(): Array<{ element: Element; scrollTop: number }> 
  */
 function findNearestElement(): { index: number; ratio: number } | null {
   const elements = findSemanticElements();
-  if (elements.length === 0) return null;
+  const idx = findNearestIndex(elements, window.scrollY);
+  if (idx === -1) return null;
 
-  const currentScroll = window.scrollY;
-  let nearestIndex = 0;
-  let minDistance = Math.abs(elements[0].scrollTop - currentScroll);
-
-  for (let i = 1; i < elements.length; i++) {
-    const distance = Math.abs(elements[i].scrollTop - currentScroll);
-    if (distance < minDistance) {
-      minDistance = distance;
-      nearestIndex = i;
-    }
-  }
-
-  // Calculate fine-tuned ratio within the element
-  const ratio = getScrollRatio();
-
-  return { index: nearestIndex, ratio };
+  return { index: idx, ratio: getScrollRatio() };
 }
 
 /**
@@ -289,8 +275,11 @@ async function handleScrollCore() {
   const offsetData = await getManualScrollOffset(currentTabId);
   const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
 
-  // Calculate current scroll ratio
-  const currentRatio = myMaxScroll > 0 ? scrollInfo.scrollTop / myMaxScroll : 0;
+  const currentRatio = calculateScrollRatio(
+    scrollInfo.scrollTop,
+    scrollInfo.scrollHeight,
+    scrollInfo.clientHeight,
+  );
 
   // Calculate pure ratio by removing this tab's offset
   const pureRatio = currentRatio - offsetData.ratio;
@@ -299,9 +288,7 @@ async function handleScrollCore() {
   // This ensures manual mode snapshots an accurate baseline even when this tab is the active scroller
   lastSyncedRatio = pureRatio;
 
-  // Convert pure ratio back to pixels for the message (for backward compatibility)
-  // Receiving tabs will convert back to ratio and add their own offsets
-  const pureScrollTop = Math.max(0, Math.min(myMaxScroll, pureRatio * myMaxScroll));
+  const pureScrollTop = clampScrollPosition(pureRatio * myMaxScroll, myMaxScroll);
 
   const message = {
     scrollTop: pureScrollTop,
@@ -829,8 +816,7 @@ export function initScrollSync() {
     // Convert target ratio to pixel position for this document
     const targetScrollTop = targetRatio * myMaxScroll;
 
-    // Clamp to valid range [0, myMaxScroll]
-    const clampedScrollTop = Math.max(0, Math.min(myMaxScroll, targetScrollTop));
+    const clampedScrollTop = clampScrollPosition(targetScrollTop, myMaxScroll);
 
     logger.debug('Applying scroll with offset ratio', {
       sourceRatio,

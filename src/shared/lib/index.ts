@@ -1,4 +1,9 @@
 export {
+  isLocalDevelopmentServer,
+  isUrlExcluded,
+  normalizeUrlForAutoSync,
+} from './auto-sync-url-utils';
+export {
   ANIMATION_DURATIONS,
   EASING_CSS,
   EASING_FUNCTIONS,
@@ -17,6 +22,12 @@ export {
 } from './locale-utils';
 export { ExtensionLogger } from './logger';
 export { throttleAndDebounce } from './performance-utils';
+export {
+  calculateScrollRatio,
+  clampScrollOffset,
+  clampScrollPosition,
+  findNearestIndex,
+} from './scroll-math';
 export type { Platform } from './platform';
 export { getPlatform, isLinux, isMac, isWindows } from './platform';
 export type { ManualScrollOffset } from './storage';
