@@ -20,8 +20,7 @@ import {
 } from '~/shared/lib/animations';
 import { cn } from '~/shared/lib/utils';
 
-import { useDragPosition } from '../hooks/use-drag-position';
-import { usePanelState } from '../hooks/use-panel-state';
+import { useDragPosition, usePanelState } from '../hooks';
 
 import IconMenu from '~icons/lucide/menu';
 import IconSettings2 from '~icons/lucide/settings-2';
