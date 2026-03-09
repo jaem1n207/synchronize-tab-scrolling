@@ -14,9 +14,20 @@ import {
   saveAutoSyncEnabled,
 } from '~/shared/lib/storage';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
-import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-state';
+import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
+import {
+  autoSyncState,
+  manualSyncOverriddenTabs,
+  autoSyncRetryTimers,
+  dismissedUrlGroups,
+  pendingSuggestions,
+  MAX_AUTO_SYNC_GROUP_SIZE,
+  autoSyncFlags,
+  isTabManuallyOverridden,
+  withAutoSyncLock,
+} from './lib/auto-sync-state';
 import { isContentScriptAlive, reinjectContentScript } from './lib/content-script-manager';
 import { startKeepAlive, stopKeepAlive } from './lib/keep-alive';
 import { sendMessageWithTimeout } from './lib/messaging';
@@ -28,66 +39,6 @@ import {
 } from './lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background' });
-
-const autoSyncState: AutoSyncState = {
-  enabled: false,
-  groups: new Map(),
-  excludedUrls: [],
-};
-
-// Track tabs that are in manual sync (excluded from auto-sync temporarily)
-const manualSyncOverriddenTabs = new Set<number>();
-
-// Track pending retry timers for auto-sync groups
-const autoSyncRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-// Dismissed URL groups - user rejected sync suggestion (memory only, cleared on browser restart)
-const dismissedUrlGroups = new Set<string>();
-
-// Pending suggestions - prevent duplicate toasts for same URL group
-const pendingSuggestions = new Set<string>();
-
-// Flag to prevent re-entrant toggleAutoSync calls
-let isTogglingAutoSync = false;
-
-// Flag to track if initialization is running (to handle toggle during init)
-let isInitializingAutoSync = false;
-
-// Simple queue-based toggle to prevent race conditions
-// When toggle is in progress, queue the latest request and process after completion
-let pendingToggleRequest: boolean | null = null;
-
-/**
- * Check if a tab is overridden by manual sync
- */
-function isTabManuallyOverridden(tabId: number): boolean {
-  return manualSyncOverriddenTabs.has(tabId);
-}
-
-// Maximum tabs per auto-sync group to prevent performance issues
-const MAX_AUTO_SYNC_GROUP_SIZE = 10;
-
-// Mutex for auto-sync group updates to prevent race conditions
-let autoSyncMutex: Promise<void> = Promise.resolve();
-
-/**
- * Execute a function with auto-sync mutex lock
- * Prevents race conditions when multiple tabs update simultaneously
- */
-async function withAutoSyncLock<T>(fn: () => Promise<T>): Promise<T> {
-  const previousMutex = autoSyncMutex;
-  let releaseLock: () => void;
-  autoSyncMutex = new Promise((resolve) => {
-    releaseLock = resolve;
-  });
-
-  try {
-    await previousMutex;
-    return await fn();
-  } finally {
-    releaseLock!();
-  }
-}
 
 /**
  * Remove tab from all auto-sync groups
@@ -715,12 +666,12 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
  */
 async function initializeAutoSync(overrideEnabled?: boolean): Promise<void> {
   // Prevent concurrent initialization
-  if (isInitializingAutoSync) {
+  if (autoSyncFlags.isInitializing) {
     logger.info('[AUTO-SYNC] initializeAutoSync skipped - already initializing');
     return;
   }
 
-  isInitializingAutoSync = true;
+  autoSyncFlags.isInitializing = true;
 
   try {
     logger.info('[AUTO-SYNC] Initializing auto-sync...');
@@ -851,7 +802,7 @@ async function initializeAutoSync(overrideEnabled?: boolean): Promise<void> {
   } catch (error) {
     logger.error('[AUTO-SYNC] Failed to initialize auto-sync', { error });
   } finally {
-    isInitializingAutoSync = false;
+    autoSyncFlags.isInitializing = false;
   }
 }
 
@@ -861,25 +812,25 @@ async function initializeAutoSync(overrideEnabled?: boolean): Promise<void> {
  */
 async function toggleAutoSync(enabled: boolean): Promise<void> {
   // If toggle is already in progress, queue this request
-  if (isTogglingAutoSync) {
+  if (autoSyncFlags.isToggling) {
     logger.info('[AUTO-SYNC] toggleAutoSync queuing request (toggle in progress)', { enabled });
-    pendingToggleRequest = enabled;
+    autoSyncFlags.pendingToggleRequest = enabled;
     return;
   }
 
   // Wait for any ongoing initialization to complete before toggling
   // This prevents race conditions where toggle modifies state while init is reading it
-  if (isInitializingAutoSync) {
+  if (autoSyncFlags.isInitializing) {
     logger.info('[AUTO-SYNC] toggleAutoSync waiting for initialization to complete', { enabled });
     // Poll until initialization completes (max 10 seconds)
     const maxWait = 10000;
     const pollInterval = 100;
     let waited = 0;
-    while (isInitializingAutoSync && waited < maxWait) {
+    while (autoSyncFlags.isInitializing && waited < maxWait) {
       await new Promise((resolve) => setTimeout(resolve, pollInterval));
       waited += pollInterval;
     }
-    if (isInitializingAutoSync) {
+    if (autoSyncFlags.isInitializing) {
       logger.warn('[AUTO-SYNC] toggleAutoSync timed out waiting for initialization');
     }
   }
@@ -890,7 +841,7 @@ async function toggleAutoSync(enabled: boolean): Promise<void> {
     return;
   }
 
-  isTogglingAutoSync = true;
+  autoSyncFlags.isToggling = true;
   logger.info('[AUTO-SYNC] toggleAutoSync called', {
     enabled,
     previousState: autoSyncState.enabled,
@@ -977,12 +928,12 @@ async function toggleAutoSync(enabled: boolean): Promise<void> {
       logger.info('[AUTO-SYNC] Status broadcast complete (async)');
     })();
   } finally {
-    isTogglingAutoSync = false;
+    autoSyncFlags.isToggling = false;
 
     // Process any queued request after current toggle completes
-    if (pendingToggleRequest !== null) {
-      const queuedState = pendingToggleRequest;
-      pendingToggleRequest = null;
+    if (autoSyncFlags.pendingToggleRequest !== null) {
+      const queuedState = autoSyncFlags.pendingToggleRequest;
+      autoSyncFlags.pendingToggleRequest = null;
       logger.info('[AUTO-SYNC] Processing queued toggle request', { enabled: queuedState });
       // Call directly instead of setTimeout for better service worker compatibility
       // Using void to handle the promise without blocking
