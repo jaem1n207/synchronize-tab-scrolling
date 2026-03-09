@@ -2,7 +2,6 @@ import * as React from 'react';
 
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { AnimatePresence, motion } from 'motion/react';
-import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
@@ -19,18 +18,10 @@ import {
   PANEL_ANIMATIONS,
   prefersReducedMotion,
 } from '~/shared/lib/animations';
-import { ExtensionLogger } from '~/shared/lib/logger';
-import {
-  loadAutoSyncEnabled,
-  loadManualScrollOffsets,
-  saveAutoSyncEnabled,
-} from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
 
 import { useDragPosition } from '../hooks/use-drag-position';
-import { getAutoSyncStatus } from '../scroll-sync';
-
-const logger = new ExtensionLogger({ scope: 'sync-control-panel' });
+import { usePanelState } from '../hooks/use-panel-state';
 
 import IconMenu from '~icons/lucide/menu';
 import IconSettings2 from '~icons/lucide/settings-2';
@@ -41,13 +32,6 @@ interface SyncControlPanelProps {
   isConnectionHealthy?: boolean;
   onReconnect?: () => void;
   className?: string;
-}
-
-interface SyncedTab {
-  id: number;
-  title: string;
-  offsetPixels: number; // pixel offset value
-  isCurrent: boolean;
 }
 
 // Custom PopoverContent with container support for Shadow DOM
@@ -94,14 +78,7 @@ export const SyncControlPanel = ({
   onReconnect,
   className,
 }: SyncControlPanelProps) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [syncedTabs, setSyncedTabs] = React.useState<SyncedTab[]>([]);
-  const [autoSyncEnabled, setAutoSyncEnabled] = React.useState(false);
-  const [isAutoSyncActive, setIsAutoSyncActive] = React.useState(false);
-  const [autoSyncGroupCount, setAutoSyncGroupCount] = React.useState(0);
-
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const ctrlOnlyRef = React.useRef<boolean>(false);
 
   const {
     BUTTON_SIZE,
@@ -111,163 +88,30 @@ export const SyncControlPanel = ({
     toolbarRef,
     wasDraggedRef,
     handleMouseDown,
-  } = useDragPosition({ isOpen });
+  } = useDragPosition();
+
+  const {
+    isOpen,
+    syncedTabs,
+    autoSyncEnabled,
+    isAutoSyncActive,
+    autoSyncGroupCount,
+    handleOpenChange,
+    handleAutoSyncToggle,
+  } = usePanelState({ wasDraggedRef });
 
   const systemTheme = useSystemTheme();
   const { controlKey } = useModifierKey();
 
-  const handleOpenChange = React.useCallback(
-    (open: boolean) => {
-      // Prevent opening if user just dragged
-      if (open && wasDraggedRef.current) {
+  const handleTriggerMouseDown = React.useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (isOpen) {
         return;
       }
-      setIsOpen(open);
+      handleMouseDown(e);
     },
-    [wasDraggedRef],
+    [isOpen, handleMouseDown],
   );
-
-  const loadSyncedTabsWithOffsets = React.useCallback(async () => {
-    try {
-      // 1. Get synced tabs list
-      const response = await sendMessage('sync:get-status', {}, 'background');
-      const status = response as {
-        success: boolean;
-        linkedTabs?: Array<{ id: number; title: string; url: string; favIconUrl?: string }>;
-        currentTabId?: number;
-      } | null;
-
-      if (!status?.success || !status.linkedTabs) {
-        setSyncedTabs([]);
-        return;
-      }
-
-      // 2. Get all offsets
-      const offsets = await loadManualScrollOffsets();
-
-      // 3. Merge and update state
-      const tabs = status.linkedTabs.map((tab) => ({
-        id: tab.id,
-        title: tab.title,
-        offsetPixels: offsets[tab.id]?.pixels || 0,
-        isCurrent: tab.id === status.currentTabId,
-      }));
-
-      setSyncedTabs(tabs);
-    } catch (error) {
-      await logger.error('Failed to load synced tabs with offsets:', error);
-      setSyncedTabs([]);
-    }
-  }, []);
-
-  // Load synced tabs when popover opens
-  React.useEffect(() => {
-    if (isOpen) {
-      loadSyncedTabsWithOffsets();
-    }
-  }, [isOpen, loadSyncedTabsWithOffsets]);
-
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Start tracking when Ctrl key is pressed
-      if (e.key === 'Control') {
-        ctrlOnlyRef.current = true;
-        return;
-      }
-
-      // Mark as combination key if any other key is pressed while Ctrl is held
-      if (e.ctrlKey && ctrlOnlyRef.current) {
-        ctrlOnlyRef.current = false;
-      }
-
-      // Close with Escape
-      if (e.key === 'Escape' && isOpen) {
-        setIsOpen(false);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      // Toggle only when Ctrl is released and it was pressed alone
-      if (e.key === 'Control' && ctrlOnlyRef.current) {
-        ctrlOnlyRef.current = false;
-        setIsOpen((prev) => !prev);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [isOpen]);
-
-  // Fetch detailed auto-sync status from background
-  const fetchAutoSyncDetailedStatus = React.useCallback(async () => {
-    try {
-      const response = (await sendMessage('auto-sync:get-detailed-status', {}, 'background')) as {
-        success: boolean;
-        enabled: boolean;
-        currentTabGroup?: { tabCount: number; isActive: boolean };
-      };
-
-      if (response?.success && response.currentTabGroup) {
-        setIsAutoSyncActive(response.currentTabGroup.isActive);
-        // Show count of OTHER tabs (exclude current tab)
-        setAutoSyncGroupCount(Math.max(0, response.currentTabGroup.tabCount - 1));
-      } else {
-        setIsAutoSyncActive(false);
-        setAutoSyncGroupCount(0);
-      }
-    } catch {
-      // Fallback to local status check
-      const status = getAutoSyncStatus();
-      setIsAutoSyncActive(status.isAutoSync && status.isActive);
-      setAutoSyncGroupCount(0);
-    }
-  }, []);
-
-  // Load auto-sync state and set up message listeners
-  React.useEffect(() => {
-    // Load initial auto-sync enabled state
-    loadAutoSyncEnabled().then(setAutoSyncEnabled);
-
-    // Check current auto-sync status
-    fetchAutoSyncDetailedStatus();
-
-    // Listen for auto-sync status changes
-    const unsubscribeStatusChanged = onMessage('auto-sync:status-changed', (message) => {
-      const data = message.data as { enabled: boolean };
-      setAutoSyncEnabled(data.enabled);
-      // Refetch detailed status when toggle changes
-      fetchAutoSyncDetailedStatus();
-    });
-
-    // Listen for auto-sync group updates
-    const unsubscribeGroupUpdated = onMessage('auto-sync:group-updated', () => {
-      // Re-check auto-sync status when groups change
-      fetchAutoSyncDetailedStatus();
-    });
-
-    return () => {
-      unsubscribeStatusChanged();
-      unsubscribeGroupUpdated();
-    };
-  }, [fetchAutoSyncDetailedStatus]);
-
-  // Handle auto-sync toggle
-  const handleAutoSyncToggle = React.useCallback(async (enabled: boolean) => {
-    try {
-      // Save to storage
-      await saveAutoSyncEnabled(enabled);
-      setAutoSyncEnabled(enabled);
-
-      // Notify background script
-      await sendMessage('auto-sync:status-changed', { enabled }, 'background');
-    } catch (error) {
-      await logger.error('Failed to toggle auto-sync:', error);
-    }
-  }, []);
 
   // Calculate popover side based on button position
   const popoverSide = position.x < window.innerWidth / 2 ? 'right' : 'left';
@@ -315,20 +159,13 @@ export const SyncControlPanel = ({
             }}
             tabIndex={-1}
             type="button"
-            onMouseDown={handleMouseDown}
+            onMouseDown={handleTriggerMouseDown}
           >
             <IconMenu className="h-4 w-4" />
 
             {/* Status indicator */}
             <div className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
               <div
-                title={
-                  !isConnectionHealthy
-                    ? t('connectionLost')
-                    : urlSyncEnabled
-                      ? t('syncActive')
-                      : t('syncInactive')
-                }
                 className={cn(
                   'h-3 w-3 rounded-full',
                   'border-2',
@@ -338,6 +175,13 @@ export const SyncControlPanel = ({
                   isConnectionHealthy && urlSyncEnabled && 'bg-blue-500',
                   isConnectionHealthy && !urlSyncEnabled && 'bg-gray-400',
                 )}
+                title={
+                  !isConnectionHealthy
+                    ? t('connectionLost')
+                    : urlSyncEnabled
+                      ? t('syncActive')
+                      : t('syncInactive')
+                }
               />
             </div>
 

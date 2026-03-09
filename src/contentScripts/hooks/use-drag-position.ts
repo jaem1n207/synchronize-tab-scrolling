@@ -10,10 +10,6 @@ interface Position {
   y: number;
 }
 
-interface UseDragPositionParams {
-  isOpen: boolean;
-}
-
 interface UseDragPositionReturn {
   BUTTON_SIZE: number;
   EDGE_MARGIN: number;
@@ -35,7 +31,7 @@ const logger = new ExtensionLogger({ scope: 'sync-control-panel' });
 const BUTTON_SIZE = 36;
 const EDGE_MARGIN = 32;
 
-export const useDragPosition = ({ isOpen }: UseDragPositionParams): UseDragPositionReturn => {
+export const useDragPosition = (): UseDragPositionReturn => {
   const [position, setPosition] = React.useState<Position>({ x: EDGE_MARGIN, y: EDGE_MARGIN });
   const [isDragging, setIsDragging] = React.useState(false);
   const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
@@ -70,7 +66,6 @@ export const useDragPosition = ({ isOpen }: UseDragPositionParams): UseDragPosit
   const handleMouseDown = React.useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       if (e.button !== 0) return;
-      if (isOpen) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -83,7 +78,7 @@ export const useDragPosition = ({ isOpen }: UseDragPositionParams): UseDragPosit
       setDragTransform(position);
       setIsDragging(true);
     },
-    [position, isOpen],
+    [position],
   );
 
   const handleMouseMove = React.useCallback(
