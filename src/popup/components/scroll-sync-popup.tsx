@@ -3,11 +3,7 @@ import { useCallback } from 'react';
 import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
 import { saveSelectedTabIds } from '~/shared/lib/storage';
 
-import { useAutoSync } from '../hooks/use-auto-sync';
-import { usePopupState } from '../hooks/use-popup-state';
-import { useSyncControl } from '../hooks/use-sync-control';
-import { useTabDiscovery } from '../hooks/use-tab-discovery';
-import { useUrlSync } from '../hooks/use-url-sync';
+import { useAutoSync, usePopupState, useSyncControl, useTabDiscovery, useUrlSync } from '../hooks';
 
 import { ActionsMenu } from './actions-menu';
 import { ErrorNotification } from './error-notification';
