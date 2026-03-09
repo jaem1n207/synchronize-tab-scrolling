@@ -18,13 +18,14 @@ export interface StartSyncMessage {
   mode: SyncMode;
   /** When true, sync was initiated by auto-sync (not user action) */
   isAutoSync?: boolean;
+  currentTabId?: number;
 }
 
 /**
  * Message to stop scroll synchronization
  */
 export interface StopSyncMessage {
-  tabIds: Array<number>;
+  tabIds?: Array<number>;
   /** When true, stop was initiated by auto-sync (not user action) */
   isAutoSync?: boolean;
 }
