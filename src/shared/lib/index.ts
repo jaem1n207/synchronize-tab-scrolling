@@ -1,4 +1,9 @@
 export {
+  isLocalDevelopmentServer,
+  isUrlExcluded,
+  normalizeUrlForAutoSync,
+} from './auto-sync-url-utils';
+export {
   ANIMATION_DURATIONS,
   EASING_CSS,
   EASING_FUNCTIONS,
