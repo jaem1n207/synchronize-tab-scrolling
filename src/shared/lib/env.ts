@@ -1,1 +1,1 @@
-export const isFirefox = navigator.userAgent.includes('Firefox');
+export const isFirefox: boolean = navigator.userAgent.includes('Firefox');
