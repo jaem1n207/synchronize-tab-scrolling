@@ -1,6 +1,11 @@
 import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+import {
+  isLocalDevelopmentServer,
+  isUrlExcluded,
+  normalizeUrlForAutoSync,
+} from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadAutoSyncEnabled,
@@ -8,26 +13,18 @@ import {
   loadUrlSyncEnabled,
   saveAutoSyncEnabled,
 } from '~/shared/lib/storage';
-import {
-  isLocalDevelopmentServer,
-  isUrlExcluded,
-  normalizeUrlForAutoSync,
-} from '~/shared/lib/auto-sync-url-utils';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-state';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
-import type { SyncState } from '~/shared/types/sync-state';
-
 import { sendMessageWithTimeout } from './lib/messaging';
+import {
+  syncState,
+  persistSyncState,
+  restoreSyncState,
+  broadcastSyncStatus,
+} from './lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background' });
-
-let syncState: SyncState = {
-  isActive: false,
-  linkedTabs: [],
-  connectionStatuses: {},
-  lastActiveSyncedTabId: null,
-};
 
 // Keep-alive mechanism to prevent service worker termination during active sync
 // Chrome MV3 service workers terminate after ~30 seconds of inactivity
@@ -1059,78 +1056,12 @@ async function toggleAutoSync(enabled: boolean): Promise<void> {
   }
 }
 
-// Helper to persist sync state to storage
-async function persistSyncState() {
-  try {
-    await browser.storage.local.set({ syncState });
-    logger.debug('Sync state persisted to storage', { syncState });
-  } catch (error) {
-    logger.error('Failed to persist sync state', { error });
+// Restore state on service worker startup (also starts keep-alive if sync was active)
+restoreSyncState().then(() => {
+  if (syncState.isActive) {
+    startKeepAlive();
   }
-}
-
-// Helper to restore sync state from storage
-async function restoreSyncState() {
-  try {
-    const result = await browser.storage.local.get('syncState');
-    if (result.syncState) {
-      syncState = result.syncState as SyncState;
-      logger.info('Sync state restored from storage', { syncState });
-
-      // If sync was active, verify tabs still exist and reconnect
-      if (syncState.isActive && syncState.linkedTabs.length >= 2) {
-        logger.info('Reconnecting previously synced tabs after service worker restart');
-        const tabs = await browser.tabs.query({ currentWindow: true });
-        const existingTabIds = tabs.map((t) => t.id).filter((id): id is number => id !== undefined);
-
-        // Filter out tabs that no longer exist
-        syncState.linkedTabs = syncState.linkedTabs.filter((id) => existingTabIds.includes(id));
-
-        if (syncState.linkedTabs.length >= 2) {
-          // Reconnect all tabs
-          const reconnectPromises = syncState.linkedTabs.map(async (tabId) => {
-            try {
-              await sendMessage(
-                'scroll:start',
-                {
-                  tabIds: syncState.linkedTabs,
-                  mode: syncState.mode || 'ratio',
-                  currentTabId: tabId,
-                },
-                { context: 'content-script', tabId },
-              );
-              syncState.connectionStatuses[tabId] = 'connected';
-              logger.info(`Reconnected tab ${tabId} after service worker restart`);
-            } catch (error) {
-              logger.error(`Failed to reconnect tab ${tabId}`, { error });
-              syncState.connectionStatuses[tabId] = 'error';
-            }
-          });
-
-          await Promise.all(reconnectPromises);
-          await broadcastSyncStatus();
-
-          // Start keep-alive after restoring sync
-          startKeepAlive();
-        } else {
-          // Not enough tabs, clear sync state
-          logger.info(
-            'Not enough tabs remaining after service worker restart, clearing sync state',
-          );
-          syncState.isActive = false;
-          syncState.linkedTabs = [];
-          syncState.connectionStatuses = {};
-          await persistSyncState();
-        }
-      }
-    }
-  } catch (error) {
-    logger.error('Failed to restore sync state', { error });
-  }
-}
-
-// Restore state on service worker startup
-restoreSyncState();
+});
 
 // Initialize auto-sync on service worker startup
 initializeAutoSync();
@@ -1388,46 +1319,6 @@ onMessage('scroll:manual', async ({ data }) => {
 
   return { success: true };
 });
-
-// Helper function to broadcast sync status to all synced tabs
-async function broadcastSyncStatus() {
-  const tabs = await browser.tabs.query({ currentWindow: true });
-
-  const tabInfoPromises = syncState.linkedTabs.map(async (tabId) => {
-    const tab = tabs.find((t) => t.id === tabId);
-    if (!tab) return null;
-
-    return {
-      id: tab.id!,
-      title: tab.title || 'Untitled',
-      url: tab.url || '',
-      favIconUrl: tab.favIconUrl,
-      eligible: true,
-    };
-  });
-
-  const linkedTabsInfo = (await Promise.all(tabInfoPromises)).filter(
-    (info): info is NonNullable<typeof info> => info !== null,
-  );
-
-  const statusPayload = {
-    linkedTabs: linkedTabsInfo,
-    connectionStatuses: syncState.connectionStatuses,
-  };
-
-  // Broadcast to all synced tabs
-  const promises = syncState.linkedTabs.map(async (tabId) => {
-    await sendMessage(
-      'sync:status',
-      { ...statusPayload, currentTabId: tabId },
-      { context: 'content-script', tabId },
-    ).catch((error) => {
-      logger.debug(`Failed to send sync status to tab ${tabId}`, { error });
-    });
-  });
-
-  await Promise.all(promises);
-}
 
 // Handler for getting sync status (from popup or content script)
 onMessage('sync:get-status', async ({ sender }) => {
