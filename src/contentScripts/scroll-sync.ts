@@ -877,6 +877,10 @@ export function initScrollSync() {
       isSyncActive: syncState.isActive,
       tabId: syncState.tabId,
     });
+
+    // Prevents false "disconnected" status during idle — health check uses this timestamp
+    connectionState.lastSuccessfulSync = Date.now();
+
     return {
       success: true,
       tabId: syncState.tabId,
