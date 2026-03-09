@@ -18,6 +18,7 @@ import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-stat
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
 import { isContentScriptAlive, reinjectContentScript } from './lib/content-script-manager';
+import { startKeepAlive, stopKeepAlive } from './lib/keep-alive';
 import { sendMessageWithTimeout } from './lib/messaging';
 import {
   syncState,
@@ -27,74 +28,6 @@ import {
 } from './lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background' });
-
-// Keep-alive mechanism to prevent service worker termination during active sync
-// Chrome MV3 service workers terminate after ~30 seconds of inactivity
-let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
-const KEEP_ALIVE_INTERVAL_MS = 25000; // 25 seconds (before 30s termination)
-
-/**
- * Start keep-alive mechanism to prevent service worker termination
- * Also periodically checks health of all synced tabs
- */
-function startKeepAlive() {
-  if (keepAliveInterval) {
-    logger.debug('Keep-alive already running');
-    return;
-  }
-
-  keepAliveInterval = setInterval(async () => {
-    logger.debug('Keep-alive ping', {
-      syncActive: syncState.isActive,
-      linkedTabs: syncState.linkedTabs.length,
-    });
-
-    // If sync is active, check health of all tabs
-    if (syncState.isActive && syncState.linkedTabs.length > 0) {
-      await checkAllTabsHealth();
-    }
-  }, KEEP_ALIVE_INTERVAL_MS);
-
-  logger.info('Keep-alive started');
-}
-
-/**
- * Stop keep-alive mechanism
- */
-function stopKeepAlive() {
-  if (keepAliveInterval) {
-    clearInterval(keepAliveInterval);
-    keepAliveInterval = null;
-    logger.info('Keep-alive stopped');
-  }
-}
-
-/**
- * Check health of all synced tabs and attempt recovery if needed
- */
-async function checkAllTabsHealth() {
-  if (!syncState.isActive) return;
-
-  logger.debug('Checking health of all synced tabs', {
-    tabCount: syncState.linkedTabs.length,
-  });
-
-  for (const tabId of syncState.linkedTabs) {
-    const isAlive = await isContentScriptAlive(tabId);
-
-    if (!isAlive && syncState.connectionStatuses[tabId] === 'connected') {
-      logger.warn(`Tab ${tabId} lost connection during keep-alive check, attempting recovery`);
-
-      // Try to re-inject content script
-      const success = await reinjectContentScript(tabId);
-      if (!success) {
-        logger.error(`Failed to recover tab ${tabId} during keep-alive check`);
-        syncState.connectionStatuses[tabId] = 'error';
-        await persistSyncState();
-      }
-    }
-  }
-}
 
 const autoSyncState: AutoSyncState = {
   enabled: false,
