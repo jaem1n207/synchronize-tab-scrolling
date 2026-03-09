@@ -18,7 +18,7 @@ import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-stat
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
 
-import type { JsonValue } from 'type-fest';
+import { sendMessageWithTimeout } from './lib/messaging';
 
 const logger = new ExtensionLogger({ scope: 'background' });
 
@@ -1150,21 +1150,6 @@ browser.runtime.onInstalled.addListener((): void => {
 
 // Log when background script loads
 logger.info('Background script loaded, registering message handlers');
-
-async function sendMessageWithTimeout<T extends JsonValue = JsonValue>(
-  messageId: string,
-  data: JsonValue,
-  destination: { context: 'content-script'; tabId: number },
-  timeoutMs: number = 2_000,
-): Promise<T> {
-  const result = await Promise.race([
-    sendMessage(messageId, data, destination),
-    new Promise<never>((__, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs),
-    ),
-  ]);
-  return result as T;
-}
 
 // Scroll synchronization message handlers
 logger.info('Registering scroll:start handler');
