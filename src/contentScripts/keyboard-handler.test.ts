@@ -113,6 +113,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 150,
         lastSyncedRatio: 0.2,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
@@ -133,6 +134,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 320,
         lastSyncedRatio: 0.4,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       window.dispatchEvent(new KeyboardEvent('keydown', { metaKey: true }));
@@ -151,6 +153,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 450,
         lastSyncedRatio: 0.45,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       initKeyboardHandler(12, getScrollInfo);
@@ -220,6 +223,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 200,
         lastSyncedRatio: 0.1,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
@@ -242,6 +246,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 100,
         lastSyncedRatio: 0.2,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
@@ -259,6 +264,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 420,
         lastSyncedRatio: 0.25,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
@@ -404,6 +410,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 350,
         lastSyncedRatio: 0.2,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
@@ -449,6 +456,7 @@ describe('keyboard-handler', () => {
         currentScrollTop: 600,
         lastSyncedRatio: 0.3,
         setManualModeActive,
+        updateOffsetCache: vi.fn(),
       }));
 
       window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));

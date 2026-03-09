@@ -12,12 +12,13 @@ const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
 
 let isManualModeActive = false;
 let currentTabId = 0;
-let manualModeBaselineSnapshot = 0; // Snapshot taken synchronously when Alt is pressed
+let manualModeBaselineSnapshot = 0;
 let getScrollInfoCallback:
   | (() => {
       currentScrollTop: number;
       lastSyncedRatio: number;
       setManualModeActive: (active: boolean) => void;
+      updateOffsetCache: (ratio: number, pixels: number) => void;
     })
   | null = null;
 
@@ -32,6 +33,7 @@ export function initKeyboardHandler(
     currentScrollTop: number;
     lastSyncedRatio: number;
     setManualModeActive: (active: boolean) => void;
+    updateOffsetCache: (ratio: number, pixels: number) => void;
   },
 ) {
   currentTabId = tabId;
@@ -122,17 +124,14 @@ async function disableManualMode() {
   // Calculate and save manual scroll offset as RATIO using snapshot from Alt PRESS
   if (getScrollInfoCallback) {
     try {
-      const { currentScrollTop } = getScrollInfoCallback();
+      const { currentScrollTop, updateOffsetCache } = getScrollInfoCallback();
 
-      // Calculate current scroll ratio
       const myMaxScroll =
         document.documentElement.scrollHeight - document.documentElement.clientHeight;
       const currentRatio = myMaxScroll > 0 ? currentScrollTop / myMaxScroll : 0;
 
-      // Calculate ratio offset using snapshot taken at Alt PRESS (not release)
       const offsetRatio = currentRatio - manualModeBaselineSnapshot;
 
-      // Validate offset is within reasonable range (±0.5 ratio, which is ±50% of document)
       const maxReasonableOffset = 0.5;
 
       if (Math.abs(offsetRatio) > maxReasonableOffset) {
@@ -144,13 +143,11 @@ async function disableManualMode() {
         });
       }
 
-      // Clamp offset to reasonable range
       const clampedOffsetRatio = Math.max(
         -maxReasonableOffset,
         Math.min(maxReasonableOffset, offsetRatio),
       );
 
-      // Calculate pixel offset for display purposes
       const offsetPixels = Math.round(clampedOffsetRatio * myMaxScroll);
 
       logger.debug('Calculating manual scroll offset as ratio', {
@@ -161,9 +158,8 @@ async function disableManualMode() {
         offsetPixels,
       });
 
-      // The calculated offsetRatio is already the absolute offset from baseline
-      // Save it directly (no accumulation needed) along with pixel value
       await saveManualScrollOffset(currentTabId, clampedOffsetRatio, offsetPixels);
+      updateOffsetCache(clampedOffsetRatio, offsetPixels);
       logger.info('Manual scroll offset saved', {
         tabId: currentTabId,
         offsetRatio: clampedOffsetRatio,

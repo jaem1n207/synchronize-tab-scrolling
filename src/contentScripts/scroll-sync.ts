@@ -22,6 +22,7 @@ import {
   getManualScrollOffset,
   loadUrlSyncEnabled,
   saveManualScrollOffset,
+  type ManualScrollOffset,
 } from '~/shared/lib/storage';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
@@ -51,6 +52,8 @@ const syncState = createInitialSyncState();
 const wheelState = createInitialWheelModeState();
 const connectionState = createInitialConnectionState();
 const urlMonitorState = createInitialUrlMonitorState();
+
+let cachedManualOffset: ManualScrollOffset = { ratio: 0, pixels: 0 };
 
 /**
  * Get current scroll information
@@ -106,8 +109,8 @@ async function exitWheelManualMode() {
     offsetPixels,
   });
 
-  // Save offset to storage
   await saveManualScrollOffset(syncState.tabId, clampedOffsetRatio, offsetPixels);
+  cachedManualOffset = { ratio: clampedOffsetRatio, pixels: offsetPixels };
 
   logger.info('Wheel manual scroll offset saved', {
     tabId: syncState.tabId,
@@ -246,7 +249,7 @@ async function handleScrollCore() {
 
   // Remove offset ratio from current ratio before broadcasting
   // This ensures we send the "pure" scroll ratio without offset applied
-  const offsetData = await getManualScrollOffset(syncState.tabId);
+  const offsetData = cachedManualOffset;
   const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
 
   const currentRatio = calculateScrollRatio(
@@ -311,6 +314,7 @@ async function broadcastUrlChange(url: string) {
   const urlSyncEnabled = await loadUrlSyncEnabled();
   if (urlSyncEnabled) {
     await clearManualScrollOffset(syncState.tabId);
+    cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.debug('Cleared manual scroll offset on URL change (source tab)', {
       tabId: syncState.tabId,
     });
@@ -672,14 +676,15 @@ export function initScrollSync() {
     // Start URL monitoring (P1)
     startUrlMonitoring();
 
-    // Initialize keyboard handler with tab ID and scroll info callback
     initKeyboardHandler(syncState.tabId, () => ({
       currentScrollTop: window.scrollY,
-      lastSyncedRatio: syncState.lastSyncedRatio, // Return live value for synchronous snapshot
+      lastSyncedRatio: syncState.lastSyncedRatio,
       setManualModeActive: (active: boolean) => {
-        // Set flag SYNCHRONOUSLY to prevent race condition with scroll:sync messages
         syncState.isManualScrollEnabled = active;
         logger.debug('Manual mode flag set synchronously via callback', { active });
+      },
+      updateOffsetCache: (ratio: number, pixels: number) => {
+        cachedManualOffset = { ratio, pixels };
       },
     }));
     logger.debug('Keyboard handler initialized');
@@ -687,6 +692,8 @@ export function initScrollSync() {
     // Show draggable control panel
     showPanel();
     logger.debug('Panel shown');
+
+    cachedManualOffset = await getManualScrollOffset(syncState.tabId);
 
     // Start connection health monitoring
     startConnectionHealthCheck();
@@ -739,8 +746,8 @@ export function initScrollSync() {
     // Cleanup keyboard handler
     cleanupKeyboardHandler();
 
-    // Clear manual scroll offset for this tab when stopping sync
     await clearManualScrollOffset(syncState.tabId);
+    cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.info('Cleared manual scroll offset on sync stop', { tabId: syncState.tabId });
 
     // Hide draggable control panel
@@ -779,8 +786,7 @@ export function initScrollSync() {
     const myScrollInfo = getScrollInfo();
     const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
 
-    // Load manual scroll offset ratio for this tab
-    const offsetData = await getManualScrollOffset(syncState.tabId);
+    const offsetData = cachedManualOffset;
 
     // Apply offset ratio to source ratio to get target ratio for this tab
     const targetRatio = sourceRatio + offsetData.ratio;
@@ -907,9 +913,8 @@ export function initScrollSync() {
 
     logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
 
-    // Clear manual scroll offset before navigating to new page
-    // Old offset values won't be useful on a new page
     await clearManualScrollOffset(syncState.tabId);
+    cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
 
     try {
