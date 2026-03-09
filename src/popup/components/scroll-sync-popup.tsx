@@ -7,12 +7,7 @@ import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
 import { usePersistentState } from '~/shared/hooks/use-persistent-state';
 import { t } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
-import {
-  loadSelectedTabIds,
-  saveSelectedTabIds,
-  loadUrlSyncEnabled,
-  saveUrlSyncEnabled,
-} from '~/shared/lib/storage';
+import { loadSelectedTabIds, saveSelectedTabIds } from '~/shared/lib/storage';
 import {
   sortTabsWithDomainGrouping,
   sortTabsByRecentVisits,
@@ -21,6 +16,7 @@ import {
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
 import { useAutoSync } from '../hooks/use-auto-sync';
+import { useUrlSync } from '../hooks/use-url-sync';
 import { DEFAULT_PREFERENCES } from '../types/filters';
 
 import { ActionsMenu } from './actions-menu';
@@ -61,17 +57,11 @@ export function ScrollSyncPopup() {
   );
 
   const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
-
-  // Browser storage-based settings (cross-context)
-  const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
+  const { urlSyncEnabled, handleUrlSyncChange } = useUrlSync();
 
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Load browser.storage-based settings
-        const urlSyncSetting = await loadUrlSyncEnabled();
-        setUrlSyncEnabled(urlSyncSetting);
-
         // Query background for current sync status
         let hasActiveSync = false;
         let syncedTabIds: Array<number> = [];
@@ -509,15 +499,6 @@ export function ScrollSyncPopup() {
       }
     }
   }, [syncStatus.isActive, selectedTabIds.length, handleSelectAll, handleClearAll]);
-
-  const handleUrlSyncChange = useCallback(async (enabled: boolean) => {
-    setUrlSyncEnabled(enabled);
-    await saveUrlSyncEnabled(enabled);
-    // Notify background script
-    sendMessage('sync:url-enabled-changed', { enabled }, 'background').catch((err) => {
-      logger.warn('[ScrollSyncPopup] Failed to notify background of URL sync change:', err);
-    });
-  }, []);
 
   // Keyboard shortcuts - using custom hook
   useKeyboardShortcuts(
