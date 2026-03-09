@@ -1,11 +1,7 @@
 import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import {
-  isLocalDevelopmentServer,
-  isUrlExcluded,
-  normalizeUrlForAutoSync,
-} from '~/shared/lib/auto-sync-url-utils';
+import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadAutoSyncEnabled,
@@ -13,7 +9,6 @@ import {
   loadUrlSyncEnabled,
   saveAutoSyncEnabled,
 } from '~/shared/lib/storage';
-import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
 import {
@@ -22,11 +17,16 @@ import {
   autoSyncRetryTimers,
   dismissedUrlGroups,
   pendingSuggestions,
-  MAX_AUTO_SYNC_GROUP_SIZE,
   autoSyncFlags,
-  isTabManuallyOverridden,
-  withAutoSyncLock,
 } from './lib/auto-sync-state';
+import {
+  removeTabFromAllAutoSyncGroups,
+  getAutoSyncGroupMembers,
+  isTabInActiveAutoSyncGroup,
+  updateAutoSyncGroup,
+  stopAutoSyncForGroup,
+  broadcastAutoSyncGroupUpdate,
+} from './lib/auto-sync-groups';
 import {
   showSyncSuggestion,
   sendSuggestionToSingleTab,
@@ -43,294 +43,6 @@ import {
 } from './lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background' });
-
-/**
- * Remove tab from all auto-sync groups
- */
-async function removeTabFromAllAutoSyncGroups(tabId: number): Promise<void> {
-  for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
-    if (group.tabIds.has(tabId)) {
-      group.tabIds.delete(tabId);
-      logger.debug(`Removed tab ${tabId} from auto-sync group`, { normalizedUrl });
-
-      // If group has less than 2 tabs, stop auto-sync and cancel retry for that group
-      if (group.tabIds.size < 2) {
-        cancelAutoSyncRetry(normalizedUrl);
-        if (group.isActive) {
-          await stopAutoSyncForGroup(normalizedUrl);
-        }
-      }
-
-      // Remove empty groups
-      if (group.tabIds.size === 0) {
-        autoSyncState.groups.delete(normalizedUrl);
-        logger.debug(`Removed empty auto-sync group`, { normalizedUrl });
-      }
-    }
-  }
-}
-
-/**
- * Get other tab IDs in the same active auto-sync group as the given tab
- * @returns Array of tab IDs in the same group (excluding the given tab)
- */
-function getAutoSyncGroupMembers(tabId: number): number[] {
-  for (const [, group] of autoSyncState.groups) {
-    if (group.isActive && group.tabIds.has(tabId)) {
-      return Array.from(group.tabIds).filter((id) => id !== tabId);
-    }
-  }
-  return [];
-}
-
-/**
- * Check if a tab is in any active auto-sync group
- */
-function isTabInActiveAutoSyncGroup(tabId: number): boolean {
-  for (const [, group] of autoSyncState.groups) {
-    if (group.isActive && group.tabIds.has(tabId)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Update auto-sync group for a tab based on its URL (with mutex lock)
- * @param tabId - The tab ID
- * @param url - The tab's URL
- * @param skipStartSync - If true, don't start sync even if group has 2+ tabs (used when page isn't fully loaded)
- * @param skipBroadcast - If true, don't broadcast group update (used during batch initialization)
- * @returns The normalized URL if the tab was added to a group, null otherwise
- */
-async function updateAutoSyncGroup(
-  tabId: number,
-  url: string,
-  skipStartSync: boolean = false,
-  skipBroadcast: boolean = false,
-): Promise<string | null> {
-  return withAutoSyncLock(() =>
-    updateAutoSyncGroupInternal(tabId, url, skipStartSync, skipBroadcast),
-  );
-}
-
-/**
- * Internal implementation of updateAutoSyncGroup (called within mutex lock)
- */
-async function updateAutoSyncGroupInternal(
-  tabId: number,
-  url: string,
-  skipStartSync: boolean = false,
-  skipBroadcast: boolean = false,
-): Promise<string | null> {
-  logger.info('[AUTO-SYNC] updateAutoSyncGroupInternal called', {
-    tabId,
-    url,
-    skipStartSync,
-    skipBroadcast,
-  });
-
-  if (!autoSyncState.enabled) {
-    logger.info('[AUTO-SYNC] Auto-sync disabled, skipping update');
-    return null;
-  }
-
-  const normalizedUrl = normalizeUrlForAutoSync(url);
-  if (!normalizedUrl) {
-    logger.info('[AUTO-SYNC] URL normalization returned null, skipping');
-    return null;
-  }
-
-  // Check if URL is forbidden (search engines, PDF viewers, auth pages, etc.)
-  if (isForbiddenUrl(url)) {
-    logger.debug(`[AUTO-SYNC] URL is forbidden, skipping auto-sync`, { url, tabId });
-    await removeTabFromAllAutoSyncGroups(tabId);
-    return null;
-  }
-
-  // Check if URL is a local development server (excluded from auto-sync suggestions only)
-  if (isLocalDevelopmentServer(url)) {
-    logger.debug(`[AUTO-SYNC] URL is local dev server, skipping auto-sync`, { url, tabId });
-    await removeTabFromAllAutoSyncGroups(tabId);
-    return null;
-  }
-
-  // Check if URL is excluded by user patterns
-  if (isUrlExcluded(url, autoSyncState.excludedUrls)) {
-    logger.debug(`[AUTO-SYNC] URL excluded from auto-sync`, { url, tabId });
-    await removeTabFromAllAutoSyncGroups(tabId);
-    return null;
-  }
-
-  // Skip tabs that are in manual sync (they take priority)
-  if (isTabManuallyOverridden(tabId)) {
-    logger.debug(`[AUTO-SYNC] Tab ${tabId} is in manual sync, skipping auto-sync`);
-    return null;
-  }
-
-  // Remove from all existing groups first
-  logger.info('[AUTO-SYNC] Removing tab from existing groups', { tabId });
-  await removeTabFromAllAutoSyncGroups(tabId);
-
-  // Add to new group
-  let group = autoSyncState.groups.get(normalizedUrl);
-  const isNewGroup = !group;
-  if (!group) {
-    group = { tabIds: new Set(), isActive: false };
-    autoSyncState.groups.set(normalizedUrl, group);
-    logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
-  }
-
-  // Check group size limit to prevent performance issues
-  if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(tabId)) {
-    logger.warn('[AUTO-SYNC] Group size limit reached, tab not added', {
-      normalizedUrl,
-      currentSize: group.tabIds.size,
-      maxSize: MAX_AUTO_SYNC_GROUP_SIZE,
-      tabId,
-    });
-    return null;
-  }
-
-  group.tabIds.add(tabId);
-  logger.info('[AUTO-SYNC] Tab added to group', {
-    tabId,
-    normalizedUrl,
-    groupSize: group.tabIds.size,
-    groupTabIds: Array.from(group.tabIds),
-    isNewGroup,
-    isActive: group.isActive,
-  });
-
-  // Show sync suggestion if group has 2+ tabs and not already active (unless skipStartSync is true)
-  const shouldShowSuggestion = !skipStartSync && group.tabIds.size >= 2 && !group.isActive;
-  logger.info('[AUTO-SYNC] Checking if should show suggestion', {
-    skipStartSync,
-    groupSize: group.tabIds.size,
-    isActive: group.isActive,
-    shouldShowSuggestion,
-  });
-
-  if (shouldShowSuggestion && !dismissedUrlGroups.has(normalizedUrl)) {
-    // If suggestion already pending (toast showing on other tabs), send to this new tab only
-    if (pendingSuggestions.has(normalizedUrl)) {
-      logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab (from updateAutoSyncGroup)', {
-        tabId,
-        normalizedUrl,
-      });
-      await sendSuggestionToSingleTab(tabId, normalizedUrl, group);
-    } else {
-      // New group - broadcast to all tabs
-      logger.info('[AUTO-SYNC] Showing suggestion for group', {
-        normalizedUrl,
-        tabIds: Array.from(group.tabIds),
-      });
-      await showSyncSuggestion(normalizedUrl);
-    }
-  }
-
-  // Broadcast group update to content scripts (unless skipBroadcast is true)
-  if (!skipBroadcast) {
-    await broadcastAutoSyncGroupUpdate();
-  }
-
-  return normalizedUrl;
-}
-
-/**
- * Cancel any pending retry timer for a group
- */
-function cancelAutoSyncRetry(normalizedUrl: string): void {
-  const existingTimer = autoSyncRetryTimers.get(normalizedUrl);
-  if (existingTimer) {
-    clearTimeout(existingTimer);
-    autoSyncRetryTimers.delete(normalizedUrl);
-  }
-}
-
-/**
- * Stop auto-sync for a specific URL group
- */
-async function stopAutoSyncForGroup(normalizedUrl: string): Promise<void> {
-  // Cancel any pending retry timer
-  cancelAutoSyncRetry(normalizedUrl);
-
-  const group = autoSyncState.groups.get(normalizedUrl);
-  if (!group) return;
-
-  const tabIds = Array.from(group.tabIds);
-  logger.info(`Stopping auto-sync for group`, { normalizedUrl, tabIds });
-
-  // Send scroll:stop with isAutoSync flag to all tabs in group
-  const promises = tabIds.map(async (tabId) => {
-    try {
-      await sendMessage('scroll:stop', { isAutoSync: true }, { context: 'content-script', tabId });
-    } catch (error) {
-      logger.debug(`Failed to stop auto-sync for tab ${tabId}`, { error });
-    }
-  });
-
-  await Promise.all(promises);
-  group.isActive = false;
-
-  // Clear pending suggestion for this group to allow new suggestions after sync stops
-  pendingSuggestions.delete(normalizedUrl);
-}
-
-/**
- * Broadcast auto-sync group update to all content scripts
- */
-async function broadcastAutoSyncGroupUpdate(): Promise<void> {
-  const groups: Array<AutoSyncGroupInfo> = [];
-
-  for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
-    groups.push({
-      normalizedUrl,
-      tabIds: Array.from(group.tabIds),
-      isActive: group.isActive,
-    });
-  }
-
-  // Get all tabs in auto-sync groups
-  const allTabIds = new Set<number>();
-  for (const group of autoSyncState.groups.values()) {
-    for (const tabId of group.tabIds) {
-      allTabIds.add(tabId);
-    }
-  }
-
-  logger.info('[AUTO-SYNC] Broadcasting group update', {
-    groupCount: groups.length,
-    tabCount: allTabIds.size,
-  });
-
-  // Timeout for each message (1 second - reduced from 3s for faster response)
-  const MESSAGE_TIMEOUT = 1000;
-
-  // Helper to send message with timeout
-  const sendWithTimeout = async (tabId: number): Promise<void> => {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Message timeout')), MESSAGE_TIMEOUT);
-    });
-
-    try {
-      await Promise.race([
-        sendMessage('auto-sync:group-updated', { groups }, { context: 'content-script', tabId }),
-        timeoutPromise,
-      ]);
-    } catch (error) {
-      // Log as debug since this is expected for tabs with no content script
-      logger.debug(`[AUTO-SYNC] Failed to broadcast to tab ${tabId}`, {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  };
-
-  // Broadcast to all tabs in groups with timeout protection
-  await Promise.all(Array.from(allTabIds).map(sendWithTimeout));
-
-  logger.info('[AUTO-SYNC] Broadcast complete');
-}
 
 /**
  * Initialize auto-sync state from storage and scan existing tabs
