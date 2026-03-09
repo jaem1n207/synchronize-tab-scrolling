@@ -9,20 +9,13 @@ import {
   saveAutoSyncEnabled,
 } from '~/shared/lib/storage';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
+import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-state';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
+import type { SyncState } from '~/shared/types/sync-state';
 
-import type { Destination } from 'webext-bridge';
+import type { JsonValue } from 'type-fest';
 
 const logger = new ExtensionLogger({ scope: 'background' });
-
-// Sync state management
-interface SyncState {
-  isActive: boolean;
-  linkedTabs: Array<number>;
-  connectionStatuses: Record<number, 'connected' | 'disconnected' | 'error'>;
-  mode?: string; // Store sync mode for restoration
-  lastActiveSyncedTabId: number | null; // Track the last active synced tab for toast targeting
-}
 
 let syncState: SyncState = {
   isActive: false,
@@ -97,18 +90,6 @@ async function checkAllTabsHealth() {
       }
     }
   }
-}
-
-// Auto-sync state for same-URL tabs
-interface AutoSyncGroup {
-  tabIds: Set<number>;
-  isActive: boolean;
-}
-
-interface AutoSyncState {
-  enabled: boolean;
-  groups: Map<string, AutoSyncGroup>; // normalizedUrl → group
-  excludedUrls: Array<string>;
 }
 
 const autoSyncState: AutoSyncState = {
@@ -848,12 +829,7 @@ async function broadcastAutoSyncGroupUpdate(): Promise<void> {
 
     try {
       await Promise.race([
-        sendMessage(
-          'auto-sync:group-updated',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          { groups } as any,
-          { context: 'content-script', tabId },
-        ),
+        sendMessage('auto-sync:group-updated', { groups }, { context: 'content-script', tabId }),
         timeoutPromise,
       ]);
     } catch (error) {
@@ -1243,27 +1219,26 @@ browser.runtime.onInstalled.addListener((): void => {
 // Log when background script loads
 logger.info('Background script loaded, registering message handlers');
 
-// Helper function to send message with timeout
-async function sendMessageWithTimeout<T>(
+async function sendMessageWithTimeout<T extends JsonValue = JsonValue>(
   messageId: string,
-  data: unknown,
+  data: JsonValue,
   destination: { context: 'content-script'; tabId: number },
   timeoutMs: number = 2_000,
 ): Promise<T> {
-  return Promise.race([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    sendMessage(messageId, data as any, destination) as Promise<T>,
+  const result = await Promise.race([
+    sendMessage(messageId, data, destination),
     new Promise<never>((__, reject) =>
       setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs),
     ),
   ]);
+  return result as T;
 }
 
 // Scroll synchronization message handlers
 logger.info('Registering scroll:start handler');
 onMessage('scroll:start', async ({ data }) => {
   logger.info('Received scroll:start message', { data });
-  const payload = data as { tabIds: Array<number>; mode: string; isAutoSync?: boolean };
+  const payload = data;
 
   // If this is a manual sync (not auto-sync), handle conflict with auto-sync
   if (!payload.isAutoSync) {
@@ -1383,10 +1358,11 @@ onMessage('scroll:start', async ({ data }) => {
 
 onMessage('scroll:stop', async ({ data }) => {
   logger.info('Stopping scroll sync for tabs', { data });
-  const payload = data as { tabIds: Array<number>; isAutoSync?: boolean };
+  const payload = data;
+  const tabIds = payload.tabIds ?? [];
 
   // Broadcast stop message to all selected tabs
-  const promises = payload.tabIds.map((tabId) =>
+  const promises = tabIds.map((tabId) =>
     sendMessage('scroll:stop', data, { context: 'content-script', tabId }).catch((error) => {
       logger.error(`Failed to send stop message to tab ${tabId}`, { error });
     }),
@@ -1398,11 +1374,11 @@ onMessage('scroll:stop', async ({ data }) => {
   // This ensures auto-sync state is cleared when user stops from popup
   for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
     if (group.isActive) {
-      const hasStoppedTab = payload.tabIds.some((tabId) => group.tabIds.has(tabId));
+      const hasStoppedTab = tabIds.some((tabId) => group.tabIds.has(tabId));
       if (hasStoppedTab) {
         logger.info('[AUTO-SYNC] Clearing auto-sync group due to manual stop', {
           normalizedUrl,
-          stoppedTabIds: payload.tabIds,
+          stoppedTabIds: tabIds,
         });
         group.isActive = false;
       }
@@ -1411,7 +1387,7 @@ onMessage('scroll:stop', async ({ data }) => {
 
   // If this was a manual sync stop, re-add tabs to auto-sync groups
   if (!payload.isAutoSync && autoSyncState.enabled) {
-    for (const tabId of payload.tabIds) {
+    for (const tabId of tabIds) {
       // Remove from manually overridden set
       manualSyncOverriddenTabs.delete(tabId);
 
@@ -1426,7 +1402,7 @@ onMessage('scroll:stop', async ({ data }) => {
       }
     }
     logger.debug('Manual sync stopped, tabs returned to auto-sync', {
-      tabIds: payload.tabIds,
+      tabIds,
     });
   }
 
@@ -1446,14 +1422,7 @@ onMessage('scroll:stop', async ({ data }) => {
 });
 
 onMessage('scroll:sync', async ({ data, sender }) => {
-  const payload = data as {
-    scrollTop: number;
-    scrollHeight: number;
-    clientHeight: number;
-    sourceTabId: number;
-    mode: string;
-    timestamp: number;
-  };
+  const payload = data;
 
   logger.debug('Relaying scroll sync message', { payload, sender });
 
@@ -1488,7 +1457,7 @@ onMessage('scroll:sync', async ({ data, sender }) => {
 
 onMessage('scroll:manual', async ({ data }) => {
   logger.debug('Manual scroll mode toggled', { data });
-  const payload = data as { tabId: number; enabled: boolean };
+  const payload = data;
 
   // Send manual mode change to the specific tab only
   try {
@@ -1533,9 +1502,8 @@ async function broadcastSyncStatus() {
   const promises = syncState.linkedTabs.map(async (tabId) => {
     await sendMessage(
       'sync:status',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { ...statusPayload, currentTabId: tabId } as any,
-      { context: 'content-script', tabId } as Destination,
+      { ...statusPayload, currentTabId: tabId },
+      { context: 'content-script', tabId },
     ).catch((error) => {
       logger.debug(`Failed to send sync status to tab ${tabId}`, { error });
     });
@@ -1585,7 +1553,7 @@ onMessage('sync:get-status', async ({ sender }) => {
 });
 
 onMessage('url:sync', async ({ data }) => {
-  const payload = data as { url: string; sourceTabId: number };
+  const payload = data;
   logger.info('Relaying URL sync message', { payload });
 
   // Broadcast to all synced tabs except the source
@@ -1602,7 +1570,7 @@ onMessage('url:sync', async ({ data }) => {
 
 // Handler for URL sync enabled state change broadcast
 onMessage('sync:url-enabled-changed', async ({ data, sender }) => {
-  const payload = data as { enabled: boolean };
+  const payload = data;
   const sourceTabId = sender.tabId;
   logger.info('Relaying URL sync enabled change', { enabled: payload.enabled, sourceTabId });
 
@@ -1622,7 +1590,7 @@ onMessage('sync:url-enabled-changed', async ({ data, sender }) => {
 
 // Handler for connection health check ping
 onMessage('scroll:ping', async ({ data }) => {
-  const payload = data as { tabId: number; timestamp: number };
+  const payload = data;
   logger.debug('Received connection health ping', { payload });
 
   // Respond to indicate connection is alive
@@ -1631,7 +1599,7 @@ onMessage('scroll:ping', async ({ data }) => {
 
 // Handler for reconnection request from content script (idle tab recovery)
 onMessage('scroll:reconnect', async ({ data }) => {
-  const payload = data as { tabId: number; timestamp: number };
+  const payload = data;
   logger.info('Received reconnection request from content script', { payload });
 
   // Check if tab is in manual sync or auto-sync
@@ -1717,7 +1685,7 @@ onMessage('scroll:reconnect', async ({ data }) => {
 
 // Handler for content script re-injection request (when all reconnection attempts fail)
 onMessage('scroll:request-reinject', async ({ data }) => {
-  const payload = data as { tabId: number };
+  const payload = data;
   logger.info('Received content script re-inject request', { tabId: payload.tabId });
 
   // Check if tab is in any active sync
@@ -1738,7 +1706,7 @@ onMessage('scroll:request-reinject', async ({ data }) => {
 
 // Handler for auto-sync status toggle from content script
 onMessage('auto-sync:status-changed', async ({ data }) => {
-  const payload = data as { enabled: boolean };
+  const payload = data;
   await toggleAutoSync(payload.enabled);
   return { success: true, enabled: autoSyncState.enabled };
 });
@@ -1822,7 +1790,7 @@ onMessage('auto-sync:get-detailed-status', async ({ sender }) => {
 
 // Handler for sync suggestion response (user accepted or rejected)
 onMessage('sync-suggestion:response', async ({ data }) => {
-  const payload = data as { normalizedUrl: string; accepted: boolean };
+  const payload = data;
   logger.info('[AUTO-SYNC] Received sync suggestion response', payload);
 
   // Remove from pending suggestions
@@ -1947,7 +1915,7 @@ onMessage('sync-suggestion:response', async ({ data }) => {
 
 // Handler for add-tab suggestion response (user accepted or rejected adding new tab to existing sync)
 onMessage('sync-suggestion:add-tab-response', async ({ data }) => {
-  const payload = data as { tabId: number; accepted: boolean };
+  const payload = data;
   logger.info('[AUTO-SYNC] Received add-tab suggestion response', payload);
 
   // Issue 10 Fix: Broadcast dismiss message to ALL tabs (synced + new tab)
@@ -2278,7 +2246,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // URL changed - broadcast to other synced tabs for cross-domain navigation support
   // Content script's MutationObserver only handles SPA navigation; this handles hard navigation
   if (changeInfo.url) {
-    logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: changeInfo.url });
+    const changedUrl = changeInfo.url;
+    logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: changedUrl });
 
     const urlSyncEnabled = await loadUrlSyncEnabled();
     if (urlSyncEnabled) {
@@ -2287,9 +2256,8 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         targetTabIds.map((targetTabId) =>
           sendMessage(
             'url:sync',
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            { url: changeInfo.url, sourceTabId: tabId } as any,
-            { context: 'content-script', tabId: targetTabId } as Destination,
+            { url: changedUrl, sourceTabId: tabId },
+            { context: 'content-script', tabId: targetTabId },
           ).catch((error) => {
             logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
           }),

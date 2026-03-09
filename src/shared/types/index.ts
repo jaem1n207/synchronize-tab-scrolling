@@ -1,3 +1,4 @@
+export type { AutoSyncGroup, AutoSyncState } from './auto-sync-state';
 export type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
@@ -6,20 +7,26 @@ export type {
   AutoSyncGroupUpdatedMessage,
   AutoSyncStatusChangedMessage,
   AutoSyncStatusResponse,
+  ConnectionStatus,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
   ManualScrollMessage,
   PanelPositionMessage,
   ProtocolMap,
+  ScrollPingMessage,
+  ScrollReconnectMessage,
+  ScrollRequestReinjectMessage,
   ScrollSyncMessage,
   StartSyncMessage,
   StopSyncMessage,
   SyncBaselineUpdateMessage,
+  SyncedTabInfo,
   SyncMode,
-  SyncStatusResponse,
+  SyncStatusBroadcastMessage,
   SyncSuggestionMessage,
   SyncSuggestionResponseMessage,
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
 } from './messages';
+export type { SyncState } from './sync-state';
