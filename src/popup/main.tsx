@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 
-import { ScrollSyncPopup } from './components/ScrollSyncPopup';
+import { ScrollSyncPopup } from './components/scroll-sync-popup';
 
 import '~/shared/styles';
 

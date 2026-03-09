@@ -24,12 +24,12 @@ import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
 import { DEFAULT_PREFERENCES } from '../types/filters';
 
-import { ActionsMenu } from './ActionsMenu';
-import { ErrorNotification } from './ErrorNotification';
-import { FooterInfo } from './FooterInfo';
-import { SelectedTabsChips } from './SelectedTabsChips';
-import { SyncControlButtons } from './SyncControlButtons';
-import { TabCommandPalette, type TabCommandPaletteHandle } from './TabCommandPalette';
+import { ActionsMenu } from './actions-menu';
+import { ErrorNotification } from './error-notification';
+import { FooterInfo } from './footer-info';
+import { SelectedTabsChips } from './selected-tabs-chips';
+import { SyncControlButtons } from './sync-control-buttons';
+import { TabCommandPalette, type TabCommandPaletteHandle } from './tab-command-palette';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 import type { SortOption } from '../types/filters';
