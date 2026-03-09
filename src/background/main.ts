@@ -2,10 +2,12 @@ import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 
-import { registerAutoSyncHandlers } from './handlers/auto-sync-handlers';
-import { registerConnectionHandlers } from './handlers/connection-handlers';
-import { registerScrollSyncHandlers } from './handlers/scroll-sync-handlers';
-import { registerTabEventHandlers } from './handlers/tab-event-handlers';
+import {
+  registerAutoSyncHandlers,
+  registerConnectionHandlers,
+  registerScrollSyncHandlers,
+  registerTabEventHandlers,
+} from './handlers';
 import { initializeAutoSync } from './lib/auto-sync-lifecycle';
 import { startKeepAlive } from './lib/keep-alive';
 import { syncState, restoreSyncState } from './lib/sync-state';

@@ -5,13 +5,13 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
 import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
+import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
   manualSyncOverriddenTabs,
   dismissedUrlGroups,
   pendingSuggestions,
 } from '../lib/auto-sync-state';
-import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
 

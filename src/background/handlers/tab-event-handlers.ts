@@ -10,13 +10,13 @@ import {
   updateAutoSyncGroup,
   broadcastAutoSyncGroupUpdate,
 } from '../lib/auto-sync-groups';
+import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
   manualSyncOverriddenTabs,
   dismissedUrlGroups,
   pendingSuggestions,
 } from '../lib/auto-sync-state';
-import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   showSyncSuggestion,
   sendSuggestionToSingleTab,
