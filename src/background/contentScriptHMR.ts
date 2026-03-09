@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
 
-import { isFirefox, isForbiddenUrl } from '~/shared/lib/env';
+import { isFirefox } from '~/shared/lib/env';
+import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
 // Firefox fetch files from cache instead of reloading changes from disk,
 // hmr will not work as Chromium based browser
