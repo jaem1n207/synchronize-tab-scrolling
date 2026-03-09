@@ -22,6 +22,12 @@ export {
 } from './locale-utils';
 export { ExtensionLogger } from './logger';
 export { throttleAndDebounce } from './performance-utils';
+export {
+  calculateScrollRatio,
+  clampScrollOffset,
+  clampScrollPosition,
+  findNearestIndex,
+} from './scroll-math';
 export type { Platform } from './platform';
 export { getPlatform, isLinux, isMac, isWindows } from './platform';
 export type { ManualScrollOffset } from './storage';
