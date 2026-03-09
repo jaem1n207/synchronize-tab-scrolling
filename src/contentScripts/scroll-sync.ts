@@ -23,6 +23,7 @@ import {
   loadUrlSyncEnabled,
   saveManualScrollOffset,
 } from '~/shared/lib/storage';
+
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
 import {
   createInitialSyncState,

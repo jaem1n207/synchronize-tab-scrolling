@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import type { TabInfo } from '~/popup/types';
+
 import {
   calculateTabSimilarity,
   sortTabsBySimilarity,
@@ -7,7 +9,6 @@ import {
   sortTabsByRecentVisits,
   filterTabsBySameDomain,
 } from './tab-similarity';
-import type { TabInfo } from '~/popup/types';
 
 const createTab = (overrides: Partial<TabInfo> = {}): TabInfo => ({
   id: 1,

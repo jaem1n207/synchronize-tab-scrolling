@@ -1,6 +1,3 @@
-import type { AttributifyAttributes } from 'unocss/preset-attributify';
-import type { ProtocolWithReturn } from 'webext-bridge';
-
 import type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
@@ -24,6 +21,9 @@ import type {
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
 } from '~/shared/types/messages';
+
+import type { AttributifyAttributes } from 'unocss/preset-attributify';
+import type { ProtocolWithReturn } from 'webext-bridge';
 
 declare module 'react' {
   type HTMLAttributes = Omit<AttributifyAttributes, 'size'>;

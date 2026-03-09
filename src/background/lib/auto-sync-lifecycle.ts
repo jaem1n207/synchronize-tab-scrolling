@@ -9,17 +9,17 @@ import {
 } from '~/shared/lib/storage';
 
 import {
+  updateAutoSyncGroup,
+  stopAutoSyncForGroup,
+  broadcastAutoSyncGroupUpdate,
+} from './auto-sync-groups';
+import {
   autoSyncState,
   autoSyncRetryTimers,
   dismissedUrlGroups,
   pendingSuggestions,
   autoSyncFlags,
 } from './auto-sync-state';
-import {
-  updateAutoSyncGroup,
-  stopAutoSyncForGroup,
-  broadcastAutoSyncGroupUpdate,
-} from './auto-sync-groups';
 import { showSyncSuggestion } from './auto-sync-suggestions';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-lifecycle' });
