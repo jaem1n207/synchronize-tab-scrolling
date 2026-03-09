@@ -10,8 +10,6 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadSelectedTabIds,
   saveSelectedTabIds,
-  loadAutoSyncEnabled,
-  saveAutoSyncEnabled,
   loadUrlSyncEnabled,
   saveUrlSyncEnabled,
 } from '~/shared/lib/storage';
@@ -22,6 +20,7 @@ import {
 } from '~/shared/lib/tab-similarity';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
+import { useAutoSync } from '../hooks/use-auto-sync';
 import { DEFAULT_PREFERENCES } from '../types/filters';
 
 import { ActionsMenu } from './actions-menu';
@@ -61,20 +60,16 @@ export function ScrollSyncPopup() {
     DEFAULT_PREFERENCES.filters.sameDomainOnly,
   );
 
+  const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
+
   // Browser storage-based settings (cross-context)
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
-  const [autoSyncTabCount, setAutoSyncTabCount] = useState(0);
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
 
   useEffect(() => {
     const initialize = async () => {
       try {
         // Load browser.storage-based settings
-        const [autoSyncSetting, urlSyncSetting] = await Promise.all([
-          loadAutoSyncEnabled(),
-          loadUrlSyncEnabled(),
-        ]);
-        setAutoSyncEnabled(autoSyncSetting);
+        const urlSyncSetting = await loadUrlSyncEnabled();
         setUrlSyncEnabled(urlSyncSetting);
 
         // Query background for current sync status
@@ -515,16 +510,6 @@ export function ScrollSyncPopup() {
     }
   }, [syncStatus.isActive, selectedTabIds.length, handleSelectAll, handleClearAll]);
 
-  // Advanced feature toggle handlers
-  const handleAutoSyncChange = useCallback(async (enabled: boolean) => {
-    setAutoSyncEnabled(enabled);
-    await saveAutoSyncEnabled(enabled);
-    // Notify background script
-    sendMessage('auto-sync:status-changed', { enabled }, 'background').catch((err) => {
-      logger.warn('[ScrollSyncPopup] Failed to notify background of auto-sync change:', err);
-    });
-  }, []);
-
   const handleUrlSyncChange = useCallback(async (enabled: boolean) => {
     setUrlSyncEnabled(enabled);
     await saveUrlSyncEnabled(enabled);
@@ -590,36 +575,6 @@ export function ScrollSyncPopup() {
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [actionsMenuOpen]);
-
-  // Fetch auto-sync detailed status when enabled
-  useEffect(() => {
-    const fetchAutoSyncStatus = async () => {
-      if (!autoSyncEnabled) {
-        setAutoSyncTabCount(0);
-        return;
-      }
-
-      try {
-        const response = await sendMessage('auto-sync:get-detailed-status', {}, 'background');
-
-        if (response && typeof response === 'object' && 'potentialSyncTabs' in response) {
-          // Use potentialSyncTabs (tabs in groups with 2+ same-URL tabs)
-          // instead of totalSyncedTabs (only actively syncing tabs)
-          setAutoSyncTabCount((response.potentialSyncTabs || 0) as number);
-        }
-      } catch {
-        // Ignore errors - status is optional
-      }
-    };
-
-    fetchAutoSyncStatus();
-
-    // Poll for updates while auto-sync is enabled
-    const interval = autoSyncEnabled ? setInterval(fetchAutoSyncStatus, 2000) : undefined;
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [autoSyncEnabled]);
 
   // Restore focus when clicking non-interactive areas
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
