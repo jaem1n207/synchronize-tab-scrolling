@@ -23,9 +23,20 @@ import {
   loadUrlSyncEnabled,
   saveManualScrollOffset,
 } from '~/shared/lib/storage';
-import type { SyncMode } from '~/shared/types/messages';
-
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
+import {
+  createInitialSyncState,
+  createInitialWheelModeState,
+  createInitialConnectionState,
+  createInitialUrlMonitorState,
+  THROTTLE_DELAY,
+  PROGRAMMATIC_SCROLL_GRACE_PERIOD,
+  MOUSEMOVE_THROTTLE,
+  CONNECTION_CHECK_INTERVAL,
+  CONNECTION_TIMEOUT_THRESHOLD,
+  MAX_RECONNECTION_ATTEMPTS,
+  RECONNECTION_BACKOFF_MS,
+} from './lib/scroll-sync-state';
 import { destroyPanel, hidePanel, showPanel } from './panel';
 import {
   showSyncSuggestionToast,
@@ -35,48 +46,10 @@ import {
 
 const logger = new ExtensionLogger({ scope: 'scroll-sync' });
 
-// Sync state
-let isSyncActive = false;
-let isAutoSyncActive = false; // Track if current sync is from auto-sync feature
-let currentMode: SyncMode = 'ratio';
-let isManualScrollEnabled = false;
-let lastNavigationUrl = window.location.href;
-let lastSyncedRatio = 0; // Track the last synced ratio for offset calculation
-let lastSyncedRatioSnapshot = 0; // Frozen snapshot when entering manual mode
-let lastProgrammaticScrollTime = 0; // Track programmatic scrolls to prevent infinite loops
-const THROTTLE_DELAY = 50; // ms - ensures <100ms sync delay
-const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 100; // ms - ignore user scrolls shortly after programmatic scroll
-
-// Wheel-based manual mode for unfocused tabs (detects Alt/Option via WheelEvent.altKey)
-let wheelManualModeActive = false;
-let wheelBaselineSnapshot = 0;
-
-// Mousemove handler for detecting Alt release during wheel manual mode
-let wheelModeMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
-let lastMouseMoveCheckTime = 0;
-const MOUSEMOVE_THROTTLE = 50; // ms - performance optimization
-
-// URL monitoring
-let urlObserver: MutationObserver | null = null;
-let popstateHandler: (() => void) | null = null;
-
-// Current tab ID - will be set when sync starts
-let currentTabId = 0;
-
-// Connection health monitoring
-let connectionHealthCheckInterval: number | null = null;
-let lastSuccessfulSync = Date.now();
-let isConnectionHealthy = true;
-const CONNECTION_CHECK_INTERVAL = 30000; // Check every 30 seconds
-const CONNECTION_TIMEOUT_THRESHOLD = 60000; // Consider disconnected after 60 seconds
-
-// Visibility change handler for idle tab reconnection
-let visibilityChangeHandler: (() => void) | null = null;
-let isReconnecting = false; // Prevent duplicate reconnection attempts
-
-// Reconnection retry mechanism
-const MAX_RECONNECTION_ATTEMPTS = 3;
-const RECONNECTION_BACKOFF_MS = [500, 1000, 2000]; // Exponential backoff delays
+const syncState = createInitialSyncState();
+const wheelState = createInitialWheelModeState();
+const connectionState = createInitialConnectionState();
+const urlMonitorState = createInitialUrlMonitorState();
 
 /**
  * Get current scroll information
@@ -101,9 +74,9 @@ function getScrollRatio(): number {
  * Cleanup mousemove listener for wheel manual mode
  */
 function cleanupWheelModeMouseMoveListener() {
-  if (wheelModeMouseMoveHandler) {
-    window.removeEventListener('mousemove', wheelModeMouseMoveHandler);
-    wheelModeMouseMoveHandler = null;
+  if (wheelState.mouseMoveHandler) {
+    window.removeEventListener('mousemove', wheelState.mouseMoveHandler);
+    wheelState.mouseMoveHandler = null;
   }
 }
 
@@ -111,11 +84,11 @@ function cleanupWheelModeMouseMoveListener() {
  * Exit wheel manual mode: save offset and cleanup
  */
 async function exitWheelManualMode() {
-  if (!wheelManualModeActive) return;
+  if (!wheelState.isActive) return;
 
   // Calculate and save offset
   const currentRatio = getScrollRatio();
-  const offsetRatio = currentRatio - wheelBaselineSnapshot;
+  const offsetRatio = currentRatio - wheelState.baselineSnapshot;
 
   const clampedOffsetRatio = clampScrollOffset(offsetRatio);
 
@@ -126,24 +99,24 @@ async function exitWheelManualMode() {
 
   logger.debug('Wheel manual mode exiting, saving offset', {
     currentRatio,
-    wheelBaselineSnapshot,
+    wheelBaselineSnapshot: wheelState.baselineSnapshot,
     offsetRatio,
     clampedOffsetRatio,
     offsetPixels,
   });
 
   // Save offset to storage
-  await saveManualScrollOffset(currentTabId, clampedOffsetRatio, offsetPixels);
+  await saveManualScrollOffset(syncState.tabId, clampedOffsetRatio, offsetPixels);
 
   logger.info('Wheel manual scroll offset saved', {
-    tabId: currentTabId,
+    tabId: syncState.tabId,
     offsetRatio: clampedOffsetRatio,
     offsetPixels,
   });
 
   // Reset state
-  wheelManualModeActive = false;
-  isManualScrollEnabled = false;
+  wheelState.isActive = false;
+  syncState.isManualScrollEnabled = false;
 
   // Remove mousemove listener
   cleanupWheelModeMouseMoveListener();
@@ -154,12 +127,12 @@ async function exitWheelManualMode() {
  * Uses throttling for performance optimization
  */
 function handleMouseMoveForWheelMode(event: MouseEvent) {
-  if (!wheelManualModeActive) return;
+  if (!wheelState.isActive) return;
 
   // Throttle: check only every MOUSEMOVE_THROTTLE ms (performance optimization)
   const now = Date.now();
-  if (now - lastMouseMoveCheckTime < MOUSEMOVE_THROTTLE) return;
-  lastMouseMoveCheckTime = now;
+  if (now - wheelState.lastMouseMoveCheckTime < MOUSEMOVE_THROTTLE) return;
+  wheelState.lastMouseMoveCheckTime = now;
 
   const isModifierPressed = event.altKey || event.metaKey;
 
@@ -177,29 +150,29 @@ function handleMouseMoveForWheelMode(event: MouseEvent) {
  * then scrolls with mouse wheel in unfocused tab B)
  */
 async function handleWheel(event: WheelEvent) {
-  if (!isSyncActive) return;
+  if (!syncState.isActive) return;
 
   const isModifierPressed = event.altKey || event.metaKey;
 
   // Enter wheel manual mode: modifier key pressed + not already in any manual mode
-  if (isModifierPressed && !wheelManualModeActive && !isManualScrollEnabled) {
-    wheelManualModeActive = true;
-    wheelBaselineSnapshot = lastSyncedRatio;
-    isManualScrollEnabled = true; // Prevent scroll:sync from overwriting position
+  if (isModifierPressed && !wheelState.isActive && !syncState.isManualScrollEnabled) {
+    wheelState.isActive = true;
+    wheelState.baselineSnapshot = syncState.lastSyncedRatio;
+    syncState.isManualScrollEnabled = true; // Prevent scroll:sync from overwriting position
 
     // Add mousemove listener to detect Alt release (performance: only when in wheel manual mode)
-    wheelModeMouseMoveHandler = handleMouseMoveForWheelMode;
-    window.addEventListener('mousemove', wheelModeMouseMoveHandler, { passive: true });
+    wheelState.mouseMoveHandler = handleMouseMoveForWheelMode;
+    window.addEventListener('mousemove', wheelState.mouseMoveHandler, { passive: true });
 
     logger.debug('Wheel manual mode entered via WheelEvent modifier detection', {
-      wheelBaselineSnapshot,
+      wheelBaselineSnapshot: wheelState.baselineSnapshot,
       altKey: event.altKey,
       metaKey: event.metaKey,
     });
   }
 
   // Exit wheel manual mode: modifier key released while in wheel manual mode
-  if (!isModifierPressed && wheelManualModeActive) {
+  if (!isModifierPressed && wheelState.isActive) {
     await exitWheelManualMode();
   }
 }
@@ -255,15 +228,15 @@ function findNearestElement(): { index: number; ratio: number } | null {
  * Throttling is handled by the wrapper function
  */
 async function handleScrollCore() {
-  if (!isSyncActive || isManualScrollEnabled) return;
+  if (!syncState.isActive || syncState.isManualScrollEnabled) return;
 
   const now = Date.now();
 
   // Ignore scroll events that occur shortly after programmatic scrolls
   // This prevents infinite loops when tabs sync each other
-  if (now - lastProgrammaticScrollTime < PROGRAMMATIC_SCROLL_GRACE_PERIOD) {
+  if (now - syncState.lastProgrammaticScrollTime < PROGRAMMATIC_SCROLL_GRACE_PERIOD) {
     logger.debug('Ignoring scroll event - programmatic scroll detected', {
-      timeSinceProgrammatic: now - lastProgrammaticScrollTime,
+      timeSinceProgrammatic: now - syncState.lastProgrammaticScrollTime,
     });
     return;
   }
@@ -272,7 +245,7 @@ async function handleScrollCore() {
 
   // Remove offset ratio from current ratio before broadcasting
   // This ensures we send the "pure" scroll ratio without offset applied
-  const offsetData = await getManualScrollOffset(currentTabId);
+  const offsetData = await getManualScrollOffset(syncState.tabId);
   const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
 
   const currentRatio = calculateScrollRatio(
@@ -284,9 +257,9 @@ async function handleScrollCore() {
   // Calculate pure ratio by removing this tab's offset
   const pureRatio = currentRatio - offsetData.ratio;
 
-  // Update lastSyncedRatio to track the pure baseline we're broadcasting
+  // Update syncState.lastSyncedRatio to track the pure baseline we're broadcasting
   // This ensures manual mode snapshots an accurate baseline even when this tab is the active scroller
-  lastSyncedRatio = pureRatio;
+  syncState.lastSyncedRatio = pureRatio;
 
   const pureScrollTop = clampScrollPosition(pureRatio * myMaxScroll, myMaxScroll);
 
@@ -294,8 +267,8 @@ async function handleScrollCore() {
     scrollTop: pureScrollTop,
     scrollHeight: scrollInfo.scrollHeight,
     clientHeight: scrollInfo.clientHeight,
-    sourceTabId: currentTabId,
-    mode: currentMode,
+    sourceTabId: syncState.tabId,
+    mode: syncState.mode,
     timestamp: now,
   };
 
@@ -311,7 +284,7 @@ async function handleScrollCore() {
   sendMessage('scroll:sync', message, 'background').catch((error) => {
     logger.error('Failed to send scroll sync message', { error });
     // Message failure indicates connection problem - trigger reconnection
-    if (!isReconnecting) {
+    if (!connectionState.isReconnecting) {
       logger.info('Initiating reconnection due to scroll sync message failure');
       requestReconnection();
     }
@@ -336,15 +309,17 @@ async function broadcastUrlChange(url: string) {
   // Only clear if URL sync is enabled - old offset values won't be useful on a new page
   const urlSyncEnabled = await loadUrlSyncEnabled();
   if (urlSyncEnabled) {
-    await clearManualScrollOffset(currentTabId);
-    logger.debug('Cleared manual scroll offset on URL change (source tab)', { currentTabId });
+    await clearManualScrollOffset(syncState.tabId);
+    logger.debug('Cleared manual scroll offset on URL change (source tab)', {
+      tabId: syncState.tabId,
+    });
   }
 
   sendMessage(
     'url:sync',
     {
       url,
-      sourceTabId: currentTabId,
+      sourceTabId: syncState.tabId,
     },
     'background',
   ).catch((error) => {
@@ -359,32 +334,32 @@ function startUrlMonitoring() {
   // Stop any existing monitoring
   stopUrlMonitoring();
 
-  lastNavigationUrl = window.location.href;
+  syncState.lastNavigationUrl = window.location.href;
 
   // Use MutationObserver to detect URL changes (for SPA navigation)
-  urlObserver = new MutationObserver(() => {
+  urlMonitorState.observer = new MutationObserver(() => {
     const currentUrl = window.location.href;
-    if (currentUrl !== lastNavigationUrl) {
-      lastNavigationUrl = currentUrl;
+    if (currentUrl !== syncState.lastNavigationUrl) {
+      syncState.lastNavigationUrl = currentUrl;
       broadcastUrlChange(currentUrl);
     }
   });
 
-  urlObserver.observe(document.body, {
+  urlMonitorState.observer.observe(document.body, {
     childList: true,
     subtree: true,
   });
 
   // Also listen for popstate events (browser back/forward)
-  popstateHandler = () => {
+  urlMonitorState.popstateHandler = () => {
     const currentUrl = window.location.href;
-    if (currentUrl !== lastNavigationUrl) {
-      lastNavigationUrl = currentUrl;
+    if (currentUrl !== syncState.lastNavigationUrl) {
+      syncState.lastNavigationUrl = currentUrl;
       broadcastUrlChange(currentUrl);
     }
   };
 
-  window.addEventListener('popstate', popstateHandler);
+  window.addEventListener('popstate', urlMonitorState.popstateHandler);
 
   logger.info('URL monitoring started');
 }
@@ -393,14 +368,14 @@ function startUrlMonitoring() {
  * Stop URL monitoring (P1)
  */
 function stopUrlMonitoring() {
-  if (urlObserver) {
-    urlObserver.disconnect();
-    urlObserver = null;
+  if (urlMonitorState.observer) {
+    urlMonitorState.observer.disconnect();
+    urlMonitorState.observer = null;
   }
 
-  if (popstateHandler) {
-    window.removeEventListener('popstate', popstateHandler);
-    popstateHandler = null;
+  if (urlMonitorState.popstateHandler) {
+    window.removeEventListener('popstate', urlMonitorState.popstateHandler);
+    urlMonitorState.popstateHandler = null;
   }
 
   logger.info('URL monitoring stopped');
@@ -413,13 +388,13 @@ function startConnectionHealthCheck() {
   // Clear any existing interval
   stopConnectionHealthCheck();
 
-  connectionHealthCheckInterval = window.setInterval(() => {
+  connectionState.healthCheckInterval = window.setInterval(() => {
     const now = Date.now();
-    const timeSinceLastSync = now - lastSuccessfulSync;
+    const timeSinceLastSync = now - connectionState.lastSuccessfulSync;
 
     if (timeSinceLastSync > CONNECTION_TIMEOUT_THRESHOLD) {
-      if (isConnectionHealthy) {
-        isConnectionHealthy = false;
+      if (connectionState.isHealthy) {
+        connectionState.isHealthy = false;
         logger.warn('Connection appears to be lost', {
           timeSinceLastSync,
           threshold: CONNECTION_TIMEOUT_THRESHOLD,
@@ -429,8 +404,8 @@ function startConnectionHealthCheck() {
         showReconnectionPrompt();
       }
     } else {
-      if (!isConnectionHealthy) {
-        isConnectionHealthy = true;
+      if (!connectionState.isHealthy) {
+        connectionState.isHealthy = true;
         logger.info('Connection restored');
         hideReconnectionPrompt();
       }
@@ -444,9 +419,9 @@ function startConnectionHealthCheck() {
  * Stop connection health monitoring
  */
 function stopConnectionHealthCheck() {
-  if (connectionHealthCheckInterval) {
-    clearInterval(connectionHealthCheckInterval);
-    connectionHealthCheckInterval = null;
+  if (connectionState.healthCheckInterval) {
+    clearInterval(connectionState.healthCheckInterval);
+    connectionState.healthCheckInterval = null;
     logger.info('Connection health check stopped');
   }
 }
@@ -459,7 +434,7 @@ function stopConnectionHealthCheck() {
 function dispatchConnectionStatusEvent(isConnected: boolean) {
   window.dispatchEvent(
     new CustomEvent('scroll-sync-connection-status', {
-      detail: { isConnected, tabId: currentTabId },
+      detail: { isConnected, tabId: syncState.tabId },
     }),
   );
 }
@@ -485,9 +460,9 @@ function hideReconnectionPrompt() {
  * Called when all reconnection attempts fail
  */
 async function requestContentScriptReinject(): Promise<void> {
-  logger.info('Requesting content script re-injection', { tabId: currentTabId });
+  logger.info('Requesting content script re-injection', { tabId: syncState.tabId });
   try {
-    await sendMessage('scroll:request-reinject', { tabId: currentTabId }, 'background');
+    await sendMessage('scroll:request-reinject', { tabId: syncState.tabId }, 'background');
   } catch (error) {
     logger.error('Failed to request reinject', { error });
   }
@@ -500,12 +475,12 @@ async function requestContentScriptReinject(): Promise<void> {
  */
 async function requestReconnection(attemptNumber = 0): Promise<boolean> {
   // Only check isReconnecting for the first attempt
-  if (isReconnecting && attemptNumber === 0) {
+  if (connectionState.isReconnecting && attemptNumber === 0) {
     logger.debug('Reconnection already in progress, skipping');
     return false;
   }
 
-  if (!isSyncActive || !currentTabId) {
+  if (!syncState.isActive || !syncState.tabId) {
     logger.debug('Sync not active or no tab ID, skipping reconnection');
     return false;
   }
@@ -515,14 +490,14 @@ async function requestReconnection(attemptNumber = 0): Promise<boolean> {
     logger.warn('All reconnection attempts failed, requesting content script re-injection', {
       attempts: attemptNumber,
     });
-    isReconnecting = false;
+    connectionState.isReconnecting = false;
     await requestContentScriptReinject();
     return false;
   }
 
-  isReconnecting = true;
+  connectionState.isReconnecting = true;
   logger.info('Requesting reconnection', {
-    currentTabId,
+    tabId: syncState.tabId,
     attemptNumber,
     maxAttempts: MAX_RECONNECTION_ATTEMPTS,
   });
@@ -531,16 +506,16 @@ async function requestReconnection(attemptNumber = 0): Promise<boolean> {
     // Send reconnection request to background script
     const response = await sendMessage(
       'scroll:reconnect',
-      { tabId: currentTabId, timestamp: Date.now() },
+      { tabId: syncState.tabId, timestamp: Date.now() },
       'background',
     );
 
     if (response && (response as { success: boolean }).success) {
       logger.info('Reconnection successful', { attemptNumber });
-      lastSuccessfulSync = Date.now();
-      isConnectionHealthy = true;
+      connectionState.lastSuccessfulSync = Date.now();
+      connectionState.isHealthy = true;
       hideReconnectionPrompt();
-      isReconnecting = false;
+      connectionState.isReconnecting = false;
       return true;
     } else {
       logger.warn('Reconnection attempt failed', { attemptNumber, response });
@@ -558,7 +533,7 @@ async function requestReconnection(attemptNumber = 0): Promise<boolean> {
   await new Promise((resolve) => setTimeout(resolve, backoffMs));
 
   // Recursive retry
-  isReconnecting = false;
+  connectionState.isReconnecting = false;
   return requestReconnection(attemptNumber + 1);
 }
 
@@ -567,10 +542,10 @@ async function requestReconnection(attemptNumber = 0): Promise<boolean> {
  * Triggered when tab becomes visible after being hidden/idle
  */
 function handleVisibilityChange() {
-  if (document.visibilityState === 'visible' && isSyncActive) {
+  if (document.visibilityState === 'visible' && syncState.isActive) {
     logger.info('Tab became visible while sync active, checking connection health');
 
-    const timeSinceLastSync = Date.now() - lastSuccessfulSync;
+    const timeSinceLastSync = Date.now() - connectionState.lastSuccessfulSync;
 
     // If it's been a while since last sync, proactively request reconnection
     // This handles cases where the tab was suspended/discarded by the browser
@@ -583,10 +558,10 @@ function handleVisibilityChange() {
     } else {
       // Even if within threshold, send a ping to verify connection is alive
       // The content script itself may have been reloaded
-      sendMessage('scroll:ping', { tabId: currentTabId, timestamp: Date.now() }, 'background')
+      sendMessage('scroll:ping', { tabId: syncState.tabId, timestamp: Date.now() }, 'background')
         .then(() => {
           logger.debug('Connection verified after visibility change');
-          lastSuccessfulSync = Date.now();
+          connectionState.lastSuccessfulSync = Date.now();
         })
         .catch((error) => {
           logger.warn('Connection verification failed, requesting reconnection', { error });
@@ -603,8 +578,8 @@ function startVisibilityChangeMonitoring() {
   // Remove any existing handler
   stopVisibilityChangeMonitoring();
 
-  visibilityChangeHandler = handleVisibilityChange;
-  document.addEventListener('visibilitychange', visibilityChangeHandler);
+  connectionState.visibilityChangeHandler = handleVisibilityChange;
+  document.addEventListener('visibilitychange', connectionState.visibilityChangeHandler);
   logger.info('Visibility change monitoring started');
 }
 
@@ -612,9 +587,9 @@ function startVisibilityChangeMonitoring() {
  * Stop visibility change monitoring
  */
 function stopVisibilityChangeMonitoring() {
-  if (visibilityChangeHandler) {
-    document.removeEventListener('visibilitychange', visibilityChangeHandler);
-    visibilityChangeHandler = null;
+  if (connectionState.visibilityChangeHandler) {
+    document.removeEventListener('visibilitychange', connectionState.visibilityChangeHandler);
+    connectionState.visibilityChangeHandler = null;
     logger.info('Visibility change monitoring stopped');
   }
 }
@@ -632,7 +607,7 @@ export function initScrollSync() {
 
     // Clean up any existing sync state before starting new sync
     // This is critical for re-sync scenarios where content script is already active
-    if (isSyncActive) {
+    if (syncState.isActive) {
       logger.info('Sync already active, cleaning up old state before re-initializing');
 
       // Remove old scroll listener
@@ -664,24 +639,24 @@ export function initScrollSync() {
     }
 
     // Reset all state variables
-    isSyncActive = true;
-    isAutoSyncActive = payload.isAutoSync ?? false;
-    currentMode = payload.mode;
-    currentTabId = payload.currentTabId ?? 0;
-    isManualScrollEnabled = false;
-    lastProgrammaticScrollTime = 0;
-    isConnectionHealthy = true;
+    syncState.isActive = true;
+    syncState.isAutoSync = payload.isAutoSync ?? false;
+    syncState.mode = payload.mode;
+    syncState.tabId = payload.currentTabId ?? 0;
+    syncState.isManualScrollEnabled = false;
+    syncState.lastProgrammaticScrollTime = 0;
+    connectionState.isHealthy = true;
 
     // Reset mousemove state for wheel manual mode
-    lastMouseMoveCheckTime = 0;
+    wheelState.lastMouseMoveCheckTime = 0;
     cleanupWheelModeMouseMoveListener();
 
     // Initialize lastSyncedRatio with current scroll position to prevent offset calculation errors
-    lastSyncedRatio = getScrollRatio();
+    syncState.lastSyncedRatio = getScrollRatio();
 
-    logger.info(`Sync activated for tab ${currentTabId}`, {
-      mode: currentMode,
-      initialRatio: lastSyncedRatio,
+    logger.info(`Sync activated for tab ${syncState.tabId}`, {
+      mode: syncState.mode,
+      initialRatio: syncState.lastSyncedRatio,
     });
 
     // Add scroll listener
@@ -697,12 +672,12 @@ export function initScrollSync() {
     startUrlMonitoring();
 
     // Initialize keyboard handler with tab ID and scroll info callback
-    initKeyboardHandler(currentTabId, () => ({
+    initKeyboardHandler(syncState.tabId, () => ({
       currentScrollTop: window.scrollY,
-      lastSyncedRatio: lastSyncedRatio, // Return live value for synchronous snapshot
+      lastSyncedRatio: syncState.lastSyncedRatio, // Return live value for synchronous snapshot
       setManualModeActive: (active: boolean) => {
         // Set flag SYNCHRONOUSLY to prevent race condition with scroll:sync messages
-        isManualScrollEnabled = active;
+        syncState.isManualScrollEnabled = active;
         logger.debug('Manual mode flag set synchronously via callback', { active });
       },
     }));
@@ -714,12 +689,12 @@ export function initScrollSync() {
 
     // Start connection health monitoring
     startConnectionHealthCheck();
-    lastSuccessfulSync = Date.now();
+    connectionState.lastSuccessfulSync = Date.now();
 
     // Start visibility change monitoring for idle tab reconnection
     startVisibilityChangeMonitoring();
 
-    return { success: true, tabId: currentTabId };
+    return { success: true, tabId: syncState.tabId };
   });
 
   // Listen for stop sync message
@@ -729,15 +704,15 @@ export function initScrollSync() {
 
     // Auto-sync stop should only stop auto-sync (not interfere with manual sync)
     // But manual stop (from popup) should work regardless of sync type
-    if (payload.isAutoSync && !isAutoSyncActive) {
+    if (payload.isAutoSync && !syncState.isAutoSync) {
       logger.debug('Ignoring auto-sync stop - current sync is manual');
       return { success: false, reason: 'Not in auto-sync mode' };
     }
     // Note: Manual stop (without isAutoSync flag) now works for both sync types
     // This allows users to stop sync from popup even when auto-sync is active
 
-    isSyncActive = false;
-    isAutoSyncActive = false;
+    syncState.isActive = false;
+    syncState.isAutoSync = false;
 
     // Stop connection health check
     stopConnectionHealthCheck();
@@ -752,9 +727,9 @@ export function initScrollSync() {
     window.removeEventListener('wheel', handleWheel);
 
     // Reset wheel manual mode state
-    wheelManualModeActive = false;
-    wheelBaselineSnapshot = 0;
-    lastMouseMoveCheckTime = 0;
+    wheelState.isActive = false;
+    wheelState.baselineSnapshot = 0;
+    wheelState.lastMouseMoveCheckTime = 0;
     cleanupWheelModeMouseMoveListener();
 
     // Stop URL monitoring (P1)
@@ -764,26 +739,26 @@ export function initScrollSync() {
     cleanupKeyboardHandler();
 
     // Clear manual scroll offset for this tab when stopping sync
-    await clearManualScrollOffset(currentTabId);
-    logger.info('Cleared manual scroll offset on sync stop', { currentTabId });
+    await clearManualScrollOffset(syncState.tabId);
+    logger.info('Cleared manual scroll offset on sync stop', { tabId: syncState.tabId });
 
     // Hide draggable control panel
     hidePanel();
 
-    return { success: true, tabId: currentTabId };
+    return { success: true, tabId: syncState.tabId };
   });
 
   // Listen for scroll sync from other tabs
   onMessage('scroll:sync', async ({ data }) => {
-    if (!isSyncActive) return;
+    if (!syncState.isActive) return;
 
     const payload = data;
 
     // Don't sync if this is the source tab
-    if (payload.sourceTabId === currentTabId) return;
+    if (payload.sourceTabId === syncState.tabId) return;
 
     // Update last successful sync time for connection health monitoring
-    lastSuccessfulSync = Date.now();
+    connectionState.lastSuccessfulSync = Date.now();
 
     logger.debug('Receiving scroll sync', { data });
 
@@ -791,10 +766,10 @@ export function initScrollSync() {
     const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
 
     // If in manual mode, ignore sync messages completely (baseline is frozen)
-    if (isManualScrollEnabled) {
+    if (syncState.isManualScrollEnabled) {
       logger.debug('Manual mode active, ignoring sync to preserve frozen baseline', {
         sourceRatio,
-        frozenBaseline: lastSyncedRatioSnapshot,
+        frozenBaseline: syncState.lastSyncedRatioSnapshot,
       });
       return;
     }
@@ -804,14 +779,14 @@ export function initScrollSync() {
     const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
 
     // Load manual scroll offset ratio for this tab
-    const offsetData = await getManualScrollOffset(currentTabId);
+    const offsetData = await getManualScrollOffset(syncState.tabId);
 
     // Apply offset ratio to source ratio to get target ratio for this tab
     const targetRatio = sourceRatio + offsetData.ratio;
 
     // Update lastSyncedRatio to the SOURCE ratio (pure baseline without offsets)
     // This ensures manual offset calculations always use a consistent baseline
-    lastSyncedRatio = sourceRatio;
+    syncState.lastSyncedRatio = sourceRatio;
 
     // Convert target ratio to pixel position for this document
     const targetScrollTop = targetRatio * myMaxScroll;
@@ -827,7 +802,7 @@ export function initScrollSync() {
     });
 
     // Mark as programmatic scroll to prevent infinite loops
-    lastProgrammaticScrollTime = Date.now();
+    syncState.lastProgrammaticScrollTime = Date.now();
 
     if (payload.mode === 'element') {
       // Element-based sync (P1) - not commonly used with manual offsets
@@ -866,29 +841,29 @@ export function initScrollSync() {
     const payload = data;
 
     // Only apply to this specific tab
-    if (payload.tabId !== currentTabId) {
+    if (payload.tabId !== syncState.tabId) {
       return;
     }
 
     // Snapshot baseline ratio when ENTERING manual mode
     if (payload.enabled) {
-      lastSyncedRatioSnapshot = lastSyncedRatio;
+      syncState.lastSyncedRatioSnapshot = syncState.lastSyncedRatio;
       logger.debug('Manual mode activated, snapshotted baseline', {
-        lastSyncedRatio,
-        lastSyncedRatioSnapshot,
-        currentTabId,
+        lastSyncedRatio: syncState.lastSyncedRatio,
+        lastSyncedRatioSnapshot: syncState.lastSyncedRatioSnapshot,
+        tabId: syncState.tabId,
       });
     }
 
-    isManualScrollEnabled = payload.enabled;
+    syncState.isManualScrollEnabled = payload.enabled;
 
     // When manual mode is deactivated, the saved offset will be applied on the next scroll:sync
     // We do NOT programmatically scroll here to avoid jarring movements
     // The tab will smoothly sync to the correct position (with offset) when other tabs scroll
     if (!payload.enabled) {
       logger.info('Manual mode deactivated, offset will be applied on next sync', {
-        lastSyncedRatio,
-        currentTabId,
+        lastSyncedRatio: syncState.lastSyncedRatio,
+        tabId: syncState.tabId,
       });
     }
   });
@@ -896,18 +871,27 @@ export function initScrollSync() {
   // Listen for ping from background to verify content script is alive
   onMessage('scroll:ping', async ({ data }) => {
     const payload = data;
-    logger.debug('Received ping from background', { payload, isSyncActive, currentTabId });
-    return { success: true, tabId: currentTabId, timestamp: Date.now(), isSyncActive };
+    logger.debug('Received ping from background', {
+      payload,
+      isSyncActive: syncState.isActive,
+      tabId: syncState.tabId,
+    });
+    return {
+      success: true,
+      tabId: syncState.tabId,
+      timestamp: Date.now(),
+      isSyncActive: syncState.isActive,
+    };
   });
 
   // Listen for URL sync from other tabs (P1)
   onMessage('url:sync', async ({ data }) => {
-    if (!isSyncActive) return;
+    if (!syncState.isActive) return;
 
     const payload = data;
 
     // Don't navigate if this is the source tab
-    if (payload.sourceTabId === currentTabId) return;
+    if (payload.sourceTabId === syncState.tabId) return;
 
     // Check if URL sync is enabled
     const urlSyncEnabled = await loadUrlSyncEnabled();
@@ -920,8 +904,8 @@ export function initScrollSync() {
 
     // Clear manual scroll offset before navigating to new page
     // Old offset values won't be useful on a new page
-    await clearManualScrollOffset(currentTabId);
-    logger.debug('Cleared manual scroll offset before URL navigation', { currentTabId });
+    await clearManualScrollOffset(syncState.tabId);
+    logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
 
     try {
       // Apply locale-preserving URL sync
@@ -987,7 +971,7 @@ export function initScrollSync() {
  */
 export function getAutoSyncStatus(): { isActive: boolean; isAutoSync: boolean } {
   return {
-    isActive: isSyncActive,
-    isAutoSync: isAutoSyncActive,
+    isActive: syncState.isActive,
+    isAutoSync: syncState.isAutoSync,
   };
 }
