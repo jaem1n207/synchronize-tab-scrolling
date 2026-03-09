@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
 import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { loadUrlSyncEnabled } from '~/shared/lib/storage';
 
-import { registerTabEventHandlers } from './tab-event-handlers';
 import {
   broadcastAutoSyncGroupUpdate,
   removeTabFromAllAutoSyncGroups,
@@ -22,7 +22,8 @@ import { isContentScriptAlive, reinjectContentScript } from '../lib/content-scri
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
-import { sendMessage } from 'webext-bridge/background';
+
+import { registerTabEventHandlers } from './tab-event-handlers';
 
 type RemovedListener = (tabId: number) => Promise<void>;
 type CreatedListener = (tab: { id?: number; url?: string }) => Promise<void>;

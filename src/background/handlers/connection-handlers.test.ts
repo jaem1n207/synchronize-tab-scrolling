@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import browser from 'webextension-polyfill';
 
-import { registerConnectionHandlers } from './connection-handlers';
 import {
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
@@ -10,6 +9,8 @@ import {
 import { reinjectContentScript } from '../lib/content-script-manager';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+
+import { registerConnectionHandlers } from './connection-handlers';
 
 interface TabPayload {
   tabId: number;

@@ -3,7 +3,6 @@ import browser from 'webextension-polyfill';
 
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
-import { registerAutoSyncHandlers } from './auto-sync-handlers';
 import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
@@ -14,6 +13,8 @@ import {
 } from '../lib/auto-sync-state';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+
+import { registerAutoSyncHandlers } from './auto-sync-handlers';
 
 type RegisteredMessageHandler = (payload: {
   data?: { enabled?: boolean; normalizedUrl?: string; accepted?: boolean; tabId?: number };
