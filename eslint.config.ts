@@ -1,5 +1,4 @@
 import jsEslint from '@eslint/js';
-import pluginQuery from '@tanstack/eslint-plugin-query';
 import importPlugin from 'eslint-plugin-import';
 import importXPlugin from 'eslint-plugin-import-x';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
@@ -14,8 +13,6 @@ export default tsEslint.config(
   // 기본 설정
   jsEslint.configs.recommended,
   ...tsEslint.configs.recommended,
-
-  ...pluginQuery.configs['flat/recommended'],
 
   // JSX A11y, Import-X 설정
   jsxA11y.flatConfigs.recommended,
