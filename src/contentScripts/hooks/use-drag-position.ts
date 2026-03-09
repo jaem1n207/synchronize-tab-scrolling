@@ -4,6 +4,7 @@ import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { loadPanelPosition, savePanelPosition } from '~/shared/lib/storage';
 
 interface Position {
   x: number;
@@ -41,6 +42,18 @@ export const useDragPosition = (): UseDragPositionReturn => {
   const wasDraggedRef = React.useRef<boolean>(false);
   const dragOffsetRef = React.useRef<Position>({ x: 0, y: 0 });
   const rafIdRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    loadPanelPosition().then((stored) => {
+      if (stored) {
+        const constrained = {
+          x: Math.max(0, Math.min(stored.x, window.innerWidth - BUTTON_SIZE)),
+          y: Math.max(0, Math.min(stored.y, window.innerHeight - BUTTON_SIZE)),
+        };
+        setPosition(constrained);
+      }
+    });
+  }, []);
 
   const snapToEdge = React.useCallback((pos: Position): Position => {
     const centerX = window.innerWidth / 2;
@@ -124,6 +137,7 @@ export const useDragPosition = (): UseDragPositionReturn => {
 
         setPosition(snappedPosition);
         setDragTransform(snappedPosition);
+        savePanelPosition(snappedPosition);
 
         try {
           const currentTab = await browser.tabs.getCurrent();
@@ -178,7 +192,9 @@ export const useDragPosition = (): UseDragPositionReturn => {
       if (currentTab?.id && data && typeof data === 'object' && 'sourceTabId' in data) {
         const { x, y, sourceTabId } = data as { x: number; y: number; sourceTabId: number };
         if (sourceTabId !== currentTab.id) {
-          setPosition({ x, y });
+          const newPos = { x, y };
+          setPosition(newPos);
+          savePanelPosition(newPos);
         }
       }
     });
