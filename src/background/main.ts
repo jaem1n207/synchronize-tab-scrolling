@@ -16,6 +16,8 @@ import {
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroup, AutoSyncState } from '~/shared/types/auto-sync-state';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
+
+import { isContentScriptAlive, reinjectContentScript } from './lib/content-script-manager';
 import { sendMessageWithTimeout } from './lib/messaging';
 import {
   syncState,
@@ -2107,64 +2109,6 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     await persistSyncState();
   }
 });
-
-// Helper function to check if content script is alive via ping
-async function isContentScriptAlive(tabId: number): Promise<boolean> {
-  try {
-    const response = await sendMessageWithTimeout<{ success: boolean }>(
-      'scroll:ping',
-      { tabId, timestamp: Date.now() },
-      { context: 'content-script', tabId },
-      1_000, // 1 second timeout for ping
-    );
-    return response && response.success;
-  } catch {
-    return false;
-  }
-}
-
-// Helper function to re-inject content script into a tab
-async function reinjectContentScript(tabId: number): Promise<boolean> {
-  try {
-    logger.info(`Re-injecting content script into tab ${tabId}`);
-
-    // Re-inject the content script
-    await browser.scripting.executeScript({
-      target: { tabId },
-      files: ['dist/contentScripts/index.global.js'],
-    });
-
-    logger.info(`Content script re-injected into tab ${tabId}`);
-
-    // Wait a moment for the script to initialize
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Now send scroll:start to initialize sync
-    const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
-      'scroll:start',
-      {
-        tabIds: syncState.linkedTabs,
-        mode: syncState.mode || 'ratio',
-        currentTabId: tabId,
-      },
-      { context: 'content-script', tabId },
-      3_000,
-    );
-
-    if (response && response.success && response.tabId === tabId) {
-      syncState.connectionStatuses[tabId] = 'connected';
-      logger.info(`Tab ${tabId} reconnected after content script re-injection`);
-      await persistSyncState();
-      await broadcastSyncStatus();
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    logger.error(`Failed to re-inject content script into tab ${tabId}`, { error });
-    return false;
-  }
-}
 
 // Handle tab activation - check content script health and reconnect if needed
 browser.tabs.onActivated.addListener(async ({ tabId }) => {
