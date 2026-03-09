@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
@@ -8,14 +8,9 @@ import { usePersistentState } from '~/shared/hooks/use-persistent-state';
 import { t } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadSelectedTabIds, saveSelectedTabIds } from '~/shared/lib/storage';
-import {
-  sortTabsWithDomainGrouping,
-  sortTabsByRecentVisits,
-  filterTabsBySameDomain,
-} from '~/shared/lib/tab-similarity';
-import { isForbiddenUrl } from '~/shared/lib/url-utils';
 
 import { useAutoSync } from '../hooks/use-auto-sync';
+import { useTabDiscovery } from '../hooks/use-tab-discovery';
 import { useUrlSync } from '../hooks/use-url-sync';
 import { DEFAULT_PREFERENCES } from '../types/filters';
 
@@ -26,27 +21,23 @@ import { SelectedTabsChips } from './selected-tabs-chips';
 import { SyncControlButtons } from './sync-control-buttons';
 import { TabCommandPalette, type TabCommandPaletteHandle } from './tab-command-palette';
 
-import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
+import type { SyncStatus, ConnectionStatus, ErrorState } from '../types';
 import type { SortOption } from '../types/filters';
 
 const logger = new ExtensionLogger({ scope: 'popup' });
 
 export function ScrollSyncPopup() {
   const [selectedTabIds, setSelectedTabIds] = useState<Array<number>>([]);
-  const [tabs, setTabs] = useState<Array<TabInfo>>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     isActive: false,
     connectedTabs: [],
     connectionStatuses: {},
   });
-  const [currentTabId, setCurrentTabId] = useState<number>();
   const [error, setError] = useState<ErrorState | null>(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
 
-  // Ref for search input focus management
   const searchInputRef = useRef<TabCommandPaletteHandle>(null);
 
-  // Persistent preferences
   const [sortBy, setSortBy] = usePersistentState<SortOption>(
     'popup-sort-by',
     DEFAULT_PREFERENCES.sortBy,
@@ -58,11 +49,21 @@ export function ScrollSyncPopup() {
 
   const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
   const { urlSyncEnabled, handleUrlSyncChange } = useUrlSync();
+  const { tabs, currentTabId, filteredAndSortedTabs, selectedTabsInfo } = useTabDiscovery({
+    selectedTabIds,
+    sortBy,
+    sameDomainFilter,
+    onError: setError,
+  });
+
+  const syncStateRestoredRef = useRef(false);
 
   useEffect(() => {
-    const initialize = async () => {
+    if (tabs.length === 0 || syncStateRestoredRef.current) return;
+    syncStateRestoredRef.current = true;
+
+    const restoreSyncState = async () => {
       try {
-        // Query background for current sync status
         let hasActiveSync = false;
         let syncedTabIds: Array<number> = [];
         try {
@@ -87,72 +88,18 @@ export function ScrollSyncPopup() {
           // No active sync to restore - this is expected on first load
         }
 
-        // Load saved state
         const savedTabIds = await loadSelectedTabIds();
+        const availableTabIds = new Set(tabs.map((tab) => tab.id));
 
-        // Get all tabs in current window
-        const browserTabs = await browser.tabs.query({ currentWindow: true });
-
-        // Get current active tab
-        const [currentTab] = await browser.tabs.query({ active: true, currentWindow: true });
-        if (currentTab?.id) {
-          setCurrentTabId(currentTab.id);
-        }
-
-        // Convert browser tabs to TabInfo format with eligibility check
-        const tabInfos: Array<TabInfo> = browserTabs
-          .filter((tab) => tab.id !== undefined)
-          .map((tab) => {
-            const url = tab.url || '';
-            const isForbidden = isForbiddenUrl(url);
-
-            let ineligibleReason: string | undefined;
-            if (isForbidden) {
-              if (
-                url.includes('chrome.google.com/webstore') ||
-                url.includes('microsoftedge.microsoft.com/addons') ||
-                url.includes('addons.mozilla.org')
-              ) {
-                ineligibleReason = t('ineligibleWebStore');
-              } else if (url.match(/^https?:\/\/(drive|docs|sheets|mail)\.google\.com/)) {
-                ineligibleReason = t('ineligibleGoogleServices');
-              } else if (
-                url.match(/^(chrome|edge|about|firefox|moz-extension|chrome-extension):/)
-              ) {
-                ineligibleReason = t('ineligibleBrowserInternal');
-              } else if (url.match(/^(view-source|data|javascript|file|blob):/)) {
-                ineligibleReason = t('ineligibleSpecialProtocol');
-              } else {
-                ineligibleReason = t('ineligibleSecurityRestriction');
-              }
-            }
-
-            return {
-              id: tab.id!,
-              title: tab.title || t('untitled'),
-              url,
-              favIconUrl: tab.favIconUrl,
-              eligible: !isForbidden,
-              ineligibleReason,
-              lastAccessed: tab.lastAccessed,
-            };
-          });
-
-        setTabs(tabInfos);
-
-        // Validate selectedTabIds against available tabs
         if (hasActiveSync) {
-          const availableTabIds = new Set(tabInfos.map((tab) => tab.id));
           const validSelectedIds = syncedTabIds.filter((id) => availableTabIds.has(id));
 
-          // If some tabs are missing, update selectedTabIds to only include valid ones
           if (validSelectedIds.length !== syncedTabIds.length) {
             logger.warn(
               '[ScrollSyncPopup] Some synced tabs no longer available, updating selection',
             );
             setSelectedTabIds(validSelectedIds);
 
-            // If fewer than 2 valid tabs remain, sync state is inconsistent
             if (validSelectedIds.length < 2) {
               logger.warn(
                 '[ScrollSyncPopup] Sync state inconsistent: fewer than 2 tabs available. Resetting sync status.',
@@ -162,66 +109,24 @@ export function ScrollSyncPopup() {
                 connectedTabs: [],
                 connectionStatuses: {},
               });
-              // Notify background to stop sync
               sendMessage('scroll:stop', { tabIds: syncedTabIds }, 'background').catch((err) => {
                 logger.warn('[ScrollSyncPopup] Failed to stop sync in background:', err);
               });
             }
           }
         } else {
-          // Restore previously selected tabs only if not already syncing
-          const validTabIds = tabInfos.map((tab) => tab.id);
-          const restoredSelection = savedTabIds.filter((id) => validTabIds.includes(id));
+          const restoredSelection = savedTabIds.filter((id) => availableTabIds.has(id));
           if (restoredSelection.length > 0) {
             setSelectedTabIds(restoredSelection);
           }
         }
-      } catch (error) {
-        logger.error('Failed to initialize popup:', error);
-        setError({
-          message: t('errorLoadTabsFailed'),
-          severity: 'error',
-          timestamp: Date.now(),
-          action: {
-            label: t('retry'),
-            handler: () => {
-              setError(null);
-              initialize();
-            },
-          },
-        });
-        // Fallback to empty list on error
-        setTabs([]);
+      } catch (err) {
+        logger.error('Failed to restore sync state:', err);
       }
     };
 
-    initialize();
-  }, []);
-
-  // Filter and sort tabs based on preferences
-  const filteredAndSortedTabs = useMemo(() => {
-    let processedTabs = [...tabs];
-
-    // Apply same domain filter
-    if (sameDomainFilter) {
-      processedTabs = filterTabsBySameDomain(processedTabs, currentTabId);
-    }
-
-    // Apply sort
-    if (sortBy === 'similarity') {
-      processedTabs = sortTabsWithDomainGrouping(processedTabs, currentTabId);
-    } else if (sortBy === 'recent') {
-      processedTabs = sortTabsByRecentVisits(processedTabs);
-    }
-
-    return processedTabs;
-  }, [tabs, sameDomainFilter, sortBy, currentTabId]);
-
-  // Get selected tabs info from unfiltered tabs (always show selected regardless of domain filter)
-  const selectedTabsInfo = useMemo(
-    () => tabs.filter((tab) => selectedTabIds.includes(tab.id)),
-    [tabs, selectedTabIds],
-  );
+    restoreSyncState();
+  }, [tabs]);
 
   const handleToggleTab = useCallback((tabId: number) => {
     setSelectedTabIds((prev) => {
