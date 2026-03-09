@@ -19,8 +19,8 @@ describe('scroll-sync-state constants', () => {
     expect(THROTTLE_DELAY).toBe(50);
   });
 
-  it('PROGRAMMATIC_SCROLL_GRACE_PERIOD should equal 100', () => {
-    expect(PROGRAMMATIC_SCROLL_GRACE_PERIOD).toBe(100);
+  it('PROGRAMMATIC_SCROLL_GRACE_PERIOD should equal 200', () => {
+    expect(PROGRAMMATIC_SCROLL_GRACE_PERIOD).toBe(200);
   });
 
   it('MOUSEMOVE_THROTTLE should equal 50', () => {

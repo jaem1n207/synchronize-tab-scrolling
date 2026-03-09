@@ -1,7 +1,7 @@
 import type { SyncMode } from '~/shared/types/messages';
 
 export const THROTTLE_DELAY = 50;
-export const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 100;
+export const PROGRAMMATIC_SCROLL_GRACE_PERIOD = 200;
 export const MOUSEMOVE_THROTTLE = 50;
 export const CONNECTION_CHECK_INTERVAL = 30000;
 export const CONNECTION_TIMEOUT_THRESHOLD = 60000;
