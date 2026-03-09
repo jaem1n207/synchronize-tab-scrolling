@@ -17,7 +17,7 @@ import {
   loadUrlSyncEnabled,
   saveManualScrollOffset,
 } from '~/shared/lib/storage';
-import type { SyncMode, SyncSuggestionMessage, AddTabToSyncMessage } from '~/shared/types/messages';
+import type { SyncMode } from '~/shared/types/messages';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
 import { destroyPanel, hidePanel, showPanel } from './panel';
@@ -638,12 +638,7 @@ function stopVisibilityChangeMonitoring() {
 export function initScrollSync() {
   // Listen for start sync message
   onMessage('scroll:start', async ({ data }) => {
-    const payload = data as {
-      tabIds: Array<number>;
-      mode: SyncMode;
-      currentTabId: number;
-      isAutoSync?: boolean;
-    };
+    const payload = data;
 
     // Hide any pending suggestion toasts since sync is starting
     hideSuggestionToasts();
@@ -676,14 +671,16 @@ export function initScrollSync() {
       logger.info('Detected orphaned panel elements (likely re-injection), cleaning up', {
         count: existingPanels.length,
       });
-      existingPanels.forEach((panel) => panel.remove());
+      existingPanels.forEach((panel) => {
+        panel.remove();
+      });
     }
 
     // Reset all state variables
     isSyncActive = true;
     isAutoSyncActive = payload.isAutoSync ?? false;
     currentMode = payload.mode;
-    currentTabId = payload.currentTabId;
+    currentTabId = payload.currentTabId ?? 0;
     isManualScrollEnabled = false;
     lastProgrammaticScrollTime = 0;
     isConnectionHealthy = true;
@@ -740,7 +737,7 @@ export function initScrollSync() {
 
   // Listen for stop sync message
   onMessage('scroll:stop', async ({ data }) => {
-    const payload = data as { isAutoSync?: boolean };
+    const payload = data;
     logger.info('Stopping scroll sync', { data, isAutoSync: payload.isAutoSync });
 
     // Auto-sync stop should only stop auto-sync (not interfere with manual sync)
@@ -793,14 +790,7 @@ export function initScrollSync() {
   onMessage('scroll:sync', async ({ data }) => {
     if (!isSyncActive) return;
 
-    const payload = data as {
-      scrollTop: number;
-      scrollHeight: number;
-      clientHeight: number;
-      sourceTabId: number;
-      mode: SyncMode;
-      timestamp: number;
-    };
+    const payload = data;
 
     // Don't sync if this is the source tab
     if (payload.sourceTabId === currentTabId) return;
@@ -887,7 +877,7 @@ export function initScrollSync() {
   // Listen for manual scroll toggle (P1)
   onMessage('scroll:manual', async ({ data }) => {
     // logger.info('Manual scroll mode toggled', { data });
-    const payload = data as { tabId: number; enabled: boolean };
+    const payload = data;
 
     // Only apply to this specific tab
     if (payload.tabId !== currentTabId) {
@@ -919,7 +909,7 @@ export function initScrollSync() {
 
   // Listen for ping from background to verify content script is alive
   onMessage('scroll:ping', async ({ data }) => {
-    const payload = data as { tabId: number; timestamp: number };
+    const payload = data;
     logger.debug('Received ping from background', { payload, isSyncActive, currentTabId });
     return { success: true, tabId: currentTabId, timestamp: Date.now(), isSyncActive };
   });
@@ -928,7 +918,7 @@ export function initScrollSync() {
   onMessage('url:sync', async ({ data }) => {
     if (!isSyncActive) return;
 
-    const payload = data as { url: string; sourceTabId: number };
+    const payload = data;
 
     // Don't navigate if this is the source tab
     if (payload.sourceTabId === currentTabId) return;
@@ -971,27 +961,21 @@ export function initScrollSync() {
 
   // Listen for auto-sync status changes from background
   onMessage('auto-sync:status-changed', async ({ data }) => {
-    const payload = data as { enabled: boolean };
+    const payload = data;
     logger.info('Auto-sync status changed', { enabled: payload.enabled });
     // This is informational - actual sync start/stop is handled by scroll:start/stop
   });
 
   // Listen for auto-sync group updates from background
   onMessage('auto-sync:group-updated', async ({ data }) => {
-    const payload = data as {
-      groups: Array<{
-        normalizedUrl: string;
-        tabIds: Array<number>;
-        isActive: boolean;
-      }>;
-    };
+    const payload = data;
     logger.debug('Auto-sync groups updated', { groupCount: payload.groups.length });
     // This is informational for UI updates - sync control handled by scroll:start/stop
   });
 
   // Listen for sync suggestion toast from background (auto-sync suggestion-based flow)
   onMessage('sync-suggestion:show', async ({ data }) => {
-    const payload = data as unknown as SyncSuggestionMessage;
+    const payload = data;
     logger.info('Showing sync suggestion toast', {
       normalizedUrl: payload.normalizedUrl,
       tabCount: payload.tabCount,
@@ -1002,7 +986,7 @@ export function initScrollSync() {
 
   // Listen for add tab to sync suggestion from background
   onMessage('sync-suggestion:add-tab', async ({ data }) => {
-    const payload = data as unknown as AddTabToSyncMessage;
+    const payload = data;
     logger.info('Showing add tab suggestion toast', {
       tabId: payload.tabId,
       tabTitle: payload.tabTitle,
