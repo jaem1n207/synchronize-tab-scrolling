@@ -3,7 +3,6 @@ import * as React from 'react';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { AnimatePresence, motion } from 'motion/react';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
-import browser from 'webextension-polyfill';
 
 import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
@@ -28,6 +27,7 @@ import {
 } from '~/shared/lib/storage';
 import { cn } from '~/shared/lib/utils';
 
+import { useDragPosition } from '../hooks/use-drag-position';
 import { getAutoSyncStatus } from '../scroll-sync';
 
 const logger = new ExtensionLogger({ scope: 'sync-control-panel' });
@@ -43,20 +43,12 @@ interface SyncControlPanelProps {
   className?: string;
 }
 
-interface Position {
-  x: number;
-  y: number;
-}
-
 interface SyncedTab {
   id: number;
   title: string;
   offsetPixels: number; // pixel offset value
   isCurrent: boolean;
 }
-
-const BUTTON_SIZE = 36;
-const EDGE_MARGIN = 32; // Distance from screen edge
 
 // Custom PopoverContent with container support for Shadow DOM
 // Uses Motion for animations since UnoCSS @property animations don't work in Shadow DOM
@@ -103,156 +95,37 @@ export const SyncControlPanel = ({
   className,
 }: SyncControlPanelProps) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const [position, setPosition] = React.useState<Position>({ x: EDGE_MARGIN, y: EDGE_MARGIN });
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
-  const [dragStartPos, setDragStartPos] = React.useState<Position>({ x: 0, y: 0 });
   const [syncedTabs, setSyncedTabs] = React.useState<SyncedTab[]>([]);
   const [autoSyncEnabled, setAutoSyncEnabled] = React.useState(false);
   const [isAutoSyncActive, setIsAutoSyncActive] = React.useState(false);
   const [autoSyncGroupCount, setAutoSyncGroupCount] = React.useState(0);
 
-  const toolbarRef = React.useRef<HTMLButtonElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const wasDraggedRef = React.useRef<boolean>(false);
-  const dragOffsetRef = React.useRef<Position>({ x: 0, y: 0 });
-  const rafIdRef = React.useRef<number | null>(null);
   const ctrlOnlyRef = React.useRef<boolean>(false);
+
+  const {
+    BUTTON_SIZE,
+    position,
+    isDragging,
+    dragTransform,
+    toolbarRef,
+    wasDraggedRef,
+    handleMouseDown,
+  } = useDragPosition({ isOpen });
 
   const systemTheme = useSystemTheme();
   const { controlKey } = useModifierKey();
 
-  const snapToEdge = React.useCallback((pos: Position): Position => {
-    const centerX = window.innerWidth / 2;
-    const maxY = window.innerHeight - BUTTON_SIZE;
-
-    // Snap X to left or right edge based on which half of screen
-    const isLeftSide = pos.x < centerX;
-    const snappedX = isLeftSide ? EDGE_MARGIN : window.innerWidth - BUTTON_SIZE - EDGE_MARGIN;
-
-    // Keep Y position, allow full height movement (no EDGE_MARGIN on Y axis)
-    const snappedY = Math.max(0, Math.min(pos.y, maxY));
-
-    return { x: snappedX, y: snappedY };
-  }, []);
-
-  const constrainPosition = React.useCallback((pos: Position): Position => {
-    const maxX = window.innerWidth - BUTTON_SIZE;
-    const maxY = window.innerHeight - BUTTON_SIZE;
-
-    return {
-      x: Math.max(0, Math.min(pos.x, maxX)),
-      y: Math.max(0, Math.min(pos.y, maxY)),
-    };
-  }, []);
-
-  const handleMouseDown = React.useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (e.button !== 0) return;
-
-      // Prevent dragging when popover is open
-      if (isOpen) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      setDragStartPos({ x: e.clientX, y: e.clientY });
-      dragOffsetRef.current = {
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      };
-      // Initialize dragTransform with current position to prevent jump on drag start
-      setDragTransform(position);
-      setIsDragging(true);
-    },
-    [position, isOpen],
-  );
-
-  const handleMouseMove = React.useCallback(
-    (e: MouseEvent) => {
-      if (!isDragging) return;
-
-      // Cancel any pending RAF to avoid stacking updates
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      // Prevent opening if user just dragged
+      if (open && wasDraggedRef.current) {
+        return;
       }
-
-      // Use requestAnimationFrame for 60fps smooth dragging performance
-      rafIdRef.current = requestAnimationFrame(() => {
-        const newPosition = constrainPosition({
-          x: e.clientX - dragOffsetRef.current.x,
-          y: e.clientY - dragOffsetRef.current.y,
-        });
-
-        setDragTransform(newPosition);
-        rafIdRef.current = null;
-      });
+      setIsOpen(open);
     },
-    [isDragging, constrainPosition],
+    [wasDraggedRef],
   );
-
-  const handleMouseUp = React.useCallback(
-    async (e: MouseEvent) => {
-      if (!isDragging) return;
-
-      // Cancel any pending RAF
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
-      }
-
-      // Calculate drag distance
-      const dragDistance = Math.sqrt(
-        Math.pow(e.clientX - dragStartPos.x, 2) + Math.pow(e.clientY - dragStartPos.y, 2),
-      );
-
-      // Only snap to edge if user actually dragged (>5px)
-      if (dragDistance > 5) {
-        // Calculate final position directly from mouse event using ref to get latest offset
-        const finalPosition = constrainPosition({
-          x: e.clientX - dragOffsetRef.current.x,
-          y: e.clientY - dragOffsetRef.current.y,
-        });
-        const snappedPosition = snapToEdge(finalPosition);
-
-        // Update both position and dragTransform to the snapped position
-        // This ensures smooth visual transition when isDragging becomes false
-        setPosition(snappedPosition);
-        setDragTransform(snappedPosition);
-
-        // Broadcast position change to other tabs
-        try {
-          const currentTab = await browser.tabs.getCurrent();
-          if (currentTab?.id) {
-            await sendMessage(
-              'panel:position',
-              { x: snappedPosition.x, y: snappedPosition.y, sourceTabId: currentTab.id },
-              'background',
-            );
-          }
-        } catch (error) {
-          await logger.error('Failed to broadcast panel position:', error);
-        }
-
-        // Mark as dragged to prevent popover from opening
-        wasDraggedRef.current = true;
-        setTimeout(() => {
-          wasDraggedRef.current = false;
-        }, 50);
-      }
-
-      setIsDragging(false);
-    },
-    [isDragging, constrainPosition, snapToEdge, dragStartPos],
-  );
-
-  const handleOpenChange = React.useCallback((open: boolean) => {
-    // Prevent opening if user just dragged
-    if (open && wasDraggedRef.current) {
-      return;
-    }
-    setIsOpen(open);
-  }, []);
 
   const loadSyncedTabsWithOffsets = React.useCallback(async () => {
     try {
@@ -295,27 +168,6 @@ export const SyncControlPanel = ({
   }, [isOpen, loadSyncedTabsWithOffsets]);
 
   React.useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-
-  React.useEffect(() => {
-    const handleResize = () => {
-      setPosition((prev) => constrainPosition(prev));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [constrainPosition]);
-
-  React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Start tracking when Ctrl key is pressed
       if (e.key === 'Control') {
@@ -349,23 +201,6 @@ export const SyncControlPanel = ({
       document.removeEventListener('keyup', handleKeyUp);
     };
   }, [isOpen]);
-
-  React.useEffect(() => {
-    const unsubscribe = onMessage('panel:position', async (message) => {
-      const currentTab = await browser.tabs.getCurrent();
-      const data = message.data;
-
-      // Only update position if message is from a different tab
-      if (currentTab?.id && data && typeof data === 'object' && 'sourceTabId' in data) {
-        const { x, y, sourceTabId } = data as { x: number; y: number; sourceTabId: number };
-        if (sourceTabId !== currentTab.id) {
-          setPosition({ x, y });
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, []);
 
   // Fetch detailed auto-sync status from background
   const fetchAutoSyncDetailedStatus = React.useCallback(async () => {
@@ -487,7 +322,7 @@ export const SyncControlPanel = ({
             {/* Status indicator */}
             <div className="absolute -bottom-0.5 -right-0.5 pointer-events-none">
               <div
-                aria-label={
+                title={
                   !isConnectionHealthy
                     ? t('connectionLost')
                     : urlSyncEnabled
@@ -503,7 +338,6 @@ export const SyncControlPanel = ({
                   isConnectionHealthy && urlSyncEnabled && 'bg-blue-500',
                   isConnectionHealthy && !urlSyncEnabled && 'bg-gray-400',
                 )}
-                role="status"
               />
             </div>
 
