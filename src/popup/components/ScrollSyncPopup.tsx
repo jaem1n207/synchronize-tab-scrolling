@@ -3,8 +3,8 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
 
-import { useKeyboardShortcuts } from '~/shared/hooks/useKeyboardShortcuts';
-import { usePersistentState } from '~/shared/hooks/usePersistentState';
+import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
+import { usePersistentState } from '~/shared/hooks/use-persistent-state';
 import { t } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {

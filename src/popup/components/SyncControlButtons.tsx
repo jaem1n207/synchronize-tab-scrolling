@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '~/shared/components/ui/tooltip';
-import { useModifierKey } from '~/shared/hooks/useModifierKey';
+import { useModifierKey } from '~/shared/hooks/use-modifier-key';
 import { t } from '~/shared/i18n';
 
 import IconPlay from '~icons/lucide/play';

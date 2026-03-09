@@ -1,5 +1,5 @@
 import { Kbd } from '~/shared/components/ui/kbd';
-import { useModifierKey } from '~/shared/hooks/useModifierKey';
+import { useModifierKey } from '~/shared/hooks/use-modifier-key';
 import { t } from '~/shared/i18n';
 
 export function FooterInfo() {

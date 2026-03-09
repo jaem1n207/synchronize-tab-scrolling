@@ -7,7 +7,7 @@ import { Command, CommandGroup, CommandItem, CommandList } from '~/shared/compon
 import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverContent, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Separator } from '~/shared/components/ui/separator';
-import { useModifierKey } from '~/shared/hooks/useModifierKey';
+import { useModifierKey } from '~/shared/hooks/use-modifier-key';
 import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,

@@ -11,7 +11,7 @@ import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
 import { useSystemTheme } from '~/shared/hooks/use-system-theme';
-import { useModifierKey } from '~/shared/hooks/useModifierKey';
+import { useModifierKey } from '~/shared/hooks/use-modifier-key';
 import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
