@@ -20,7 +20,6 @@ interface UseTabDiscoveryParams {
   selectedTabIds: Array<number>;
   sortBy: SortOption;
   sameDomainFilter: boolean;
-  onError: (error: ErrorState | null) => void;
 }
 
 interface UseTabDiscoveryReturn {
@@ -28,6 +27,8 @@ interface UseTabDiscoveryReturn {
   currentTabId: number | undefined;
   filteredAndSortedTabs: Array<TabInfo>;
   selectedTabsInfo: Array<TabInfo>;
+  tabDiscoveryError: ErrorState | null;
+  dismissTabDiscoveryError: () => void;
 }
 
 function getIneligibleReason(url: string): string | undefined {
@@ -71,10 +72,10 @@ export function useTabDiscovery({
   selectedTabIds,
   sortBy,
   sameDomainFilter,
-  onError,
 }: UseTabDiscoveryParams): UseTabDiscoveryReturn {
   const [tabs, setTabs] = useState<Array<TabInfo>>([]);
   const [currentTabId, setCurrentTabId] = useState<number>();
+  const [tabDiscoveryError, setTabDiscoveryError] = useState<ErrorState | null>(null);
 
   const queryBrowserTabs = useCallback(async (): Promise<Array<TabInfo>> => {
     const browserTabs = await browser.tabs.query({ currentWindow: true });
@@ -93,21 +94,25 @@ export function useTabDiscovery({
   useEffect(() => {
     queryBrowserTabs().catch((err) => {
       logger.error('Failed to query browser tabs:', err);
-      onError({
+      setTabDiscoveryError({
         message: t('errorLoadTabsFailed'),
         severity: 'error',
         timestamp: Date.now(),
         action: {
           label: t('retry'),
           handler: () => {
-            onError(null);
+            setTabDiscoveryError(null);
             queryBrowserTabs().catch(() => {});
           },
         },
       });
       setTabs([]);
     });
-  }, [queryBrowserTabs, onError]);
+  }, [queryBrowserTabs]);
+
+  const dismissTabDiscoveryError = useCallback(() => {
+    setTabDiscoveryError(null);
+  }, []);
 
   const filteredAndSortedTabs = useMemo(() => {
     let processedTabs = [...tabs];
@@ -135,5 +140,7 @@ export function useTabDiscovery({
     currentTabId,
     filteredAndSortedTabs,
     selectedTabsInfo,
+    tabDiscoveryError,
+    dismissTabDiscoveryError,
   };
 }

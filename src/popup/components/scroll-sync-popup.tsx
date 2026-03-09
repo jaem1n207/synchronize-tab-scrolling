@@ -1,15 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-import { sendMessage } from 'webext-bridge/popup';
-import browser from 'webextension-polyfill';
-
 import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
 import { usePersistentState } from '~/shared/hooks/use-persistent-state';
-import { t } from '~/shared/i18n';
-import { ExtensionLogger } from '~/shared/lib/logger';
-import { loadSelectedTabIds, saveSelectedTabIds } from '~/shared/lib/storage';
+import { saveSelectedTabIds } from '~/shared/lib/storage';
 
 import { useAutoSync } from '../hooks/use-auto-sync';
+import { useSyncControl } from '../hooks/use-sync-control';
 import { useTabDiscovery } from '../hooks/use-tab-discovery';
 import { useUrlSync } from '../hooks/use-url-sync';
 import { DEFAULT_PREFERENCES } from '../types/filters';
@@ -21,19 +17,10 @@ import { SelectedTabsChips } from './selected-tabs-chips';
 import { SyncControlButtons } from './sync-control-buttons';
 import { TabCommandPalette, type TabCommandPaletteHandle } from './tab-command-palette';
 
-import type { SyncStatus, ConnectionStatus, ErrorState } from '../types';
 import type { SortOption } from '../types/filters';
-
-const logger = new ExtensionLogger({ scope: 'popup' });
 
 export function ScrollSyncPopup() {
   const [selectedTabIds, setSelectedTabIds] = useState<Array<number>>([]);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
-    isActive: false,
-    connectedTabs: [],
-    connectionStatuses: {},
-  });
-  const [error, setError] = useState<ErrorState | null>(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
 
   const searchInputRef = useRef<TabCommandPaletteHandle>(null);
@@ -49,84 +36,35 @@ export function ScrollSyncPopup() {
 
   const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
   const { urlSyncEnabled, handleUrlSyncChange } = useUrlSync();
-  const { tabs, currentTabId, filteredAndSortedTabs, selectedTabsInfo } = useTabDiscovery({
+  const {
+    tabs,
+    currentTabId,
+    filteredAndSortedTabs,
+    selectedTabsInfo,
+    tabDiscoveryError,
+    dismissTabDiscoveryError,
+  } = useTabDiscovery({
     selectedTabIds,
     sortBy,
     sameDomainFilter,
-    onError: setError,
+  });
+  const {
+    syncStatus,
+    error: syncError,
+    hasConnectionError,
+    handleStart,
+    handleStop,
+    handleResync,
+    handleDismissError,
+  } = useSyncControl({
+    selectedTabIds,
+    tabs,
+    searchInputRef,
+    onSelectedTabIdsChange: setSelectedTabIds,
   });
 
-  const syncStateRestoredRef = useRef(false);
-
-  useEffect(() => {
-    if (tabs.length === 0 || syncStateRestoredRef.current) return;
-    syncStateRestoredRef.current = true;
-
-    const restoreSyncState = async () => {
-      try {
-        let hasActiveSync = false;
-        let syncedTabIds: Array<number> = [];
-        try {
-          const syncStatusResponse = await sendMessage('sync:get-status', {}, 'background');
-          const response = syncStatusResponse as {
-            success: boolean;
-            isActive: boolean;
-            connectedTabs?: Array<number>;
-            connectionStatuses?: Record<number, ConnectionStatus>;
-          };
-          if (response?.isActive) {
-            hasActiveSync = true;
-            syncedTabIds = response.connectedTabs || [];
-            setSyncStatus({
-              isActive: true,
-              connectedTabs: syncedTabIds,
-              connectionStatuses: response.connectionStatuses || {},
-            });
-            setSelectedTabIds(syncedTabIds);
-          }
-        } catch {
-          // No active sync to restore - this is expected on first load
-        }
-
-        const savedTabIds = await loadSelectedTabIds();
-        const availableTabIds = new Set(tabs.map((tab) => tab.id));
-
-        if (hasActiveSync) {
-          const validSelectedIds = syncedTabIds.filter((id) => availableTabIds.has(id));
-
-          if (validSelectedIds.length !== syncedTabIds.length) {
-            logger.warn(
-              '[ScrollSyncPopup] Some synced tabs no longer available, updating selection',
-            );
-            setSelectedTabIds(validSelectedIds);
-
-            if (validSelectedIds.length < 2) {
-              logger.warn(
-                '[ScrollSyncPopup] Sync state inconsistent: fewer than 2 tabs available. Resetting sync status.',
-              );
-              setSyncStatus({
-                isActive: false,
-                connectedTabs: [],
-                connectionStatuses: {},
-              });
-              sendMessage('scroll:stop', { tabIds: syncedTabIds }, 'background').catch((err) => {
-                logger.warn('[ScrollSyncPopup] Failed to stop sync in background:', err);
-              });
-            }
-          }
-        } else {
-          const restoredSelection = savedTabIds.filter((id) => availableTabIds.has(id));
-          if (restoredSelection.length > 0) {
-            setSelectedTabIds(restoredSelection);
-          }
-        }
-      } catch (err) {
-        logger.error('Failed to restore sync state:', err);
-      }
-    };
-
-    restoreSyncState();
-  }, [tabs]);
+  const error = tabDiscoveryError ?? syncError;
+  const dismissError = tabDiscoveryError ? dismissTabDiscoveryError : handleDismissError;
 
   const handleToggleTab = useCallback((tabId: number) => {
     setSelectedTabIds((prev) => {
@@ -134,245 +72,10 @@ export function ScrollSyncPopup() {
         ? prev.filter((id) => id !== tabId)
         : [...prev, tabId];
 
-      // Save to storage
       saveSelectedTabIds(newSelection);
 
       return newSelection;
     });
-  }, []);
-
-  const handleStartWithRetry = useCallback(
-    async (isRetry = false) => {
-      // Clear any existing errors
-      setError(null);
-
-      // Validation: Check if at least 2 tabs are selected
-      if (selectedTabIds.length < 2) {
-        setError({
-          message: t('errorMinTabsRequired'),
-          severity: 'warning',
-          timestamp: Date.now(),
-        });
-        return;
-      }
-
-      try {
-        // If this is a retry, reload all selected tabs first
-        if (isRetry) {
-          setError({
-            message: t('reloadingTabs', [String(selectedTabIds.length)]),
-            severity: 'info',
-            timestamp: Date.now(),
-          });
-
-          // Reload all selected tabs
-          await Promise.all(
-            selectedTabIds.map((tabId) =>
-              browser.tabs.reload(tabId).catch((err) => {
-                logger.warn(`Failed to reload tab ${tabId}:`, err);
-              }),
-            ),
-          );
-
-          // Wait a bit for tabs to reload
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-
-        // Show "Connecting..." feedback
-        setError({
-          message: t('connectingToTabs', [String(selectedTabIds.length)]),
-          severity: 'info',
-          timestamp: Date.now(),
-        });
-
-        // Send start message to background script and wait for connection results
-        const response = (await sendMessage(
-          'scroll:start',
-          {
-            tabIds: selectedTabIds,
-            mode: 'ratio', // Default to ratio mode, can be made configurable later
-            currentTabId: selectedTabIds[0], // Use first selected tab as current
-          },
-          'background',
-        )) as {
-          success: boolean;
-          connectedTabs: Array<number>;
-          connectionResults: Record<number, { success: boolean; error?: string }>;
-          error?: string;
-        };
-
-        if (!response.success) {
-          // Connection failed
-          const failedTabs = Object.entries(response.connectionResults || {})
-            .filter(([, result]) => !result.success)
-            .map(([tabId, result]) => `Tab ${tabId}: ${result.error || 'Unknown error'}`);
-
-          setError({
-            message:
-              response.error ||
-              t('failedToConnectToTabs', [failedTabs.length > 0 ? failedTabs.join(', ') : '']),
-            severity: 'error',
-            timestamp: Date.now(),
-            action: {
-              label: t('retry'),
-              handler: () => handleStartWithRetry(true),
-            },
-          });
-
-          // Don't update sync status
-          return;
-        }
-
-        // Success - update sync status with actually connected tabs
-        const statuses: Record<number, ConnectionStatus> = {};
-        response.connectedTabs.forEach((id) => {
-          statuses[id] = 'connected';
-        });
-
-        setSyncStatus({
-          isActive: true,
-          connectedTabs: response.connectedTabs,
-          connectionStatuses: statuses,
-        });
-
-        // Show success message
-        const connectedCount = response.connectedTabs.length;
-        const attemptedCount = selectedTabIds.length;
-
-        if (connectedCount < attemptedCount) {
-          // Some tabs failed to connect
-          const failedCount = attemptedCount - connectedCount;
-          setError({
-            message: t('connectedToTabs', [
-              String(connectedCount),
-              String(attemptedCount),
-              String(failedCount),
-            ]),
-            severity: 'warning',
-            timestamp: Date.now(),
-          });
-        } else {
-          // All tabs connected successfully
-          setError({
-            message: t('successfullyConnectedToTabs', [String(connectedCount)]),
-            severity: 'info',
-            timestamp: Date.now(),
-          });
-        }
-      } catch (error) {
-        logger.error('Failed to start sync:', error);
-        setError({
-          message: t('failedToStartSync', [error instanceof Error ? error.message : String(error)]),
-          severity: 'error',
-          timestamp: Date.now(),
-          action: {
-            label: t('retry'),
-            handler: () => handleStartWithRetry(true),
-          },
-        });
-      }
-    },
-    [selectedTabIds],
-  );
-
-  const handleStart = useCallback(() => {
-    handleStartWithRetry(false);
-    // Restore focus to search input after action
-    setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [handleStartWithRetry]);
-
-  const handleStop = useCallback(async () => {
-    setError(null);
-
-    // Show stopping feedback
-    setError({
-      message: t('stoppingSynchronization'),
-      severity: 'info',
-      timestamp: Date.now(),
-    });
-
-    try {
-      // Send stop message to background script with timeout
-      const stopPromise = sendMessage(
-        'scroll:stop',
-        {
-          tabIds: syncStatus.connectedTabs,
-        },
-        'background',
-      );
-
-      // Add timeout to prevent hanging - use symbol to identify timeout errors
-      const TIMEOUT_SYMBOL = Symbol('timeout');
-      await Promise.race([
-        stopPromise,
-        new Promise((_, reject) => setTimeout(() => reject(TIMEOUT_SYMBOL), 1_000)),
-      ]);
-
-      // Success - update state
-      setSyncStatus({
-        isActive: false,
-        connectedTabs: [],
-        connectionStatuses: {},
-      });
-
-      setError({
-        message: t('successSyncStopped'),
-        severity: 'info',
-        timestamp: Date.now(),
-      });
-    } catch (error) {
-      // Clear local state regardless of error
-      setSyncStatus({
-        isActive: false,
-        connectedTabs: [],
-        connectionStatuses: {},
-      });
-
-      // Timeout is expected behavior - treat as success since local state is cleared
-      if (typeof error === 'symbol') {
-        logger.warn('Stop sync timed out, but local state was cleared successfully');
-        setError({
-          message: t('successSyncStopped'),
-          severity: 'info',
-          timestamp: Date.now(),
-        });
-      } else {
-        // Actual error - show warning
-        logger.error('Failed to stop sync:', error);
-        setError({
-          message: t('warningStopSyncFailed', [
-            error instanceof Error ? error.message : t('errorStopSyncFailed'),
-          ]),
-          severity: 'warning',
-          timestamp: Date.now(),
-        });
-      }
-    }
-
-    // Restore focus to search input after action
-    setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [syncStatus.connectedTabs]);
-
-  const handleResync = useCallback(() => {
-    const newStatuses = { ...syncStatus.connectionStatuses };
-    Object.keys(newStatuses).forEach((key) => {
-      const tabId = Number(key);
-      if (newStatuses[tabId] === 'disconnected' || newStatuses[tabId] === 'error') {
-        newStatuses[tabId] = 'connected';
-      }
-    });
-
-    setSyncStatus((prev) => ({
-      ...prev,
-      connectionStatuses: newStatuses,
-    }));
-
-    // Restore focus to search input after action
-    setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [syncStatus.connectionStatuses]);
-
-  const handleDismissError = useCallback(() => {
-    setError(null);
   }, []);
 
   // Actions Menu handlers
@@ -451,10 +154,6 @@ export function ScrollSyncPopup() {
     [syncStatus.isActive, selectedTabIds, handleStart, handleStop, handleToggleAllTabs, setSortBy],
   );
 
-  const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(
-    (status) => status === 'disconnected' || status === 'error',
-  );
-
   // Restore focus to search input when ActionsMenu closes
   useEffect(() => {
     if (!actionsMenuOpen) {
@@ -488,7 +187,7 @@ export function ScrollSyncPopup() {
     >
       {error && (
         <div className="absolute top-0 left-0 right-0 z-50 p-4">
-          <ErrorNotification error={error} onDismiss={handleDismissError} />
+          <ErrorNotification error={error} onDismiss={dismissError} />
         </div>
       )}
 
