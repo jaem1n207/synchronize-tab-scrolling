@@ -231,6 +231,7 @@ export interface AddTabToSyncResponseMessage {
   accepted: boolean;
   /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
   snooze?: boolean;
+  normalizedUrl?: string;
 }
 
 /**

@@ -412,13 +412,13 @@ function renderToast() {
     renderToast();
   };
 
-  const handleSyncReject = async () => {
+  const handleSyncReject = async (snooze: boolean) => {
     if (!currentSuggestion) return;
 
     try {
       await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: currentSuggestion.normalizedUrl, accepted: false },
+        { normalizedUrl: currentSuggestion.normalizedUrl, accepted: false, snooze },
         'background',
       );
     } catch (error) {
@@ -438,7 +438,11 @@ function renderToast() {
     try {
       await sendMessage(
         'sync-suggestion:add-tab-response',
-        { tabId: currentAddTabSuggestion.tabId, accepted: true },
+        {
+          tabId: currentAddTabSuggestion.tabId,
+          accepted: true,
+          normalizedUrl: currentAddTabSuggestion.normalizedUrl,
+        },
         'background',
       );
     } catch (error) {
@@ -452,13 +456,18 @@ function renderToast() {
     renderToast();
   };
 
-  const handleAddTabReject = async () => {
+  const handleAddTabReject = async (snooze: boolean) => {
     if (!currentAddTabSuggestion) return;
 
     try {
       await sendMessage(
         'sync-suggestion:add-tab-response',
-        { tabId: currentAddTabSuggestion.tabId, accepted: false },
+        {
+          tabId: currentAddTabSuggestion.tabId,
+          accepted: false,
+          snooze,
+          normalizedUrl: currentAddTabSuggestion.normalizedUrl,
+        },
         'background',
       );
     } catch (error) {
