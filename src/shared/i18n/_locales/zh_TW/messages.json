@@ -525,5 +525,59 @@
   },
   "skipButton": {
     "message": "跳過"
+  },
+  "manageExcludedDomains": {
+    "message": "管理排除網域"
+  },
+  "excludedDomainsDescription": {
+    "message": "永不顯示同步建議的網域"
+  },
+  "addDomain": {
+    "message": "新增"
+  },
+  "addDomainPlaceholder": {
+    "message": "貼上URL或輸入網域..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "移除 $DOMAIN$",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "不再為此網站顯示"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ 將不再顯示同步建議",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "無排除網域"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "排除的網域將顯示在此處"
+  },
+  "invalidDomain": {
+    "message": "無法擷取有效網域"
+  },
+  "domainAlreadyExcluded": {
+    "message": "此網域已被排除"
+  },
+  "excludedDomainsCount": {
+    "message": "已排除 $COUNT$ 個",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
   }
 }

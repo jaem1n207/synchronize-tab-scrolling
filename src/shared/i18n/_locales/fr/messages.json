@@ -525,5 +525,59 @@
   },
   "skipButton": {
     "message": "Passer"
+  },
+  "manageExcludedDomains": {
+    "message": "Gérer les domaines exclus"
+  },
+  "excludedDomainsDescription": {
+    "message": "Domaines qui n'afficheront jamais de suggestions de synchronisation"
+  },
+  "addDomain": {
+    "message": "Ajouter"
+  },
+  "addDomainPlaceholder": {
+    "message": "Collez une URL ou saisissez un domaine..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "Supprimer $DOMAIN$",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "Ne plus afficher pour ce site"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ n'affichera plus de suggestions",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "Aucun domaine exclu"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "Les domaines exclus apparaîtront ici"
+  },
+  "invalidDomain": {
+    "message": "Impossible d'extraire un domaine valide"
+  },
+  "domainAlreadyExcluded": {
+    "message": "Ce domaine est déjà exclu"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$ exclus",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
   }
 }

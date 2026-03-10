@@ -525,5 +525,59 @@
   },
   "skipButton": {
     "message": "スキップ"
+  },
+  "manageExcludedDomains": {
+    "message": "除外ドメインの管理"
+  },
+  "excludedDomainsDescription": {
+    "message": "同期提案が表示されないドメイン"
+  },
+  "addDomain": {
+    "message": "追加"
+  },
+  "addDomainPlaceholder": {
+    "message": "URLを貼り付けるかドメインを入力..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "$DOMAIN$を削除",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "このサイトで再表示しない"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$の提案は今後表示されません",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "除外ドメインなし"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "除外したドメインがここに表示されます"
+  },
+  "invalidDomain": {
+    "message": "有効なドメインを抽出できませんでした"
+  },
+  "domainAlreadyExcluded": {
+    "message": "このドメインは既に除外されています"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$件除外",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
   }
 }
