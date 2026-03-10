@@ -69,6 +69,14 @@ vi.mock('./sync-state', () => ({
   },
 }));
 
+const { normalizeUrlForAutoSyncMock } = vi.hoisted(() => ({
+  normalizeUrlForAutoSyncMock: vi.fn(),
+}));
+
+vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
+  normalizeUrlForAutoSync: normalizeUrlForAutoSyncMock,
+}));
+
 function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSyncGroup {
   return {
     tabIds: new Set(tabIds),
@@ -76,10 +84,15 @@ function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSync
   };
 }
 
-function createMockTab(tabId: number, title: string = 'Tab Title') {
+function createMockTab(
+  tabId: number,
+  title: string = 'Tab Title',
+  url: string = 'https://example.test/page',
+) {
   return {
     id: tabId,
     title,
+    url,
     index: 0,
     highlighted: false,
     active: false,
@@ -108,6 +121,11 @@ describe('auto-sync-suggestions', () => {
     syncState.linkedTabs = [];
     syncState.connectionStatuses = {};
     syncState.lastActiveSyncedTabId = null;
+
+    normalizeUrlForAutoSyncMock.mockImplementation((url: string) => {
+      if (!url) return null;
+      return url.split('?')[0].split('#')[0] ?? null;
+    });
 
     mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => createMockTab(tabId));
     mockedBrowser.scripting.executeScript.mockResolvedValue([]);
@@ -398,6 +416,73 @@ describe('auto-sync-suggestions', () => {
       await showSyncSuggestion(normalizedUrl);
 
       expect(mockedBrowser.scripting.executeScript).not.toHaveBeenCalled();
+    });
+
+    it('skips suggestion when syncState.isActive and synced tabs share normalized URL', async () => {
+      const normalizedUrl = 'https://active-sync.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([100, 101, 102]));
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [100, 101];
+
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) =>
+        createMockTab(tabId, `Tab ${tabId}`, `${normalizedUrl}?lang=ko`),
+      );
+
+      await showSyncSuggestion(normalizedUrl);
+
+      expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
+    });
+
+    it('does not skip suggestion when syncState.isActive but no synced tab matches URL', async () => {
+      const normalizedUrl = 'https://unmatched.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([110, 111]));
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [200, 201];
+
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => {
+        if (tabId === 200 || tabId === 201) {
+          return createMockTab(tabId, `Tab ${tabId}`, 'https://other.test/different');
+        }
+        return createMockTab(tabId, `Tab ${tabId}`, normalizedUrl);
+      });
+
+      await showSyncSuggestion(normalizedUrl);
+
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
+    });
+
+    it('skips suggestion via background check even when pings would time out', async () => {
+      const normalizedUrl = 'https://throttled.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([120, 121]));
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [120, 121];
+
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) =>
+        createMockTab(tabId, `Tab ${tabId}`, `${normalizedUrl}?ref=abc`),
+      );
+
+      mockedSendMessageWithTimeout.mockRejectedValue(new Error('ping timeout'));
+
+      await showSyncSuggestion(normalizedUrl);
+
+      expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
+    });
+
+    it('does not skip suggestion when syncState.isActive is false', async () => {
+      const normalizedUrl = 'https://inactive.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([130, 131]));
+
+      syncState.isActive = false;
+      syncState.linkedTabs = [];
+
+      await showSyncSuggestion(normalizedUrl);
+
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
     });
 
     it('continues sending suggestion even when some injections fail', async () => {

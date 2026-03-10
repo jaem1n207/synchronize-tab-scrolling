@@ -12,6 +12,7 @@ import {
 } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
+  addTabSuggestedTabs,
   autoSyncState,
   dismissedUrlGroups,
   manualSyncOverriddenTabs,
@@ -104,6 +105,7 @@ vi.mock('../lib/auto-sync-state', () => ({
   manualSyncOverriddenTabs: new Set<number>(),
   dismissedUrlGroups: new Set<string>(),
   pendingSuggestions: new Set<string>(),
+  addTabSuggestedTabs: new Set<number>(),
 }));
 
 vi.mock('../lib/auto-sync-suggestions', () => ({
@@ -164,6 +166,7 @@ describe('registerTabEventHandlers', () => {
     manualSyncOverriddenTabs.clear();
     dismissedUrlGroups.clear();
     pendingSuggestions.clear();
+    addTabSuggestedTabs.clear();
 
     vi.mocked(browser.tabs.get).mockResolvedValue({
       id: 1,
@@ -423,6 +426,60 @@ describe('registerTabEventHandlers', () => {
         'Candidate tab',
         'https://example.com/match',
       );
+    });
+
+    it('does not show add-tab suggestion twice for the same tab (deduplication)', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [10];
+      vi.mocked(normalizeUrlForAutoSync).mockReturnValue('https://example.com/match');
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 10,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+        url: 'https://example.com/match',
+      } as browser.Tabs.Tab);
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { url: 'https://example.com/match?x=1' },
+        { id: 20, url: 'https://example.com/match?x=1', title: 'First event' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledTimes(1);
+      expect(addTabSuggestedTabs.has(20)).toBe(true);
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { status: 'loading', url: undefined },
+        { id: 20, url: 'https://example.com/match?x=1', title: 'Second event' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not show sync suggestion for tab already in active sync (BLOCK B guard)', async () => {
+      autoSyncState.enabled = true;
+      syncState.isActive = true;
+      syncState.linkedTabs = [50, 51];
+
+      const normalizedUrl = 'https://example.com/synced';
+      vi.mocked(normalizeUrlForAutoSync).mockReturnValue(normalizedUrl);
+      autoSyncState.groups.set(normalizedUrl, {
+        tabIds: new Set([50, 51]),
+        isActive: false,
+      });
+
+      await getListener('tabs.onUpdated')(
+        50,
+        { url: 'https://example.com/synced?v=2' },
+        { id: 50, url: 'https://example.com/synced?v=2', title: 'Synced Tab' },
+      );
+
+      const { showSyncSuggestion } = await import('../lib/auto-sync-suggestions');
+      expect(showSyncSuggestion).not.toHaveBeenCalled();
     });
 
     it('updates auto-sync group on URL change when auto-sync is enabled', async () => {
