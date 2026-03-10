@@ -7,13 +7,49 @@ export default {
     '@semantic-release/commit-analyzer',
     '@semantic-release/release-notes-generator',
     '@semantic-release/changelog',
+    [
+      'semantic-release-chrome',
+      {
+        distFolder: 'build/chrome',
+        asset: 'synchronize-tab-scrolling-chrome.zip',
+        extensionId: 'phceoocamipnafpgnchbfhkdlbleeafc',
+      },
+    ],
+    [
+      'semantic-release-amo',
+      {
+        addonId: 'addon@synchronize-tab-scrolling.org',
+        addonDirPath: 'build/firefox',
+        addonZipPath: 'synchronize-tab-scrolling-firefox.zip',
+        submitReleaseNotes: true,
+        submitSource: true,
+        approvalNotes:
+          'Build from source: pnpm install && pnpm build-firefox. Output is in the extension/ directory.',
+        compatibility: ['firefox'],
+      },
+    ],
     ['@semantic-release/npm', { npmPublish: false }],
     [
       '@semantic-release/github',
       {
-        // PR/이슈에 릴리스 코멘트 추가 비활성화
         successComment: false,
         failComment: false,
+        assets: [
+          {
+            path: 'synchronize-tab-scrolling-chrome.zip',
+            label: 'Chrome/Edge Extension (zip)',
+          },
+          {
+            path: 'synchronize-tab-scrolling-firefox.zip',
+            label: 'Firefox Add-on (zip)',
+          },
+        ],
+      },
+    ],
+    [
+      '@semantic-release/exec',
+      {
+        publishCmd: 'node scripts/publish-edge.mjs ${nextRelease.version}',
       },
     ],
     '@semantic-release/git',
