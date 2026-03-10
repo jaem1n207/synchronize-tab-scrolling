@@ -152,6 +152,43 @@ THROTTLE_DELAY < PROGRAMMATIC_SCROLL_GRACE_PERIOD
 
 ---
 
+## Pitfall 6: 전역 저장소에 탭별 데이터 저장 금지
+
+### 규칙
+
+> 탭별로 독립적이어야 하는 데이터는 `browser.storage.local`에 저장하지 마세요. `sessionStorage`를 사용하세요.
+
+### 배경
+
+```
+❌ BAD: browser.storage.local (전역)
+browser.storage.local.set({ panelPosition: { x: 200, y: 300 } })
+→ 모든 탭이 같은 키를 공유
+→ 탭1이 저장한 값을 탭2가 재마운트 시 로드 → 위치 오염
+
+✅ GOOD: sessionStorage (탭별 격리)
+sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
+→ 각 탭이 독립적인 sessionStorage를 가짐
+→ 크로스탭 오염 원천 차단
+```
+
+### 언제 어떤 저장소를 사용하는가?
+
+| 저장소                  | 범위                | 사용 시점                                  |
+| ----------------------- | ------------------- | ------------------------------------------ |
+| `browser.storage.local` | 전역 (모든 탭 공유) | 사용자 설정, 동기화 모드, URL sync 토글 등 |
+| `sessionStorage`        | 탭별 독립           | UI 위치, 탭별 임시 상태 등                 |
+
+### 체크리스트
+
+새 상태를 저장할 때:
+
+- [ ] 이 상태가 **모든 탭에서 동일해야** 하는가? → `browser.storage.local`
+- [ ] 이 상태가 **탭별로 독립적**이어야 하는가? → `sessionStorage`
+- [ ] 동기화 인프라(`sendMessage`)를 통해 **공유할 필요가 있는가?** → 공유가 불필요하면 브로드캐스트하지 마라
+
+---
+
 ## Code Review Checklist
 
 스크롤 동기화 관련 PR을 리뷰할 때 확인해야 할 항목:
@@ -161,3 +198,4 @@ THROTTLE_DELAY < PROGRAMMATIC_SCROLL_GRACE_PERIOD
 - [ ] 타이밍 상수 변경 시 불변 조건이 유지되는가?
 - [ ] 새 메시지 핸들러가 `lastSuccessfulSync`를 적절히 갱신하는가?
 - [ ] `PROGRAMMATIC_SCROLL_GRACE_PERIOD`가 파이프라인 최대 지연보다 큰가?
+- [ ] 새 상태를 저장할 때, 탭별 독립 데이터가 `browser.storage.local`에 저장되고 있지 않은가?
