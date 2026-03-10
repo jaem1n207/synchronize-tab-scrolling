@@ -240,6 +240,11 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
             tabCount: tabIds.length,
             tabIds,
             tabTitles,
+            ...(syncState.isActive &&
+              syncState.linkedTabs.length > 0 && {
+                hasExistingSync: true,
+                existingSyncTabCount: syncState.linkedTabs.length,
+              }),
           },
           { context: 'content-script', tabId: targetTabId },
           2_000, // 2 second timeout
@@ -332,6 +337,11 @@ export async function sendSuggestionToSingleTab(
         tabIds,
         tabTitles,
         tabCount: tabIds.length,
+        ...(syncState.isActive &&
+          syncState.linkedTabs.length > 0 && {
+            hasExistingSync: true,
+            existingSyncTabCount: syncState.linkedTabs.length,
+          }),
       },
       { context: 'content-script', tabId },
     );
