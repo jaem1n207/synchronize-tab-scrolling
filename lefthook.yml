@@ -6,7 +6,7 @@ pre-commit:
       exclude: '{node_modules,extension/dist,build,dist,.agents,.claude/skills}/**/*'
       run: |
         bunx prettier --write {staged_files} &&
-        NODE_OPTIONS='--experimental-strip-types' bunx eslint {staged_files} --fix --flag unstable_native_nodejs_ts_config --max-warnings=0
+        NODE_OPTIONS='--experimental-strip-types' bunx eslint {staged_files} --fix --flag unstable_native_nodejs_ts_config --max-warnings=0 --no-warn-ignored
     format-others:
       glob: '**/*.{json,md,mdx,css,html,yml,yaml,scss}'
       exclude: '{node_modules,extension/dist,build,dist,pnpm-lock.yaml,.agents,.claude/skills}/**/*'
