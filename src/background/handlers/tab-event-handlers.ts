@@ -205,13 +205,12 @@ export function registerTabEventHandlers(): void {
 
           if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
             await updateAutoSyncGroup(tabId, url);
-          }
-          // ✅ FIX: Add pendingSuggestions and dismissedUrlGroups checks to prevent repeated toasts
-          else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
+          } else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
             if (
               existingGroup.tabIds.size >= 2 &&
               !pendingSuggestions.has(normalizedUrl) &&
-              !dismissedUrlGroups.has(normalizedUrl)
+              !dismissedUrlGroups.has(normalizedUrl) &&
+              !(syncState.isActive && syncState.linkedTabs.includes(tabId))
             ) {
               await showSyncSuggestion(normalizedUrl);
             }
