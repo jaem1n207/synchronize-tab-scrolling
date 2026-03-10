@@ -244,6 +244,15 @@ See `docs/guides/domain-exclusion.md` (Korean) for the domain exclusion feature 
 - IME (CJK) composition guard
 - i18n key sync requirements (`extension/_locales/` + `src/shared/i18n/_locales/`)
 
+### Sync Suggestion Replacement
+
+See `docs/guides/sync-suggestion-replacement.md` (Korean) for the sync suggestion replacement guide:
+
+- Cleanup sequence when replacing active sync (scroll:stop → state reset → scroll:start)
+- hasExistingSync context propagation from background to toast UI
+- Amber warning banner and "Replace & Sync" button behavior
+- Pitfalls: cleanup ordering, condition guards, i18n key sync
+
 ### Store Deployment Pipeline
 
 See `docs/guides/store-deployment.md` (Korean) for the complete CI/CD pipeline:
