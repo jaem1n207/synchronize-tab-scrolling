@@ -1,6 +1,7 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
@@ -53,6 +54,19 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   if (pendingSuggestions.has(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping suggestion - already pending', { normalizedUrl });
     return;
+  }
+
+  // Background-side active sync check — more reliable than the ping check below,
+  // which depends on 500ms timeouts that fail when Chrome throttles background tabs.
+  if (syncState.isActive) {
+    const hasSyncedTabWithSameUrl = await hasSyncedTabMatchingUrl(normalizedUrl);
+    if (hasSyncedTabWithSameUrl) {
+      logger.info('[AUTO-SYNC] Skipping suggestion - synced tabs share this normalized URL', {
+        normalizedUrl,
+        syncedTabs: syncState.linkedTabs,
+      });
+      return;
+    }
   }
 
   // Get tab titles for the suggestion message
@@ -340,4 +354,14 @@ export async function showAddTabSuggestion(
     successCount,
     results: results.map((r) => (r.status === 'fulfilled' ? r.value : { error: r.reason })),
   });
+}
+
+async function hasSyncedTabMatchingUrl(normalizedUrl: string): Promise<boolean> {
+  const results = await Promise.allSettled(
+    syncState.linkedTabs.map(async (tabId) => {
+      const tab = await browser.tabs.get(tabId);
+      return tab.url ? normalizeUrlForAutoSync(tab.url) === normalizedUrl : false;
+    }),
+  );
+  return results.some((r) => r.status === 'fulfilled' && r.value);
 }
