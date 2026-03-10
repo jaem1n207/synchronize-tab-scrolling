@@ -1,1 +1,1 @@
-export { t } from './getTranslation';
+export { t } from './get-translation';

@@ -13,10 +13,10 @@ jobs:
     if: ${{ github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write # to be able to publish a GitHub release
-      issues: write # to be able to comment on released issues
-      pull-requests: write # to be able to comment on released pull requests
-      id-token: write # to enable use of OIDC for npm provenance
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,8 +28,17 @@ jobs:
 
       - run: bun install
 
-      - name: Build package on Bun@1.0.28
+      - name: Build Chrome extension
         run: bun run build
+
+      - name: Copy Chrome build artifacts
+        run: mkdir -p build/chrome && cp -r extension/* build/chrome/
+
+      - name: Build Firefox extension
+        run: bun run build-firefox
+
+      - name: Copy Firefox build artifacts
+        run: mkdir -p build/firefox && cp -r extension/* build/firefox/
 
       - name: Setup Node LTS for semantic-release
         uses: actions/setup-node@v4
@@ -39,4 +48,12 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
+          AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
         run: npx semantic-release

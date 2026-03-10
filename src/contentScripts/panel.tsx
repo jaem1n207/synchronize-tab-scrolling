@@ -14,7 +14,7 @@ import type {
 } from '~/shared/types/messages';
 
 import { SyncControlPanel } from './components';
-import { SyncSuggestionToast, AddTabToSyncToast } from './components/SyncSuggestionToast';
+import { SyncSuggestionToast, AddTabToSyncToast } from './components/sync-suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'panel' });
 

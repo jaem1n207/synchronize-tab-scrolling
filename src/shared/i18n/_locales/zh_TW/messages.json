@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "新增此標籤頁將重設您手動調整的捲動位置"
   },
+  "existingSyncWarning": {
+    "message": "目前正在同步$COUNT$個標籤頁。開始此操作將取代目前的同步。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "取代並同步"
+  },
   "startSyncButton": {
     "message": "開始同步"
   },
@@ -525,5 +537,62 @@
   },
   "skipButton": {
     "message": "跳過"
+  },
+  "manageExcludedDomains": {
+    "message": "管理排除網域"
+  },
+  "excludedDomainsDescription": {
+    "message": "永不顯示同步建議的網域"
+  },
+  "addDomain": {
+    "message": "新增"
+  },
+  "addDomainPlaceholder": {
+    "message": "貼上URL或輸入網域..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "移除 $DOMAIN$",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "不再為此網站顯示"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ 將不再顯示同步建議",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "無排除網域"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "排除的網域將顯示在此處"
+  },
+  "invalidDomain": {
+    "message": "無法擷取有效網域"
+  },
+  "domainAlreadyExcluded": {
+    "message": "此網域已被排除"
+  },
+  "excludedDomainsCount": {
+    "message": "已排除 $COUNT$ 個",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmRemoveDomain": {
+    "message": "按 Enter 刪除"
   }
 }

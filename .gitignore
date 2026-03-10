@@ -8,6 +8,7 @@
 *.pem
 *.xpi
 *.zip
+build
 dist
 dist-ssr
 extension/manifest.json
@@ -21,6 +22,9 @@ vite.config.*.timestamp-*
 .env
 .env.*
 !.env.example
+
+# Test artifacts
+test-results/
 
 # MCP configuration with sensitive tokens
 .mcp.json

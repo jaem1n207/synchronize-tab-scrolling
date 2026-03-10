@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "Agregar esta pestaña restablecerá los ajustes de posición de desplazamiento"
   },
+  "existingSyncWarning": {
+    "message": "Actualmente sincronizando $COUNT$ pestañas. Iniciar esto reemplazará la sincronización activa.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "Reemplazar y Sincronizar"
+  },
   "startSyncButton": {
     "message": "Iniciar Sync"
   },
@@ -525,5 +537,62 @@
   },
   "skipButton": {
     "message": "Omitir"
+  },
+  "manageExcludedDomains": {
+    "message": "Gestionar dominios excluidos"
+  },
+  "excludedDomainsDescription": {
+    "message": "Dominios que nunca mostrarán sugerencias de sincronización"
+  },
+  "addDomain": {
+    "message": "Añadir"
+  },
+  "addDomainPlaceholder": {
+    "message": "Pega una URL o escribe un dominio..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "Eliminar $DOMAIN$",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "No volver a mostrar en este sitio"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ ya no mostrará sugerencias",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "No hay dominios excluidos"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "Los dominios que excluyas aparecerán aquí"
+  },
+  "invalidDomain": {
+    "message": "No se pudo extraer un dominio válido"
+  },
+  "domainAlreadyExcluded": {
+    "message": "Este dominio ya está excluido"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$ excluidos",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmRemoveDomain": {
+    "message": "Enter para eliminar"
   }
 }

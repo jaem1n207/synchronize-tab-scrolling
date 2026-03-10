@@ -16,13 +16,18 @@ export type SyncMode = 'ratio' | 'element';
 export interface StartSyncMessage {
   tabIds: Array<number>;
   mode: SyncMode;
+  /** When true, sync was initiated by auto-sync (not user action) */
+  isAutoSync?: boolean;
+  currentTabId?: number;
 }
 
 /**
  * Message to stop scroll synchronization
  */
 export interface StopSyncMessage {
-  tabIds: Array<number>;
+  tabIds?: Array<number>;
+  /** When true, stop was initiated by auto-sync (not user action) */
+  isAutoSync?: boolean;
 }
 
 /**
@@ -65,11 +70,51 @@ export interface UrlSyncMessage {
 }
 
 /**
- * Response message for scroll sync status
+ * Connection health status for a synced tab
  */
-export interface SyncStatusResponse {
-  success: boolean;
-  error?: string;
+export type ConnectionStatus = 'connected' | 'disconnected' | 'error';
+
+/**
+ * Tab information included in sync status broadcasts
+ */
+export interface SyncedTabInfo {
+  id: number;
+  title: string;
+  url: string;
+  favIconUrl?: string;
+  eligible: boolean;
+}
+
+/**
+ * Broadcast payload for sync status updates to content scripts.
+ * Sent by background to all synced tabs when sync state changes.
+ */
+export interface SyncStatusBroadcastMessage {
+  linkedTabs: Array<SyncedTabInfo>;
+  connectionStatuses: Record<number, ConnectionStatus>;
+  currentTabId: number;
+}
+
+/**
+ * Health check ping between background and content script
+ */
+export interface ScrollPingMessage {
+  tabId: number;
+  timestamp: number;
+}
+
+/**
+ * Content script reconnection request after connection loss
+ */
+export interface ScrollReconnectMessage {
+  tabId: number;
+  timestamp: number;
+}
+
+/**
+ * Content script request to re-inject itself after recovery failure
+ */
+export interface ScrollRequestReinjectMessage {
   tabId: number;
 }
 
@@ -156,6 +201,10 @@ export interface SyncSuggestionMessage {
   tabCount: number;
   tabIds: Array<number>;
   tabTitles: Array<string>;
+  /** When true, another sync session is already active. Accepting this suggestion will replace it. */
+  hasExistingSync?: boolean;
+  /** Number of tabs in the currently active sync session (present only when hasExistingSync is true) */
+  existingSyncTabCount?: number;
 }
 
 /**
@@ -164,6 +213,10 @@ export interface SyncSuggestionMessage {
 export interface SyncSuggestionResponseMessage {
   normalizedUrl: string;
   accepted: boolean;
+  /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
+  snooze?: boolean;
+  /** When true, the domain is permanently excluded from suggestions */
+  permanent?: boolean;
 }
 
 /**
@@ -182,6 +235,11 @@ export interface AddTabToSyncMessage {
 export interface AddTabToSyncResponseMessage {
   tabId: number;
   accepted: boolean;
+  /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
+  snooze?: boolean;
+  /** When true, the domain is permanently excluded from suggestions */
+  permanent?: boolean;
+  normalizedUrl?: string;
 }
 
 /**
@@ -198,13 +256,30 @@ export interface DismissSyncSuggestionToastMessage {
   normalizedUrl: string;
 }
 
+/**
+ * Message to notify that permanently excluded domains have changed
+ */
+export interface ExcludedDomainsChangedMessage {
+  domains: Array<string>;
+}
+
+/**
+ * Response for excluded domains query
+ */
+export interface ExcludedDomainsResponse {
+  domains: Array<string>;
+}
+
 export interface ProtocolMap {
   'scroll:start': StartSyncMessage;
   'scroll:stop': StopSyncMessage;
   'scroll:sync': ScrollSyncMessage;
   'scroll:manual': ManualScrollMessage;
   'scroll:baseline-update': SyncBaselineUpdateMessage;
-  'scroll:status': SyncStatusResponse;
+  'scroll:ping': ScrollPingMessage;
+  'scroll:reconnect': ScrollReconnectMessage;
+  'scroll:request-reinject': ScrollRequestReinjectMessage;
+  'sync:status': SyncStatusBroadcastMessage;
   'url:sync': UrlSyncMessage;
   'element:match': ElementMatchMessage;
   'panel:position': PanelPositionMessage;
@@ -218,4 +293,6 @@ export interface ProtocolMap {
   'sync-suggestion:add-tab-response': AddTabToSyncResponseMessage;
   'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
   'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
+  'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
+  'auto-sync:get-excluded-domains': ExcludedDomainsResponse;
 }

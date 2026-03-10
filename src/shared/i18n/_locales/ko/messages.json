@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "이 탭을 추가하면 수동으로 조정한 스크롤 위치가 초기화됩니다"
   },
+  "existingSyncWarning": {
+    "message": "현재 $COUNT$개 탭을 동기화 중입니다. 이 동기화를 시작하면 기존 동기화가 중지됩니다.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "교체 후 동기화"
+  },
   "startSyncButton": {
     "message": "동기화 시작"
   },
@@ -525,5 +537,62 @@
   },
   "skipButton": {
     "message": "건너뛰기"
+  },
+  "manageExcludedDomains": {
+    "message": "제외 도메인 관리"
+  },
+  "excludedDomainsDescription": {
+    "message": "동기화 제안이 표시되지 않는 도메인"
+  },
+  "addDomain": {
+    "message": "추가"
+  },
+  "addDomainPlaceholder": {
+    "message": "URL을 붙여넣거나 도메인 입력..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "$DOMAIN$ 제거",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "이 사이트에서 다시 표시 안 함"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$에 대한 제안이 더 이상 표시되지 않습니다",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "제외된 도메인 없음"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "제외한 도메인이 여기에 표시됩니다"
+  },
+  "invalidDomain": {
+    "message": "유효한 도메인을 추출할 수 없습니다"
+  },
+  "domainAlreadyExcluded": {
+    "message": "이미 제외된 도메인입니다"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$개 제외됨",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmRemoveDomain": {
+    "message": "Enter를 눌러 제거"
   }
 }

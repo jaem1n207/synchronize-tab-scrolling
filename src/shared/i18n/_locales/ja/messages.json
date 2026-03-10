@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "このタブを追加すると、手動で調整したスクロール位置がリセットされます"
   },
+  "existingSyncWarning": {
+    "message": "現在$COUNT$個のタブを同期中です。これを開始すると現在の同期が置き換えられます。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "置き換えて同期"
+  },
   "startSyncButton": {
     "message": "同期開始"
   },
@@ -525,5 +537,62 @@
   },
   "skipButton": {
     "message": "スキップ"
+  },
+  "manageExcludedDomains": {
+    "message": "除外ドメインの管理"
+  },
+  "excludedDomainsDescription": {
+    "message": "同期提案が表示されないドメイン"
+  },
+  "addDomain": {
+    "message": "追加"
+  },
+  "addDomainPlaceholder": {
+    "message": "URLを貼り付けるかドメインを入力..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "$DOMAIN$を削除",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "このサイトで再表示しない"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$の提案は今後表示されません",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "除外ドメインなし"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "除外したドメインがここに表示されます"
+  },
+  "invalidDomain": {
+    "message": "有効なドメインを抽出できませんでした"
+  },
+  "domainAlreadyExcluded": {
+    "message": "このドメインは既に除外されています"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$件除外",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmRemoveDomain": {
+    "message": "Enterで削除"
   }
 }

@@ -1,5 +1,5 @@
 import '~/shared/styles';
-import { initScrollSync } from './scrollSync';
+import { initScrollSync } from './scroll-sync';
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
 (() => {

@@ -1,3 +1,28 @@
+import type {
+  AddTabToSyncMessage,
+  AddTabToSyncResponseMessage,
+  AutoSyncGroupUpdatedMessage,
+  AutoSyncStatusChangedMessage,
+  DismissAddTabToastMessage,
+  DismissSyncSuggestionToastMessage,
+  ElementMatchMessage,
+  ExcludedDomainsChangedMessage,
+  ManualScrollMessage,
+  PanelPositionMessage,
+  ScrollPingMessage,
+  ScrollReconnectMessage,
+  ScrollRequestReinjectMessage,
+  ScrollSyncMessage,
+  StartSyncMessage,
+  StopSyncMessage,
+  SyncBaselineUpdateMessage,
+  SyncStatusBroadcastMessage,
+  SyncSuggestionMessage,
+  SyncSuggestionResponseMessage,
+  UrlSyncEnabledChangedMessage,
+  UrlSyncMessage,
+} from '~/shared/types/messages';
+
 import type { AttributifyAttributes } from 'unocss/preset-attributify';
 import type { ProtocolWithReturn } from 'webext-bridge';
 
@@ -7,136 +32,33 @@ declare module 'react' {
 
 declare module 'webext-bridge' {
   export interface ProtocolMap {
-    // 스크롤 동기화 프로토콜
-    SCROLL_UPDATE: {
-      scrollPosition: {
-        scrollTop: number;
-        scrollHeight: number;
-        clientHeight: number;
-        scrollPercentage: number;
-        timestamp: number;
-        sections?: Array<{
-          id: string;
-          type: 'heading' | 'paragraph' | 'section';
-          level?: 1 | 2 | 3 | 4 | 5 | 6;
-          text: string;
-          position: number;
-          height: number;
-        }>;
-      };
-      tabId: number;
-      syncGroupId: string;
-    };
-
-    START_SYNC: ProtocolWithReturn<
-      {
-        tabIds: number[];
-        options: {
-          urlSyncEnabled: boolean;
-          keyboardModifier: 'alt' | 'ctrl' | 'shift' | null;
-          smoothScroll: boolean;
-          contentMatching: boolean;
-        };
-        syncGroupId?: string;
-        currentTabId?: number;
-      },
-      {
-        success: boolean;
-        groupId?: string;
-      }
+    'scroll:start': ProtocolWithReturn<StartSyncMessage, unknown>;
+    'scroll:stop': ProtocolWithReturn<StopSyncMessage, unknown>;
+    'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
+    'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
+    'scroll:baseline-update': SyncBaselineUpdateMessage;
+    'scroll:ping': ProtocolWithReturn<ScrollPingMessage, unknown>;
+    'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
+    'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;
+    'sync:status': SyncStatusBroadcastMessage;
+    'url:sync': ProtocolWithReturn<UrlSyncMessage, unknown>;
+    'element:match': ElementMatchMessage;
+    'panel:position': PanelPositionMessage;
+    'sync:url-enabled-changed': ProtocolWithReturn<UrlSyncEnabledChangedMessage, unknown>;
+    'auto-sync:status-changed': ProtocolWithReturn<AutoSyncStatusChangedMessage, unknown>;
+    'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
+    'auto-sync:get-status': ProtocolWithReturn<Record<string, never>, unknown>;
+    'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, unknown>;
+    'sync-suggestion:response': ProtocolWithReturn<SyncSuggestionResponseMessage, unknown>;
+    'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, unknown>;
+    'sync-suggestion:add-tab-response': ProtocolWithReturn<AddTabToSyncResponseMessage, unknown>;
+    'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
+    'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
+    'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
+    'auto-sync:get-excluded-domains': ProtocolWithReturn<
+      Record<string, never>,
+      { domains: Array<string> }
     >;
-
-    STOP_SYNC: ProtocolWithReturn<
-      {
-        syncGroupId: string;
-      },
-      {
-        success: boolean;
-      }
-    >;
-
-    GET_SYNC_STATUS: ProtocolWithReturn<
-      undefined,
-      {
-        groups: Array<{
-          id: string;
-          tabIds: number[];
-          createdAt: number;
-          isActive: boolean;
-          options: {
-            urlSyncEnabled: boolean;
-            keyboardModifier: 'alt' | 'ctrl' | 'shift' | null;
-            smoothScroll: boolean;
-            contentMatching: boolean;
-          };
-        }>;
-        activeTabs: number[];
-      }
-    >;
-
-    GET_SCROLL_POSITION: ProtocolWithReturn<
-      {
-        tabId?: number;
-      },
-      {
-        scrollTop: number;
-        scrollHeight: number;
-        clientHeight: number;
-        scrollPercentage: number;
-        timestamp: number;
-        sections?: Array<{
-          id: string;
-          type: 'heading' | 'paragraph' | 'section';
-          level?: 1 | 2 | 3 | 4 | 5 | 6;
-          text: string;
-          position: number;
-          height: number;
-        }>;
-      }
-    >;
-
-    SET_SCROLL_POSITION: {
-      position: {
-        scrollTop: number;
-        scrollHeight: number;
-        clientHeight: number;
-        scrollPercentage: number;
-        timestamp: number;
-        sections?: Array<{
-          id: string;
-          type: 'heading' | 'paragraph' | 'section';
-          level?: 1 | 2 | 3 | 4 | 5 | 6;
-          text: string;
-          position: number;
-          height: number;
-        }>;
-      };
-      smooth: boolean;
-      tabId: number;
-    };
-
-    CONTENT_ANALYSIS: {
-      sections: Array<{
-        id: string;
-        type: 'heading' | 'paragraph' | 'section';
-        level?: 1 | 2 | 3 | 4 | 5 | 6;
-        text: string;
-        position: number;
-        height: number;
-      }>;
-      tabId: number;
-    };
-
-    URL_CHANGED: {
-      tabId: number;
-      oldUrl: string;
-      newUrl: string;
-      syncGroupId: string;
-    };
-
-    TAB_ACTIVATED: {
-      tabId: number;
-    };
   }
 }
 

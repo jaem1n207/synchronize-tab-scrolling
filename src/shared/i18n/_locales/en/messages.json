@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "Adding this tab will reset your scroll position adjustments"
   },
+  "existingSyncWarning": {
+    "message": "You're currently syncing $COUNT$ tabs. Starting this will replace the active sync.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "Replace & Sync"
+  },
   "startSyncButton": {
     "message": "Start Sync"
   },
@@ -525,5 +537,62 @@
   },
   "skipButton": {
     "message": "Skip"
+  },
+  "manageExcludedDomains": {
+    "message": "Manage Excluded Domains"
+  },
+  "excludedDomainsDescription": {
+    "message": "Domains that will never show sync suggestions"
+  },
+  "addDomain": {
+    "message": "Add"
+  },
+  "addDomainPlaceholder": {
+    "message": "Paste URL or type domain..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "Remove $DOMAIN$",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "Don't show again for this site"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ will no longer show suggestions",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "No excluded domains"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "Domains you exclude will appear here"
+  },
+  "invalidDomain": {
+    "message": "Could not extract a valid domain"
+  },
+  "domainAlreadyExcluded": {
+    "message": "This domain is already excluded"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$ excluded",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmRemoveDomain": {
+    "message": "Press Enter to remove"
   }
 }
