@@ -13,6 +13,7 @@ import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
+  addTabSuggestedTabs,
   dismissedUrlGroups,
   excludedDomains,
   manualSyncOverriddenTabs,
@@ -20,6 +21,7 @@ import {
   SUGGESTION_SNOOZE_DURATION_MS,
   suggestionSnoozeUntil,
 } from '../lib/auto-sync-state';
+import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
 
@@ -82,11 +84,16 @@ vi.mock('../lib/auto-sync-lifecycle', () => ({
   toggleAutoSync: vi.fn(),
 }));
 
+vi.mock('../lib/keep-alive', () => ({
+  stopKeepAlive: vi.fn(),
+}));
+
 vi.mock('../lib/auto-sync-state', () => ({
   autoSyncState: {
     enabled: false,
     groups: new Map<string, AutoSyncGroup>(),
   },
+  addTabSuggestedTabs: new Set<number>(),
   manualSyncOverriddenTabs: new Set<number>(),
   dismissedUrlGroups: new Set<string>(),
   excludedDomains: new Set<string>(),
@@ -130,6 +137,7 @@ describe('registerAutoSyncHandlers', () => {
 
     autoSyncState.enabled = false;
     autoSyncState.groups.clear();
+    addTabSuggestedTabs.clear();
     manualSyncOverriddenTabs.clear();
     dismissedUrlGroups.clear();
     excludedDomains.clear();
@@ -144,6 +152,7 @@ describe('registerAutoSyncHandlers', () => {
 
     vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true });
     vi.mocked(toggleAutoSync).mockResolvedValue();
+    vi.mocked(stopKeepAlive).mockReset();
     vi.mocked(extractDomainFromUrl).mockReset();
     vi.mocked(extractDomainFromUrl).mockImplementation((url: string) => {
       try {
@@ -306,6 +315,75 @@ describe('registerAutoSyncHandlers', () => {
         { context: 'content-script', tabId: 20 },
         1_000,
       );
+    });
+
+    it('accepted response stops existing sync before starting new one', async () => {
+      const newNormalizedUrl = 'https://new.test/page';
+      autoSyncState.groups.set(newNormalizedUrl, { tabIds: new Set([10, 20]), isActive: false });
+      pendingSuggestions.add(newNormalizedUrl);
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.mode = 'ratio';
+
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (
+          messageId: string,
+          _data: unknown,
+          destination: { context: 'content-script'; tabId: number },
+        ) => {
+          if (messageId === 'scroll:stop') {
+            return { success: true, tabId: destination.tabId };
+          }
+          if (messageId === 'scroll:start') {
+            return { success: true, tabId: destination.tabId };
+          }
+          return { success: true, tabId: destination.tabId };
+        },
+      );
+
+      const handler = getRequiredHandler('sync-suggestion:response');
+      const response = await handler({
+        data: { normalizedUrl: newNormalizedUrl, accepted: true },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: true });
+
+      // Verify scroll:stop was sent to old tabs
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { tabIds: [1, 2] },
+        { context: 'content-script', tabId: 1 },
+        1_000,
+      );
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { tabIds: [1, 2] },
+        { context: 'content-script', tabId: 2 },
+        1_000,
+      );
+
+      // Verify new sync started with new tabs
+      expect(syncState.isActive).toBe(true);
+      expect(syncState.linkedTabs).toEqual([10, 20]);
+
+      // Verify old tabs are NOT in manualSyncOverriddenTabs
+      expect(manualSyncOverriddenTabs.has(1)).toBe(false);
+      expect(manualSyncOverriddenTabs.has(2)).toBe(false);
+
+      // Verify new tabs ARE in manualSyncOverriddenTabs
+      expect(manualSyncOverriddenTabs.has(10)).toBe(true);
+      expect(manualSyncOverriddenTabs.has(20)).toBe(true);
+
+      // Verify stopKeepAlive was called
+      expect(stopKeepAlive).toHaveBeenCalled();
+
+      // Verify addTabSuggestedTabs was cleared
+      expect(addTabSuggestedTabs.size).toBe(0);
+
+      // Verify pending suggestion was cleared
+      expect(pendingSuggestions.has(newNormalizedUrl)).toBe(false);
     });
 
     it('rejected response adds URL to dismissed groups', async () => {
