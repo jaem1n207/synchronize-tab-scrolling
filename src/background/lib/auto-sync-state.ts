@@ -19,6 +19,10 @@ export const addTabSuggestedTabs = new Set<number>();
 
 export const MAX_AUTO_SYNC_GROUP_SIZE = 10;
 
+export const SUGGESTION_SNOOZE_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+export const suggestionSnoozeUntil = new Map<string, number>();
+
 export const autoSyncFlags = {
   isToggling: false,
   isInitializing: false,
