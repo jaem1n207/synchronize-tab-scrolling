@@ -211,6 +211,8 @@ export interface SyncSuggestionResponseMessage {
   accepted: boolean;
   /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
   snooze?: boolean;
+  /** When true, the domain is permanently excluded from suggestions */
+  permanent?: boolean;
 }
 
 /**
@@ -231,6 +233,8 @@ export interface AddTabToSyncResponseMessage {
   accepted: boolean;
   /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
   snooze?: boolean;
+  /** When true, the domain is permanently excluded from suggestions */
+  permanent?: boolean;
   normalizedUrl?: string;
 }
 
@@ -246,6 +250,20 @@ export interface DismissAddTabToastMessage {
  */
 export interface DismissSyncSuggestionToastMessage {
   normalizedUrl: string;
+}
+
+/**
+ * Message to notify that permanently excluded domains have changed
+ */
+export interface ExcludedDomainsChangedMessage {
+  domains: Array<string>;
+}
+
+/**
+ * Response for excluded domains query
+ */
+export interface ExcludedDomainsResponse {
+  domains: Array<string>;
 }
 
 export interface ProtocolMap {
@@ -271,4 +289,6 @@ export interface ProtocolMap {
   'sync-suggestion:add-tab-response': AddTabToSyncResponseMessage;
   'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
   'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
+  'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
+  'auto-sync:get-excluded-domains': ExcludedDomainsResponse;
 }

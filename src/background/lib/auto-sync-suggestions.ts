@@ -8,6 +8,7 @@ import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 import {
   autoSyncState,
   dismissedUrlGroups,
+  excludedDomains,
   pendingSuggestions,
   suggestionSnoozeUntil,
 } from './auto-sync-state';
@@ -15,6 +16,12 @@ import { sendMessageWithTimeout } from './messaging';
 import { syncState } from './sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-suggestions' });
+
+export function isDomainPermanentlyExcluded(normalizedUrl: string): boolean {
+  const domain = extractDomainFromUrl(normalizedUrl);
+  if (!domain) return false;
+  return excludedDomains.has(domain);
+}
 
 export function isDomainSnoozed(normalizedUrl: string): boolean {
   const domain = extractDomainFromUrl(normalizedUrl);
@@ -65,6 +72,14 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   if (dismissedUrlGroups.has(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping suggestion - URL group dismissed by user', {
       normalizedUrl,
+    });
+    return;
+  }
+
+  if (isDomainPermanentlyExcluded(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping suggestion - domain is permanently excluded', {
+      normalizedUrl,
+      domain: extractDomainFromUrl(normalizedUrl),
     });
     return;
   }
@@ -263,6 +278,14 @@ export async function sendSuggestionToSingleTab(
   normalizedUrl: string,
   group: AutoSyncGroup,
 ): Promise<void> {
+  if (isDomainPermanentlyExcluded(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping single-tab suggestion - domain is permanently excluded', {
+      tabId,
+      normalizedUrl,
+    });
+    return;
+  }
+
   if (isDomainSnoozed(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping single-tab suggestion - domain is snoozed', {
       tabId,
@@ -332,6 +355,14 @@ export async function showAddTabSuggestion(
   tabTitle: string,
   normalizedUrl: string,
 ): Promise<void> {
+  if (isDomainPermanentlyExcluded(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is permanently excluded', {
+      tabId,
+      normalizedUrl,
+    });
+    return;
+  }
+
   if (isDomainSnoozed(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is snoozed', {
       tabId,

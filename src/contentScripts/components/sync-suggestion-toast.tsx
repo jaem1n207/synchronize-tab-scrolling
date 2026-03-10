@@ -23,6 +23,7 @@ interface SyncSuggestionToastProps {
   suggestion: SyncSuggestionMessage;
   onAccept: () => void;
   onReject: (snooze: boolean) => void;
+  onPermanentExclude?: () => void;
   className?: string;
 }
 
@@ -30,6 +31,7 @@ interface AddTabToastProps {
   suggestion: AddTabToSyncMessage;
   onAccept: () => void;
   onReject: (snooze: boolean) => void;
+  onPermanentExclude?: () => void;
   className?: string;
 }
 
@@ -41,22 +43,22 @@ export function SyncSuggestionToast({
   suggestion,
   onAccept,
   onReject,
+  onPermanentExclude,
   className,
 }: SyncSuggestionToastProps) {
   const [isVisible, setIsVisible] = React.useState(true);
   const reducedMotion = prefersReducedMotion();
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Issue 10 Fix: Use refs for callbacks to avoid timer restarts on parent re-render
-  // This keeps the timer and progress bar animation in sync
   const onRejectRef = React.useRef(onReject);
   const onAcceptRef = React.useRef(onAccept);
+  const onPermanentExcludeRef = React.useRef(onPermanentExclude);
 
-  // Update refs when callbacks change (doesn't trigger re-render or timer restart)
   React.useEffect(() => {
     onRejectRef.current = onReject;
     onAcceptRef.current = onAccept;
-  }, [onReject, onAccept]);
+    onPermanentExcludeRef.current = onPermanentExclude;
+  }, [onReject, onAccept, onPermanentExclude]);
 
   React.useEffect(() => {
     timerRef.current = setTimeout(() => {
@@ -155,6 +157,22 @@ export function SyncSuggestionToast({
             </Button>
           </div>
 
+          {onPermanentExcludeRef.current && (
+            <button
+              className="mt-2 w-full text-center text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors py-1"
+              type="button"
+              onClick={() => {
+                if (timerRef.current) {
+                  clearTimeout(timerRef.current);
+                }
+                setIsVisible(false);
+                setTimeout(() => onPermanentExcludeRef.current?.(), 200);
+              }}
+            >
+              {t('neverShowAgainForDomain')}
+            </button>
+          )}
+
           {/* Progress bar for auto-dismiss */}
           <div className="mt-3 h-1 bg-muted rounded-full overflow-hidden">
             <motion.div
@@ -174,21 +192,26 @@ export function SyncSuggestionToast({
  * Toast component for suggesting adding a new tab to existing sync
  * Shows when a new tab with same URL is detected while manual sync is active
  */
-export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }: AddTabToastProps) {
+export function AddTabToSyncToast({
+  suggestion,
+  onAccept,
+  onReject,
+  onPermanentExclude,
+  className,
+}: AddTabToastProps) {
   const [isVisible, setIsVisible] = React.useState(true);
   const reducedMotion = prefersReducedMotion();
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Issue 10 Fix: Use refs for callbacks to avoid timer restarts on parent re-render
-  // This keeps the timer and progress bar animation in sync
   const onRejectRef = React.useRef(onReject);
   const onAcceptRef = React.useRef(onAccept);
+  const onPermanentExcludeRef = React.useRef(onPermanentExclude);
 
-  // Update refs when callbacks change (doesn't trigger re-render or timer restart)
   React.useEffect(() => {
     onRejectRef.current = onReject;
     onAcceptRef.current = onAccept;
-  }, [onReject, onAccept]);
+    onPermanentExcludeRef.current = onPermanentExclude;
+  }, [onReject, onAccept, onPermanentExclude]);
 
   React.useEffect(() => {
     timerRef.current = setTimeout(() => {
@@ -289,6 +312,22 @@ export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }:
               {t('skipButton')}
             </Button>
           </div>
+
+          {onPermanentExcludeRef.current && (
+            <button
+              className="mt-2 w-full text-center text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors py-1"
+              type="button"
+              onClick={() => {
+                if (timerRef.current) {
+                  clearTimeout(timerRef.current);
+                }
+                setIsVisible(false);
+                setTimeout(() => onPermanentExcludeRef.current?.(), 200);
+              }}
+            >
+              {t('neverShowAgainForDomain')}
+            </button>
+          )}
 
           {/* Progress bar for auto-dismiss */}
           <div className="mt-3 h-1 bg-muted rounded-full overflow-hidden">

@@ -525,5 +525,62 @@
   },
   "skipButton": {
     "message": "跳过"
+  },
+  "manageExcludedDomains": {
+    "message": "管理排除域名"
+  },
+  "excludedDomainsDescription": {
+    "message": "永不显示同步建议的域名"
+  },
+  "addDomain": {
+    "message": "添加"
+  },
+  "addDomainPlaceholder": {
+    "message": "粘贴URL或输入域名..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "移除 $DOMAIN$",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "不再为此站点显示"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ 将不再显示同步建议",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "暂无排除域名"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "排除的域名将显示在此处"
+  },
+  "invalidDomain": {
+    "message": "无法提取有效域名"
+  },
+  "domainAlreadyExcluded": {
+    "message": "此域名已被排除"
+  },
+  "excludedDomainsCount": {
+    "message": "已排除 $COUNT$ 个",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmRemoveDomain": {
+    "message": "按 Enter 删除"
   }
 }

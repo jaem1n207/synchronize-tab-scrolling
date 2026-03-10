@@ -83,6 +83,7 @@ vi.mock('~/shared/lib/logger', () => ({
 vi.mock('~/shared/lib/storage', () => ({
   loadAutoSyncEnabled: loadAutoSyncEnabledMock,
   loadAutoSyncExcludedUrls: loadAutoSyncExcludedUrlsMock,
+  loadExcludedDomains: vi.fn().mockResolvedValue([]),
   clearExpiredSnoozes: clearExpiredSnoozesMock,
   clearAllSnoozes: clearAllSnoozesMock,
   saveAutoSyncEnabled: saveAutoSyncEnabledMock,
@@ -98,6 +99,7 @@ vi.mock('./auto-sync-state', () => ({
   autoSyncState: autoSyncStateMock,
   autoSyncRetryTimers: autoSyncRetryTimersMock,
   dismissedUrlGroups: dismissedUrlGroupsMock,
+  excludedDomains: new Set<string>(),
   pendingSuggestions: pendingSuggestionsMock,
   suggestionSnoozeUntil: suggestionSnoozeUntilMock,
   autoSyncFlags: autoSyncFlagsMock,

@@ -3,13 +3,18 @@ import browser from 'webextension-polyfill';
 
 import { extractDomainFromUrl } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { saveSuggestionSnooze } from '~/shared/lib/storage';
+import {
+  loadExcludedDomains,
+  saveExcludedDomains,
+  saveSuggestionSnooze,
+} from '~/shared/lib/storage';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
 import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
+  excludedDomains,
   manualSyncOverriddenTabs,
   dismissedUrlGroups,
   pendingSuggestions,
@@ -204,7 +209,17 @@ export function registerAutoSyncHandlers(): void {
     } else {
       dismissedUrlGroups.add(payload.normalizedUrl);
 
-      if (payload.snooze) {
+      if (payload.permanent) {
+        const domain = extractDomainFromUrl(payload.normalizedUrl);
+        if (domain) {
+          excludedDomains.add(domain);
+          await saveExcludedDomains(Array.from(excludedDomains));
+          logger.info('[AUTO-SYNC] User permanently excluded domain from suggestions', {
+            normalizedUrl: payload.normalizedUrl,
+            domain,
+          });
+        }
+      } else if (payload.snooze) {
         const domain = extractDomainFromUrl(payload.normalizedUrl);
         if (domain) {
           const expiresAt = Date.now() + SUGGESTION_SNOOZE_DURATION_MS;
@@ -303,6 +318,16 @@ export function registerAutoSyncHandlers(): void {
         logger.error('[AUTO-SYNC] Failed to add tab to sync', { tabId, error });
         return { success: false, error: String(error) };
       }
+    } else if (!payload.accepted && payload.permanent && payload.normalizedUrl) {
+      const domain = extractDomainFromUrl(payload.normalizedUrl);
+      if (domain) {
+        excludedDomains.add(domain);
+        await saveExcludedDomains(Array.from(excludedDomains));
+        logger.info('[AUTO-SYNC] User permanently excluded domain from add-tab suggestions', {
+          tabId: payload.tabId,
+          domain,
+        });
+      }
     } else if (!payload.accepted && payload.snooze && payload.normalizedUrl) {
       const domain = extractDomainFromUrl(payload.normalizedUrl);
       if (domain) {
@@ -318,5 +343,20 @@ export function registerAutoSyncHandlers(): void {
     }
 
     return { success: true };
+  });
+
+  onMessage('auto-sync:excluded-domains-changed', async ({ data }) => {
+    const { domains } = data;
+    excludedDomains.clear();
+    for (const domain of domains) {
+      excludedDomains.add(domain);
+    }
+    await saveExcludedDomains(domains);
+    logger.info('[AUTO-SYNC] Excluded domains updated from popup', { domains });
+  });
+
+  onMessage('auto-sync:get-excluded-domains', async () => {
+    const domains = await loadExcludedDomains();
+    return { domains };
   });
 }

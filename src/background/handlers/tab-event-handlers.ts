@@ -23,6 +23,7 @@ import {
   sendSuggestionToSingleTab,
   showAddTabSuggestion,
   isDomainSnoozed,
+  isDomainPermanentlyExcluded,
 } from '../lib/auto-sync-suggestions';
 import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
 import { stopKeepAlive } from '../lib/keep-alive';
@@ -150,6 +151,7 @@ export function registerTabEventHandlers(): void {
               currentGroup.tabIds.size >= 2 &&
               !currentGroup.isActive &&
               !dismissedUrlGroups.has(normalizedUrl) &&
+              !isDomainPermanentlyExcluded(normalizedUrl) &&
               !isDomainSnoozed(normalizedUrl)
             ) {
               if (pendingSuggestions.has(normalizedUrl) && tab.id !== undefined) {
@@ -214,6 +216,7 @@ export function registerTabEventHandlers(): void {
               existingGroup.tabIds.size >= 2 &&
               !pendingSuggestions.has(normalizedUrl) &&
               !dismissedUrlGroups.has(normalizedUrl) &&
+              !isDomainPermanentlyExcluded(normalizedUrl) &&
               !isDomainSnoozed(normalizedUrl) &&
               !(syncState.isActive && syncState.linkedTabs.includes(tabId))
             ) {

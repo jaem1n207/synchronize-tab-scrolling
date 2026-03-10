@@ -7,6 +7,7 @@ import {
   getManualScrollOffset,
   loadAutoSyncEnabled,
   loadAutoSyncExcludedUrls,
+  loadExcludedDomains,
   loadManualScrollOffsets,
   loadPanelMinimized,
   loadSelectedTabIds,
@@ -14,6 +15,7 @@ import {
   loadUrlSyncEnabled,
   saveAutoSyncEnabled,
   saveAutoSyncExcludedUrls,
+  saveExcludedDomains,
   saveManualScrollOffset,
   savePanelMinimized,
   saveSelectedTabIds,
@@ -534,6 +536,62 @@ describe('loadAutoSyncExcludedUrls', () => {
 
     await expect(loadAutoSyncExcludedUrls()).resolves.toEqual([]);
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to load auto-sync excluded URLs:', error);
+  });
+});
+
+describe('saveExcludedDomains', () => {
+  it('saves excluded domains', async () => {
+    storageSetMock.mockResolvedValue(undefined);
+
+    await saveExcludedDomains(['github.com', 'docs.google.com']);
+
+    expect(storageSetMock).toHaveBeenCalledWith({
+      autoSyncExcludedDomains: ['github.com', 'docs.google.com'],
+    });
+  });
+
+  it('saves empty array', async () => {
+    storageSetMock.mockResolvedValue(undefined);
+
+    await saveExcludedDomains([]);
+
+    expect(storageSetMock).toHaveBeenCalledWith({
+      autoSyncExcludedDomains: [],
+    });
+  });
+
+  it('logs an error when save fails', async () => {
+    const error = new Error('set failed');
+    storageSetMock.mockRejectedValue(error);
+
+    await saveExcludedDomains(['github.com']);
+
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to save excluded domains:', error);
+  });
+});
+
+describe('loadExcludedDomains', () => {
+  it('returns stored excluded domains', async () => {
+    storageGetMock.mockResolvedValue({
+      autoSyncExcludedDomains: ['github.com', 'docs.google.com'],
+    });
+
+    await expect(loadExcludedDomains()).resolves.toEqual(['github.com', 'docs.google.com']);
+    expect(storageGetMock).toHaveBeenCalledWith('autoSyncExcludedDomains');
+  });
+
+  it('returns empty array by default when key is missing', async () => {
+    storageGetMock.mockResolvedValue({});
+
+    await expect(loadExcludedDomains()).resolves.toEqual([]);
+  });
+
+  it('returns empty array and logs error when load fails', async () => {
+    const error = new Error('get failed');
+    storageGetMock.mockRejectedValue(error);
+
+    await expect(loadExcludedDomains()).resolves.toEqual([]);
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to load excluded domains:', error);
   });
 });
 

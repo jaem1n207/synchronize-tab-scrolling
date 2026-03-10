@@ -7,10 +7,12 @@ import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 import {
   autoSyncState,
   dismissedUrlGroups,
+  excludedDomains,
   pendingSuggestions,
   suggestionSnoozeUntil,
 } from './auto-sync-state';
 import {
+  isDomainPermanentlyExcluded,
   isDomainSnoozed,
   sendSuggestionToSingleTab,
   showAddTabSuggestion,
@@ -59,6 +61,7 @@ vi.mock('./auto-sync-state', () => ({
     excludedUrls: [] as Array<string>,
   },
   dismissedUrlGroups: new Set<string>(),
+  excludedDomains: new Set<string>(),
   pendingSuggestions: new Set<string>(),
   suggestionSnoozeUntil: new Map<string, number>(),
 }));
@@ -124,6 +127,7 @@ describe('auto-sync-suggestions', () => {
     autoSyncState.groups.clear();
     autoSyncState.excludedUrls = [];
     dismissedUrlGroups.clear();
+    excludedDomains.clear();
     pendingSuggestions.clear();
     suggestionSnoozeUntil.clear();
 
@@ -181,6 +185,25 @@ describe('auto-sync-suggestions', () => {
       extractDomainFromUrlMock.mockReturnValueOnce(null);
 
       expect(isDomainSnoozed('https://example.test/page')).toBe(false);
+    });
+  });
+
+  describe('isDomainPermanentlyExcluded', () => {
+    it('returns true when domain is in excluded set', () => {
+      excludedDomains.add('github.com');
+      expect(isDomainPermanentlyExcluded('https://github.com/user/repo')).toBe(true);
+    });
+
+    it('returns false when domain is not in excluded set', () => {
+      expect(isDomainPermanentlyExcluded('https://github.com/user/repo')).toBe(false);
+    });
+
+    it('returns false for invalid URLs', () => {
+      expect(isDomainPermanentlyExcluded('not-a-url')).toBe(false);
+    });
+
+    it('returns false for empty excludedDomains set', () => {
+      expect(isDomainPermanentlyExcluded('https://example.com')).toBe(false);
     });
   });
 

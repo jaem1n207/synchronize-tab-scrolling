@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   URL_SYNC_ENABLED: 'urlSyncEnabled',
   AUTO_SYNC_ENABLED: 'autoSyncEnabled',
   AUTO_SYNC_EXCLUDED_URLS: 'autoSyncExcludedUrls',
+  AUTO_SYNC_EXCLUDED_DOMAINS: 'autoSyncExcludedDomains',
   SUGGESTION_SNOOZE_UNTIL: 'suggestionSnoozeUntil',
 } as const;
 
@@ -291,6 +292,34 @@ export async function loadAutoSyncExcludedUrls(): Promise<Array<string>> {
     return (result[STORAGE_KEYS.AUTO_SYNC_EXCLUDED_URLS] as Array<string>) || [];
   } catch (error) {
     await logger.error('Failed to load auto-sync excluded URLs:', error);
+    return [];
+  }
+}
+
+/**
+ * Save permanently excluded domains for auto-sync suggestions
+ * @param domains - Array of normalized domain strings to exclude
+ */
+export async function saveExcludedDomains(domains: Array<string>): Promise<void> {
+  try {
+    await browser.storage.local.set({
+      [STORAGE_KEYS.AUTO_SYNC_EXCLUDED_DOMAINS]: domains,
+    });
+  } catch (error) {
+    await logger.error('Failed to save excluded domains:', error);
+  }
+}
+
+/**
+ * Load permanently excluded domains for auto-sync suggestions
+ * @returns Array of normalized domain strings excluded from auto-sync
+ */
+export async function loadExcludedDomains(): Promise<Array<string>> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.AUTO_SYNC_EXCLUDED_DOMAINS);
+    return (result[STORAGE_KEYS.AUTO_SYNC_EXCLUDED_DOMAINS] as Array<string>) || [];
+  } catch (error) {
+    await logger.error('Failed to load excluded domains:', error);
     return [];
   }
 }

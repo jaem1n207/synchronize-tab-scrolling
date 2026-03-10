@@ -79,17 +79,43 @@ export function isUrlExcluded(url: string, patterns: Array<string>): boolean {
 }
 
 /**
+ * Normalize a domain by lowercasing and stripping the `www.` prefix.
+ *
+ * This ensures consistent domain matching regardless of whether the user
+ * navigated to `www.github.com` or `github.com`.
+ *
+ * @param domain - Raw domain string (hostname) to normalize
+ * @returns Normalized domain without `www.` prefix, lowercased
+ *
+ * @example
+ * normalizeDomain('www.GitHub.com')
+ * // => 'github.com'
+ *
+ * normalizeDomain('api.example.com')
+ * // => 'api.example.com'
+ */
+export function normalizeDomain(domain: string): string {
+  const lower = domain.toLowerCase();
+  return lower.startsWith('www.') ? lower.slice(4) : lower;
+}
+
+/**
  * Extract the domain (hostname) from a URL.
  *
- * Used for domain-level snooze: when a user dismisses a sync suggestion,
- * all suggestions for the same domain are suppressed for a configurable duration.
+ * Used for domain-level snooze and permanent exclusion: when a user dismisses
+ * a sync suggestion, all suggestions for the same domain are suppressed.
+ * The `www.` prefix is stripped so that `www.github.com` and `github.com`
+ * are treated as the same domain.
  *
  * @param url - URL string or normalized URL to extract the domain from
- * @returns Lowercase hostname (e.g., `github.com`) or `null` for invalid input
+ * @returns Normalized lowercase hostname (e.g., `github.com`) or `null` for invalid input
  *
  * @example
  * extractDomainFromUrl('https://github.com/user/repo/pulls?q=1')
  * // => 'github.com'
+ *
+ * extractDomainFromUrl('https://www.example.com/page')
+ * // => 'example.com'
  *
  * extractDomainFromUrl('https://api.example.com/endpoint')
  * // => 'api.example.com'
@@ -105,7 +131,7 @@ export function extractDomainFromUrl(url: string): string | null {
       return null;
     }
 
-    return parsed.hostname.toLowerCase();
+    return normalizeDomain(parsed.hostname);
   } catch {
     return null;
   }

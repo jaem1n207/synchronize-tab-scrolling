@@ -22,6 +22,7 @@ import {
   showSyncSuggestion,
   sendSuggestionToSingleTab,
   isDomainSnoozed,
+  isDomainPermanentlyExcluded,
 } from './auto-sync-suggestions';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
@@ -223,6 +224,7 @@ async function updateAutoSyncGroupInternal(
   if (
     shouldShowSuggestion &&
     !dismissedUrlGroups.has(normalizedUrl) &&
+    !isDomainPermanentlyExcluded(normalizedUrl) &&
     !isDomainSnoozed(normalizedUrl)
   ) {
     if (pendingSuggestions.has(normalizedUrl)) {

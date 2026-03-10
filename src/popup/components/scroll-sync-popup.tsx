@@ -1,12 +1,20 @@
-import { useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
 import { saveSelectedTabIds } from '~/shared/lib/storage';
 
-import { useAutoSync, usePopupState, useSyncControl, useTabDiscovery, useUrlSync } from '../hooks';
+import {
+  useAutoSync,
+  useDomainExclusions,
+  usePopupState,
+  useSyncControl,
+  useTabDiscovery,
+  useUrlSync,
+} from '../hooks';
 
 import { ActionsMenu } from './actions-menu';
 import { ErrorNotification } from './error-notification';
+import { ExcludedDomainsDialog } from './excluded-domains-dialog';
 import { FooterInfo } from './footer-info';
 import { SelectedTabsChips } from './selected-tabs-chips';
 import { SyncControlButtons } from './sync-control-buttons';
@@ -29,6 +37,8 @@ export function ScrollSyncPopup() {
 
   const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
   const { urlSyncEnabled, handleUrlSyncChange } = useUrlSync();
+  const { excludedDomains, addDomain, removeDomain, previewDomain } = useDomainExclusions();
+  const [excludedDomainsOpen, setExcludedDomainsOpen] = useState(false);
 
   const {
     tabs,
@@ -56,6 +66,16 @@ export function ScrollSyncPopup() {
 
   const error = tabDiscoveryError ?? syncError;
   const dismissError = tabDiscoveryError ? dismissTabDiscoveryError : handleDismissError;
+
+  useEffect(() => {
+    if (!excludedDomainsOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [excludedDomainsOpen, searchInputRef]);
+
+  const handleOpenExcludedDomains = useCallback(() => {
+    setExcludedDomainsOpen(true);
+  }, []);
 
   const handleSelectAll = useCallback(() => {
     if (!syncStatus.isActive) {
@@ -175,6 +195,7 @@ export function ScrollSyncPopup() {
           <ActionsMenu
             autoSyncEnabled={autoSyncEnabled}
             autoSyncTabCount={autoSyncTabCount}
+            excludedDomainsCount={excludedDomains.length}
             isSyncActive={syncStatus.isActive}
             open={actionsMenuOpen}
             sameDomainFilter={sameDomainFilter}
@@ -183,6 +204,7 @@ export function ScrollSyncPopup() {
             urlSyncEnabled={urlSyncEnabled}
             onAutoSyncChange={handleAutoSyncChange}
             onOpenChange={setActionsMenuOpen}
+            onOpenExcludedDomains={handleOpenExcludedDomains}
             onSameDomainFilterChange={setSameDomainFilter}
             onSortChange={setSortBy}
             onStartSync={handleStart}
@@ -194,6 +216,15 @@ export function ScrollSyncPopup() {
       </div>
 
       <FooterInfo />
+
+      <ExcludedDomainsDialog
+        excludedDomains={excludedDomains}
+        open={excludedDomainsOpen}
+        onAddDomain={addDomain}
+        onOpenChange={setExcludedDomainsOpen}
+        onPreviewDomain={previewDomain}
+        onRemoveDomain={removeDomain}
+      />
     </div>
   );
 }

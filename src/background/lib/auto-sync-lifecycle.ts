@@ -5,6 +5,7 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadAutoSyncEnabled,
   loadAutoSyncExcludedUrls,
+  loadExcludedDomains,
   saveAutoSyncEnabled,
   clearExpiredSnoozes,
   clearAllSnoozes,
@@ -19,6 +20,7 @@ import {
   autoSyncState,
   autoSyncRetryTimers,
   dismissedUrlGroups,
+  excludedDomains,
   pendingSuggestions,
   autoSyncFlags,
   suggestionSnoozeUntil,
@@ -54,9 +56,16 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
       suggestionSnoozeUntil.set(domain, expiresAt);
     }
 
+    const storedExcludedDomains = await loadExcludedDomains();
+    excludedDomains.clear();
+    for (const domain of storedExcludedDomains) {
+      excludedDomains.add(domain);
+    }
+
     logger.info('[AUTO-SYNC] State loaded', {
       enabled: autoSyncState.enabled,
       excludedUrls: autoSyncState.excludedUrls,
+      excludedDomains: storedExcludedDomains,
       activeSnoozeDomains: Object.keys(activeSnoozes),
     });
 

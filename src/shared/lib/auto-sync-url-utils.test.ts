@@ -5,6 +5,7 @@ import {
   isUrlExcluded,
   isLocalDevelopmentServer,
   extractDomainFromUrl,
+  normalizeDomain,
 } from './auto-sync-url-utils';
 
 describe('normalizeUrlForAutoSync', () => {
@@ -236,6 +237,54 @@ describe('isUrlExcluded', () => {
   });
 });
 
+describe('normalizeDomain', () => {
+  describe('www. prefix stripping', () => {
+    it('should strip www. prefix', () => {
+      expect(normalizeDomain('www.github.com')).toBe('github.com');
+    });
+
+    it('should strip www. prefix with mixed case', () => {
+      expect(normalizeDomain('WWW.GitHub.COM')).toBe('github.com');
+    });
+
+    it('should not strip www from subdomain that starts with www but is not www.', () => {
+      expect(normalizeDomain('www2.example.com')).toBe('www2.example.com');
+    });
+  });
+
+  describe('domains without www. prefix', () => {
+    it('should return domain unchanged (lowercased)', () => {
+      expect(normalizeDomain('github.com')).toBe('github.com');
+    });
+
+    it('should lowercase the domain', () => {
+      expect(normalizeDomain('GitHub.COM')).toBe('github.com');
+    });
+
+    it('should preserve subdomains', () => {
+      expect(normalizeDomain('api.example.com')).toBe('api.example.com');
+    });
+
+    it('should preserve multiple subdomains', () => {
+      expect(normalizeDomain('sub.api.example.com')).toBe('sub.api.example.com');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle empty string', () => {
+      expect(normalizeDomain('')).toBe('');
+    });
+
+    it('should handle www. alone', () => {
+      expect(normalizeDomain('www.')).toBe('');
+    });
+
+    it('should handle localhost', () => {
+      expect(normalizeDomain('localhost')).toBe('localhost');
+    });
+  });
+});
+
 describe('extractDomainFromUrl', () => {
   describe('standard URLs', () => {
     it('should extract domain from HTTPS URL', () => {
@@ -300,6 +349,24 @@ describe('extractDomainFromUrl', () => {
 
     it('should extract hostname from URL with non-default port', () => {
       expect(extractDomainFromUrl('https://example.com:8443/page')).toBe('example.com');
+    });
+  });
+
+  describe('www. prefix stripping', () => {
+    it('should strip www. prefix from domain', () => {
+      expect(extractDomainFromUrl('https://www.github.com/user/repo')).toBe('github.com');
+    });
+
+    it('should strip www. prefix from domain with path and query', () => {
+      expect(extractDomainFromUrl('https://www.example.com/page?q=1#section')).toBe('example.com');
+    });
+
+    it('should not strip www from non-www subdomain', () => {
+      expect(extractDomainFromUrl('https://www2.example.com/page')).toBe('www2.example.com');
+    });
+
+    it('should strip www. with mixed case', () => {
+      expect(extractDomainFromUrl('https://WWW.Example.COM/path')).toBe('example.com');
     });
   });
 });

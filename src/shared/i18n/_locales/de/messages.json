@@ -525,5 +525,62 @@
   },
   "skipButton": {
     "message": "Überspringen"
+  },
+  "manageExcludedDomains": {
+    "message": "Ausgeschlossene Domains verwalten"
+  },
+  "excludedDomainsDescription": {
+    "message": "Domains, für die keine Synchronisierungsvorschläge angezeigt werden"
+  },
+  "addDomain": {
+    "message": "Hinzufügen"
+  },
+  "addDomainPlaceholder": {
+    "message": "URL einfügen oder Domain eingeben..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "$DOMAIN$ entfernen",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "Für diese Website nicht mehr anzeigen"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ zeigt keine Vorschläge mehr an",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "Keine ausgeschlossenen Domains"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "Ausgeschlossene Domains werden hier angezeigt"
+  },
+  "invalidDomain": {
+    "message": "Konnte keine gültige Domain extrahieren"
+  },
+  "domainAlreadyExcluded": {
+    "message": "Diese Domain ist bereits ausgeschlossen"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$ ausgeschlossen",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "confirmRemoveDomain": {
+    "message": "Enter zum Entfernen"
   }
 }

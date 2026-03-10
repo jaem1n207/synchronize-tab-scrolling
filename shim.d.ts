@@ -6,6 +6,7 @@ import type {
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
+  ExcludedDomainsChangedMessage,
   ManualScrollMessage,
   PanelPositionMessage,
   ScrollPingMessage,
@@ -53,6 +54,11 @@ declare module 'webext-bridge' {
     'sync-suggestion:add-tab-response': ProtocolWithReturn<AddTabToSyncResponseMessage, unknown>;
     'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
     'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
+    'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
+    'auto-sync:get-excluded-domains': ProtocolWithReturn<
+      Record<string, never>,
+      { domains: Array<string> }
+    >;
   }
 }
 

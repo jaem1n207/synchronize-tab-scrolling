@@ -11,6 +11,8 @@ export type {
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
+  ExcludedDomainsChangedMessage,
+  ExcludedDomainsResponse,
   ManualScrollMessage,
   PanelPositionMessage,
   ProtocolMap,
