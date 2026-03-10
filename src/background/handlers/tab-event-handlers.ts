@@ -16,6 +16,7 @@ import {
   manualSyncOverriddenTabs,
   dismissedUrlGroups,
   pendingSuggestions,
+  addTabSuggestedTabs,
 } from '../lib/auto-sync-state';
 import {
   showSyncSuggestion,
@@ -190,7 +191,8 @@ export function registerTabEventHandlers(): void {
             }),
           );
 
-          if (syncedTabsWithSameUrl.some((match) => match)) {
+          if (syncedTabsWithSameUrl.some((match) => match) && !addTabSuggestedTabs.has(tabId)) {
+            addTabSuggestedTabs.add(tabId);
             logger.info('[AUTO-SYNC] Detected new tab with same URL as synced tab (immediate)', {
               tabId,
               normalizedUrl,

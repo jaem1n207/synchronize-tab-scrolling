@@ -14,6 +14,9 @@ export const dismissedUrlGroups = new Set<string>();
 
 export const pendingSuggestions = new Set<string>();
 
+/** Dedup guard: tabs already shown add-tab suggestion this sync session. Cleared on sync stop. */
+export const addTabSuggestedTabs = new Set<number>();
+
 export const MAX_AUTO_SYNC_GROUP_SIZE = 10;
 
 export const autoSyncFlags = {
