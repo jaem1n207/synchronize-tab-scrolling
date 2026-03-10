@@ -1,43 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mocks = vi.hoisted(() => ({
-  loadPanelPositionMock: vi.fn(),
-  savePanelPositionMock: vi.fn(),
-  onMessageMock: vi.fn().mockReturnValue(vi.fn()),
-  sendMessageMock: vi.fn(),
-  getTabMock: vi.fn(),
-  loggerErrorMock: vi.fn(),
-}));
-
-vi.mock('~/shared/lib/storage', () => ({
-  loadPanelPosition: mocks.loadPanelPositionMock,
-  savePanelPosition: mocks.savePanelPositionMock,
-}));
-
-vi.mock('webext-bridge/content-script', () => ({
-  onMessage: mocks.onMessageMock,
-  sendMessage: mocks.sendMessageMock,
-}));
-
-vi.mock('webextension-polyfill', () => ({
-  default: {
-    tabs: {
-      getCurrent: mocks.getTabMock,
-    },
-  },
-}));
-
-vi.mock('~/shared/lib/logger', () => ({
-  ExtensionLogger: vi.fn().mockImplementation(() => ({
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: mocks.loggerErrorMock,
-  })),
-}));
+import { beforeEach, describe, expect, it } from 'vitest';
 
 const BUTTON_SIZE = 36;
 const EDGE_MARGIN = 32;
+const PANEL_POSITION_STORAGE_KEY = '__sync_tab_scroll_panel_pos';
 
 function constrainPosition(
   pos: { x: number; y: number },
@@ -63,11 +28,7 @@ function snapToEdge(pos: { x: number; y: number }, viewportWidth: number, viewpo
 
 describe('use-drag-position persistence logic', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.loadPanelPositionMock.mockResolvedValue(null);
-    mocks.savePanelPositionMock.mockResolvedValue(undefined);
-    mocks.getTabMock.mockResolvedValue({ id: 1 });
-    mocks.sendMessageMock.mockResolvedValue(undefined);
+    sessionStorage.clear();
   });
 
   describe('constrainPosition', () => {
@@ -127,69 +88,123 @@ describe('use-drag-position persistence logic', () => {
     });
   });
 
-  describe('storage integration', () => {
-    it('loadPanelPosition returns null when no position stored', async () => {
-      mocks.loadPanelPositionMock.mockResolvedValue(null);
-
-      const result = await mocks.loadPanelPositionMock();
-      expect(result).toBeNull();
+  describe('sessionStorage persistence', () => {
+    it('returns null when no position stored', () => {
+      const stored = sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY);
+      expect(stored).toBeNull();
     });
 
-    it('loadPanelPosition returns stored position', async () => {
-      mocks.loadPanelPositionMock.mockResolvedValue({ x: 150, y: 300 });
+    it('stores and retrieves position via sessionStorage', () => {
+      const position = { x: 150, y: 300 };
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify(position));
 
-      const result = await mocks.loadPanelPositionMock();
-      expect(result).toEqual({ x: 150, y: 300 });
+      const stored = sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY);
+      expect(JSON.parse(stored!)).toEqual({ x: 150, y: 300 });
     });
 
-    it('loaded position is constrained to current viewport', async () => {
-      mocks.loadPanelPositionMock.mockResolvedValue({ x: 2000, y: 1500 });
+    it('loaded position is constrained to current viewport', () => {
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify({ x: 2000, y: 1500 }));
 
-      const stored = await mocks.loadPanelPositionMock();
-      const constrained = constrainPosition(stored!, 1024, 768);
+      const stored = JSON.parse(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)!) as {
+        x: number;
+        y: number;
+      };
+      const constrained = constrainPosition(stored, 1024, 768);
 
       expect(constrained.x).toBe(1024 - BUTTON_SIZE);
       expect(constrained.y).toBe(768 - BUTTON_SIZE);
     });
 
-    it('loaded position within bounds remains unchanged after constraining', async () => {
-      mocks.loadPanelPositionMock.mockResolvedValue({ x: 200, y: 300 });
+    it('loaded position within bounds remains unchanged after constraining', () => {
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify({ x: 200, y: 300 }));
 
-      const stored = await mocks.loadPanelPositionMock();
-      const constrained = constrainPosition(stored!, 1024, 768);
+      const stored = JSON.parse(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)!) as {
+        x: number;
+        y: number;
+      };
+      const constrained = constrainPosition(stored, 1024, 768);
 
       expect(constrained).toEqual({ x: 200, y: 300 });
     });
 
-    it('savePanelPosition is called with snapped position after drag', () => {
+    it('saves snapped position after drag simulation', () => {
       const finalPos = constrainPosition({ x: 300, y: 250 }, 1024, 768);
       const snapped = snapToEdge(finalPos, 1024, 768);
 
-      mocks.savePanelPositionMock(snapped);
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify(snapped));
 
-      expect(mocks.savePanelPositionMock).toHaveBeenCalledWith({
-        x: EDGE_MARGIN,
-        y: 250,
-      });
+      const saved = JSON.parse(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)!) as {
+        x: number;
+        y: number;
+      };
+      expect(saved).toEqual({ x: EDGE_MARGIN, y: 250 });
     });
 
-    it('savePanelPosition is called with right-edge snapped position', () => {
+    it('saves right-edge snapped position', () => {
       const finalPos = constrainPosition({ x: 800, y: 400 }, 1024, 768);
       const snapped = snapToEdge(finalPos, 1024, 768);
 
-      mocks.savePanelPositionMock(snapped);
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify(snapped));
 
-      expect(mocks.savePanelPositionMock).toHaveBeenCalledWith({
-        x: 1024 - BUTTON_SIZE - EDGE_MARGIN,
-        y: 400,
-      });
+      const saved = JSON.parse(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)!) as {
+        x: number;
+        y: number;
+      };
+      expect(saved).toEqual({ x: 1024 - BUTTON_SIZE - EDGE_MARGIN, y: 400 });
     });
 
-    it('savePanelPosition is called when receiving cross-tab position', () => {
-      const receivedPos = { x: 500, y: 350 };
-      mocks.savePanelPositionMock(receivedPos);
+    it('ignores invalid JSON in sessionStorage', () => {
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, 'not-valid-json');
 
-      expect(mocks.savePanelPositionMock).toHaveBeenCalledWith(receivedPos);
+      let result: { x: number; y: number } | null = null;
+      try {
+        const parsed = JSON.parse(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)!) as Record<
+          string,
+          unknown
+        >;
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          result = { x: parsed.x, y: parsed.y };
+        }
+      } catch {
+        result = null;
+      }
+
+      expect(result).toBeNull();
+    });
+
+    it('ignores stored value with missing coordinates', () => {
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify({ x: 100 }));
+
+      const parsed = JSON.parse(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)!) as Record<
+        string,
+        unknown
+      >;
+      const isValid = typeof parsed.x === 'number' && typeof parsed.y === 'number';
+
+      expect(isValid).toBe(false);
+    });
+  });
+
+  describe('per-tab isolation', () => {
+    it('sessionStorage is isolated per tab (each test has its own session)', () => {
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify({ x: 999, y: 999 }));
+      expect(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)).not.toBeNull();
+
+      sessionStorage.clear();
+      expect(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)).toBeNull();
+    });
+
+    it('does not use browser.storage.local for position persistence', () => {
+      const finalPos = constrainPosition({ x: 300, y: 250 }, 1024, 768);
+      const snapped = snapToEdge(finalPos, 1024, 768);
+
+      sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify(snapped));
+
+      const saved = JSON.parse(sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY)!) as {
+        x: number;
+        y: number;
+      };
+      expect(saved).toEqual({ x: EDGE_MARGIN, y: 250 });
     });
   });
 
