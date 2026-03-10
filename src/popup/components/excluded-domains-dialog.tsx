@@ -99,11 +99,18 @@ export function ExcludedDomainsDialog({
 
       switch (e.key) {
         case 'Enter': {
+          e.preventDefault();
           if (selectedDomain) {
-            e.preventDefault();
+            const currentIndex = excludedDomains.indexOf(selectedDomain);
+            onRemoveDomain(selectedDomain);
+            const remaining = excludedDomains.filter((d) => d !== selectedDomain);
+            setSelectedDomain(
+              remaining.length === 0
+                ? null
+                : remaining[Math.min(currentIndex, remaining.length - 1)],
+            );
             return;
           }
-          e.preventDefault();
           handleAdd();
           return;
         }
@@ -185,7 +192,7 @@ export function ExcludedDomainsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md rounded-lg">
         <DialogHeader>
           <DialogTitle>{t('manageExcludedDomains')}</DialogTitle>
           <DialogDescription>{t('excludedDomainsDescription')}</DialogDescription>
