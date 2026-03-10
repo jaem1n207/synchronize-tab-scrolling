@@ -432,6 +432,26 @@ function renderToast() {
     renderToast();
   };
 
+  const handleSyncPermanentExclude = async () => {
+    if (!currentSuggestion) return;
+
+    try {
+      await sendMessage(
+        'sync-suggestion:response',
+        { normalizedUrl: currentSuggestion.normalizedUrl, accepted: false, permanent: true },
+        'background',
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        await logger.warn('[SuggestionToast] Extension context invalidated, closing toast');
+      } else {
+        await logger.error('Failed to send permanent exclude response', error);
+      }
+    }
+    currentSuggestion = null;
+    renderToast();
+  };
+
   const handleAddTabAccept = async () => {
     if (!currentAddTabSuggestion) return;
 
@@ -481,12 +501,38 @@ function renderToast() {
     renderToast();
   };
 
+  const handleAddTabPermanentExclude = async () => {
+    if (!currentAddTabSuggestion) return;
+
+    try {
+      await sendMessage(
+        'sync-suggestion:add-tab-response',
+        {
+          tabId: currentAddTabSuggestion.tabId,
+          accepted: false,
+          permanent: true,
+          normalizedUrl: currentAddTabSuggestion.normalizedUrl,
+        },
+        'background',
+      );
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Extension context invalidated')) {
+        await logger.warn('[SuggestionToast] Extension context invalidated, closing toast');
+      } else {
+        await logger.error('Failed to send permanent exclude response', error);
+      }
+    }
+    currentAddTabSuggestion = null;
+    renderToast();
+  };
+
   toastRoot.render(
     <>
       {currentSuggestion && (
         <SyncSuggestionToast
           suggestion={currentSuggestion}
           onAccept={handleSyncAccept}
+          onPermanentExclude={handleSyncPermanentExclude}
           onReject={handleSyncReject}
         />
       )}
@@ -494,6 +540,7 @@ function renderToast() {
         <AddTabToSyncToast
           suggestion={currentAddTabSuggestion}
           onAccept={handleAddTabAccept}
+          onPermanentExclude={handleAddTabPermanentExclude}
           onReject={handleAddTabReject}
         />
       )}
