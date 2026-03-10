@@ -4,6 +4,7 @@ import {
   normalizeUrlForAutoSync,
   isUrlExcluded,
   isLocalDevelopmentServer,
+  extractDomainFromUrl,
 } from './auto-sync-url-utils';
 
 describe('normalizeUrlForAutoSync', () => {
@@ -231,6 +232,74 @@ describe('isUrlExcluded', () => {
 
     it('should escape forward slashes for regex matching', () => {
       expect(isUrlExcluded('https://example.com/api/v1/users', ['*/api/v1/*'])).toBe(true);
+    });
+  });
+});
+
+describe('extractDomainFromUrl', () => {
+  describe('standard URLs', () => {
+    it('should extract domain from HTTPS URL', () => {
+      expect(extractDomainFromUrl('https://github.com/user/repo/pulls?q=1')).toBe('github.com');
+    });
+
+    it('should extract domain from HTTP URL', () => {
+      expect(extractDomainFromUrl('http://example.com/page')).toBe('example.com');
+    });
+
+    it('should extract subdomain', () => {
+      expect(extractDomainFromUrl('https://api.example.com/endpoint')).toBe('api.example.com');
+    });
+
+    it('should extract multiple subdomains', () => {
+      expect(extractDomainFromUrl('https://sub.api.example.com/path')).toBe('sub.api.example.com');
+    });
+
+    it('should extract domain from normalized URL', () => {
+      expect(extractDomainFromUrl('https://github.com/jaem1n207/repo/pulls')).toBe('github.com');
+    });
+  });
+
+  describe('case insensitivity', () => {
+    it('should return lowercase domain', () => {
+      expect(extractDomainFromUrl('https://GitHub.COM/user/repo')).toBe('github.com');
+    });
+
+    it('should handle mixed case', () => {
+      expect(extractDomainFromUrl('https://Api.Example.Com/path')).toBe('api.example.com');
+    });
+  });
+
+  describe('non-HTTP protocols', () => {
+    it('should return null for chrome:// protocol', () => {
+      expect(extractDomainFromUrl('chrome://extensions')).toBeNull();
+    });
+
+    it('should return null for ftp:// protocol', () => {
+      expect(extractDomainFromUrl('ftp://files.example.com/doc')).toBeNull();
+    });
+
+    it('should return null for about: protocol', () => {
+      expect(extractDomainFromUrl('about:blank')).toBeNull();
+    });
+  });
+
+  describe('invalid URLs', () => {
+    it('should return null for empty string', () => {
+      expect(extractDomainFromUrl('')).toBeNull();
+    });
+
+    it('should return null for malformed URL', () => {
+      expect(extractDomainFromUrl('not a valid url')).toBeNull();
+    });
+  });
+
+  describe('URLs with ports', () => {
+    it('should extract hostname without port', () => {
+      expect(extractDomainFromUrl('http://localhost:3000/app')).toBe('localhost');
+    });
+
+    it('should extract hostname from URL with non-default port', () => {
+      expect(extractDomainFromUrl('https://example.com:8443/page')).toBe('example.com');
     });
   });
 });
