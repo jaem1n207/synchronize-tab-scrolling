@@ -127,25 +127,31 @@ export function ExcludedDomainsDialog({
             </div>
           ) : (
             <ScrollArea className="max-h-[240px]">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <AnimatePresence initial={false}>
                   {excludedDomains.map((domain) => (
                     <motion.div
                       key={domain}
+                      layout
                       animate={{ opacity: 1, height: 'auto' }}
-                      className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-muted/50 group"
+                      className="flex items-center justify-between gap-2 rounded-md border border-border/50 px-3 py-2 hover:bg-muted/50 transition-colors"
                       exit={{ opacity: 0, height: 0 }}
                       initial={{ opacity: 0, height: 0 }}
-                      layout
                       transition={getMotionTransition(
                         ANIMATION_DURATIONS.fast,
                         EASING_FUNCTIONS.easeOut,
                       )}
                     >
-                      <span className="text-sm truncate">{domain}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <IconGlobe
+                          aria-hidden="true"
+                          className="w-3.5 h-3.5 text-muted-foreground shrink-0"
+                        />
+                        <span className="text-sm truncate">{domain}</span>
+                      </div>
                       <Button
                         aria-label={t('removeDomainAriaLabel', domain)}
-                        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="shrink-0 h-7 w-7"
                         size="icon"
                         variant="ghost"
                         onClick={() => onRemoveDomain(domain)}
