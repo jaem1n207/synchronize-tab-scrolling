@@ -6,6 +6,8 @@ import {
   loadAutoSyncEnabled,
   loadAutoSyncExcludedUrls,
   saveAutoSyncEnabled,
+  clearExpiredSnoozes,
+  clearAllSnoozes,
 } from '~/shared/lib/storage';
 
 import {
@@ -19,6 +21,7 @@ import {
   dismissedUrlGroups,
   pendingSuggestions,
   autoSyncFlags,
+  suggestionSnoozeUntil,
 } from './auto-sync-state';
 import { showSyncSuggestion } from './auto-sync-suggestions';
 
@@ -45,9 +48,16 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
     }
     autoSyncState.excludedUrls = await loadAutoSyncExcludedUrls();
 
+    const activeSnoozes = await clearExpiredSnoozes();
+    suggestionSnoozeUntil.clear();
+    for (const [domain, expiresAt] of Object.entries(activeSnoozes)) {
+      suggestionSnoozeUntil.set(domain, expiresAt);
+    }
+
     logger.info('[AUTO-SYNC] State loaded', {
       enabled: autoSyncState.enabled,
       excludedUrls: autoSyncState.excludedUrls,
+      activeSnoozeDomains: Object.keys(activeSnoozes),
     });
 
     if (!autoSyncState.enabled) {
@@ -200,6 +210,8 @@ export async function toggleAutoSync(enabled: boolean): Promise<void> {
 
       dismissedUrlGroups.clear();
       pendingSuggestions.clear();
+      suggestionSnoozeUntil.clear();
+      await clearAllSnoozes();
 
       for (const timer of autoSyncRetryTimers.values()) {
         clearTimeout(timer);
@@ -221,6 +233,8 @@ export async function toggleAutoSync(enabled: boolean): Promise<void> {
 
       dismissedUrlGroups.clear();
       pendingSuggestions.clear();
+      suggestionSnoozeUntil.clear();
+      await clearAllSnoozes();
 
       logger.info('[AUTO-SYNC] Stopping all active groups', {
         groupCount: autoSyncState.groups.size,
