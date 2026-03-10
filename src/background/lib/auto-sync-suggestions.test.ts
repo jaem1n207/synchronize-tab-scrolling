@@ -4,8 +4,14 @@ import browser from 'webextension-polyfill';
 
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
-import { autoSyncState, dismissedUrlGroups, pendingSuggestions } from './auto-sync-state';
 import {
+  autoSyncState,
+  dismissedUrlGroups,
+  pendingSuggestions,
+  suggestionSnoozeUntil,
+} from './auto-sync-state';
+import {
+  isDomainSnoozed,
   sendSuggestionToSingleTab,
   showAddTabSuggestion,
   showSyncSuggestion,
@@ -54,6 +60,7 @@ vi.mock('./auto-sync-state', () => ({
   },
   dismissedUrlGroups: new Set<string>(),
   pendingSuggestions: new Set<string>(),
+  suggestionSnoozeUntil: new Map<string, number>(),
 }));
 
 vi.mock('./messaging', () => ({
@@ -69,12 +76,14 @@ vi.mock('./sync-state', () => ({
   },
 }));
 
-const { normalizeUrlForAutoSyncMock } = vi.hoisted(() => ({
+const { normalizeUrlForAutoSyncMock, extractDomainFromUrlMock } = vi.hoisted(() => ({
   normalizeUrlForAutoSyncMock: vi.fn(),
+  extractDomainFromUrlMock: vi.fn(),
 }));
 
 vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
   normalizeUrlForAutoSync: normalizeUrlForAutoSyncMock,
+  extractDomainFromUrl: extractDomainFromUrlMock,
 }));
 
 function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSyncGroup {
@@ -116,6 +125,7 @@ describe('auto-sync-suggestions', () => {
     autoSyncState.excludedUrls = [];
     dismissedUrlGroups.clear();
     pendingSuggestions.clear();
+    suggestionSnoozeUntil.clear();
 
     syncState.isActive = false;
     syncState.linkedTabs = [];
@@ -125,6 +135,13 @@ describe('auto-sync-suggestions', () => {
     normalizeUrlForAutoSyncMock.mockImplementation((url: string) => {
       if (!url) return null;
       return url.split('?')[0].split('#')[0] ?? null;
+    });
+    extractDomainFromUrlMock.mockImplementation((url: string) => {
+      try {
+        return new URL(url).hostname;
+      } catch {
+        return null;
+      }
     });
 
     mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => createMockTab(tabId));
@@ -140,6 +157,31 @@ describe('auto-sync-suggestions', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  describe('isDomainSnoozed', () => {
+    it('returns false when domain has no snooze entry', () => {
+      expect(isDomainSnoozed('https://example.test/page')).toBe(false);
+    });
+
+    it('returns false and deletes expired snooze entry', () => {
+      suggestionSnoozeUntil.set('example.test', Date.now() - 1000);
+
+      expect(isDomainSnoozed('https://example.test/page')).toBe(false);
+      expect(suggestionSnoozeUntil.has('example.test')).toBe(false);
+    });
+
+    it('returns true when domain snooze has not expired', () => {
+      suggestionSnoozeUntil.set('example.test', Date.now() + 60000);
+
+      expect(isDomainSnoozed('https://example.test/page')).toBe(true);
+    });
+
+    it('returns false when extractDomainFromUrl returns null', () => {
+      extractDomainFromUrlMock.mockReturnValueOnce(null);
+
+      expect(isDomainSnoozed('https://example.test/page')).toBe(false);
+    });
   });
 
   describe('showSyncSuggestion', () => {
@@ -183,6 +225,17 @@ describe('auto-sync-suggestions', () => {
       expect(mockedBrowser.tabs.get).not.toHaveBeenCalled();
       expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
       expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
+    });
+
+    it('returns early when domain is snoozed', async () => {
+      const normalizedUrl = 'https://snoozed-show.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([1, 2]));
+      suggestionSnoozeUntil.set('snoozed-show.test', Date.now() + 60000);
+
+      await showSyncSuggestion(normalizedUrl);
+
+      expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
     });
 
     it('adds to pending suggestions before ping requests are sent', async () => {
@@ -512,6 +565,15 @@ describe('auto-sync-suggestions', () => {
   });
 
   describe('sendSuggestionToSingleTab', () => {
+    it('returns early when domain is snoozed', async () => {
+      const group = createGroup([1, 2]);
+      suggestionSnoozeUntil.set('snoozed-single.test', Date.now() + 60000);
+
+      await sendSuggestionToSingleTab(2, 'https://snoozed-single.test/page', group);
+
+      expect(mockedSendMessage).not.toHaveBeenCalled();
+    });
+
     it('gets tab titles for all tabs in the group', async () => {
       const group = createGroup([1, 2, 3]);
       mockedBrowser.tabs.get
@@ -648,6 +710,15 @@ describe('auto-sync-suggestions', () => {
   });
 
   describe('showAddTabSuggestion', () => {
+    it('returns early when domain is snoozed', async () => {
+      syncState.linkedTabs = [1, 2];
+      suggestionSnoozeUntil.set('snoozed-add-tab.test', Date.now() + 60000);
+
+      await showAddTabSuggestion(3, 'New Tab', 'https://snoozed-add-tab.test/page');
+
+      expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
+    });
+
     it('sends sync-suggestion:add-tab to all linked tabs plus new tab', async () => {
       syncState.linkedTabs = [1, 2];
 

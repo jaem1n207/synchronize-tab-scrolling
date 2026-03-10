@@ -11,6 +11,8 @@ const {
   loggerErrorMock,
   loadAutoSyncEnabledMock,
   loadAutoSyncExcludedUrlsMock,
+  clearExpiredSnoozesMock,
+  clearAllSnoozesMock,
   saveAutoSyncEnabledMock,
   updateAutoSyncGroupMock,
   stopAutoSyncForGroupMock,
@@ -20,6 +22,7 @@ const {
   autoSyncRetryTimersMock,
   dismissedUrlGroupsMock,
   pendingSuggestionsMock,
+  suggestionSnoozeUntilMock,
   autoSyncFlagsMock,
 } = vi.hoisted(() => ({
   sendMessageMock: vi.fn(),
@@ -30,6 +33,8 @@ const {
   loggerErrorMock: vi.fn(),
   loadAutoSyncEnabledMock: vi.fn(),
   loadAutoSyncExcludedUrlsMock: vi.fn(),
+  clearExpiredSnoozesMock: vi.fn(),
+  clearAllSnoozesMock: vi.fn(),
   saveAutoSyncEnabledMock: vi.fn(),
   updateAutoSyncGroupMock: vi.fn(),
   stopAutoSyncForGroupMock: vi.fn(),
@@ -43,6 +48,7 @@ const {
   autoSyncRetryTimersMock: new Map<string, ReturnType<typeof setTimeout>>(),
   dismissedUrlGroupsMock: new Set<string>(),
   pendingSuggestionsMock: new Set<string>(),
+  suggestionSnoozeUntilMock: new Map<string, number>(),
   autoSyncFlagsMock: {
     isToggling: false as boolean,
     isInitializing: false as boolean,
@@ -77,6 +83,8 @@ vi.mock('~/shared/lib/logger', () => ({
 vi.mock('~/shared/lib/storage', () => ({
   loadAutoSyncEnabled: loadAutoSyncEnabledMock,
   loadAutoSyncExcludedUrls: loadAutoSyncExcludedUrlsMock,
+  clearExpiredSnoozes: clearExpiredSnoozesMock,
+  clearAllSnoozes: clearAllSnoozesMock,
   saveAutoSyncEnabled: saveAutoSyncEnabledMock,
 }));
 
@@ -91,6 +99,7 @@ vi.mock('./auto-sync-state', () => ({
   autoSyncRetryTimers: autoSyncRetryTimersMock,
   dismissedUrlGroups: dismissedUrlGroupsMock,
   pendingSuggestions: pendingSuggestionsMock,
+  suggestionSnoozeUntil: suggestionSnoozeUntilMock,
   autoSyncFlags: autoSyncFlagsMock,
 }));
 
@@ -124,6 +133,7 @@ describe('auto-sync-lifecycle', () => {
     autoSyncRetryTimersMock.clear();
     dismissedUrlGroupsMock.clear();
     pendingSuggestionsMock.clear();
+    suggestionSnoozeUntilMock.clear();
 
     autoSyncFlagsMock.isToggling = false;
     autoSyncFlagsMock.isInitializing = false;
@@ -131,6 +141,8 @@ describe('auto-sync-lifecycle', () => {
 
     loadAutoSyncEnabledMock.mockResolvedValue(true);
     loadAutoSyncExcludedUrlsMock.mockResolvedValue(['https://excluded.example']);
+    clearExpiredSnoozesMock.mockResolvedValue({});
+    clearAllSnoozesMock.mockResolvedValue(undefined);
     saveAutoSyncEnabledMock.mockResolvedValue(undefined);
 
     tabsQueryMock.mockResolvedValue([
@@ -211,6 +223,41 @@ describe('auto-sync-lifecycle', () => {
 
       expect(loadAutoSyncExcludedUrlsMock).toHaveBeenCalledTimes(1);
       expect(autoSyncStateMock.excludedUrls).toEqual(excludedUrls);
+    });
+
+    it('loads and populates snooze cache from storage on init', async () => {
+      const githubExpiry = Date.now() + 3_600_000;
+      const gitlabExpiry = Date.now() + 7_200_000;
+      clearExpiredSnoozesMock.mockResolvedValue({
+        'github.com': githubExpiry,
+        'gitlab.com': gitlabExpiry,
+      });
+
+      const promise = initializeAutoSync();
+      await flushAllTimers();
+      await promise;
+
+      expect(clearExpiredSnoozesMock).toHaveBeenCalledTimes(1);
+      expect(suggestionSnoozeUntilMock.size).toBe(2);
+      expect(suggestionSnoozeUntilMock.get('github.com')).toBe(githubExpiry);
+      expect(suggestionSnoozeUntilMock.get('gitlab.com')).toBe(gitlabExpiry);
+    });
+
+    it('clears existing snooze cache before loading from storage', async () => {
+      suggestionSnoozeUntilMock.set('stale.com', Date.now() + 999_999);
+      const newDomainExpiry = Date.now() + 3_600_000;
+      clearExpiredSnoozesMock.mockResolvedValue({
+        'newdomain.com': newDomainExpiry,
+      });
+
+      const promise = initializeAutoSync();
+      await flushAllTimers();
+      await promise;
+
+      expect(clearExpiredSnoozesMock).toHaveBeenCalledTimes(1);
+      expect(suggestionSnoozeUntilMock.size).toBe(1);
+      expect(suggestionSnoozeUntilMock.has('stale.com')).toBe(false);
+      expect(suggestionSnoozeUntilMock.get('newdomain.com')).toBe(newDomainExpiry);
     });
 
     it('returns early when auto-sync is disabled', async () => {
@@ -515,6 +562,19 @@ describe('auto-sync-lifecycle', () => {
       expect(loadAutoSyncExcludedUrlsMock).toHaveBeenCalledTimes(1);
     });
 
+    it('enabling clears all snoozes from memory and storage', async () => {
+      autoSyncStateMock.enabled = false;
+      tabsQueryMock.mockResolvedValue([]);
+      suggestionSnoozeUntilMock.set('github.com', Date.now() + 3_600_000);
+
+      const promise = toggleAutoSync(true);
+      await flushAllTimers();
+      await promise;
+
+      expect(suggestionSnoozeUntilMock.size).toBe(0);
+      expect(clearAllSnoozesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('disabling clears retry timers and suggestion tracking sets', async () => {
       autoSyncStateMock.enabled = true;
       dismissedUrlGroupsMock.add('https://old.example');
@@ -548,6 +608,17 @@ describe('auto-sync-lifecycle', () => {
       expect(stopAutoSyncForGroupMock).toHaveBeenCalledTimes(1);
       expect(stopAutoSyncForGroupMock).toHaveBeenCalledWith('https://active.example');
       expect(autoSyncStateMock.groups.size).toBe(0);
+    });
+
+    it('disabling clears all snoozes from memory and storage', async () => {
+      autoSyncStateMock.enabled = true;
+      suggestionSnoozeUntilMock.set('gitlab.com', Date.now() + 3_600_000);
+      tabsQueryMock.mockResolvedValue([]);
+
+      await toggleAutoSync(false);
+
+      expect(suggestionSnoozeUntilMock.size).toBe(0);
+      expect(clearAllSnoozesMock).toHaveBeenCalledTimes(1);
     });
 
     it('broadcasts status-changed message to tabs after toggle', async () => {
