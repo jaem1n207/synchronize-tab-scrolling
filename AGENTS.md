@@ -233,6 +233,17 @@ See `docs/guides/scroll-sync-pipeline.md` (Korean) for the complete scroll synch
 - Manual offset lifecycle
 - Connection monitoring flow
 
+### Domain Exclusion Management
+
+See `docs/guides/domain-exclusion.md` (Korean) for the domain exclusion feature guide:
+
+- Temporary snooze (2h) and permanent exclusion architecture
+- Data flow: Toast → Background → Storage
+- Popup UI keyboard navigation (Raycast-like `aria-activedescendant` pattern)
+- Two-stage Enter confirmation for safe deletion
+- IME (CJK) composition guard
+- i18n key sync requirements (`extension/_locales/` + `src/shared/i18n/_locales/`)
+
 ### Store Deployment Pipeline
 
 See `docs/guides/store-deployment.md` (Korean) for the complete CI/CD pipeline:
