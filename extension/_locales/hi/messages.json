@@ -525,5 +525,59 @@
   },
   "skipButton": {
     "message": "छोड़ें"
+  },
+  "manageExcludedDomains": {
+    "message": "बहिष्कृत डोमेन प्रबंधित करें"
+  },
+  "excludedDomainsDescription": {
+    "message": "वे डोमेन जो कभी सिंक सुझाव नहीं दिखाएंगे"
+  },
+  "addDomain": {
+    "message": "जोड़ें"
+  },
+  "addDomainPlaceholder": {
+    "message": "URL पेस्ट करें या डोमेन टाइप करें..."
+  },
+  "removeDomainAriaLabel": {
+    "message": "$DOMAIN$ हटाएं",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "neverShowAgainForDomain": {
+    "message": "इस साइट के लिए फिर से न दिखाएं"
+  },
+  "domainExcluded": {
+    "message": "$DOMAIN$ अब सुझाव नहीं दिखाएगा",
+    "placeholders": {
+      "domain": {
+        "content": "$1",
+        "example": "github.com"
+      }
+    }
+  },
+  "noExcludedDomains": {
+    "message": "कोई बहिष्कृत डोमेन नहीं"
+  },
+  "noExcludedDomainsDescription": {
+    "message": "आपके बहिष्कृत डोमेन यहाँ दिखाई देंगे"
+  },
+  "invalidDomain": {
+    "message": "मान्य डोमेन निकालने में असमर्थ"
+  },
+  "domainAlreadyExcluded": {
+    "message": "यह डोमेन पहले से बहिष्कृत है"
+  },
+  "excludedDomainsCount": {
+    "message": "$COUNT$ बहिष्कृत",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
   }
 }

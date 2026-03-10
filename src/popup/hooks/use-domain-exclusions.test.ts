@@ -1,4 +1,5 @@
 import { act, createElement } from 'react';
+
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
