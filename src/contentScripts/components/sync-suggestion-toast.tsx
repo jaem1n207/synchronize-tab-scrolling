@@ -22,14 +22,14 @@ const AUTO_DISMISS_DELAY_MS = 10_000;
 interface SyncSuggestionToastProps {
   suggestion: SyncSuggestionMessage;
   onAccept: () => void;
-  onReject: () => void;
+  onReject: (snooze: boolean) => void;
   className?: string;
 }
 
 interface AddTabToastProps {
   suggestion: AddTabToSyncMessage;
   onAccept: () => void;
-  onReject: () => void;
+  onReject: (snooze: boolean) => void;
   className?: string;
 }
 
@@ -58,13 +58,10 @@ export function SyncSuggestionToast({
     onAcceptRef.current = onAccept;
   }, [onReject, onAccept]);
 
-  // Auto-dismiss after 10 seconds (treats as rejection)
-  // Empty dependency array ensures timer runs exactly once on mount
   React.useEffect(() => {
     timerRef.current = setTimeout(() => {
       setIsVisible(false);
-      // Small delay before calling onReject to allow exit animation
-      setTimeout(() => onRejectRef.current(), 300);
+      setTimeout(() => onRejectRef.current(false), 300);
     }, AUTO_DISMISS_DELAY_MS);
 
     return () => {
@@ -87,7 +84,7 @@ export function SyncSuggestionToast({
       clearTimeout(timerRef.current);
     }
     setIsVisible(false);
-    setTimeout(() => onRejectRef.current(), 200);
+    setTimeout(() => onRejectRef.current(true), 200);
   }, []);
 
   return (
@@ -193,12 +190,10 @@ export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }:
     onAcceptRef.current = onAccept;
   }, [onReject, onAccept]);
 
-  // Auto-dismiss after 10 seconds (treats as rejection)
-  // Empty dependency array ensures timer runs exactly once on mount
   React.useEffect(() => {
     timerRef.current = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(() => onRejectRef.current(), 300);
+      setTimeout(() => onRejectRef.current(false), 300);
     }, AUTO_DISMISS_DELAY_MS);
 
     return () => {
@@ -221,7 +216,7 @@ export function AddTabToSyncToast({ suggestion, onAccept, onReject, className }:
       clearTimeout(timerRef.current);
     }
     setIsVisible(false);
-    setTimeout(() => onRejectRef.current(), 200);
+    setTimeout(() => onRejectRef.current(true), 200);
   }, []);
 
   return (
