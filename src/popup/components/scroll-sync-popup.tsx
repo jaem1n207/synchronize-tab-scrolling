@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
 import { saveSelectedTabIds } from '~/shared/lib/storage';
@@ -66,6 +66,12 @@ export function ScrollSyncPopup() {
 
   const error = tabDiscoveryError ?? syncError;
   const dismissError = tabDiscoveryError ? dismissTabDiscoveryError : handleDismissError;
+
+  useEffect(() => {
+    if (!excludedDomainsOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [excludedDomainsOpen, searchInputRef]);
 
   const handleOpenExcludedDomains = useCallback(() => {
     setExcludedDomainsOpen(true);
