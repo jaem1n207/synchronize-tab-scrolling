@@ -9,20 +9,29 @@ import {
   registerTabEventHandlers,
 } from './handlers';
 import { initializeAutoSync } from './lib/auto-sync-lifecycle';
+import { manualSyncOverriddenTabs } from './lib/auto-sync-state';
 import { startKeepAlive } from './lib/keep-alive';
 import { syncState, restoreSyncState } from './lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background' });
 
-// Restore state on service worker startup (also starts keep-alive if sync was active)
+// CRITICAL ordering: initializeAutoSync must run AFTER restoreSyncState completes.
+// manualSyncOverriddenTabs (in-memory Set) is lost on service worker restart —
+// without restoring it first, synced tabs get re-added to auto-sync groups.
 restoreSyncState().then(() => {
   if (syncState.isActive) {
     startKeepAlive();
-  }
-});
 
-// Initialize auto-sync on service worker startup
-initializeAutoSync();
+    for (const tabId of syncState.linkedTabs) {
+      manualSyncOverriddenTabs.add(tabId);
+    }
+    logger.info('Restored manualSyncOverriddenTabs from persisted sync state', {
+      tabIds: syncState.linkedTabs,
+    });
+  }
+
+  initializeAutoSync();
+});
 
 // only on dev mode
 if (import.meta.hot) {
