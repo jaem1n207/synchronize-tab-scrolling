@@ -1,7 +1,9 @@
 import { onMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+import { extractDomainFromUrl } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { saveSuggestionSnooze } from '~/shared/lib/storage';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
 import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
@@ -11,6 +13,8 @@ import {
   manualSyncOverriddenTabs,
   dismissedUrlGroups,
   pendingSuggestions,
+  SUGGESTION_SNOOZE_DURATION_MS,
+  suggestionSnoozeUntil,
 } from '../lib/auto-sync-state';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
@@ -199,9 +203,24 @@ export function registerAutoSyncHandlers(): void {
       }
     } else {
       dismissedUrlGroups.add(payload.normalizedUrl);
-      logger.info('[AUTO-SYNC] User dismissed sync suggestion', {
-        normalizedUrl: payload.normalizedUrl,
-      });
+
+      if (payload.snooze) {
+        const domain = extractDomainFromUrl(payload.normalizedUrl);
+        if (domain) {
+          const expiresAt = Date.now() + SUGGESTION_SNOOZE_DURATION_MS;
+          suggestionSnoozeUntil.set(domain, expiresAt);
+          await saveSuggestionSnooze(domain, expiresAt);
+          logger.info('[AUTO-SYNC] User snoozed sync suggestion for domain', {
+            normalizedUrl: payload.normalizedUrl,
+            domain,
+            expiresAt: new Date(expiresAt).toISOString(),
+          });
+        }
+      } else {
+        logger.info('[AUTO-SYNC] Sync suggestion auto-dismissed', {
+          normalizedUrl: payload.normalizedUrl,
+        });
+      }
     }
 
     return { success: true };
@@ -283,6 +302,18 @@ export function registerAutoSyncHandlers(): void {
       } catch (error) {
         logger.error('[AUTO-SYNC] Failed to add tab to sync', { tabId, error });
         return { success: false, error: String(error) };
+      }
+    } else if (!payload.accepted && payload.snooze && payload.normalizedUrl) {
+      const domain = extractDomainFromUrl(payload.normalizedUrl);
+      if (domain) {
+        const expiresAt = Date.now() + SUGGESTION_SNOOZE_DURATION_MS;
+        suggestionSnoozeUntil.set(domain, expiresAt);
+        await saveSuggestionSnooze(domain, expiresAt);
+        logger.info('[AUTO-SYNC] User snoozed add-tab suggestion for domain', {
+          tabId: payload.tabId,
+          domain,
+          expiresAt: new Date(expiresAt).toISOString(),
+        });
       }
     }
 
