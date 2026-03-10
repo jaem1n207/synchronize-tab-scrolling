@@ -16,7 +16,12 @@ import {
   removeTabFromAllAutoSyncGroups,
   updateAutoSyncGroup,
 } from '../lib/auto-sync-groups';
-import { autoSyncState, manualSyncOverriddenTabs } from '../lib/auto-sync-state';
+import {
+  addTabSuggestedTabs,
+  autoSyncState,
+  manualSyncOverriddenTabs,
+  pendingSuggestions,
+} from '../lib/auto-sync-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
@@ -75,6 +80,8 @@ vi.mock('../lib/auto-sync-state', () => ({
     excludedUrls: [],
   },
   manualSyncOverriddenTabs: new Set<number>(),
+  pendingSuggestions: new Set<string>(),
+  addTabSuggestedTabs: new Set<number>(),
 }));
 
 vi.mock('../lib/keep-alive', () => ({
@@ -120,6 +127,8 @@ describe('registerScrollSyncHandlers', () => {
     autoSyncState.enabled = false;
     autoSyncState.groups.clear();
     manualSyncOverriddenTabs.clear();
+    pendingSuggestions.clear();
+    addTabSuggestedTabs.clear();
 
     onMessageMock.mockImplementation(
       (messageId: string, handler: (...args: never[]) => unknown) => {
@@ -248,6 +257,54 @@ describe('registerScrollSyncHandlers', () => {
       expect(removeTabFromAllAutoSyncGroups).toHaveBeenNthCalledWith(2, 6);
     });
 
+    it('prunes pendingSuggestions for groups below threshold on manual sync start', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+
+      autoSyncState.groups.set('https://enough.com', {
+        tabIds: new Set([1, 2]),
+        isActive: false,
+      });
+      autoSyncState.groups.set('https://not-enough.com', {
+        tabIds: new Set([3]),
+        isActive: false,
+      });
+      pendingSuggestions.add('https://enough.com');
+      pendingSuggestions.add('https://not-enough.com');
+      pendingSuggestions.add('https://missing.com');
+
+      const payload: StartSyncMessage = {
+        tabIds: [5, 6],
+        mode: 'ratio',
+        isAutoSync: false,
+      };
+
+      await handler({ data: payload, sender: {} });
+
+      expect(pendingSuggestions.has('https://enough.com')).toBe(true);
+      expect(pendingSuggestions.has('https://not-enough.com')).toBe(false);
+      expect(pendingSuggestions.has('https://missing.com')).toBe(false);
+    });
+
+    it('does not prune pendingSuggestions on auto-sync start', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+
+      pendingSuggestions.add('https://some-url.com');
+      autoSyncState.groups.set('https://some-url.com', {
+        tabIds: new Set([1]),
+        isActive: false,
+      });
+
+      const payload: StartSyncMessage = {
+        tabIds: [7, 8],
+        mode: 'ratio',
+        isAutoSync: true,
+      };
+
+      await handler({ data: payload, sender: {} });
+
+      expect(pendingSuggestions.has('https://some-url.com')).toBe(true);
+    });
+
     it('does not add tabs to manual overrides for auto-sync starts', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
       const payload: StartSyncMessage = {
@@ -319,6 +376,21 @@ describe('registerScrollSyncHandlers', () => {
       expect(autoSyncState.groups.get('https://group-a.com')?.isActive).toBe(false);
       expect(autoSyncState.groups.get('https://group-b.com')?.isActive).toBe(true);
       expect(autoSyncState.groups.get('https://group-c.com')?.isActive).toBe(false);
+    });
+
+    it('clears addTabSuggestedTabs on sync stop', async () => {
+      const handler = getHandler<StopSyncMessage>('scroll:stop');
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      addTabSuggestedTabs.add(10);
+      addTabSuggestedTabs.add(20);
+
+      await handler({
+        data: { tabIds: [1, 2], isAutoSync: true },
+        sender: {},
+      });
+
+      expect(addTabSuggestedTabs.size).toBe(0);
     });
 
     it('re-adds tabs to auto-sync groups on manual sync stop when auto-sync is enabled', async () => {

@@ -16,6 +16,7 @@ import {
   manualSyncOverriddenTabs,
   dismissedUrlGroups,
   pendingSuggestions,
+  addTabSuggestedTabs,
 } from '../lib/auto-sync-state';
 import {
   showSyncSuggestion,
@@ -190,7 +191,8 @@ export function registerTabEventHandlers(): void {
             }),
           );
 
-          if (syncedTabsWithSameUrl.some((match) => match)) {
+          if (syncedTabsWithSameUrl.some((match) => match) && !addTabSuggestedTabs.has(tabId)) {
+            addTabSuggestedTabs.add(tabId);
             logger.info('[AUTO-SYNC] Detected new tab with same URL as synced tab (immediate)', {
               tabId,
               normalizedUrl,
@@ -205,13 +207,12 @@ export function registerTabEventHandlers(): void {
 
           if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
             await updateAutoSyncGroup(tabId, url);
-          }
-          // ✅ FIX: Add pendingSuggestions and dismissedUrlGroups checks to prevent repeated toasts
-          else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
+          } else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
             if (
               existingGroup.tabIds.size >= 2 &&
               !pendingSuggestions.has(normalizedUrl) &&
-              !dismissedUrlGroups.has(normalizedUrl)
+              !dismissedUrlGroups.has(normalizedUrl) &&
+              !(syncState.isActive && syncState.linkedTabs.includes(tabId))
             ) {
               await showSyncSuggestion(normalizedUrl);
             }
