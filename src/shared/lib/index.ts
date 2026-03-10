@@ -1,6 +1,8 @@
 export {
+  extractDomainFromUrl,
   isLocalDevelopmentServer,
   isUrlExcluded,
+  normalizeDomain,
   normalizeUrlForAutoSync,
 } from './auto-sync-url-utils';
 export {
@@ -38,6 +40,7 @@ export {
   getManualScrollOffset,
   loadAutoSyncEnabled,
   loadAutoSyncExcludedUrls,
+  loadExcludedDomains,
   loadManualScrollOffsets,
   loadPanelMinimized,
   loadSelectedTabIds,
@@ -45,6 +48,7 @@ export {
   loadUrlSyncEnabled,
   saveAutoSyncEnabled,
   saveAutoSyncExcludedUrls,
+  saveExcludedDomains,
   saveManualScrollOffset,
   savePanelMinimized,
   saveSelectedTabIds,
