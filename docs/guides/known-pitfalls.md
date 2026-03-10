@@ -189,6 +189,54 @@ sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
 
 ---
 
+## Pitfall 7: 서비스 워커 재시작 후 인메모리 상태 소실
+
+### 규칙
+
+> 서비스 워커가 재시작될 수 있는 MV3 환경에서, 인메모리 `Set`/`Map` 상태는 반드시 영속 저장소에서 복원해야 한다.
+
+### 배경
+
+`manualSyncOverriddenTabs`는 `Set<number>`로, 수동 동기화로 오버라이드된 탭을 추적한다. 서비스 워커 재시작 시 이 Set이 빈 상태로 초기화되면 `isTabManuallyOverridden()`이 `false`를 반환하여 동기화 중인 탭이 auto-sync 그룹에 다시 추가된다.
+
+### 왜 문제인가?
+
+1. **서비스 워커 종료**: Chrome은 비활성 서비스 워커를 30초 후 종료할 수 있음
+2. **상태 소실**: `new Set()`으로 선언된 모듈 레벨 변수는 재시작 시 빈 상태
+3. **연쇄 버그**: 빈 Set → 가드 통과 → 잘못된 그룹 추가 → 불필요한 토스트 표시
+
+### 적용 원칙
+
+- 인메모리 전용 가드 상태(`Set`, `Map`)는 `restoreSyncState()` 시 영속 데이터에서 재구성
+- `initializeAutoSync()`는 반드시 `restoreSyncState()` 완료 후 실행
+- 새로운 인메모리 상태 추가 시, 서비스 워커 재시작 시나리오를 반드시 고려
+
+---
+
+## Pitfall 8: content script ping 대신 background 상태 우선 확인
+
+### 규칙
+
+> 백그라운드 스크립트에서 이미 알고 있는 정보(`syncState.isActive`, `syncState.linkedTabs`)는 content script ping 대신 직접 확인해야 한다.
+
+### 배경
+
+`showSyncSuggestion()`은 각 탭에 `scroll:ping`을 보내 동기화 상태를 확인했다. 그러나 Chrome은 백그라운드 탭의 네트워크를 throttle하여 500ms 타임아웃 내에 응답하지 못하는 경우가 빈번하다.
+
+### 왜 문제인가?
+
+1. **탭 throttling**: Chrome이 비활성 탭의 타이머와 네트워크를 제한
+2. **false negative**: 동기화 중인 탭이 ping에 응답하지 못하면 "동기화 안 함"으로 판단
+3. **불필요한 토스트**: 이미 동기화 중인데 suggestion toast가 다시 표시
+
+### 적용 원칙
+
+- 백그라운드 스크립트가 보유한 상태 정보로 먼저 판단
+- content script ping은 백그라운드에서 알 수 없는 정보만 확인하는 용도로 사용
+- ping 기반 로직에는 항상 백그라운드 상태 체크를 앞단에 배치
+
+---
+
 ## Code Review Checklist
 
 스크롤 동기화 관련 PR을 리뷰할 때 확인해야 할 항목:
@@ -199,3 +247,5 @@ sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
 - [ ] 새 메시지 핸들러가 `lastSuccessfulSync`를 적절히 갱신하는가?
 - [ ] `PROGRAMMATIC_SCROLL_GRACE_PERIOD`가 파이프라인 최대 지연보다 큰가?
 - [ ] 새 상태를 저장할 때, 탭별 독립 데이터가 `browser.storage.local`에 저장되고 있지 않은가?
+- [ ] 새로운 인메모리 `Set`/`Map`이 서비스 워커 재시작 후 복원되는가?
+- [ ] content script ping 전에 `syncState` 기반 사전 체크가 있는가?
