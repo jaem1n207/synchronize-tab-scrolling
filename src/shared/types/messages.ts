@@ -209,6 +209,8 @@ export interface SyncSuggestionMessage {
 export interface SyncSuggestionResponseMessage {
   normalizedUrl: string;
   accepted: boolean;
+  /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
+  snooze?: boolean;
 }
 
 /**
@@ -227,6 +229,8 @@ export interface AddTabToSyncMessage {
 export interface AddTabToSyncResponseMessage {
   tabId: number;
   accepted: boolean;
+  /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
+  snooze?: boolean;
 }
 
 /**
