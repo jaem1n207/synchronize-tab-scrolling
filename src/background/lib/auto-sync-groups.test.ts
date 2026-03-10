@@ -18,7 +18,11 @@ import {
   pendingSuggestions,
   withAutoSyncLock,
 } from './auto-sync-state';
-import { sendSuggestionToSingleTab, showSyncSuggestion } from './auto-sync-suggestions';
+import {
+  isDomainSnoozed,
+  sendSuggestionToSingleTab,
+  showSyncSuggestion,
+} from './auto-sync-suggestions';
 
 interface AutoSyncGroup {
   tabIds: Set<number>;
@@ -33,6 +37,7 @@ const {
   isForbiddenUrlMock,
   showSyncSuggestionMock,
   sendSuggestionToSingleTabMock,
+  isDomainSnoozedMock,
   withAutoSyncLockMock,
   isTabManuallyOverriddenMock,
   loggerInfoMock,
@@ -52,6 +57,7 @@ const {
   const isForbiddenUrlMock = vi.fn();
   const showSyncSuggestionMock = vi.fn();
   const sendSuggestionToSingleTabMock = vi.fn();
+  const isDomainSnoozedMock = vi.fn().mockReturnValue(false);
   const withAutoSyncLockMock = vi.fn().mockImplementation((fn: () => Promise<unknown>) => fn());
   const isTabManuallyOverriddenMock = vi.fn().mockReturnValue(false);
 
@@ -78,6 +84,7 @@ const {
     isForbiddenUrlMock,
     showSyncSuggestionMock,
     sendSuggestionToSingleTabMock,
+    isDomainSnoozedMock,
     withAutoSyncLockMock,
     isTabManuallyOverriddenMock,
     loggerInfoMock,
@@ -128,6 +135,7 @@ vi.mock('./auto-sync-state', () => ({
 vi.mock('./auto-sync-suggestions', () => ({
   showSyncSuggestion: showSyncSuggestionMock,
   sendSuggestionToSingleTab: sendSuggestionToSingleTabMock,
+  isDomainSnoozed: isDomainSnoozedMock,
 }));
 
 function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSyncGroup {
@@ -151,6 +159,7 @@ describe('auto-sync-groups', () => {
     isLocalDevelopmentServerMock.mockReturnValue(false);
     isUrlExcludedMock.mockReturnValue(false);
     isTabManuallyOverriddenMock.mockReturnValue(false);
+    isDomainSnoozedMock.mockReturnValue(false);
 
     sendMessageMock.mockResolvedValue(undefined);
     showSyncSuggestionMock.mockResolvedValue(undefined);
@@ -453,6 +462,18 @@ describe('auto-sync-groups', () => {
 
       expect(showSyncSuggestion).not.toHaveBeenCalled();
       expect(sendSuggestionToSingleTab).not.toHaveBeenCalled();
+    });
+
+    it('does not show suggestion when domain is snoozed', async () => {
+      isDomainSnoozedMock.mockReturnValue(true);
+      autoSyncState.groups.set('https://github.com/pulls', createGroup([1], false));
+
+      await updateAutoSyncGroup(2, 'https://github.com/pulls');
+
+      expect(isDomainSnoozed).toHaveBeenCalledWith('https://github.com/pulls');
+      expect(showSyncSuggestion).not.toHaveBeenCalled();
+      expect(sendSuggestionToSingleTab).not.toHaveBeenCalled();
+      expect(autoSyncState.groups.get('https://github.com/pulls')?.tabIds).toEqual(new Set([1, 2]));
     });
 
     it('enforces MAX_AUTO_SYNC_GROUP_SIZE for new tabs', async () => {

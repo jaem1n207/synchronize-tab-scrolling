@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import browser from 'webextension-polyfill';
 
+import { extractDomainFromUrl } from '~/shared/lib/auto-sync-url-utils';
+import { saveSuggestionSnooze } from '~/shared/lib/storage';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
@@ -10,6 +12,8 @@ import {
   dismissedUrlGroups,
   manualSyncOverriddenTabs,
   pendingSuggestions,
+  SUGGESTION_SNOOZE_DURATION_MS,
+  suggestionSnoozeUntil,
 } from '../lib/auto-sync-state';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
@@ -17,7 +21,13 @@ import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-st
 import { registerAutoSyncHandlers } from './auto-sync-handlers';
 
 type RegisteredMessageHandler = (payload: {
-  data?: { enabled?: boolean; normalizedUrl?: string; accepted?: boolean; tabId?: number };
+  data?: {
+    enabled?: boolean;
+    normalizedUrl?: string;
+    accepted?: boolean;
+    tabId?: number;
+    snooze?: boolean;
+  };
   sender: { tabId?: number };
 }) => Promise<unknown>;
 
@@ -47,6 +57,14 @@ vi.mock('~/shared/lib/logger', () => ({
   })),
 }));
 
+vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
+  extractDomainFromUrl: vi.fn(),
+}));
+
+vi.mock('~/shared/lib/storage', () => ({
+  saveSuggestionSnooze: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
 }));
@@ -63,6 +81,8 @@ vi.mock('../lib/auto-sync-state', () => ({
   manualSyncOverriddenTabs: new Set<number>(),
   dismissedUrlGroups: new Set<string>(),
   pendingSuggestions: new Set<string>(),
+  SUGGESTION_SNOOZE_DURATION_MS: 2 * 60 * 60 * 1000,
+  suggestionSnoozeUntil: new Map<string, number>(),
 }));
 
 vi.mock('../lib/messaging', () => ({
@@ -103,6 +123,7 @@ describe('registerAutoSyncHandlers', () => {
     manualSyncOverriddenTabs.clear();
     dismissedUrlGroups.clear();
     pendingSuggestions.clear();
+    suggestionSnoozeUntil.clear();
 
     syncState.isActive = false;
     syncState.linkedTabs = [];
@@ -112,6 +133,16 @@ describe('registerAutoSyncHandlers', () => {
 
     vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true });
     vi.mocked(toggleAutoSync).mockResolvedValue();
+    vi.mocked(extractDomainFromUrl).mockReset();
+    vi.mocked(extractDomainFromUrl).mockImplementation((url: string) => {
+      try {
+        return new URL(url).hostname;
+      } catch {
+        return null;
+      }
+    });
+    vi.mocked(saveSuggestionSnooze).mockReset();
+    vi.mocked(saveSuggestionSnooze).mockResolvedValue({});
     vi.mocked(browser.tabs.get).mockResolvedValue({
       id: 1,
       index: 0,
@@ -317,6 +348,55 @@ describe('registerAutoSyncHandlers', () => {
       expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
       expect(sendMessageWithTimeout).not.toHaveBeenCalled();
     });
+
+    it('saves domain snooze on explicit dismiss (snooze: true)', async () => {
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      const normalizedUrl = 'https://github.com/pulls';
+
+      const handler = getRequiredHandler('sync-suggestion:response');
+      const response = await handler({
+        data: { normalizedUrl, accepted: false, snooze: true },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: true });
+      expect(suggestionSnoozeUntil.get('github.com')).toBe(
+        1_000_000 + SUGGESTION_SNOOZE_DURATION_MS,
+      );
+      expect(saveSuggestionSnooze).toHaveBeenCalledWith(
+        'github.com',
+        1_000_000 + SUGGESTION_SNOOZE_DURATION_MS,
+      );
+
+      nowSpy.mockRestore();
+    });
+
+    it('does not save snooze on auto-dismiss (snooze: false)', async () => {
+      const handler = getRequiredHandler('sync-suggestion:response');
+      const response = await handler({
+        data: { normalizedUrl: 'https://example.com/page', accepted: false, snooze: false },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: true });
+      expect(saveSuggestionSnooze).not.toHaveBeenCalled();
+      expect(suggestionSnoozeUntil.size).toBe(0);
+    });
+
+    it('does not save snooze when accepted', async () => {
+      const normalizedUrl = 'https://example.com/accepted';
+      autoSyncState.groups.set(normalizedUrl, { tabIds: new Set([1, 2]), isActive: false });
+
+      const handler = getRequiredHandler('sync-suggestion:response');
+      const response = await handler({
+        data: { normalizedUrl, accepted: true, snooze: true },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: true });
+      expect(saveSuggestionSnooze).not.toHaveBeenCalled();
+      expect(suggestionSnoozeUntil.size).toBe(0);
+    });
   });
 
   describe('sync-suggestion:add-tab-response', () => {
@@ -405,6 +485,50 @@ describe('registerAutoSyncHandlers', () => {
       expect(syncState.linkedTabs).toEqual([1, 2]);
       expect(persistSyncState).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
+    });
+
+    it('saves domain snooze on explicit add-tab dismiss', async () => {
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(2_000_000);
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [100, 200];
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: {
+          tabId: 300,
+          accepted: false,
+          snooze: true,
+          normalizedUrl: 'https://github.com/issues',
+        },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: true });
+      expect(suggestionSnoozeUntil.get('github.com')).toBe(
+        2_000_000 + SUGGESTION_SNOOZE_DURATION_MS,
+      );
+      expect(saveSuggestionSnooze).toHaveBeenCalledWith(
+        'github.com',
+        2_000_000 + SUGGESTION_SNOOZE_DURATION_MS,
+      );
+
+      nowSpy.mockRestore();
+    });
+
+    it('does not save snooze when normalizedUrl is missing', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [100, 200];
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: { tabId: 300, accepted: false, snooze: true },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: true });
+      expect(saveSuggestionSnooze).not.toHaveBeenCalled();
+      expect(suggestionSnoozeUntil.size).toBe(0);
     });
   });
 });
