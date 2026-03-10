@@ -1,11 +1,5 @@
 import * as React from 'react';
 
-import { onMessage, sendMessage } from 'webext-bridge/content-script';
-import browser from 'webextension-polyfill';
-
-import { ExtensionLogger } from '~/shared/lib/logger';
-import { loadPanelPosition, savePanelPosition } from '~/shared/lib/storage';
-
 interface Position {
   x: number;
   y: number;
@@ -24,16 +18,47 @@ interface UseDragPositionReturn {
   rafIdRef: React.RefObject<number | null>;
   handleMouseDown: (e: React.MouseEvent<HTMLButtonElement>) => void;
   handleMouseMove: (e: MouseEvent) => void;
-  handleMouseUp: (e: MouseEvent) => Promise<void>;
+  handleMouseUp: (e: MouseEvent) => void;
 }
-
-const logger = new ExtensionLogger({ scope: 'sync-control-panel' });
 
 const BUTTON_SIZE = 36;
 const EDGE_MARGIN = 32;
 
+const PANEL_POSITION_STORAGE_KEY = '__sync_tab_scroll_panel_pos';
+
+function savePositionToSession(position: Position): void {
+  try {
+    sessionStorage.setItem(PANEL_POSITION_STORAGE_KEY, JSON.stringify(position));
+  } catch {
+    // Gracefully handle unavailable sessionStorage (e.g. restrictive page policies)
+  }
+}
+
+function loadPositionFromSession(): Position | null {
+  try {
+    const stored = sessionStorage.getItem(PANEL_POSITION_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as Record<string, unknown>;
+    if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+      return { x: parsed.x, y: parsed.y };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export const useDragPosition = (): UseDragPositionReturn => {
-  const [position, setPosition] = React.useState<Position>({ x: EDGE_MARGIN, y: EDGE_MARGIN });
+  const [position, setPosition] = React.useState<Position>(() => {
+    const stored = loadPositionFromSession();
+    if (stored) {
+      return {
+        x: Math.max(0, Math.min(stored.x, window.innerWidth - BUTTON_SIZE)),
+        y: Math.max(0, Math.min(stored.y, window.innerHeight - BUTTON_SIZE)),
+      };
+    }
+    return { x: EDGE_MARGIN, y: EDGE_MARGIN };
+  });
   const [isDragging, setIsDragging] = React.useState(false);
   const [dragTransform, setDragTransform] = React.useState<Position>({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = React.useState<Position>({ x: 0, y: 0 });
@@ -42,18 +67,6 @@ export const useDragPosition = (): UseDragPositionReturn => {
   const wasDraggedRef = React.useRef<boolean>(false);
   const dragOffsetRef = React.useRef<Position>({ x: 0, y: 0 });
   const rafIdRef = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    loadPanelPosition().then((stored) => {
-      if (stored) {
-        const constrained = {
-          x: Math.max(0, Math.min(stored.x, window.innerWidth - BUTTON_SIZE)),
-          y: Math.max(0, Math.min(stored.y, window.innerHeight - BUTTON_SIZE)),
-        };
-        setPosition(constrained);
-      }
-    });
-  }, []);
 
   const snapToEdge = React.useCallback((pos: Position): Position => {
     const centerX = window.innerWidth / 2;
@@ -116,7 +129,7 @@ export const useDragPosition = (): UseDragPositionReturn => {
   );
 
   const handleMouseUp = React.useCallback(
-    async (e: MouseEvent) => {
+    (e: MouseEvent) => {
       if (!isDragging) return;
 
       if (rafIdRef.current !== null) {
@@ -137,20 +150,7 @@ export const useDragPosition = (): UseDragPositionReturn => {
 
         setPosition(snappedPosition);
         setDragTransform(snappedPosition);
-        savePanelPosition(snappedPosition);
-
-        try {
-          const currentTab = await browser.tabs.getCurrent();
-          if (currentTab?.id) {
-            await sendMessage(
-              'panel:position',
-              { x: snappedPosition.x, y: snappedPosition.y, sourceTabId: currentTab.id },
-              'background',
-            );
-          }
-        } catch (error) {
-          await logger.error('Failed to broadcast panel position:', error);
-        }
+        savePositionToSession(snappedPosition);
 
         wasDraggedRef.current = true;
         setTimeout(() => {
@@ -183,24 +183,6 @@ export const useDragPosition = (): UseDragPositionReturn => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [constrainPosition]);
-
-  React.useEffect(() => {
-    const unsubscribe = onMessage('panel:position', async (message) => {
-      const currentTab = await browser.tabs.getCurrent();
-      const data = message.data;
-
-      if (currentTab?.id && data && typeof data === 'object' && 'sourceTabId' in data) {
-        const { x, y, sourceTabId } = data as { x: number; y: number; sourceTabId: number };
-        if (sourceTabId !== currentTab.id) {
-          const newPos = { x, y };
-          setPosition(newPos);
-          savePanelPosition(newPos);
-        }
-      }
-    });
-
-    return unsubscribe;
-  }, []);
 
   return {
     BUTTON_SIZE,
