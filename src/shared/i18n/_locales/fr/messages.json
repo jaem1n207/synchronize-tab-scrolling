@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "L'ajout de cet onglet réinitialisera vos ajustements de position de défilement"
   },
+  "existingSyncWarning": {
+    "message": "Vous synchronisez actuellement $COUNT$ onglets. Démarrer remplacera la synchronisation active.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "Remplacer et Sync"
+  },
   "startSyncButton": {
     "message": "Démarrer Sync"
   },

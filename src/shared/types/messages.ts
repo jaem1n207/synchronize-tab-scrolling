@@ -201,6 +201,10 @@ export interface SyncSuggestionMessage {
   tabCount: number;
   tabIds: Array<number>;
   tabTitles: Array<string>;
+  /** When true, another sync session is already active. Accepting this suggestion will replace it. */
+  hasExistingSync?: boolean;
+  /** Number of tabs in the currently active sync session (present only when hasExistingSync is true) */
+  existingSyncTabCount?: number;
 }
 
 /**

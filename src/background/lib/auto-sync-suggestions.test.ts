@@ -530,6 +530,35 @@ describe('auto-sync-suggestions', () => {
       expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
     });
 
+    it('includes hasExistingSync context when sync is active but URL does not match', async () => {
+      const normalizedUrl = 'https://unmatched-ctx.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([110, 111]));
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [200, 201];
+
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => {
+        if (tabId === 200 || tabId === 201) {
+          return createMockTab(tabId, `Tab ${tabId}`, 'https://other.test/different');
+        }
+        return createMockTab(tabId, `Tab ${tabId}`, normalizedUrl);
+      });
+
+      await showSyncSuggestion(normalizedUrl);
+
+      // Find sync-suggestion:show calls
+      const showCalls = mockedSendMessageWithTimeout.mock.calls.filter(
+        (call) => call[0] === 'sync-suggestion:show',
+      );
+
+      expect(showCalls.length).toBeGreaterThan(0);
+
+      // Verify payload includes hasExistingSync and existingSyncTabCount
+      const payload = showCalls[0][1] as Record<string, unknown>;
+      expect(payload.hasExistingSync).toBe(true);
+      expect(payload.existingSyncTabCount).toBe(2);
+    });
+
     it('skips suggestion via background check even when pings would time out', async () => {
       const normalizedUrl = 'https://throttled.test/page';
       autoSyncState.groups.set(normalizedUrl, createGroup([120, 121]));

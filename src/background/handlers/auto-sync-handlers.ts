@@ -14,6 +14,7 @@ import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
+  addTabSuggestedTabs,
   excludedDomains,
   manualSyncOverriddenTabs,
   dismissedUrlGroups,
@@ -21,6 +22,7 @@ import {
   SUGGESTION_SNOOZE_DURATION_MS,
   suggestionSnoozeUntil,
 } from '../lib/auto-sync-state';
+import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
 
@@ -140,6 +142,39 @@ export function registerAutoSyncHandlers(): void {
       const group = autoSyncState.groups.get(payload.normalizedUrl);
       if (group && group.tabIds.size >= 2) {
         const tabIds = Array.from(group.tabIds);
+
+        if (syncState.isActive && syncState.linkedTabs.length > 0) {
+          const previousLinkedTabs = [...syncState.linkedTabs];
+
+          logger.info(
+            '[AUTO-SYNC] Stopping existing sync before starting new sync from suggestion',
+            { previousLinkedTabs: syncState.linkedTabs, newTabIds: tabIds },
+          );
+
+          await Promise.allSettled(
+            previousLinkedTabs.map((tabId) =>
+              sendMessageWithTimeout(
+                'scroll:stop',
+                { tabIds: previousLinkedTabs },
+                { context: 'content-script', tabId },
+                1_000,
+              ),
+            ),
+          );
+
+          for (const oldTabId of previousLinkedTabs) {
+            manualSyncOverriddenTabs.delete(oldTabId);
+          }
+
+          stopKeepAlive();
+          addTabSuggestedTabs.clear();
+
+          syncState.isActive = false;
+          syncState.linkedTabs = [];
+          syncState.connectionStatuses = {};
+          syncState.mode = undefined;
+        }
+
         logger.info('[AUTO-SYNC] Starting manual sync from suggestion acceptance', {
           normalizedUrl: payload.normalizedUrl,
           tabIds,

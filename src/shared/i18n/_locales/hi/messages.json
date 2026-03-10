@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "इस टैब को जोड़ने से आपकी मैन्युअल स्क्रॉल स्थिति समायोजन रीसेट हो जाएंगी"
   },
+  "existingSyncWarning": {
+    "message": "वर्तमान में $COUNT$ टैब सिंक हो रहे हैं। इसे शुरू करने से सक्रिय सिंक बदल जाएगा।",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "बदलें और सिंक करें"
+  },
   "startSyncButton": {
     "message": "सिंक शुरू करें"
   },

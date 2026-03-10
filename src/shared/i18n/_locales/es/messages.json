@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "Agregar esta pestaña restablecerá los ajustes de posición de desplazamiento"
   },
+  "existingSyncWarning": {
+    "message": "Actualmente sincronizando $COUNT$ pestañas. Iniciar esto reemplazará la sincronización activa.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "Reemplazar y Sincronizar"
+  },
   "startSyncButton": {
     "message": "Iniciar Sync"
   },
