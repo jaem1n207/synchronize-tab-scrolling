@@ -157,6 +157,7 @@ When adding a new extension page (like an options page), update the following fi
 - **Code Organization**: Encapsulate complex logic into clear, purpose-specific functions
 - **Theme Support**: Support dark/light mode
 - **Commit Convention**: Conventional Commits with commitlint validation
+- **Pull Requests**: Always create PRs with `--assignee jaem1n207`
 
 ## Error Handling & User Experience Patterns
 
