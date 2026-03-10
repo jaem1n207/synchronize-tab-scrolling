@@ -25,6 +25,7 @@ import IconGlobe from '~icons/lucide/globe';
 import IconLink2 from '~icons/lucide/link-2';
 import IconPause from '~icons/lucide/pause';
 import IconPlay from '~icons/lucide/play';
+import IconShieldOff from '~icons/lucide/shield-off';
 import IconX from '~icons/lucide/x';
 
 interface ActionsMenuProps {
@@ -44,6 +45,8 @@ interface ActionsMenuProps {
   onAutoSyncChange: (enabled: boolean) => void;
   urlSyncEnabled: boolean;
   onUrlSyncChange: (enabled: boolean) => void;
+  onOpenExcludedDomains: () => void;
+  excludedDomainsCount: number;
 }
 
 export function ActionsMenu({
@@ -63,6 +66,8 @@ export function ActionsMenu({
   onAutoSyncChange,
   urlSyncEnabled,
   onUrlSyncChange,
+  onOpenExcludedDomains,
+  excludedDomainsCount,
 }: ActionsMenuProps) {
   const { modKey, shiftKey } = useModifierKey();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -223,6 +228,22 @@ export function ActionsMenu({
                         <span>{t('urlSyncNavigation')}</span>
                       </div>
                       {urlSyncEnabled && <IconCheck aria-hidden="true" className="w-4 h-4" />}
+                    </CommandItem>
+                    <CommandItem
+                      onSelect={() => {
+                        onOpenExcludedDomains();
+                        onOpenChange(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <IconShieldOff aria-hidden="true" className="w-4 h-4" />
+                        <span>{t('manageExcludedDomains')}</span>
+                        {excludedDomainsCount > 0 && (
+                          <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted text-muted-foreground rounded-full">
+                            {excludedDomainsCount}
+                          </span>
+                        )}
+                      </div>
                     </CommandItem>
                   </CommandGroup>
 
