@@ -8,6 +8,7 @@
 *.pem
 *.xpi
 *.zip
+build
 dist
 dist-ssr
 extension/manifest.json
