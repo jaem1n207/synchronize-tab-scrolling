@@ -579,5 +579,8 @@
         "example": "3"
       }
     }
+  },
+  "confirmRemoveDomain": {
+    "message": "按 Enter 刪除"
   }
 }

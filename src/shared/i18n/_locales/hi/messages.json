@@ -579,5 +579,8 @@
         "example": "3"
       }
     }
+  },
+  "confirmRemoveDomain": {
+    "message": "हटाने के लिए Enter दबाएं"
   }
 }

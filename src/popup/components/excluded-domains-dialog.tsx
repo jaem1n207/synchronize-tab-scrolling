@@ -50,6 +50,7 @@ export function ExcludedDomainsDialog({
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<DomainErrorKey | null>(null);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [pendingRemoveDomain, setPendingRemoveDomain] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const preview = useMemo(() => onPreviewDomain(inputValue), [inputValue, onPreviewDomain]);
@@ -62,6 +63,7 @@ export function ExcludedDomainsDialog({
   useEffect(() => {
     if (!open) {
       setSelectedDomain(null);
+      setPendingRemoveDomain(null);
       setInputValue('');
       setError(null);
     }
@@ -70,6 +72,7 @@ export function ExcludedDomainsDialog({
   useEffect(() => {
     if (selectedDomain && !excludedDomains.includes(selectedDomain)) {
       setSelectedDomain(null);
+      setPendingRemoveDomain(null);
     }
   }, [excludedDomains, selectedDomain]);
 
@@ -101,14 +104,19 @@ export function ExcludedDomainsDialog({
         case 'Enter': {
           e.preventDefault();
           if (selectedDomain) {
-            const currentIndex = excludedDomains.indexOf(selectedDomain);
-            onRemoveDomain(selectedDomain);
-            const remaining = excludedDomains.filter((d) => d !== selectedDomain);
-            setSelectedDomain(
-              remaining.length === 0
-                ? null
-                : remaining[Math.min(currentIndex, remaining.length - 1)],
-            );
+            if (pendingRemoveDomain === selectedDomain) {
+              const currentIndex = excludedDomains.indexOf(selectedDomain);
+              onRemoveDomain(selectedDomain);
+              setPendingRemoveDomain(null);
+              const remaining = excludedDomains.filter((d) => d !== selectedDomain);
+              setSelectedDomain(
+                remaining.length === 0
+                  ? null
+                  : remaining[Math.min(currentIndex, remaining.length - 1)],
+              );
+            } else {
+              setPendingRemoveDomain(selectedDomain);
+            }
             return;
           }
           handleAdd();
@@ -117,6 +125,7 @@ export function ExcludedDomainsDialog({
         case 'ArrowDown': {
           if (excludedDomains.length === 0) return;
           e.preventDefault();
+          setPendingRemoveDomain(null);
           if (!selectedDomain) {
             setSelectedDomain(excludedDomains[0]);
           } else {
@@ -130,6 +139,7 @@ export function ExcludedDomainsDialog({
         case 'ArrowUp': {
           if (!selectedDomain || excludedDomains.length === 0) return;
           e.preventDefault();
+          setPendingRemoveDomain(null);
           const currentIndex = excludedDomains.indexOf(selectedDomain);
           if (currentIndex <= 0) {
             setSelectedDomain(null);
@@ -167,6 +177,12 @@ export function ExcludedDomainsDialog({
           return;
         }
         case 'Escape': {
+          if (pendingRemoveDomain) {
+            e.preventDefault();
+            e.stopPropagation();
+            setPendingRemoveDomain(null);
+            return;
+          }
           if (selectedDomain) {
             e.preventDefault();
             e.stopPropagation();
@@ -177,17 +193,19 @@ export function ExcludedDomainsDialog({
         default: {
           if (selectedDomain && e.key.length === 1) {
             setSelectedDomain(null);
+            setPendingRemoveDomain(null);
           }
         }
       }
     },
-    [selectedDomain, excludedDomains, handleAdd, onRemoveDomain],
+    [selectedDomain, pendingRemoveDomain, excludedDomains, handleAdd, onRemoveDomain],
   );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
     setError(null);
     setSelectedDomain(null);
+    setPendingRemoveDomain(null);
   }, []);
 
   return (
@@ -292,6 +310,7 @@ export function ExcludedDomainsDialog({
                 <AnimatePresence initial={false}>
                   {excludedDomains.map((domain) => {
                     const isSelected = domain === selectedDomain;
+                    const isPendingRemove = domain === pendingRemoveDomain;
                     return (
                       <motion.div
                         key={domain}
@@ -300,9 +319,11 @@ export function ExcludedDomainsDialog({
                         aria-selected={isSelected}
                         className={cn(
                           'flex items-center justify-between gap-2 rounded-md border px-3 py-2 transition-colors',
-                          isSelected
-                            ? 'border-ring bg-accent'
-                            : 'border-border/50 hover:bg-muted/50',
+                          isPendingRemove
+                            ? 'border-destructive bg-destructive/10'
+                            : isSelected
+                              ? 'border-ring bg-accent'
+                              : 'border-border/50 hover:bg-muted/50',
                         )}
                         data-value={domain}
                         exit={{ opacity: 0, height: 0 }}
@@ -315,18 +336,37 @@ export function ExcludedDomainsDialog({
                         )}
                         onClick={() => {
                           setSelectedDomain(isSelected ? null : domain);
+                          setPendingRemoveDomain(null);
                           inputRef.current?.focus();
                         }}
                         onPointerMove={() => {
-                          if (!isSelected) setSelectedDomain(domain);
+                          if (!isSelected) {
+                            setSelectedDomain(domain);
+                            setPendingRemoveDomain(null);
+                          }
                         }}
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <IconGlobe
                             aria-hidden="true"
-                            className="w-3.5 h-3.5 text-muted-foreground shrink-0"
+                            className={cn(
+                              'w-3.5 h-3.5 shrink-0',
+                              isPendingRemove ? 'text-destructive' : 'text-muted-foreground',
+                            )}
                           />
-                          <span className="text-sm truncate">{domain}</span>
+                          <span
+                            className={cn(
+                              'text-sm truncate',
+                              isPendingRemove && 'text-destructive',
+                            )}
+                          >
+                            {domain}
+                          </span>
+                          {isPendingRemove && (
+                            <span className="text-xs text-destructive shrink-0">
+                              {t('confirmRemoveDomain')}
+                            </span>
+                          )}
                         </div>
                         <Button
                           aria-label={t('removeDomainAriaLabel', domain)}

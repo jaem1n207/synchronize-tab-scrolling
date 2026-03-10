@@ -579,5 +579,8 @@
         "example": "3"
       }
     }
+  },
+  "confirmRemoveDomain": {
+    "message": "Enter para eliminar"
   }
 }
