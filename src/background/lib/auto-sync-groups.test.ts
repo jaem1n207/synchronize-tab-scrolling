@@ -136,6 +136,7 @@ vi.mock('./auto-sync-suggestions', () => ({
   showSyncSuggestion: showSyncSuggestionMock,
   sendSuggestionToSingleTab: sendSuggestionToSingleTabMock,
   isDomainSnoozed: isDomainSnoozedMock,
+  isDomainPermanentlyExcluded: vi.fn().mockReturnValue(false),
 }));
 
 function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSyncGroup {

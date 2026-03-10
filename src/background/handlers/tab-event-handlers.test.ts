@@ -113,6 +113,7 @@ vi.mock('../lib/auto-sync-suggestions', () => ({
   sendSuggestionToSingleTab: vi.fn(),
   showAddTabSuggestion: vi.fn(),
   isDomainSnoozed: vi.fn().mockReturnValue(false),
+  isDomainPermanentlyExcluded: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('../lib/content-script-manager', () => ({

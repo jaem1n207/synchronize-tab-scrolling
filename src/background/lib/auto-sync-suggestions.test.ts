@@ -59,6 +59,7 @@ vi.mock('./auto-sync-state', () => ({
     excludedUrls: [] as Array<string>,
   },
   dismissedUrlGroups: new Set<string>(),
+  excludedDomains: new Set<string>(),
   pendingSuggestions: new Set<string>(),
   suggestionSnoozeUntil: new Map<string, number>(),
 }));

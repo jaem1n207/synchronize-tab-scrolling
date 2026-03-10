@@ -23,6 +23,8 @@ export const SUGGESTION_SNOOZE_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 export const suggestionSnoozeUntil = new Map<string, number>();
 
+export const excludedDomains = new Set<string>();
+
 export const autoSyncFlags = {
   isToggling: false,
   isInitializing: false,
