@@ -79,6 +79,39 @@ export function isUrlExcluded(url: string, patterns: Array<string>): boolean {
 }
 
 /**
+ * Extract the domain (hostname) from a URL.
+ *
+ * Used for domain-level snooze: when a user dismisses a sync suggestion,
+ * all suggestions for the same domain are suppressed for a configurable duration.
+ *
+ * @param url - URL string or normalized URL to extract the domain from
+ * @returns Lowercase hostname (e.g., `github.com`) or `null` for invalid input
+ *
+ * @example
+ * extractDomainFromUrl('https://github.com/user/repo/pulls?q=1')
+ * // => 'github.com'
+ *
+ * extractDomainFromUrl('https://api.example.com/endpoint')
+ * // => 'api.example.com'
+ *
+ * extractDomainFromUrl('chrome://extensions')
+ * // => null
+ */
+export function extractDomainFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
+
+    return parsed.hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Detect whether a URL points to a local development server.
  *
  * Local servers are excluded from auto-sync suggestions (but not from
