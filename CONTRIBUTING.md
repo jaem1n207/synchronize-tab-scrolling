@@ -337,6 +337,47 @@ refactor: simplify message handling
 
 ---
 
+## Release & Deployment
+
+When code is merged to `main`, the CI/CD pipeline automatically:
+
+1. **Analyzes** commits using [Conventional Commits](https://www.conventionalcommits.org/) to determine the next version
+2. **Builds** both Chrome and Firefox extensions
+3. **Publishes** to all three stores simultaneously:
+   - **Chrome Web Store** via `semantic-release-chrome`
+   - **Firefox AMO** via `semantic-release-amo`
+   - **Microsoft Edge Add-ons** via `@plasmohq/edge-addons-api`
+4. **Creates** a GitHub Release with downloadable `.zip` assets
+5. **Updates** `CHANGELOG.md` and `package.json` version
+
+### How Versioning Works
+
+| Commit prefix              | Version bump          | Example                                      |
+| -------------------------- | --------------------- | -------------------------------------------- |
+| `fix:`                     | Patch (1.0.0 → 1.0.1) | `fix(sync): resolve scroll drift`            |
+| `feat:`                    | Minor (1.0.0 → 1.1.0) | `feat(popup): add tab filtering`             |
+| `BREAKING CHANGE:` in body | Major (1.0.0 → 2.0.0) | Body contains `BREAKING CHANGE: removed API` |
+
+Commits with `docs:`, `chore:`, `style:`, `refactor:`, `test:` prefixes do **not** trigger a release.
+
+### Key Files
+
+| File                            | Purpose                               |
+| ------------------------------- | ------------------------------------- |
+| `.github/workflows/release.yml` | GitHub Actions workflow               |
+| `release.config.js`             | semantic-release plugin configuration |
+| `scripts/publish-edge.mjs`      | Edge Add-ons API publish script       |
+
+### Store Credentials
+
+All store credentials are stored as GitHub Secrets. See [`docs/guides/store-deployment.md`](./docs/guides/store-deployment.md) for:
+
+- How to obtain each credential
+- How to renew expired credentials (especially Edge API Key)
+- Troubleshooting deployment failures
+
+---
+
 ## Troubleshooting
 
 For detailed troubleshooting information, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
@@ -427,3 +468,41 @@ refactor: 메시지 처리 단순화
 - [ ] TypeScript 타입 완전함
 - [ ] 린트 오류 없음
 - [ ] 커밋 메시지 컨벤션 준수
+
+---
+
+## 릴리스 & 배포
+
+코드가 `main` 브랜치에 머지되면 CI/CD 파이프라인이 자동으로:
+
+1. [Conventional Commits](https://www.conventionalcommits.org/) 기반으로 커밋을 분석하여 다음 버전 결정
+2. Chrome과 Firefox 확장 프로그램 빌드
+3. 3개 스토어에 동시 배포:
+   - **Chrome Web Store** — `semantic-release-chrome`
+   - **Firefox AMO** — `semantic-release-amo`
+   - **Microsoft Edge Add-ons** — `@plasmohq/edge-addons-api`
+4. GitHub Release 생성 (`.zip` 에셋 첨부)
+5. `CHANGELOG.md`와 `package.json` 버전 업데이트
+
+### 버전 결정 규칙
+
+| 커밋 prefix               | 버전 변경             | 예시                               |
+| ------------------------- | --------------------- | ---------------------------------- |
+| `fix:`                    | Patch (1.0.0 → 1.0.1) | `fix(sync): 스크롤 드리프트 해결`  |
+| `feat:`                   | Minor (1.0.0 → 1.1.0) | `feat(popup): 탭 필터링 추가`      |
+| `BREAKING CHANGE:` (본문) | Major (1.0.0 → 2.0.0) | 본문에 `BREAKING CHANGE: API 제거` |
+
+`docs:`, `chore:`, `style:`, `refactor:`, `test:` prefix 커밋은 릴리스를 트리거하지 않습니다.
+
+### 관련 파일
+
+| 파일                            | 역할                           |
+| ------------------------------- | ------------------------------ |
+| `.github/workflows/release.yml` | GitHub Actions 워크플로우      |
+| `release.config.js`             | semantic-release 플러그인 구성 |
+| `scripts/publish-edge.mjs`      | Edge Add-ons API 배포 스크립트 |
+
+### 스토어 자격증명
+
+모든 스토어 자격증명은 GitHub Secrets로 관리됩니다.
+자격증명 취득, 갱신, 트러블슈팅은 [`docs/guides/store-deployment.md`](./docs/guides/store-deployment.md)를 참고하세요.
