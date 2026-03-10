@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "skills": {
+    "accessibility-auditor": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "aa779ad96c79b2016089c754156fecd83fcce9e674b2ea8cbc3896acd8a9330a"
+    },
+    "code-reviewer": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "0c09d0689747f4be7464ee99faf9b6d7c2c655865fd346f619ea73d93a9134a2"
+    },
+    "eslint": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "25930624757a73d7e17c733cedd787f024948a5e7881d7554b456d1cf866e11e"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+    },
+    "github": {
+      "source": "callstackincubator/agent-skills",
+      "sourceType": "github",
+      "computedHash": "32131aefe2317287d83e1d3ed5b2a83ca5b1a08142ee3b9bb4fc9d54ea348c31"
+    },
+    "github-actions": {
+      "source": "callstackincubator/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3632dc997b2d8810bdc753173e269dfc0fd40b6fe6be0dd27b8f2abc58e47ada"
+    },
+    "i18next": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "faa9b807579539d306bd57412ac82ed182ae860c48e135d46bb175b3a2cf8a67"
+    },
+    "playwright-testing": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "42c49132284c8ddc2fae58356fdabd0bebd332f82ade39efb7b16e43ed535d84"
+    },
+    "security-audit": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "aff30b9a9dc5beaaf621fc67651ea75fa7c5d22f316141a8ef409bf9021567b0"
+    },
+    "shadcn-ui": {
+      "source": "google-labs-code/stitch-skills",
+      "sourceType": "github",
+      "computedHash": "dadbca54d35a33fe73e40018611af2179689305bf6da812ab2643987fefd9da3"
+    },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "b122f4d1e91aa1d83027e050b5b37c3156203ee85458d7b1360bc48167c9e02a"
+    },
+    "tailwindcss": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "321d53f81fc3014190bbd0f3a622690914232adc38beab7414e82095d0d717da"
+    },
+    "testing-library": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "f03327a1e77c43fea236a5522f3531b5e61654e327a4a53a97ab99d45086bccf"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "3462ec83f862abb2d532953df33a4dbf87f4616849da5d4b5cc7c13601aaf997"
+    },
+    "vite": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "f921819461bdf1e1f93f5d83caacccccd7eaf47b70b8f963aae88e1545dcf0bc"
+    },
+    "vitest": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "d5cf986c82a805e937eec27c83946c7c85a8718ff306631fb9072fed3a8a1706"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "cf8e5916d474886bd67b09691247f43f331523008b7d366064bc607ab42d6302"
+    },
+    "wxt": {
+      "source": "TerminalSkills/skills",
+      "sourceType": "github",
+      "computedHash": "c6d26ce26c3fd08413cbabf611bb8512fcc7e368b80651580d25eb385a534827"
+    }
+  }
+}
