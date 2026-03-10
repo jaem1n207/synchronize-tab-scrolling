@@ -170,6 +170,13 @@ export default tsEslint.config(
 
   // 무시할 파일 설정
   {
-    ignores: ['**/build/**', '**/dist/**', '**/node_modules/**', 'eslint.config.ts'],
+    ignores: [
+      '**/build/**',
+      '**/dist/**',
+      '**/node_modules/**',
+      '.agents/**',
+      '.claude/skills/**',
+      'eslint.config.ts',
+    ],
   },
 );
