@@ -15,19 +15,6 @@ export default {
         extensionId: 'phceoocamipnafpgnchbfhkdlbleeafc',
       },
     ],
-    [
-      'semantic-release-amo',
-      {
-        addonId: 'addon@synchronize-tab-scrolling.org',
-        addonDirPath: 'build/firefox',
-        addonZipPath: 'synchronize-tab-scrolling-firefox.zip',
-        submitReleaseNotes: true,
-        submitSource: true,
-        approvalNotes:
-          'Build from source: pnpm install && pnpm build-firefox. Output is in the extension/ directory.',
-        compatibility: ['firefox'],
-      },
-    ],
     ['@semantic-release/npm', { npmPublish: false }],
     [
       '@semantic-release/github',
@@ -44,6 +31,19 @@ export default {
             label: 'Firefox Add-on (zip)',
           },
         ],
+      },
+    ],
+    [
+      'semantic-release-amo',
+      {
+        addonId: 'addon@synchronize-tab-scrolling.org',
+        addonDirPath: 'build/firefox',
+        addonZipPath: 'synchronize-tab-scrolling-firefox.zip',
+        submitReleaseNotes: false,
+        submitSource: true,
+        approvalNotes:
+          'Build from source: pnpm install && pnpm build-firefox. Output is in the extension/ directory.',
+        compatibility: ['firefox'],
       },
     ],
     [
