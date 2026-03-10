@@ -3,17 +3,17 @@ pre-commit:
   commands:
     lint-and-format-ts:
       glob: '**/*.{ts,tsx}'
-      exclude: '{node_modules,extension/dist,build,dist}/**/*'
+      exclude: '{node_modules,extension/dist,build,dist,.agents,.claude/skills}/**/*'
       run: |
         bunx prettier --write {staged_files} &&
         NODE_OPTIONS='--experimental-strip-types' bunx eslint {staged_files} --fix --flag unstable_native_nodejs_ts_config --max-warnings=0
     format-others:
       glob: '**/*.{json,md,mdx,css,html,yml,yaml,scss}'
-      exclude: '{node_modules,extension/dist,build,dist,pnpm-lock.yaml}/**/*'
+      exclude: '{node_modules,extension/dist,build,dist,pnpm-lock.yaml,.agents,.claude/skills}/**/*'
       run: bunx prettier --write {staged_files}
     typecheck:
       glob: '**/*.{ts,tsx}'
-      exclude: '{node_modules,extension/dist,build,dist}/**/*'
+      exclude: '{node_modules,extension/dist,build,dist,.agents,.claude/skills}/**/*'
       run: bunx tsc --noEmit
     i18n-validate:
       glob: 'src/shared/i18n/_locales/**/*.json'
