@@ -7,17 +7,14 @@ export default {
     '@semantic-release/commit-analyzer',
     '@semantic-release/release-notes-generator',
     '@semantic-release/changelog',
-    // TEMP: Chrome v2.9.0 already uploaded and in review.
-    // Replace semantic-release-chrome with zip-only to avoid ITEM_NOT_UPDATABLE error.
-    // Restore after this release.
-    // [
-    //   'semantic-release-chrome',
-    //   {
-    //     distFolder: 'build/chrome',
-    //     asset: 'synchronize-tab-scrolling-chrome.zip',
-    //     extensionId: 'phceoocamipnafpgnchbfhkdlbleeafc',
-    //   },
-    // ],
+    [
+      'semantic-release-chrome',
+      {
+        distFolder: 'build/chrome',
+        asset: 'synchronize-tab-scrolling-chrome.zip',
+        extensionId: 'phceoocamipnafpgnchbfhkdlbleeafc',
+      },
+    ],
     ['@semantic-release/npm', { npmPublish: false }],
     [
       '@semantic-release/github',
@@ -52,8 +49,6 @@ export default {
     [
       '@semantic-release/exec',
       {
-        prepareCmd:
-          "node -e \"const m=require('./build/chrome/manifest.json');m.version='${nextRelease.version}';require('fs').writeFileSync('./build/chrome/manifest.json',JSON.stringify(m,null,2))\" && cd build/chrome && zip -r ../../synchronize-tab-scrolling-chrome.zip .",
         publishCmd: 'node scripts/publish-edge.mjs ${nextRelease.version}',
       },
     ],
