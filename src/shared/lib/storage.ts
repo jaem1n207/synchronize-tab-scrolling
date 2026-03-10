@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   URL_SYNC_ENABLED: 'urlSyncEnabled',
   AUTO_SYNC_ENABLED: 'autoSyncEnabled',
   AUTO_SYNC_EXCLUDED_URLS: 'autoSyncExcludedUrls',
+  SUGGESTION_SNOOZE_UNTIL: 'suggestionSnoozeUntil',
 } as const;
 
 /**
@@ -291,6 +292,67 @@ export async function loadAutoSyncExcludedUrls(): Promise<Array<string>> {
   } catch (error) {
     await logger.error('Failed to load auto-sync excluded URLs:', error);
     return [];
+  }
+}
+
+export type SuggestionSnoozeMap = Record<string, number>;
+
+export async function saveSuggestionSnooze(
+  domain: string,
+  expiresAt: number,
+): Promise<SuggestionSnoozeMap> {
+  try {
+    const snoozes = await loadSuggestionSnoozes();
+    snoozes[domain] = expiresAt;
+    await browser.storage.local.set({
+      [STORAGE_KEYS.SUGGESTION_SNOOZE_UNTIL]: snoozes,
+    });
+    return snoozes;
+  } catch (error) {
+    await logger.error('Failed to save suggestion snooze:', error);
+    return {};
+  }
+}
+
+export async function loadSuggestionSnoozes(): Promise<SuggestionSnoozeMap> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.SUGGESTION_SNOOZE_UNTIL);
+    return (result[STORAGE_KEYS.SUGGESTION_SNOOZE_UNTIL] as SuggestionSnoozeMap) || {};
+  } catch (error) {
+    await logger.error('Failed to load suggestion snoozes:', error);
+    return {};
+  }
+}
+
+export async function clearExpiredSnoozes(): Promise<SuggestionSnoozeMap> {
+  try {
+    const snoozes = await loadSuggestionSnoozes();
+    const now = Date.now();
+    const active: SuggestionSnoozeMap = {};
+
+    for (const [domain, expiresAt] of Object.entries(snoozes)) {
+      if (expiresAt > now) {
+        active[domain] = expiresAt;
+      }
+    }
+
+    await browser.storage.local.set({
+      [STORAGE_KEYS.SUGGESTION_SNOOZE_UNTIL]: active,
+    });
+    return active;
+  } catch (error) {
+    await logger.error('Failed to clear expired snoozes:', error);
+    return {};
+  }
+}
+
+export async function clearAllSnoozes(): Promise<void> {
+  try {
+    await browser.storage.local.set({
+      [STORAGE_KEYS.SUGGESTION_SNOOZE_UNTIL]: {},
+    });
+  } catch (error) {
+    await logger.error('Failed to clear all snoozes:', error);
   }
 }
 
