@@ -8,7 +8,12 @@ import {
   getAutoSyncGroupMembers,
   updateAutoSyncGroup,
 } from '../lib/auto-sync-groups';
-import { autoSyncState, manualSyncOverriddenTabs } from '../lib/auto-sync-state';
+import {
+  autoSyncState,
+  manualSyncOverriddenTabs,
+  pendingSuggestions,
+  addTabSuggestedTabs,
+} from '../lib/auto-sync-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
@@ -24,11 +29,18 @@ export function registerScrollSyncHandlers(): void {
     // If this is a manual sync (not auto-sync), handle conflict with auto-sync
     if (!payload.isAutoSync) {
       for (const tabId of payload.tabIds) {
-        // Mark tab as manually overridden (takes priority over auto-sync)
         manualSyncOverriddenTabs.add(tabId);
-        // Remove from any auto-sync groups
         await removeTabFromAllAutoSyncGroups(tabId);
       }
+
+      // Clean up stale pending suggestions for groups that no longer have enough tabs
+      for (const normalizedUrl of [...pendingSuggestions]) {
+        const group = autoSyncState.groups.get(normalizedUrl);
+        if (!group || group.tabIds.size < 2) {
+          pendingSuggestions.delete(normalizedUrl);
+        }
+      }
+
       logger.debug('Manual sync started, tabs excluded from auto-sync', {
         tabIds: payload.tabIds,
       });
@@ -187,16 +199,14 @@ export function registerScrollSyncHandlers(): void {
       });
     }
 
-    // Stop keep-alive mechanism
     stopKeepAlive();
 
-    // Clear sync state
     syncState.isActive = false;
     syncState.linkedTabs = [];
     syncState.connectionStatuses = {};
     syncState.mode = undefined;
+    addTabSuggestedTabs.clear();
 
-    // Persist cleared state
     await persistSyncState();
 
     return { success: true };
