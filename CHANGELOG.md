@@ -14,6 +14,66 @@
 * **popup:** allow Enter to remove selected domain and fix dialog rounded corners ([93862b6](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/93862b667ca34c901383d8fffae30c26e5adea14))
 * **popup:** restore search input focus when closing excluded domains dialog ([28cf37e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/28cf37e15f61594f0ec94781c44c5227d4f83e4c))
 * **release:** disable AMO release notes and reorder publish plugins ([9db1e1a](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/9db1e1a16f76228f118a20c4283e606ac067e86c))
+* **release:** skip Chrome upload for v2.9.0 re-release ([b6600e3](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b6600e3f8cdc3f0d169214302a9faf087bef7816))
+* **scroll-sync:** prevent false disconnect status during idle periods ([c3386a0](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c3386a0b40d06db41ff188c6f318630ed2ec1557))
+* **scroll-sync:** widen programmatic scroll grace period to prevent feedback loops ([c9a96ec](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c9a96ecb62eb7d9e113117175e7a156ea3483208))
+
+
+### Features
+
+* **auto-sync:** include hasExistingSync context in sync suggestion messages ([8611488](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/861148801eaeb823a685e0e5c5fa790c2174bf97))
+* **background:** add suggestion snooze in-memory state ([9a88384](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/9a883849d1d72d9e80c56b6715f11ba9c7ec5663))
+* **background:** add suggestion snooze in-memory state ([ee2bcf4](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/ee2bcf44bc9ed463f8f98f1bc1db5597b62c3c45))
+* **background:** check domain snooze before showing sync suggestions ([0ae22b0](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/0ae22b02e66568027118c261f4a37435595ba486))
+* **background:** check domain snooze before showing sync suggestions ([c7ae142](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c7ae14226b1619145dc1d888851db42793710cef))
+* **background:** integrate permanent domain exclusions into auto-sync ([1b2946a](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/1b2946a06aae5ddd414f94b8d42407e998636adf))
+* **background:** integrate snooze with auto-sync lifecycle ([c80111a](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c80111a6947db81d4ebf5ba8125895f6ed49042c))
+* **background:** integrate snooze with auto-sync lifecycle ([85a5fc3](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/85a5fc3213942580cf93739b5b5e452f76b468ab))
+* **contentScripts:** distinguish explicit dismiss from auto-dismiss in toast ([5fe5116](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/5fe5116d619edb864a61e9dfddf757def6b0e58f))
+* **contentScripts:** distinguish explicit dismiss from auto-dismiss in toast ([55bc0a0](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/55bc0a080b782495cfab7daa3c9ba3878e8a5bd0))
+* **contentScripts:** forward snooze flag in suggestion toast message handlers ([2d34202](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/2d34202ef61f3f00a8ebbe513fa86f308bb968e6))
+* **contentScripts:** forward snooze flag in suggestion toast message handlers ([4060dc3](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/4060dc38e28719a2529b773cf528acdaf2a3feb7))
+* **i18n:** add domain exclusion management translations ([2980361](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/2980361ba01fe32792f8a5a0a31518287e2ae3f5))
+* **i18n:** add existing sync warning and replace button keys for all 9 locales ([16fb828](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/16fb8282503d611107e0c2946ce29b796a5c7274))
+* **i18n:** add missing domain exclusion management translations ([6bdf95d](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/6bdf95dfb19c337373c3c14c18b03bf215df4f2c))
+* **lib:** add extractDomainFromUrl utility for domain-level snooze ([851b5c2](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/851b5c23e1146e7087655e4df9d42a545ef92a94))
+* **lib:** add extractDomainFromUrl utility for domain-level snooze ([44b6d0e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/44b6d0eca3dafaba8f588dd7033beff88220ffbc))
+* **lib:** add suggestion snooze storage functions ([7506a7c](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/7506a7c5f81e8985e31adc1bb6f30b4033153ad9))
+* **lib:** add suggestion snooze storage functions ([8faa954](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/8faa954bc13c68112b16f4455ff0dcb99f5d5696))
+* **panel:** persist drag position across page reloads ([aa5c2e6](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/aa5c2e611773a4eaa2313a88ba16951fb76364b4))
+* **popup:** add domain exclusion management UI ([e33c851](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e33c851661432f125132fd0357c51df90d26a291))
+* **popup:** add keyboard navigation to excluded domains list ([c21a1aa](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c21a1aa5343124a78411091492780078fdbe6354))
+* **popup:** add real-time domain validation preview ([ade6b73](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/ade6b739632616675919351ea64a03e41652fbe5))
+* **popup:** add two-stage Enter confirmation for domain removal ([c008a1e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c008a1e20afcf26fb68f25bb517ac8d4d75397f9))
+* **storage:** add panel position persistence functions ([3275b76](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/3275b7699efca17089109a02bcdd932e73512bb1))
+* **storage:** add permanent domain exclusion storage and types ([450ee90](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/450ee90015d43ccb56b9333c8afbd3c9437a3c59))
+* **toast:** add "don't show again" option to suggestion toasts ([670752e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/670752e4e04e2770159a584c24622f207b6a0cc1))
+* **toast:** show existing sync warning and replace button in suggestion toast ([1a10ceb](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/1a10ceb53e28ec7533148addc9f224120bcfb6dc))
+* **types:** add hasExistingSync context to SyncSuggestionMessage ([b894285](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b894285709fcd3e30b30f44a3bde5a0c8a47acea))
+* **types:** add snooze flag to suggestion response messages ([e949e61](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e949e61563495cf44f74a3c13ad871118ae29f82))
+* **types:** add snooze flag to suggestion response messages ([e01e123](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e01e12307855ade5b992dd3c4b2704bf81fb08d4))
+
+
+### Performance Improvements
+
+* **scroll-sync:** cache manual scroll offset to eliminate async storage reads ([757de90](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/757de90733e8b0b5bfd6c4b5887db614ad936647))
+
+# [2.9.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.8.3...v2.9.0) (2026-03-10)
+
+
+### Bug Fixes
+
+* **auto-sync:** stop existing sync before starting new one from suggestion ([71b84d6](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/71b84d6122bbe95215428d8cd575df8d0aaf84f3))
+* **background:** add deduplication for add-tab suggestion in onUpdated ([e8cbc49](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e8cbc493c59efdad6d55fa334b22d68cba1cafcc))
+* **background:** add syncState check in showSyncSuggestion ([6b4af95](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/6b4af956d8b2288381742645ecfdcf76940ba52c))
+* **background:** await restoreSyncState before initializeAutoSync ([7c32a5b](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/7c32a5bda7b3a0b213f2df6e4147cb7f5a18f45a))
+* **background:** clean up suggestion state on sync start and stop ([604f6ec](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/604f6ec1b7b1c0fe6bf2358f5c8b7f2ce869bd9d))
+* **background:** guard onUpdated against showing suggestions for synced tabs ([d915b82](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/d915b82c396acf99468b54cbe009be8f42bb885c))
+* **dx:** suppress ESLint warnings for ignored skill files ([788b83f](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/788b83fcaf73970a47cbb8ef136bceab9599a8b6))
+* **panel:** use per-tab sessionStorage and remove cross-tab broadcast ([b18dd52](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b18dd52ac3abfb63d668826c3809bfa64f1186cc))
+* **popup:** allow Enter to remove selected domain and fix dialog rounded corners ([93862b6](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/93862b667ca34c901383d8fffae30c26e5adea14))
+* **popup:** restore search input focus when closing excluded domains dialog ([28cf37e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/28cf37e15f61594f0ec94781c44c5227d4f83e4c))
+* **release:** disable AMO release notes and reorder publish plugins ([9db1e1a](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/9db1e1a16f76228f118a20c4283e606ac067e86c))
 * **scroll-sync:** prevent false disconnect status during idle periods ([c3386a0](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c3386a0b40d06db41ff188c6f318630ed2ec1557))
 * **scroll-sync:** widen programmatic scroll grace period to prevent feedback loops ([c9a96ec](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c9a96ecb62eb7d9e113117175e7a156ea3483208))
 
