@@ -22,7 +22,6 @@ const STORAGE_KEYS = {
   URL_SYNC_ENABLED: 'urlSyncEnabled',
   AUTO_SYNC_ENABLED: 'autoSyncEnabled',
   AUTO_SYNC_EXCLUDED_URLS: 'autoSyncExcludedUrls',
-  PANEL_POSITION: 'panelPosition',
 } as const;
 
 /**
@@ -292,46 +291,6 @@ export async function loadAutoSyncExcludedUrls(): Promise<Array<string>> {
   } catch (error) {
     await logger.error('Failed to load auto-sync excluded URLs:', error);
     return [];
-  }
-}
-
-/**
- * Panel position data structure
- */
-export interface PanelPosition {
-  x: number;
-  y: number;
-}
-
-/**
- * Save panel position for persistence across page reloads
- * @param position - The panel position coordinates
- */
-export async function savePanelPosition(position: PanelPosition): Promise<void> {
-  try {
-    await browser.storage.local.set({
-      [STORAGE_KEYS.PANEL_POSITION]: position,
-    });
-  } catch (error) {
-    await logger.error('Failed to save panel position:', error);
-  }
-}
-
-/**
- * Load panel position from storage
- * @returns The stored panel position, or null if no position was saved
- */
-export async function loadPanelPosition(): Promise<PanelPosition | null> {
-  try {
-    const result = await browser.storage.local.get(STORAGE_KEYS.PANEL_POSITION);
-    const stored = result[STORAGE_KEYS.PANEL_POSITION] as PanelPosition | undefined;
-    if (stored && typeof stored.x === 'number' && typeof stored.y === 'number') {
-      return stored;
-    }
-    return null;
-  } catch (error) {
-    await logger.error('Failed to load panel position:', error);
-    return null;
   }
 }
 
