@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -18,6 +18,7 @@ import {
   getMotionTransition,
 } from '~/shared/lib/animations';
 
+import IconArrowRight from '~icons/lucide/arrow-right';
 import IconGlobe from '~icons/lucide/globe';
 import IconPlus from '~icons/lucide/plus';
 import IconX from '~icons/lucide/x';
@@ -28,6 +29,7 @@ interface ExcludedDomainsDialogProps {
   excludedDomains: Array<string>;
   onAddDomain: (input: string) => { success: boolean; domain?: string; error?: DomainErrorKey };
   onOpenChange: (open: boolean) => void;
+  onPreviewDomain: (input: string) => { domain: string; isDuplicate: boolean } | null;
   onRemoveDomain: (domain: string) => void;
   open: boolean;
 }
@@ -36,11 +38,14 @@ export function ExcludedDomainsDialog({
   excludedDomains,
   onAddDomain,
   onOpenChange,
+  onPreviewDomain,
   onRemoveDomain,
   open,
 }: ExcludedDomainsDialogProps) {
   const [inputValue, setInputValue] = useState('');
   const [error, setError] = useState<DomainErrorKey | null>(null);
+
+  const preview = useMemo(() => onPreviewDomain(inputValue), [inputValue, onPreviewDomain]);
 
   const handleAdd = useCallback(() => {
     if (!inputValue.trim()) return;
@@ -90,7 +95,7 @@ export function ExcludedDomainsDialog({
               />
               <Button
                 className="shrink-0"
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() || (preview?.isDuplicate ?? false)}
                 size="sm"
                 variant="outline"
                 onClick={handleAdd}
@@ -99,9 +104,10 @@ export function ExcludedDomainsDialog({
                 <span>{t('addDomain')}</span>
               </Button>
             </div>
-            <AnimatePresence>
-              {error && (
+            <AnimatePresence mode="wait">
+              {error ? (
                 <motion.p
+                  key="error"
                   animate={{ opacity: 1, y: 0 }}
                   className="text-sm text-destructive"
                   exit={{ opacity: 0, y: -4 }}
@@ -113,7 +119,34 @@ export function ExcludedDomainsDialog({
                 >
                   {t(error)}
                 </motion.p>
-              )}
+              ) : preview ? (
+                <motion.div
+                  key="preview"
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-1.5 text-xs"
+                  exit={{ opacity: 0, y: -4 }}
+                  initial={{ opacity: 0, y: -4 }}
+                  transition={getMotionTransition(
+                    ANIMATION_DURATIONS.fast,
+                    EASING_FUNCTIONS.easeOut,
+                  )}
+                >
+                  <IconArrowRight
+                    aria-hidden="true"
+                    className="w-3 h-3 text-muted-foreground shrink-0"
+                  />
+                  <span
+                    className={
+                      preview.isDuplicate ? 'text-destructive font-medium' : 'text-muted-foreground'
+                    }
+                  >
+                    {preview.domain}
+                  </span>
+                  {preview.isDuplicate && (
+                    <span className="text-destructive">&mdash; {t('domainAlreadyExcluded')}</span>
+                  )}
+                </motion.div>
+              ) : null}
             </AnimatePresence>
           </div>
 

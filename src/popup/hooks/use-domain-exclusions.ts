@@ -15,10 +15,16 @@ interface AddDomainResult {
   error?: DomainErrorKey;
 }
 
+interface DomainPreview {
+  domain: string;
+  isDuplicate: boolean;
+}
+
 interface UseDomainExclusionsReturn {
   excludedDomains: Array<string>;
   addDomain: (input: string) => AddDomainResult;
   removeDomain: (domain: string) => void;
+  previewDomain: (input: string) => DomainPreview | null;
   isLoading: boolean;
 }
 
@@ -96,5 +102,22 @@ export function useDomainExclusions(): UseDomainExclusionsReturn {
     [excludedDomains],
   );
 
-  return { excludedDomains, addDomain, removeDomain, isLoading };
+  const previewDomain = useCallback(
+    (input: string): DomainPreview | null => {
+      const trimmed = input.trim();
+      if (!trimmed) return null;
+
+      let domain = extractDomainFromUrl(trimmed);
+      if (!domain) {
+        domain = extractDomainFromUrl(`https://${trimmed}`);
+      }
+      if (!domain) return null;
+
+      domain = normalizeDomain(domain);
+      return { domain, isDuplicate: excludedDomains.includes(domain) };
+    },
+    [excludedDomains],
+  );
+
+  return { excludedDomains, addDomain, removeDomain, previewDomain, isLoading };
 }

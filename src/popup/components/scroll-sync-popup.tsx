@@ -37,7 +37,7 @@ export function ScrollSyncPopup() {
 
   const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
   const { urlSyncEnabled, handleUrlSyncChange } = useUrlSync();
-  const { excludedDomains, addDomain, removeDomain } = useDomainExclusions();
+  const { excludedDomains, addDomain, removeDomain, previewDomain } = useDomainExclusions();
   const [excludedDomainsOpen, setExcludedDomainsOpen] = useState(false);
 
   const {
@@ -216,6 +216,7 @@ export function ScrollSyncPopup() {
         open={excludedDomainsOpen}
         onAddDomain={addDomain}
         onOpenChange={setExcludedDomainsOpen}
+        onPreviewDomain={previewDomain}
         onRemoveDomain={removeDomain}
       />
     </div>
