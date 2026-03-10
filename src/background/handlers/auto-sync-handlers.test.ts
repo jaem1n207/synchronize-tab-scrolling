@@ -2,7 +2,11 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 import browser from 'webextension-polyfill';
 
 import { extractDomainFromUrl } from '~/shared/lib/auto-sync-url-utils';
-import { saveSuggestionSnooze } from '~/shared/lib/storage';
+import {
+  loadExcludedDomains,
+  saveExcludedDomains,
+  saveSuggestionSnooze,
+} from '~/shared/lib/storage';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
@@ -10,6 +14,7 @@ import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
   dismissedUrlGroups,
+  excludedDomains,
   manualSyncOverriddenTabs,
   pendingSuggestions,
   SUGGESTION_SNOOZE_DURATION_MS,
@@ -27,6 +32,8 @@ type RegisteredMessageHandler = (payload: {
     accepted?: boolean;
     tabId?: number;
     snooze?: boolean;
+    permanent?: boolean;
+    domains?: Array<string>;
   };
   sender: { tabId?: number };
 }) => Promise<unknown>;
@@ -63,6 +70,8 @@ vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
 
 vi.mock('~/shared/lib/storage', () => ({
   saveSuggestionSnooze: vi.fn().mockResolvedValue({}),
+  saveExcludedDomains: vi.fn().mockResolvedValue(undefined),
+  loadExcludedDomains: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../lib/auto-sync-groups', () => ({
@@ -80,6 +89,7 @@ vi.mock('../lib/auto-sync-state', () => ({
   },
   manualSyncOverriddenTabs: new Set<number>(),
   dismissedUrlGroups: new Set<string>(),
+  excludedDomains: new Set<string>(),
   pendingSuggestions: new Set<string>(),
   SUGGESTION_SNOOZE_DURATION_MS: 2 * 60 * 60 * 1000,
   suggestionSnoozeUntil: new Map<string, number>(),
@@ -122,6 +132,7 @@ describe('registerAutoSyncHandlers', () => {
     autoSyncState.groups.clear();
     manualSyncOverriddenTabs.clear();
     dismissedUrlGroups.clear();
+    excludedDomains.clear();
     pendingSuggestions.clear();
     suggestionSnoozeUntil.clear();
 
@@ -143,6 +154,10 @@ describe('registerAutoSyncHandlers', () => {
     });
     vi.mocked(saveSuggestionSnooze).mockReset();
     vi.mocked(saveSuggestionSnooze).mockResolvedValue({});
+    vi.mocked(saveExcludedDomains).mockReset();
+    vi.mocked(saveExcludedDomains).mockResolvedValue(undefined);
+    vi.mocked(loadExcludedDomains).mockReset();
+    vi.mocked(loadExcludedDomains).mockResolvedValue([]);
     vi.mocked(browser.tabs.get).mockResolvedValue({
       id: 1,
       index: 0,
@@ -397,6 +412,43 @@ describe('registerAutoSyncHandlers', () => {
       expect(saveSuggestionSnooze).not.toHaveBeenCalled();
       expect(suggestionSnoozeUntil.size).toBe(0);
     });
+
+    it('saves permanent domain exclusion when user clicks "don\'t show again"', async () => {
+      pendingSuggestions.add('https://github.com/pulls');
+      autoSyncState.groups.set('https://github.com/pulls', {
+        tabIds: new Set([10, 20]),
+        isActive: false,
+      });
+
+      const handler = getRequiredHandler('sync-suggestion:response');
+      const response = await handler({
+        data: {
+          normalizedUrl: 'https://github.com/pulls',
+          accepted: false,
+          permanent: true,
+        },
+        sender: { tabId: 10 },
+      });
+
+      expect(response).toEqual({ success: true });
+      expect(excludedDomains.has('github.com')).toBe(true);
+      expect(saveExcludedDomains).toHaveBeenCalledWith(expect.arrayContaining(['github.com']));
+    });
+
+    it('does not save permanent exclusion when normalizedUrl is missing', async () => {
+      const handler = getRequiredHandler('sync-suggestion:response');
+      await handler({
+        data: {
+          normalizedUrl: undefined as unknown as string,
+          accepted: false,
+          permanent: true,
+        },
+        sender: { tabId: 10 },
+      });
+
+      expect(excludedDomains.size).toBe(0);
+      expect(saveExcludedDomains).not.toHaveBeenCalled();
+    });
   });
 
   describe('sync-suggestion:add-tab-response', () => {
@@ -529,6 +581,89 @@ describe('registerAutoSyncHandlers', () => {
       expect(response).toEqual({ success: true });
       expect(saveSuggestionSnooze).not.toHaveBeenCalled();
       expect(suggestionSnoozeUntil.size).toBe(0);
+    });
+
+    it('saves permanent domain exclusion on add-tab "don\'t show again"', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [100, 200];
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: {
+          tabId: 300,
+          accepted: false,
+          permanent: true,
+          normalizedUrl: 'https://github.com/issues',
+        },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: true });
+      expect(excludedDomains.has('github.com')).toBe(true);
+      expect(saveExcludedDomains).toHaveBeenCalledWith(expect.arrayContaining(['github.com']));
+    });
+
+    it('does not save permanent exclusion when add-tab normalizedUrl is missing', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [100, 200];
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      await handler({
+        data: { tabId: 300, accepted: false, permanent: true },
+        sender: {},
+      });
+
+      expect(excludedDomains.size).toBe(0);
+      expect(saveExcludedDomains).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('auto-sync:excluded-domains-changed', () => {
+    it('updates excludedDomains set and saves to storage', async () => {
+      const handler = getRequiredHandler('auto-sync:excluded-domains-changed');
+      await handler({
+        data: { domains: ['github.com', 'example.com'] },
+        sender: {},
+      });
+
+      expect(excludedDomains.has('github.com')).toBe(true);
+      expect(excludedDomains.has('example.com')).toBe(true);
+      expect(excludedDomains.size).toBe(2);
+      expect(saveExcludedDomains).toHaveBeenCalledWith(['github.com', 'example.com']);
+    });
+
+    it('clears existing domains before setting new ones', async () => {
+      excludedDomains.add('old-domain.com');
+
+      const handler = getRequiredHandler('auto-sync:excluded-domains-changed');
+      await handler({
+        data: { domains: ['new-domain.com'] },
+        sender: {},
+      });
+
+      expect(excludedDomains.has('old-domain.com')).toBe(false);
+      expect(excludedDomains.has('new-domain.com')).toBe(true);
+      expect(excludedDomains.size).toBe(1);
+    });
+  });
+
+  describe('auto-sync:get-excluded-domains', () => {
+    it('returns domains from storage', async () => {
+      vi.mocked(loadExcludedDomains).mockResolvedValue(['github.com', 'twitter.com']);
+
+      const handler = getRequiredHandler('auto-sync:get-excluded-domains');
+      const response = await handler({ sender: {} });
+
+      expect(response).toEqual({ domains: ['github.com', 'twitter.com'] });
+    });
+
+    it('returns empty array when no domains excluded', async () => {
+      vi.mocked(loadExcludedDomains).mockResolvedValue([]);
+
+      const handler = getRequiredHandler('auto-sync:get-excluded-domains');
+      const response = await handler({ sender: {} });
+
+      expect(response).toEqual({ domains: [] });
     });
   });
 });
