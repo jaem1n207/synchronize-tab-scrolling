@@ -22,5 +22,8 @@ vite.config.*.timestamp-*
 .env.*
 !.env.example
 
+# Test artifacts
+test-results/
+
 # MCP configuration with sensitive tokens
 .mcp.json

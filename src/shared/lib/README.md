@@ -13,12 +13,12 @@ Pure utility functions and cross-cutting services used by background, content sc
 | `korean-search.ts`       | —     | Korean text search with Hangul decomposition (초성 검색)  | Yes   |
 | `performance-utils.ts`   | —     | Debounce, throttle, and performance measurement utilities | Yes   |
 | `locale-utils.ts`        | —     | Locale detection and language code normalization          | Yes   |
-| `storage.ts`             | —     | Typed wrappers for `browser.storage.local` operations     | —     |
+| `storage.ts`             | —     | Typed wrappers for `browser.storage.local` operations     | Yes   |
 | `logger.ts`              | —     | `ExtensionLogger` class with scoped, leveled logging      | —     |
-| `animations.ts`          | —     | CSS animation keyframe definitions                        | —     |
+| `animations.ts`          | —     | CSS animation keyframe definitions                        | Yes   |
 | `env.ts`                 | —     | Environment detection (dev/prod, browser type)            | —     |
-| `platform.ts`            | —     | OS detection for platform-specific keybindings            | —     |
-| `utils.ts`               | —     | General-purpose utilities (cn, clsx wrappers)             | —     |
+| `platform.ts`            | —     | OS detection for platform-specific keybindings            | Yes   |
+| `utils.ts`               | —     | General-purpose utilities (cn, clsx wrappers)             | Yes   |
 | `index.ts`               | —     | Barrel file re-exporting all modules                      | —     |
 
 ## Testing Strategy
