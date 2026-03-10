@@ -136,6 +136,12 @@ export function SyncSuggestionToast({
               <p className="mt-1 text-xs text-muted-foreground/70 break-all">
                 {suggestion.normalizedUrl}
               </p>
+              {/* Warning when accepting will replace an active sync */}
+              {suggestion.hasExistingSync && (
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  {t('existingSyncWarning', String(suggestion.existingSyncTabCount ?? 0))}
+                </p>
+              )}
             </div>
             <button
               aria-label={t('dismiss')}
@@ -150,7 +156,7 @@ export function SyncSuggestionToast({
           {/* Actions */}
           <div className="mt-4 flex gap-2">
             <Button className="flex-1" size="sm" variant="default" onClick={handleAccept}>
-              {t('startSyncButton')}
+              {suggestion.hasExistingSync ? t('replaceSyncButton') : t('startSyncButton')}
             </Button>
             <Button className="flex-1" size="sm" variant="outline" onClick={handleReject}>
               {t('notNowButton')}
