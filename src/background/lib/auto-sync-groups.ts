@@ -18,7 +18,11 @@ import {
   isTabManuallyOverridden,
   withAutoSyncLock,
 } from './auto-sync-state';
-import { showSyncSuggestion, sendSuggestionToSingleTab } from './auto-sync-suggestions';
+import {
+  showSyncSuggestion,
+  sendSuggestionToSingleTab,
+  isDomainSnoozed,
+} from './auto-sync-suggestions';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
 
@@ -216,7 +220,11 @@ async function updateAutoSyncGroupInternal(
     shouldShowSuggestion,
   });
 
-  if (shouldShowSuggestion && !dismissedUrlGroups.has(normalizedUrl)) {
+  if (
+    shouldShowSuggestion &&
+    !dismissedUrlGroups.has(normalizedUrl) &&
+    !isDomainSnoozed(normalizedUrl)
+  ) {
     if (pendingSuggestions.has(normalizedUrl)) {
       logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab (from updateAutoSyncGroup)', {
         tabId,

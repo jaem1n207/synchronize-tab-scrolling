@@ -1,15 +1,35 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
+import { extractDomainFromUrl, normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
-import { autoSyncState, dismissedUrlGroups, pendingSuggestions } from './auto-sync-state';
+import {
+  autoSyncState,
+  dismissedUrlGroups,
+  pendingSuggestions,
+  suggestionSnoozeUntil,
+} from './auto-sync-state';
 import { sendMessageWithTimeout } from './messaging';
 import { syncState } from './sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-suggestions' });
+
+export function isDomainSnoozed(normalizedUrl: string): boolean {
+  const domain = extractDomainFromUrl(normalizedUrl);
+  if (!domain) return false;
+
+  const expiresAt = suggestionSnoozeUntil.get(domain);
+  if (!expiresAt) return false;
+
+  if (Date.now() >= expiresAt) {
+    suggestionSnoozeUntil.delete(domain);
+    return false;
+  }
+
+  return true;
+}
 
 /**
  * Show sync suggestion toast on all tabs in a group
@@ -42,7 +62,6 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
     return;
   }
 
-  // Don't show if already dismissed by user
   if (dismissedUrlGroups.has(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping suggestion - URL group dismissed by user', {
       normalizedUrl,
@@ -50,7 +69,14 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
     return;
   }
 
-  // Don't show duplicate suggestions
+  if (isDomainSnoozed(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping suggestion - domain is snoozed', {
+      normalizedUrl,
+      domain: extractDomainFromUrl(normalizedUrl),
+    });
+    return;
+  }
+
   if (pendingSuggestions.has(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping suggestion - already pending', { normalizedUrl });
     return;
@@ -237,6 +263,14 @@ export async function sendSuggestionToSingleTab(
   normalizedUrl: string,
   group: AutoSyncGroup,
 ): Promise<void> {
+  if (isDomainSnoozed(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping single-tab suggestion - domain is snoozed', {
+      tabId,
+      normalizedUrl,
+    });
+    return;
+  }
+
   const tabIds = Array.from(group.tabIds);
   const tabTitles: string[] = [];
 
@@ -298,8 +332,14 @@ export async function showAddTabSuggestion(
   tabTitle: string,
   normalizedUrl: string,
 ): Promise<void> {
-  // Check if there are manual offsets that would be reset
-  // For now, we'll assume no manual offsets (could be enhanced later)
+  if (isDomainSnoozed(normalizedUrl)) {
+    logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is snoozed', {
+      tabId,
+      normalizedUrl,
+    });
+    return;
+  }
+
   const hasManualOffsets = false;
 
   // Issue 10 Fix: Send toast to ALL tabs (synced tabs + new tab)

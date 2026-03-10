@@ -22,6 +22,7 @@ import {
   showSyncSuggestion,
   sendSuggestionToSingleTab,
   showAddTabSuggestion,
+  isDomainSnoozed,
 } from '../lib/auto-sync-suggestions';
 import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
 import { stopKeepAlive } from '../lib/keep-alive';
@@ -148,7 +149,8 @@ export function registerTabEventHandlers(): void {
               currentGroup &&
               currentGroup.tabIds.size >= 2 &&
               !currentGroup.isActive &&
-              !dismissedUrlGroups.has(normalizedUrl)
+              !dismissedUrlGroups.has(normalizedUrl) &&
+              !isDomainSnoozed(normalizedUrl)
             ) {
               if (pendingSuggestions.has(normalizedUrl) && tab.id !== undefined) {
                 logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab', {
@@ -212,6 +214,7 @@ export function registerTabEventHandlers(): void {
               existingGroup.tabIds.size >= 2 &&
               !pendingSuggestions.has(normalizedUrl) &&
               !dismissedUrlGroups.has(normalizedUrl) &&
+              !isDomainSnoozed(normalizedUrl) &&
               !(syncState.isActive && syncState.linkedTabs.includes(tabId))
             ) {
               await showSyncSuggestion(normalizedUrl);
