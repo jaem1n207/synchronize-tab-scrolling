@@ -106,6 +106,20 @@ pnpm start:firefox   # Firefox
    - Content script auto-reload in dev mode
    - Debug naming for dev builds
 
+### CI/CD & Store Deployment
+
+- **Release trigger**: Push to `main` runs `.github/workflows/release.yml`
+- **Version management**: semantic-release analyzes Conventional Commits to determine version
+- **Store publishing**: Automated via semantic-release plugins:
+  - Chrome Web Store: `semantic-release-chrome` (OAuth 2.0)
+  - Firefox AMO: `semantic-release-amo` (JWT, auto-submits source code)
+  - Edge Add-ons: `@semantic-release/exec` → `scripts/publish-edge.mjs` (API v1.1, soft-fail)
+- **Build separation**: Chrome and Firefox builds share `extension/` output — CI copies to `build/chrome/` and `build/firefox/` before semantic-release
+- **Edge reuses Chrome build**: Same Chromium zip uploaded to both stores
+- **Credential renewal**: Edge API Key expires and requires manual renewal in Partner Center
+
+See `docs/guides/store-deployment.md` for detailed pipeline, credentials, and troubleshooting.
+
 ## Important Notes
 
 - Extension uses Shadow DOM in content scripts for style isolation
@@ -218,6 +232,15 @@ See `docs/guides/scroll-sync-pipeline.md` (Korean) for the complete scroll synch
 - Timing constants and thresholds
 - Manual offset lifecycle
 - Connection monitoring flow
+
+### Store Deployment Pipeline
+
+See `docs/guides/store-deployment.md` (Korean) for the complete CI/CD pipeline:
+
+- GitHub Actions workflow and semantic-release configuration
+- Store credentials setup (Chrome, Firefox, Edge)
+- Credential renewal procedures
+- Troubleshooting deployment failures
 
 ### Module Architecture Documentation
 
