@@ -80,5 +80,6 @@ export default defineConfig(({ command }) => ({
   test: {
     globals: true,
     environment: 'jsdom',
+    setupFiles: ['./src/landing/__tests__/setup.ts'],
   },
 }));
