@@ -1,9 +1,8 @@
 import { motion } from 'motion/react';
 
-import { Button } from '~/shared/components/ui/button';
 import { useLocale } from '~/landing/lib/i18n';
-
 import type { Locale } from '~/landing/lib/i18n';
+import { Button } from '~/shared/components/ui/button';
 
 const NEXT_LOCALE: Record<Locale, Locale> = {
   en: 'ko',
@@ -25,12 +24,12 @@ export function LanguageToggle() {
   return (
     <motion.div whileTap={{ scale: 0.92 }}>
       <Button
-        variant="ghost"
-        size="sm"
-        onClick={toggle}
-        aria-label="Switch language"
-        data-umami-event="language-toggle"
+        aria-label={`${LOCALE_LABEL[locale]}: Switch language`}
         className="font-semibold tabular-nums"
+        data-umami-event="language-toggle"
+        size="sm"
+        variant="ghost"
+        onClick={toggle}
       >
         {LOCALE_LABEL[locale]}
       </Button>

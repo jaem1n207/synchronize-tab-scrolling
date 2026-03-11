@@ -1,8 +1,9 @@
 import { motion } from 'motion/react';
-import IconExternalLink from '~icons/lucide/external-link';
 
-import { useTranslation } from '~/landing/lib/i18n';
 import { GITHUB_REPO_URL, DEMO_VIDEO_URL, SUPPORT_EMAIL } from '~/landing/lib/constants';
+import { useTranslation } from '~/landing/lib/i18n';
+
+import IconExternalLink from '~icons/lucide/external-link';
 
 const BUG_REPORT_URL = `${GITHUB_REPO_URL}/issues/new?title=Bug%20Report&labels=bug&assignees=jaem1n207`;
 
@@ -11,11 +12,11 @@ export function Footer() {
 
   return (
     <motion.footer
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.5 }}
       className="border-t border-border bg-muted"
+      initial={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+      viewport={{ once: true, margin: '-40px' }}
+      whileInView={{ opacity: 1 }}
     >
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-3 md:gap-8 md:py-16">
         <div className="space-y-2">
@@ -54,10 +55,10 @@ export function Footer() {
           <span>
             {t.footer.madeBy}{' '}
             <a
-              href={GITHUB_REPO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
               className="font-medium text-foreground underline-offset-4 hover:underline"
+              href="https://github.com/jaem1n207"
+              rel="noopener noreferrer"
+              target="_blank"
             >
               jaem1n207
             </a>
@@ -71,10 +72,10 @@ export function Footer() {
 function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
       className="group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      href={href}
+      rel="noopener noreferrer"
+      target="_blank"
     >
       {children}
       <IconExternalLink className="size-3 opacity-0 transition-opacity group-hover:opacity-100" />

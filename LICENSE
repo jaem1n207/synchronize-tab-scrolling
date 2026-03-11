@@ -1,16 +1,30 @@
-The MIT License (MIT)
+Source Available License
 
-Copyright (c) 2023 이재민
+Copyright (c) 2023-present Jaemin Lee (이재민)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+The source code of this software is made publicly available for
+transparency and security auditing purposes only.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+PERMITTED:
+
+  - Use the extension as distributed through official browser extension
+    stores (Chrome Web Store, Firefox Add-ons, Edge Add-ons).
+  - View and inspect the source code for transparency, security auditing,
+    and educational purposes.
+  - Submit contributions to this repository via pull requests. By
+    submitting a contribution, you agree that your contribution will be
+    licensed under these same terms and that you grant the copyright
+    holder a perpetual, irrevocable license to use your contribution.
+
+NOT PERMITTED:
+
+  - Copy, modify, merge, publish, distribute, sublicense, or sell copies
+    of this software or any portion thereof.
+  - Use any code, design patterns, algorithms, or business logic from
+    this software in other projects or products.
+  - Create derivative works based on this software.
+  - Republish or repackage the extension under a different name or
+    identity.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

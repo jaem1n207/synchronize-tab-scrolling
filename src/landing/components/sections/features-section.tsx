@@ -1,17 +1,18 @@
-import { motion } from 'motion/react';
-import IconArrowUpDown from '~icons/lucide/arrow-up-down';
-import IconSlidersHorizontal from '~icons/lucide/sliders-horizontal';
-import IconSparkles from '~icons/lucide/sparkles';
-import IconLink from '~icons/lucide/link';
-import IconShieldOff from '~icons/lucide/shield-off';
-import IconWifi from '~icons/lucide/wifi';
-
 import type { ComponentType, SVGProps } from 'react';
 
-import { useTranslation } from '~/landing/lib/i18n';
-import { useModifierKey } from '~/landing/hooks/use-platform';
+import { motion } from 'motion/react';
+
 import { SectionContainer } from '~/landing/components/layout/section-container';
+import { useModifierKey } from '~/landing/hooks/use-platform';
+import { useTranslation } from '~/landing/lib/i18n';
 import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
+
+import IconArrowUpDown from '~icons/lucide/arrow-up-down';
+import IconLink from '~icons/lucide/link';
+import IconShieldOff from '~icons/lucide/shield-off';
+import IconSlidersHorizontal from '~icons/lucide/sliders-horizontal';
+import IconSparkles from '~icons/lucide/sparkles';
+import IconWifi from '~icons/lucide/wifi';
 
 const FEATURE_ICONS: ComponentType<SVGProps<SVGSVGElement>>[] = [
   IconArrowUpDown,
@@ -39,15 +40,15 @@ export function FeaturesSection() {
           return (
             <motion.div
               key={feature.title}
+              className="rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/30 hover:shadow-md"
               initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
               transition={{
                 duration: ANIMATION_DURATIONS.slow,
                 ease: EASING_FUNCTIONS.easeOut,
                 delay: i * 0.08,
               }}
-              className="rounded-xl border border-border bg-card p-6 transition-all hover:border-primary/30 hover:shadow-md"
+              viewport={{ once: true, margin: '-40px' }}
+              whileInView={{ opacity: 1, y: 0 }}
             >
               <Icon className="mb-3 size-8 text-primary" />
               <h3 className="mb-1 text-base font-semibold text-card-foreground">{feature.title}</h3>
