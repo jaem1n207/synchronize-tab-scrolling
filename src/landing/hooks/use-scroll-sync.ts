@@ -12,7 +12,7 @@ export function useScrollSync({
   rightRef,
   isSynced,
   isAdjusting,
-}: UseScrollSyncOptions): void {
+}: UseScrollSyncOptions): number {
   const guardRef = useRef<'left' | 'right' | null>(null);
   const guardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -33,6 +33,7 @@ export function useScrollSync({
   isAdjustingRef.current = isAdjusting;
 
   const prevAdjustingRef = useRef(false);
+  const [manualOffsetRatio, setManualOffsetRatio] = useState(0);
 
   useEffect(() => {
     const wasAdjusting = prevAdjustingRef.current;
@@ -49,12 +50,14 @@ export function useScrollSync({
       const rightRatio = rightMax > 0 ? right.scrollTop / rightMax : 0;
 
       offsetRef.current = rightRatio - leftRatio;
+      setManualOffsetRatio(offsetRef.current);
     }
   }, [isAdjusting, isSynced, leftRef, rightRef]);
 
   useEffect(() => {
     if (!isSynced) {
       offsetRef.current = 0;
+      setManualOffsetRatio(0);
     }
   }, [isSynced]);
 
@@ -140,4 +143,6 @@ export function useScrollSync({
       pendingRef.current = null;
     };
   }, [leftRef, rightRef, isSynced]);
+
+  return manualOffsetRatio;
 }

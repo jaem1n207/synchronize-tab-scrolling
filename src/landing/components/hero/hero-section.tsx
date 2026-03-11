@@ -37,7 +37,7 @@ export function HeroSection() {
   const leftRef = useRef<HTMLDivElement | null>(null);
   const rightRef = useRef<HTMLDivElement | null>(null);
 
-  useScrollSync({ leftRef, rightRef, isSynced, isAdjusting });
+  const manualOffsetRatio = useScrollSync({ leftRef, rightRef, isSynced, isAdjusting });
 
   const toggle = useCallback(() => {
     setIsSynced((prev) => !prev);
@@ -100,6 +100,8 @@ export function HeroSection() {
         <ControlsBlock
           isAdjusting={isAdjusting}
           isSynced={isSynced}
+          manualOffsetLabel={t.hero.manualOffset}
+          manualOffsetRatio={manualOffsetRatio}
           modifierSymbol={modifier.symbol}
           scrollHint={scrollHint}
           syncState={syncState}
@@ -211,6 +213,8 @@ interface ControlsBlockProps {
   onToggle: () => void;
   scrollHint: string;
   modifierSymbol: string;
+  manualOffsetLabel: string;
+  manualOffsetRatio: number;
 }
 
 function ControlsBlock({
@@ -220,7 +224,13 @@ function ControlsBlock({
   onToggle,
   scrollHint,
   modifierSymbol,
+  manualOffsetLabel,
+  manualOffsetRatio,
 }: ControlsBlockProps) {
+  const absOffset = Math.abs(manualOffsetRatio);
+  const hasManualOffset = absOffset > 0.001;
+  const signedPercent = `${manualOffsetRatio > 0 ? '+' : '-'}${(absOffset * 100).toFixed(1)}%`;
+
   return (
     <motion.div
       animate={{ opacity: 1, y: 0 }}
@@ -232,6 +242,9 @@ function ControlsBlock({
       <SyncToggleButton isSynced={isSynced} onToggle={onToggle} />
       <ScrollHint isSynced={isSynced} text={scrollHint} />
       {isSynced && <ModifierHint modifierSymbol={modifierSymbol} visible={!isAdjusting} />}
+      {isSynced && hasManualOffset && (
+        <OffsetIndicator label={manualOffsetLabel} value={signedPercent} />
+      )}
     </motion.div>
   );
 }
@@ -296,5 +309,27 @@ function ModifierHint({ modifierSymbol, visible }: ModifierHintProps) {
       </kbd>
       <span>+ scroll</span>
     </span>
+  );
+}
+
+interface OffsetIndicatorProps {
+  label: string;
+  value: string;
+}
+
+function OffsetIndicator({ label, value }: OffsetIndicatorProps) {
+  return (
+    <motion.span
+      animate={{ opacity: 1, y: 0 }}
+      className="inline-flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
+      initial={{ opacity: 0, y: 4 }}
+      transition={{
+        duration: ANIMATION_DURATIONS.fast,
+        ease: EASING_FUNCTIONS.easeOut,
+      }}
+    >
+      <span>{label}</span>
+      <span className="font-mono">{value}</span>
+    </motion.span>
   );
 }

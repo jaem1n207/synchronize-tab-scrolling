@@ -15,6 +15,7 @@ const ko: TranslationStrings = {
     scrollHint: '왼쪽 패널을 스크롤해 보세요',
     scrollHintSynced: '아무 패널이나 스크롤해 보세요',
     scrollHintAdjusting: '{modifier} 키를 누른 채 스크롤하면 개별 조정',
+    manualOffset: '개별 조정값',
     synced: '동기화됨',
     notSynced: '동기화 안됨',
     adjusting: '개별 조정 중',

@@ -15,6 +15,7 @@ const en: TranslationStrings = {
     scrollHint: 'Scroll the left panel',
     scrollHintSynced: 'Scroll either panel',
     scrollHintAdjusting: 'Hold {modifier} + scroll to adjust individually',
+    manualOffset: 'Manual offset',
     synced: 'Synced',
     notSynced: 'Not synced',
     adjusting: 'Adjusting',

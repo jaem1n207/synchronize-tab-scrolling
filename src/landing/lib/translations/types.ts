@@ -27,6 +27,7 @@ export interface TranslationStrings {
     scrollHint: string;
     scrollHintSynced: string;
     scrollHintAdjusting: string;
+    manualOffset: string;
     synced: string;
     notSynced: string;
     adjusting: string;
