@@ -1,38 +1,62 @@
 import { motion } from 'motion/react';
 
-import { useLocale } from '~/landing/lib/i18n';
+import { useLocale, SUPPORTED_LOCALES, LOCALE_DISPLAY_NAMES } from '~/landing/lib/i18n';
 import type { Locale } from '~/landing/lib/i18n';
 import { Button } from '~/shared/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '~/shared/components/ui/dropdown-menu';
 
-const NEXT_LOCALE: Record<Locale, Locale> = {
-  en: 'ko',
-  ko: 'en',
-};
-
-const LOCALE_LABEL: Record<Locale, string> = {
+const LOCALE_SHORT_LABEL: Record<Locale, string> = {
   en: 'EN',
   ko: 'KO',
+  de: 'DE',
+  ru: 'RU',
+  it: 'IT',
+  vi: 'VI',
+  id: 'ID',
+  pl: 'PL',
+  tr: 'TR',
+  zh_TW: '繁中',
 };
 
 export function LanguageToggle() {
   const { locale, setLocale } = useLocale();
 
-  const toggle = useCallback(() => {
-    setLocale(NEXT_LOCALE[locale]);
-  }, [locale, setLocale]);
-
   return (
-    <motion.div whileTap={{ scale: 0.92 }}>
-      <Button
-        aria-label={`${LOCALE_LABEL[locale]}: Switch language`}
-        className="font-semibold tabular-nums"
-        data-umami-event="language-toggle"
-        size="sm"
-        variant="ghost"
-        onClick={toggle}
-      >
-        {LOCALE_LABEL[locale]}
-      </Button>
-    </motion.div>
+    <DropdownMenu>
+      <motion.div whileTap={{ scale: 0.92 }}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label={`${LOCALE_DISPLAY_NAMES[locale]}: Change language`}
+            className="font-semibold tabular-nums"
+            data-umami-event="language-toggle"
+            size="sm"
+            variant="ghost"
+          >
+            {LOCALE_SHORT_LABEL[locale]}
+          </Button>
+        </DropdownMenuTrigger>
+      </motion.div>
+      <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+        {SUPPORTED_LOCALES.map((loc) => (
+          <DropdownMenuItem
+            key={loc}
+            data-umami-event="language-select"
+            data-umami-event-locale={loc}
+            className={locale === loc ? 'bg-accent' : ''}
+            onSelect={() => setLocale(loc)}
+          >
+            <span className="min-w-8 font-mono text-xs text-muted-foreground">
+              {LOCALE_SHORT_LABEL[loc]}
+            </span>
+            <span>{LOCALE_DISPLAY_NAMES[loc]}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
