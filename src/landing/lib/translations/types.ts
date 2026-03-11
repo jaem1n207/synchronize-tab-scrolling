@@ -26,8 +26,11 @@ export interface TranslationStrings {
     syncing: string;
     scrollHint: string;
     scrollHintSynced: string;
+    scrollHintAdjusting: string;
+    manualOffset: string;
     synced: string;
     notSynced: string;
+    adjusting: string;
     trustSignal: string;
   };
   problem: {

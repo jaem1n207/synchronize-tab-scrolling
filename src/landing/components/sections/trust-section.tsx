@@ -1,20 +1,23 @@
-import { motion } from 'motion/react';
-import IconDatabase from '~icons/lucide/database';
-import IconEyeOff from '~icons/lucide/eye-off';
-import IconWifiOff from '~icons/lucide/wifi-off';
-import IconCode2 from '~icons/lucide/code-2';
-import IconGlobe from '~icons/lucide/globe';
-import IconAccessibility from '~icons/lucide/accessibility';
-import IconChrome from '~icons/simple-icons/googlechrome';
-import IconFirefox from '~icons/simple-icons/firefox';
-import IconEdge from '~icons/simple-icons/microsoftedge';
-import IconBrave from '~icons/simple-icons/brave';
-
 import type { ComponentType, SVGProps } from 'react';
 
-import { useTranslation } from '~/landing/lib/i18n';
+import { motion } from 'motion/react';
+
+import { IconDia } from '~/landing/components/icons/icon-dia';
 import { SectionContainer } from '~/landing/components/layout/section-container';
+import { useTranslation } from '~/landing/lib/i18n';
 import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
+
+import IconAccessibility from '~icons/lucide/accessibility';
+import IconCode2 from '~icons/lucide/code-2';
+import IconDatabase from '~icons/lucide/database';
+import IconEyeOff from '~icons/lucide/eye-off';
+import IconGlobe from '~icons/lucide/globe';
+import IconWifiOff from '~icons/lucide/wifi-off';
+import IconArc from '~icons/simple-icons/arc';
+import IconBrave from '~icons/simple-icons/brave';
+import IconFirefox from '~icons/simple-icons/firefox';
+import IconChrome from '~icons/simple-icons/googlechrome';
+import IconEdge from '~icons/simple-icons/microsoftedge';
 
 type TrustBadgeKey =
   | 'noData'
@@ -42,7 +45,9 @@ const BROWSER_ICONS: { icon: ComponentType<SVGProps<SVGSVGElement>>; label: stri
   { icon: IconChrome, label: 'Chrome' },
   { icon: IconFirefox, label: 'Firefox' },
   { icon: IconEdge, label: 'Edge' },
+  { icon: IconArc, label: 'Arc' },
   { icon: IconBrave, label: 'Brave' },
+  { icon: IconDia, label: 'Dia' },
 ];
 
 export function TrustSection() {
@@ -60,15 +65,15 @@ export function TrustSection() {
           return (
             <motion.div
               key={badge.key}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-2 text-sm text-foreground"
               initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: '-40px' }}
               transition={{
                 duration: ANIMATION_DURATIONS.slow,
                 ease: EASING_FUNCTIONS.easeOut,
                 delay: i * 0.06,
               }}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-2 text-sm text-foreground"
+              viewport={{ once: true, margin: '-40px' }}
+              whileInView={{ opacity: 1, scale: 1 }}
             >
               <Icon className="size-4 shrink-0" />
               <span>{t.trust.badges[badge.key]}</span>

@@ -14,8 +14,11 @@ const ko: TranslationStrings = {
     syncing: '동기화 중',
     scrollHint: '왼쪽 패널을 스크롤해 보세요',
     scrollHintSynced: '아무 패널이나 스크롤해 보세요',
+    scrollHintAdjusting: '{modifier} 키를 누른 채 스크롤하면 개별 조정',
+    manualOffset: '개별 조정값',
     synced: '동기화됨',
     notSynced: '동기화 안됨',
+    adjusting: '개별 조정 중',
     trustSignal: '무료 · 계정 불필요 · 오픈소스',
   },
   problem: {
@@ -27,7 +30,7 @@ const ko: TranslationStrings = {
       {
         title: '확장 프로그램 설치',
         description:
-          '한 번의 클릭으로 브라우저에 추가하세요. Chrome, Firefox, Edge, Brave를 지원합니다.',
+          '한 번의 클릭으로 브라우저에 추가하세요. Chrome, Firefox, Edge 등 모든 Chromium 기반 브라우저를 지원합니다.',
       },
       {
         title: '동기화할 탭 선택',
@@ -49,7 +52,7 @@ const ko: TranslationStrings = {
       {
         title: '수동 위치 조정',
         description:
-          'Option/Alt 키를 누른 채 스크롤하면 동기화를 유지하면서 개별 탭의 위치를 조정할 수 있습니다.',
+          '{modifier} 키를 누른 채 스크롤하면 동기화를 유지하면서 개별 탭의 위치를 조정할 수 있습니다.',
       },
       {
         title: '자동 동기화 제안',
@@ -106,7 +109,7 @@ const ko: TranslationStrings = {
   },
   cta: {
     title: '동기화할 준비가 되셨나요?',
-    subtitle: '영원히 무료. 30초면 설치 완료.',
+    subtitle: '영원히 무료. 3초면 설치 완료.',
   },
   footer: {
     tagline: '한 번의 스크롤로 모든 탭을.',
@@ -115,11 +118,11 @@ const ko: TranslationStrings = {
     github: 'GitHub',
     reportBug: '버그 신고',
     email: '이메일',
-    license: 'MIT 라이선스',
+    license: '소스 공개 라이선스',
     madeBy: '만든이',
   },
   common: {
-    addTo: '추가',
+    addTo: '{browser}에 추가',
     alsoAvailableOn: '다음에서도 사용 가능',
   },
 };
