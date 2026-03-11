@@ -30,7 +30,7 @@ const ko: TranslationStrings = {
       {
         title: '확장 프로그램 설치',
         description:
-          '한 번의 클릭으로 브라우저에 추가하세요. Chrome, Firefox, Edge, Brave를 지원합니다.',
+          '한 번의 클릭으로 브라우저에 추가하세요. Chrome, Firefox, Edge 등 모든 Chromium 기반 브라우저를 지원합니다.',
       },
       {
         title: '동기화할 탭 선택',
@@ -109,7 +109,7 @@ const ko: TranslationStrings = {
   },
   cta: {
     title: '동기화할 준비가 되셨나요?',
-    subtitle: '영원히 무료. 30초면 설치 완료.',
+    subtitle: '영원히 무료. 3초면 설치 완료.',
   },
   footer: {
     tagline: '한 번의 스크롤로 모든 탭을.',
@@ -118,11 +118,11 @@ const ko: TranslationStrings = {
     github: 'GitHub',
     reportBug: '버그 신고',
     email: '이메일',
-    license: 'MIT 라이선스',
+    license: '소스 공개 라이선스',
     madeBy: '만든이',
   },
   common: {
-    addTo: '추가',
+    addTo: '{browser}에 추가',
     alsoAvailableOn: '다음에서도 사용 가능',
   },
 };

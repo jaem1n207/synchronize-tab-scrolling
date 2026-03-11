@@ -30,7 +30,7 @@ const en: TranslationStrings = {
       {
         title: 'Install the extension',
         description:
-          'Add it to your browser in one click. Chrome, Firefox, Edge, and Brave supported.',
+          'Add it to your browser in one click. Works with Chrome, Firefox, Edge, and all Chromium-based browsers.',
       },
       {
         title: 'Select tabs to sync',
@@ -113,7 +113,7 @@ const en: TranslationStrings = {
   },
   cta: {
     title: 'Ready to sync?',
-    subtitle: 'Free forever. Install in 30 seconds.',
+    subtitle: 'Free forever. Install in 3 seconds.',
   },
   footer: {
     tagline: 'Scroll once, sync everywhere.',
@@ -122,11 +122,11 @@ const en: TranslationStrings = {
     github: 'GitHub',
     reportBug: 'Report a bug',
     email: 'Email',
-    license: 'MIT License',
+    license: 'Source Available License',
     madeBy: 'Made by',
   },
   common: {
-    addTo: 'Add to',
+    addTo: 'Add to {browser}',
     alsoAvailableOn: 'Also available on',
   },
 };
