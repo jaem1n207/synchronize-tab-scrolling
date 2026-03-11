@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'src/landing/**'
+      - 'vite.config.landing.mts'
+      - '.github/workflows/deploy-landing.yml'
 
 permissions:
   contents: read
