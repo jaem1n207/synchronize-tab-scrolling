@@ -107,7 +107,7 @@ const ru: TranslationStrings = {
       noAnalytics: 'Без отслеживающих cookies',
       offline: 'Работает офлайн',
       openSource: 'Открытый код',
-      languages: '9 языков',
+      languages: '10 языков',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: 'Работает во всех основных браузерах',

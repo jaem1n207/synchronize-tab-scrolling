@@ -106,7 +106,7 @@ const en: TranslationStrings = {
       noAnalytics: 'No tracking cookies',
       offline: 'Works offline',
       openSource: 'Open source',
-      languages: '9 languages',
+      languages: '10 languages',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: 'Works on all major browsers',

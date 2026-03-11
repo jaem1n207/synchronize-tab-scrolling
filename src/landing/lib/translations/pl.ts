@@ -107,7 +107,7 @@ const pl: TranslationStrings = {
       noAnalytics: 'Brak ciasteczek śledzących',
       offline: 'Działa offline',
       openSource: 'Otwarte źródło',
-      languages: '9 języków',
+      languages: '10 języków',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: 'Działa we wszystkich głównych przeglądarkach',
