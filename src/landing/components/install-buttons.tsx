@@ -1,12 +1,12 @@
 import { motion } from 'motion/react';
 
+import { IconDia } from '~/landing/components/icons/icon-dia';
 import type { BrowserKey } from '~/landing/lib/constants';
 import { STORE_URLS } from '~/landing/lib/constants';
 import type { BrowserName } from '~/landing/lib/detect-browser';
 import { detectBrowser } from '~/landing/lib/detect-browser';
 import { useTranslation } from '~/landing/lib/i18n';
 import { cn } from '~/shared/lib/utils';
-import { IconDia } from '~/landing/components/icons/icon-dia';
 
 import IconArc from '~icons/simple-icons/arc';
 import IconBrave from '~icons/simple-icons/brave';
