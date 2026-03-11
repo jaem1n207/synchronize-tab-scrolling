@@ -14,14 +14,14 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
 
   return (
     <div className="inline-flex items-center text-xs font-medium">
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence initial={false} mode="wait">
         {state === 'synced' && (
           <motion.span
             key="synced"
-            className="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400"
-            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400"
             exit={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.9 }}
             transition={{
               duration: ANIMATION_DURATIONS.fast,
               ease: EASING_FUNCTIONS.easeOut,
@@ -29,8 +29,8 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
           >
             <span className="relative flex h-2 w-2">
               <motion.span
-                className="absolute inset-0 rounded-full bg-green-500/50"
                 animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                className="absolute inset-0 rounded-full bg-green-500/50"
                 transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
               />
               <span className="relative h-2 w-2 rounded-full bg-green-500" />
@@ -42,10 +42,10 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
         {state === 'adjusting' && (
           <motion.span
             key="adjusting"
-            className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400"
-            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400"
             exit={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.9 }}
             transition={{
               duration: ANIMATION_DURATIONS.fast,
               ease: EASING_FUNCTIONS.easeOut,
@@ -53,8 +53,8 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
           >
             <span className="relative flex h-2 w-2">
               <motion.span
-                className="absolute inset-0 rounded-full bg-amber-500/50"
                 animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
+                className="absolute inset-0 rounded-full bg-amber-500/50"
                 transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
               />
               <span className="relative h-2 w-2 rounded-full bg-amber-500" />
@@ -66,10 +66,10 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
         {state === 'off' && (
           <motion.span
             key="not-synced"
-            className="inline-flex items-center gap-1.5 text-muted-foreground"
-            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-1.5 text-muted-foreground"
             exit={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.9 }}
             transition={{
               duration: ANIMATION_DURATIONS.fast,
               ease: EASING_FUNCTIONS.easeOut,

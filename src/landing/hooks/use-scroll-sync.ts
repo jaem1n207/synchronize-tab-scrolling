@@ -7,28 +7,47 @@ interface UseScrollSyncOptions {
   isAdjusting: boolean;
 }
 
+type Panel = 'left' | 'right';
+
+interface PanelOffsets {
+  left: number;
+  right: number;
+}
+
+const MAX_OFFSET_RATIO = 0.5;
+
+function clampRatio(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function clampOffset(value: number): number {
+  return Math.max(-MAX_OFFSET_RATIO, Math.min(MAX_OFFSET_RATIO, value));
+}
+
+function getScrollRatio(element: HTMLDivElement): number {
+  const maxScroll = element.scrollHeight - element.clientHeight;
+  return maxScroll > 0 ? element.scrollTop / maxScroll : 0;
+}
+
 export function useScrollSync({
   leftRef,
   rightRef,
   isSynced,
   isAdjusting,
 }: UseScrollSyncOptions): number {
-  const guardRef = useRef<'left' | 'right' | null>(null);
+  const guardRef = useRef<Panel | null>(null);
   const guardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<{
     target: HTMLDivElement;
-    ratio: number;
-    guard: 'left' | 'right';
-    direction: 'left-to-right' | 'right-to-left';
+    targetRatio: number;
+    targetPanel: Panel;
   } | null>(null);
 
-  // Ratio difference between right and left panels, captured when manual
-  // adjustment ends. Applied during sync so the adjusted alignment persists.
-  const offsetRef = useRef(0);
+  const offsetsRef = useRef<PanelOffsets>({ left: 0, right: 0 });
+  const baselineRatioRef = useRef(0);
+  const lastActivePanelRef = useRef<Panel>('left');
 
-  // Ref mirror of isAdjusting — avoids re-creating scroll listeners on every
-  // keydown/keyup, which would cancel in-flight rAF and guard timers
   const isAdjustingRef = useRef(isAdjusting);
   isAdjustingRef.current = isAdjusting;
 
@@ -36,28 +55,47 @@ export function useScrollSync({
   const [manualOffsetRatio, setManualOffsetRatio] = useState(0);
 
   useEffect(() => {
+    const left = leftRef.current;
+    const right = rightRef.current;
+    if (!left || !right || !isSynced) {
+      prevAdjustingRef.current = isAdjusting;
+      return;
+    }
+
     const wasAdjusting = prevAdjustingRef.current;
     prevAdjustingRef.current = isAdjusting;
 
-    if (wasAdjusting && !isAdjusting && isSynced) {
-      const left = leftRef.current;
-      const right = rightRef.current;
-      if (!left || !right) return;
+    if (!wasAdjusting && isAdjusting) {
+      const leftRatio = getScrollRatio(left);
+      const rightRatio = getScrollRatio(right);
+      const pureLeft = leftRatio - offsetsRef.current.left;
+      const pureRight = rightRatio - offsetsRef.current.right;
 
-      const leftMax = left.scrollHeight - left.clientHeight;
-      const rightMax = right.scrollHeight - right.clientHeight;
-      const leftRatio = leftMax > 0 ? left.scrollTop / leftMax : 0;
-      const rightRatio = rightMax > 0 ? right.scrollTop / rightMax : 0;
+      baselineRatioRef.current = lastActivePanelRef.current === 'left' ? pureLeft : pureRight;
+      return;
+    }
 
-      offsetRef.current = rightRatio - leftRatio;
-      setManualOffsetRatio(offsetRef.current);
+    if (wasAdjusting && !isAdjusting) {
+      const leftRatio = getScrollRatio(left);
+      const rightRatio = getScrollRatio(right);
+      const baseline = baselineRatioRef.current;
+
+      const nextOffsets: PanelOffsets = {
+        left: clampOffset(leftRatio - baseline),
+        right: clampOffset(rightRatio - baseline),
+      };
+
+      offsetsRef.current = nextOffsets;
+      setManualOffsetRatio(nextOffsets.right - nextOffsets.left);
     }
   }, [isAdjusting, isSynced, leftRef, rightRef]);
 
   useEffect(() => {
     if (!isSynced) {
-      offsetRef.current = 0;
+      offsetsRef.current = { left: 0, right: 0 };
+      baselineRatioRef.current = 0;
       setManualOffsetRatio(0);
+      prevAdjustingRef.current = false;
     }
   }, [isSynced]);
 
@@ -65,15 +103,16 @@ export function useScrollSync({
     const left = leftRef.current;
     const right = rightRef.current;
     if (!left || !right || !isSynced) return;
+    const leftElement: HTMLDivElement = left;
+    const rightElement: HTMLDivElement = right;
 
-    // Re-entrancy guard duration: must exceed browser scroll-event delay
-    // for programmatic scrollTop writes (~16ms/frame × 2-3 frames)
-    const GUARD_MS = 60;
+    const GUARD_MS = 80;
 
-    function setGuard(panel: 'left' | 'right') {
+    function setGuard(panel: Panel) {
       if (guardTimerRef.current !== null) {
         clearTimeout(guardTimerRef.current);
       }
+
       guardRef.current = panel;
       guardTimerRef.current = setTimeout(() => {
         guardRef.current = null;
@@ -84,61 +123,68 @@ export function useScrollSync({
     function scheduleSync(
       source: HTMLDivElement,
       target: HTMLDivElement,
-      guardPanel: 'left' | 'right',
-      direction: 'left-to-right' | 'right-to-left',
+      sourcePanel: Panel,
+      targetPanel: Panel,
     ) {
       if (isAdjustingRef.current) return;
-      if (guardRef.current === guardPanel) return;
+      if (guardRef.current === sourcePanel) return;
 
-      const maxScroll = source.scrollHeight - source.clientHeight;
-      const ratio = maxScroll > 0 ? source.scrollTop / maxScroll : 0;
+      lastActivePanelRef.current = sourcePanel;
 
-      pendingRef.current = { target, ratio, guard: guardPanel, direction };
+      const sourceRatio = getScrollRatio(source);
+      const sourceOffset = offsetsRef.current[sourcePanel];
+      const targetOffset = offsetsRef.current[targetPanel];
+      const pureRatio = sourceRatio - sourceOffset;
 
-      if (rafRef.current === null) {
-        rafRef.current = requestAnimationFrame(() => {
-          rafRef.current = null;
-          const pending = pendingRef.current;
-          if (!pending) return;
-          pendingRef.current = null;
+      baselineRatioRef.current = pureRatio;
 
-          const targetMax = pending.target.scrollHeight - pending.target.clientHeight;
-          if (targetMax <= 0) return;
+      pendingRef.current = {
+        target,
+        targetRatio: clampRatio(pureRatio + targetOffset),
+        targetPanel,
+      };
 
-          const offset = offsetRef.current;
-          const targetRatio =
-            pending.direction === 'left-to-right' ? pending.ratio + offset : pending.ratio - offset;
+      if (rafRef.current !== null) return;
 
-          // Guard BEFORE scrollTop write — suppresses target's rebound scroll event
-          setGuard(pending.guard);
-          pending.target.scrollTop = Math.max(0, Math.min(1, targetRatio)) * targetMax;
-        });
-      }
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        const pending = pendingRef.current;
+        if (!pending) return;
+        pendingRef.current = null;
+
+        const targetMax = pending.target.scrollHeight - pending.target.clientHeight;
+        if (targetMax <= 0) return;
+
+        setGuard(pending.targetPanel);
+        pending.target.scrollTop = pending.targetRatio * targetMax;
+      });
     }
 
     function onLeftScroll() {
-      scheduleSync(left!, right!, 'right', 'left-to-right');
+      scheduleSync(leftElement, rightElement, 'left', 'right');
     }
 
     function onRightScroll() {
-      scheduleSync(right!, left!, 'left', 'right-to-left');
+      scheduleSync(rightElement, leftElement, 'right', 'left');
     }
 
-    left.addEventListener('scroll', onLeftScroll, { passive: true });
-    right.addEventListener('scroll', onRightScroll, { passive: true });
+    leftElement.addEventListener('scroll', onLeftScroll, { passive: true });
+    rightElement.addEventListener('scroll', onRightScroll, { passive: true });
 
     return () => {
-      left.removeEventListener('scroll', onLeftScroll);
-      right.removeEventListener('scroll', onRightScroll);
+      leftElement.removeEventListener('scroll', onLeftScroll);
+      rightElement.removeEventListener('scroll', onRightScroll);
 
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+
       if (guardTimerRef.current !== null) {
         clearTimeout(guardTimerRef.current);
         guardTimerRef.current = null;
       }
+
       guardRef.current = null;
       pendingRef.current = null;
     };

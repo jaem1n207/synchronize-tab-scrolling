@@ -1,11 +1,11 @@
-import { motion } from 'motion/react';
-
 import type { ReactNode, RefObject } from 'react';
 
-import IconLock from '~icons/lucide/lock';
+import { motion } from 'motion/react';
 
-import { cn } from '~/shared/lib/utils';
 import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
+import { cn } from '~/shared/lib/utils';
+
+import IconLock from '~icons/lucide/lock';
 
 interface BrowserMockupProps {
   title: string;
@@ -27,14 +27,14 @@ export function BrowserMockup({
   return (
     <div className={cn('relative', className)}>
       <motion.div
+        animate={{ opacity: isActive ? 0.8 : 0 }}
+        aria-hidden="true"
         className="pointer-events-none absolute -inset-1 rounded-2xl bg-primary/20 blur-xl"
         initial={false}
-        animate={{ opacity: isActive ? 0.8 : 0 }}
         transition={{
           duration: ANIMATION_DURATIONS.slow,
           ease: EASING_FUNCTIONS.easeOut,
         }}
-        aria-hidden="true"
       />
 
       <div
@@ -44,7 +44,7 @@ export function BrowserMockup({
         )}
       >
         <div className="flex items-center gap-2 border-b border-border/60 bg-muted/40 px-3 py-2">
-          <div className="flex gap-1.5" aria-hidden="true">
+          <div aria-hidden="true" className="flex gap-1.5">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: '#FF5F57' }} />
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: '#FEBC2E' }} />
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: '#28C840' }} />
