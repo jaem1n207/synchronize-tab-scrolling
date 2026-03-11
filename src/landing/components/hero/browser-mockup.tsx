@@ -60,7 +60,7 @@ export function BrowserMockup({
         <div className="border-b border-border/60 bg-muted/20 px-3 py-1.5">
           <div className="flex items-center gap-1.5 rounded-md bg-muted/70 px-2.5 py-1">
             <IconLock className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-            <span className="truncate text-xs text-muted-foreground">{url}</span>
+            <span className="truncate text-xs text-foreground/70">{url}</span>
           </div>
         </div>
 

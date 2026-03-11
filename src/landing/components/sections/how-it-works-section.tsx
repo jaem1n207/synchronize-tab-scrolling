@@ -47,7 +47,7 @@ export function HowItWorksSection() {
             >
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 select-none text-5xl font-bold text-primary/10"
+                className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 select-none text-5xl font-bold text-muted-foreground/30"
               >
                 {String(i + 1).padStart(2, '0')}
               </span>
