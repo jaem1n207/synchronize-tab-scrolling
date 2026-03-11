@@ -158,10 +158,32 @@ flowchart LR
     B --> C{User choice}
     C -->|Start Sync| D[Sync begins]
     C -->|Not Now| E[Dismissed for session]
-    B --> F[Auto-dismiss after 10s]
+    C -->|Never for this site| F[Domain excluded permanently]
+    B --> G[Auto-dismiss after 10s]
 ```
 
-This feature is **enabled by default**. You can disable it anytime in the **Actions menu** → **"Suggest sync for same URL"**.
+This feature is **enabled by default**. You can:
+
+- Disable it globally in the **Actions menu** → **"Suggest sync for same URL"**
+- Exclude specific domains by clicking **"Never show again for this site"** on the toast
+- Manage excluded domains in the **Actions menu** → **"Manage excluded domains"**
+
+If sync is already active when a new suggestion appears, the toast will show a warning and a **"Replace & Sync"** button instead of "Start Sync".
+
+### Domain Exclusion
+
+You can permanently exclude specific domains from auto-sync suggestions. This is useful for sites where you never want sync suggestions to appear.
+
+**How to exclude a domain:**
+
+- Click **"Never show again for this site"** on any sync suggestion toast
+- Or go to **Actions menu** → **"Manage excluded domains"** to add domains manually
+
+**How to manage exclusions:**
+
+- Open the extension popup → **Actions menu** → **"Manage excluded domains"**
+- Add new domains or remove existing ones
+- Navigate with keyboard: Arrow keys to move, Enter to confirm, Delete to remove
 
 ### Auto-Reconnection
 

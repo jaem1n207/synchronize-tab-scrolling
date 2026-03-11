@@ -64,23 +64,35 @@ pnpm dev-firefox  # Firefox
 synchronize-tab-scrolling/
 ├── src/
 │   ├── background/           # Background script (service worker)
-│   │   └── main.ts          # Message hub, tab management
+│   │   ├── main.ts          # Entry point, lifecycle management
+│   │   ├── handlers/        # Event handlers (scroll-sync, connection, auto-sync, tab-event)
+│   │   └── lib/             # State management modules (sync-state, auto-sync, messaging, keep-alive)
 │   ├── contentScripts/       # Content scripts injected into pages
 │   │   ├── index.ts         # Entry point
-│   │   ├── scrollSync.ts    # Scroll synchronization logic
-│   │   ├── urlSync.ts       # URL navigation sync
-│   │   └── components/      # Control panel UI (React)
+│   │   ├── scroll-sync.ts   # Scroll synchronization logic
+│   │   ├── panel.tsx        # Floating control panel (Shadow DOM)
+│   │   ├── suggestion-toast.tsx  # Auto-sync suggestion toast
+│   │   ├── keyboard-handler.ts   # Keyboard shortcut handling
+│   │   ├── components/      # UI components (SyncControlPanel, SyncSuggestionToast)
+│   │   ├── hooks/           # Custom hooks (useDragPosition, usePanelState)
+│   │   └── lib/             # Scroll sync state management
 │   ├── popup/               # Popup UI (React)
-│   │   ├── components/      # Tab selection, sync controls
-│   │   └── App.tsx          # Main popup component
+│   │   ├── main.tsx         # Entry point
+│   │   ├── components/      # Tab selection, sync controls, domain exclusion
+│   │   ├── hooks/           # Popup state management hooks
+│   │   └── types/           # Popup type definitions
 │   ├── shared/              # Shared utilities
-│   │   ├── lib/            # Utility functions
-│   │   ├── types/          # TypeScript definitions
-│   │   └── components/     # Shared UI components
+│   │   ├── components/ui/   # Shadcn UI components
+│   │   ├── hooks/           # Shared hooks (keyboard shortcuts, persistent state, system theme)
+│   │   ├── i18n/            # Internationalization
+│   │   │   └── _locales/    # Translation files (9 languages)
+│   │   ├── lib/             # Utility functions (URL utils, scroll math, storage, etc.)
+│   │   ├── styles/          # Global styles
+│   │   └── types/           # Shared TypeScript definitions
 │   └── manifest.ts          # Dynamic manifest generation
 ├── extension/               # Build output
-├── scripts/                 # Build scripts
-└── _locales/               # i18n translations
+├── scripts/                 # Build and publish scripts
+└── docs/                    # Architecture guides and release notes
 ```
 
 ---
@@ -246,16 +258,15 @@ sequenceDiagram
 
 ## Tech Stack
 
-| Category          | Technology                          |
-| ----------------- | ----------------------------------- |
-| **Framework**     | React 19, TypeScript                |
-| **Build Tool**    | Vite with HMR                       |
-| **Styling**       | UnoCSS + Tailwind + shadcn/ui       |
-| **State**         | React Query (@tanstack/react-query) |
-| **Extension API** | webextension-polyfill               |
-| **Messaging**     | webext-bridge                       |
-| **Animations**    | Framer Motion                       |
-| **Icons**         | unplugin-icons                      |
+| Category          | Technology                    |
+| ----------------- | ----------------------------- |
+| **Framework**     | React 19, TypeScript          |
+| **Build Tool**    | Vite with HMR                 |
+| **Styling**       | UnoCSS + Tailwind + shadcn/ui |
+| **Extension API** | webextension-polyfill         |
+| **Messaging**     | webext-bridge                 |
+| **Animations**    | Motion (motion/react)         |
+| **Icons**         | unplugin-icons                |
 
 ### Browser Support
 

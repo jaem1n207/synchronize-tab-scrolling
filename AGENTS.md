@@ -11,7 +11,6 @@ This is a cross-browser extension (Chrome, Edge, Firefox, Brave) for synchronizi
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite
 - **Styling**: UnoCSS + Tailwind + Shadcn UI
-- **State Management**: React Query (@tanstack/react-query)
 - **Extension API**: webextension-polyfill for cross-browser compatibility
 - **Messaging**: webext-bridge for content script communication
 - **Icons**: unplugin-icons
