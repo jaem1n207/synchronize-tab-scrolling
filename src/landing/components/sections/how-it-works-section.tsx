@@ -1,14 +1,15 @@
+import type { ComponentType, SVGProps } from 'react';
+
 import { motion } from 'motion/react';
+
+import { SectionContainer } from '~/landing/components/layout/section-container';
+import { useTranslation } from '~/landing/lib/i18n';
+import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
+import { cn } from '~/shared/lib/utils';
+
 import IconDownload from '~icons/lucide/download';
 import IconMousePointerClick from '~icons/lucide/mouse-pointer-click';
 import IconScroll from '~icons/lucide/scroll';
-
-import type { ComponentType, SVGProps } from 'react';
-
-import { cn } from '~/shared/lib/utils';
-import { useTranslation } from '~/landing/lib/i18n';
-import { SectionContainer } from '~/landing/components/layout/section-container';
-import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
 
 interface StepConfig {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -35,15 +36,15 @@ export function HowItWorksSection() {
           return (
             <motion.div
               key={step.title}
+              className="relative text-center"
               initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
               transition={{
                 duration: ANIMATION_DURATIONS.slow,
                 ease: EASING_FUNCTIONS.easeOut,
                 delay: i * 0.1,
               }}
-              className="relative text-center"
+              viewport={{ once: true, margin: '-60px' }}
+              whileInView={{ opacity: 1, y: 0 }}
             >
               <span
                 aria-hidden="true"
@@ -65,15 +66,15 @@ export function HowItWorksSection() {
                   )}
                 >
                   <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
                     fill="none"
+                    height="24"
+                    role="img"
                     stroke="currentColor"
-                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    role="img"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    width="24"
                   >
                     <title>Next step</title>
                     <path d="M5 12h14" />
