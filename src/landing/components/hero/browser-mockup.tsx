@@ -67,7 +67,7 @@ export function BrowserMockup({
         <div
           ref={scrollRef}
           className={cn(
-            'h-[320px] overflow-y-auto scroll-smooth md:h-[400px]',
+            'h-[320px] overflow-y-auto md:h-[400px]',
             '[&::-webkit-scrollbar]:w-1.5',
             '[&::-webkit-scrollbar-track]:bg-transparent',
             '[&::-webkit-scrollbar-thumb]:rounded-full',
