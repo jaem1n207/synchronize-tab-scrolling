@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'motion/react';
 
+import { useReducedMotion } from '~/landing/hooks/use-reduced-motion';
 import { useTranslation } from '~/landing/lib/i18n';
 import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
 
@@ -11,9 +12,10 @@ interface SyncStatusBadgeProps {
 
 export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
   const t = useTranslation();
+  const reduceMotion = useReducedMotion();
 
   return (
-    <div className="inline-flex items-center text-xs font-medium">
+    <div aria-live="polite" className="inline-flex items-center text-xs font-medium">
       <AnimatePresence initial={false} mode="wait">
         {state === 'synced' && (
           <motion.span
@@ -29,9 +31,11 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
           >
             <span className="relative flex h-2 w-2">
               <motion.span
-                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                animate={reduceMotion ? {} : { scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
                 className="absolute inset-0 rounded-full bg-green-500/50"
-                transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+                transition={
+                  reduceMotion ? {} : { repeat: Infinity, duration: 2, ease: 'easeInOut' }
+                }
               />
               <span className="relative h-2 w-2 rounded-full bg-green-500" />
             </span>
@@ -53,9 +57,11 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
           >
             <span className="relative flex h-2 w-2">
               <motion.span
-                animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
+                animate={reduceMotion ? {} : { scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
                 className="absolute inset-0 rounded-full bg-amber-500/50"
-                transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+                transition={
+                  reduceMotion ? {} : { repeat: Infinity, duration: 1.2, ease: 'easeInOut' }
+                }
               />
               <span className="relative h-2 w-2 rounded-full bg-amber-500" />
             </span>

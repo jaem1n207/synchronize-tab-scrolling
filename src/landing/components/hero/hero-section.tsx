@@ -51,14 +51,14 @@ export function HeroSection() {
     }
 
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Alt' || e.key === 'Option') {
+      if (e.key === 'Alt') {
         e.preventDefault();
         setIsAdjusting(true);
       }
     }
 
     function onKeyUp(e: KeyboardEvent) {
-      if (e.key === 'Alt' || e.key === 'Option') {
+      if (e.key === 'Alt') {
         setIsAdjusting(false);
       }
     }
