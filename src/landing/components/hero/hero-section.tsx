@@ -155,7 +155,7 @@ function HeadlineBlock({ headline, subheadline, trustSignal }: HeadlineBlockProp
 
       <motion.p
         animate={{ opacity: 1 }}
-        className="mt-3 text-sm text-muted-foreground/70"
+        className="mt-3 text-sm text-muted-foreground"
         initial={{ opacity: 0 }}
         transition={{ ...ENTRANCE_TRANSITION, delay: STAGGER_MS.trustSignal }}
       >
@@ -301,7 +301,7 @@ function ModifierHint({ modifierSymbol, visible }: ModifierHintProps) {
       aria-hidden={!visible}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground transition-opacity duration-150',
-        visible ? 'opacity-80' : 'opacity-0',
+        visible ? 'opacity-100' : 'opacity-0',
       )}
     >
       <kbd className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[10px]">

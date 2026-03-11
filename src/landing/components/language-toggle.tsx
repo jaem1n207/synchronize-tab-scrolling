@@ -28,7 +28,7 @@ export function LanguageToggle() {
         variant="ghost"
         size="sm"
         onClick={toggle}
-        aria-label="Switch language"
+        aria-label={`${LOCALE_LABEL[locale]}: Switch language`}
         data-umami-event="language-toggle"
         className="font-semibold tabular-nums"
       >

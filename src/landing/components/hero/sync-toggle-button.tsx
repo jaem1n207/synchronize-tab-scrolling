@@ -38,7 +38,7 @@ export function SyncToggleButton({ isSynced, onToggle }: SyncToggleButtonProps) 
           'relative inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold',
           'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           isSynced
-            ? 'bg-green-600 text-white hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500'
+            ? 'bg-green-700 text-white hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600'
             : 'bg-primary text-primary-foreground hover:bg-primary/90',
         )}
       >

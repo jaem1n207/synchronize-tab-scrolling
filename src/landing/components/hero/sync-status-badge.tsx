@@ -19,7 +19,7 @@ export function SyncStatusBadge({ state }: SyncStatusBadgeProps) {
           <motion.span
             key="synced"
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400"
+            className="inline-flex items-center gap-1.5 text-green-700 dark:text-green-400"
             exit={{ opacity: 0, scale: 0.9 }}
             initial={{ opacity: 0, scale: 0.9 }}
             transition={{
