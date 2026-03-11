@@ -14,8 +14,10 @@ const en: TranslationStrings = {
     syncing: 'Syncing',
     scrollHint: 'Scroll the left panel',
     scrollHintSynced: 'Scroll either panel',
+    scrollHintAdjusting: 'Hold {modifier} + scroll to adjust individually',
     synced: 'Synced',
     notSynced: 'Not synced',
+    adjusting: 'Adjusting',
     trustSignal: 'Free · No account · Open source',
   },
   problem: {
@@ -51,7 +53,7 @@ const en: TranslationStrings = {
       {
         title: 'Manual position adjustment',
         description:
-          'Hold Option/Alt while scrolling to adjust individual tabs without breaking sync.',
+          'Hold {modifier} while scrolling to adjust individual tabs without breaking sync.',
       },
       {
         title: 'Auto-sync suggestion',

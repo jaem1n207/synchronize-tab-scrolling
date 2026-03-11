@@ -14,8 +14,10 @@ const ko: TranslationStrings = {
     syncing: '동기화 중',
     scrollHint: '왼쪽 패널을 스크롤해 보세요',
     scrollHintSynced: '아무 패널이나 스크롤해 보세요',
+    scrollHintAdjusting: '{modifier} 키를 누른 채 스크롤하면 개별 조정',
     synced: '동기화됨',
     notSynced: '동기화 안됨',
+    adjusting: '개별 조정 중',
     trustSignal: '무료 · 계정 불필요 · 오픈소스',
   },
   problem: {
@@ -49,7 +51,7 @@ const ko: TranslationStrings = {
       {
         title: '수동 위치 조정',
         description:
-          'Option/Alt 키를 누른 채 스크롤하면 동기화를 유지하면서 개별 탭의 위치를 조정할 수 있습니다.',
+          '{modifier} 키를 누른 채 스크롤하면 동기화를 유지하면서 개별 탭의 위치를 조정할 수 있습니다.',
       },
       {
         title: '자동 동기화 제안',

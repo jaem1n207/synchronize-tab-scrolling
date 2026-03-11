@@ -9,6 +9,7 @@ import IconWifi from '~icons/lucide/wifi';
 import type { ComponentType, SVGProps } from 'react';
 
 import { useTranslation } from '~/landing/lib/i18n';
+import { useModifierKey } from '~/landing/hooks/use-platform';
 import { SectionContainer } from '~/landing/components/layout/section-container';
 import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
 
@@ -23,6 +24,7 @@ const FEATURE_ICONS: ComponentType<SVGProps<SVGSVGElement>>[] = [
 
 export function FeaturesSection() {
   const t = useTranslation();
+  const modifier = useModifierKey();
 
   return (
     <SectionContainer id="features">
@@ -33,6 +35,7 @@ export function FeaturesSection() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {t.features.items.map((feature, i) => {
           const Icon = FEATURE_ICONS[i];
+          const description = feature.description.replace('{modifier}', modifier.name);
           return (
             <motion.div
               key={feature.title}
@@ -48,7 +51,7 @@ export function FeaturesSection() {
             >
               <Icon className="mb-3 size-8 text-primary" />
               <h3 className="mb-1 text-base font-semibold text-card-foreground">{feature.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
             </motion.div>
           );
         })}
