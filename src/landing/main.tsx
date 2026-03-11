@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 import { MotionConfig } from 'motion/react';
 
 import '~/shared/styles';
@@ -15,17 +15,23 @@ function init() {
     throw new Error('Can not find #app element');
   }
 
-  const root = createRoot(appContainer);
-
-  root.render(
+  const app = (
     <StrictMode>
       <MotionConfig reducedMotion="user">
         <LocaleProvider>
           <App />
         </LocaleProvider>
       </MotionConfig>
-    </StrictMode>,
+    </StrictMode>
   );
+
+  const hasPrerenderedContent = appContainer.children.length > 0;
+
+  if (hasPrerenderedContent) {
+    hydrateRoot(appContainer, app);
+  } else {
+    createRoot(appContainer).render(app);
+  }
 }
 
 init();

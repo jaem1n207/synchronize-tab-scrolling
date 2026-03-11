@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jaem1n207.github.io/synchronize-tab-scrolling/sitemap.xml

@@ -55,6 +55,7 @@
     "dev:landing": "vite --config vite.config.landing.mts",
     "build:landing": "vite build --config vite.config.landing.mts",
     "preview:landing": "vite preview --config vite.config.landing.mts",
+    "prerender:landing": "esno scripts/prerender-landing.ts",
     "--------------------------------tools-----------------------------": "",
     "clear": "rimraf --glob extension/dist extension/manifest.json extension.*",
     "clean": "find . -type f -name 'vite.config.*.timestamp-*' -ls -delete 2>/dev/null",

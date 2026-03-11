@@ -12,6 +12,26 @@
     <link rel="canonical" href="https://jaem1n207.github.io/synchronize-tab-scrolling/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
+    <link
+      rel="alternate"
+      hreflang="en"
+      href="https://jaem1n207.github.io/synchronize-tab-scrolling/"
+    />
+    <link
+      rel="alternate"
+      hreflang="ko"
+      href="https://jaem1n207.github.io/synchronize-tab-scrolling/"
+    />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://jaem1n207.github.io/synchronize-tab-scrolling/"
+    />
+
+    <!-- Resource hints for Umami analytics -->
+    <link rel="dns-prefetch" href="https://cloud.umami.is" />
+    <link rel="preconnect" href="https://cloud.umami.is" crossorigin />
+
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Synchronize Tab Scrolling — Scroll once, sync everywhere" />
@@ -38,7 +58,7 @@
       content="https://jaem1n207.github.io/synchronize-tab-scrolling/og-image.png"
     />
 
-    <!-- JSON-LD Structured Data -->
+    <!-- JSON-LD Structured Data: SoftwareApplication -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -53,13 +73,73 @@
           "price": "0",
           "priceCurrency": "USD"
         },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.2",
+          "ratingCount": "12",
+          "bestRating": "5",
+          "worstRating": "1"
+        },
+        "featureList": [
+          "Real-time scroll synchronization across tabs",
+          "Manual position adjustment with modifier key",
+          "Auto-sync suggestion for duplicate URLs",
+          "URL navigation sync",
+          "Domain exclusion management",
+          "Auto-reconnection after sleep"
+        ],
         "author": {
           "@type": "Person",
           "name": "jaem1n207",
           "url": "https://github.com/jaem1n207"
         },
         "license": "https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE",
-        "browserRequirements": "Requires Chrome, Firefox, Edge, or any Chromium-based browser"
+        "browserRequirements": "Requires Chrome, Firefox, Edge, or any Chromium-based browser",
+        "downloadUrl": "https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc",
+        "softwareVersion": "2.9.0",
+        "screenshot": "https://jaem1n207.github.io/synchronize-tab-scrolling/og-image.png"
+      }
+    </script>
+
+    <!-- JSON-LD Structured Data: FAQPage -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How does Synchronize Tab Scrolling work?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Install the extension, open multiple tabs, click the extension icon to select tabs you want to sync, then scroll in any synced tab — all linked tabs follow automatically to the same position."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which browsers are supported?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chrome, Firefox, Edge, Brave, Arc, Dia, and all other Chromium-based browsers are supported."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Synchronize Tab Scrolling free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, completely free. No account required, no premium tier, no data collection. The extension is open source."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What if documents don't line up perfectly?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Hold Option (Mac) or Alt (Windows) while scrolling to adjust individual tab positions without breaking the sync. Release the key and sync continues from the new alignment."
+            }
+          }
+        ]
       }
     </script>
 
@@ -72,6 +152,63 @@
   </head>
   <body>
     <div id="app"></div>
+    <noscript>
+      <div
+        style="
+          max-width: 720px;
+          margin: 0 auto;
+          padding: 2rem;
+          font-family: system-ui, sans-serif;
+          line-height: 1.6;
+        "
+      >
+        <h1>Synchronize Tab Scrolling</h1>
+        <p>
+          <strong>Scroll once, sync everywhere.</strong> A free, open-source browser extension that
+          keeps multiple tabs scrolling together — perfect for comparing translations, code, or
+          documents side by side.
+        </p>
+        <h2>How it works</h2>
+        <ol>
+          <li>Install the extension from your browser's store</li>
+          <li>Open the tabs you want to sync</li>
+          <li>Click the extension icon, select your tabs, and start scrolling</li>
+        </ol>
+        <h2>Features</h2>
+        <ul>
+          <li>Real-time scroll synchronization across tabs</li>
+          <li>Manual position adjustment (hold Option/Alt while scrolling)</li>
+          <li>Auto-sync suggestion for duplicate URLs</li>
+          <li>URL navigation sync</li>
+          <li>Domain exclusion management</li>
+          <li>Auto-reconnection after sleep</li>
+        </ul>
+        <h2>Install</h2>
+        <ul>
+          <li>
+            <a
+              href="https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc"
+              >Chrome Web Store</a
+            >
+          </li>
+          <li>
+            <a href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling"
+              >Firefox Add-ons</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://microsoftedge.microsoft.com/addons/detail/synchronize-tab-scrolling/jonclaakmpjodjggkadldgkapccdofnn"
+              >Edge Add-ons</a
+            >
+          </li>
+        </ul>
+        <p>
+          Free · No account required · Open source ·
+          <a href="https://github.com/jaem1n207/synchronize-tab-scrolling">View on GitHub</a>
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="./main.tsx"></script>
   </body>
 </html>
