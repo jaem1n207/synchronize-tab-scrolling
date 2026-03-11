@@ -1,4 +1,4 @@
-export type BrowserName = 'chrome' | 'firefox' | 'edge' | 'brave' | 'safari' | 'unknown';
+export type BrowserName = 'chrome' | 'firefox' | 'edge' | 'brave' | 'arc' | 'safari' | 'unknown';
 
 let cachedBrowser: BrowserName | undefined;
 

@@ -6,7 +6,9 @@ import type { BrowserName } from '~/landing/lib/detect-browser';
 import { detectBrowser } from '~/landing/lib/detect-browser';
 import { useTranslation } from '~/landing/lib/i18n';
 import { cn } from '~/shared/lib/utils';
+import { IconDia } from '~/landing/components/icons/icon-dia';
 
+import IconArc from '~icons/simple-icons/arc';
 import IconBrave from '~icons/simple-icons/brave';
 import IconFirefox from '~icons/simple-icons/firefox';
 import IconChrome from '~icons/simple-icons/googlechrome';
@@ -26,13 +28,16 @@ const BROWSERS: BrowserConfig[] = [
   { key: 'chrome', icon: IconChrome, label: 'Chrome' },
   { key: 'firefox', icon: IconFirefox, label: 'Firefox' },
   { key: 'edge', icon: IconEdge, label: 'Edge' },
+  { key: 'arc', icon: IconArc, label: 'Arc' },
   { key: 'brave', icon: IconBrave, label: 'Brave' },
+  { key: 'dia', icon: IconDia, label: 'Dia' },
 ];
 
 function toPrimaryBrowserKey(browser: BrowserName): BrowserKey {
   if (browser === 'brave') return 'brave';
   if (browser === 'firefox') return 'firefox';
   if (browser === 'edge') return 'edge';
+  if (browser === 'arc') return 'arc';
   return 'chrome';
 }
 

@@ -5,12 +5,15 @@ import IconWifiOff from '~icons/lucide/wifi-off';
 import IconCode2 from '~icons/lucide/code-2';
 import IconGlobe from '~icons/lucide/globe';
 import IconAccessibility from '~icons/lucide/accessibility';
+import IconArc from '~icons/simple-icons/arc';
 import IconChrome from '~icons/simple-icons/googlechrome';
 import IconFirefox from '~icons/simple-icons/firefox';
 import IconEdge from '~icons/simple-icons/microsoftedge';
 import IconBrave from '~icons/simple-icons/brave';
 
 import type { ComponentType, SVGProps } from 'react';
+
+import { IconDia } from '~/landing/components/icons/icon-dia';
 
 import { useTranslation } from '~/landing/lib/i18n';
 import { SectionContainer } from '~/landing/components/layout/section-container';
@@ -42,7 +45,9 @@ const BROWSER_ICONS: { icon: ComponentType<SVGProps<SVGSVGElement>>; label: stri
   { icon: IconChrome, label: 'Chrome' },
   { icon: IconFirefox, label: 'Firefox' },
   { icon: IconEdge, label: 'Edge' },
+  { icon: IconArc, label: 'Arc' },
   { icon: IconBrave, label: 'Brave' },
+  { icon: IconDia, label: 'Dia' },
 ];
 
 export function TrustSection() {
