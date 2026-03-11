@@ -45,6 +45,12 @@ jobs:
       - name: Move index.html to artifact root
         run: cp dist-landing/landing/index.html dist-landing/index.html
 
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Prerender landing page for SEO
+        run: pnpm prerender:landing
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist-landing
