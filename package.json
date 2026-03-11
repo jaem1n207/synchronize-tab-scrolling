@@ -51,6 +51,7 @@
     "--------------------------------test-----------------------------": "",
     "test": "vitest test",
     "test:e2e": "playwright test",
+    "test:e2e:landing": "playwright test --config playwright.config.landing.ts",
     "--------------------------------landing-----------------------------": "",
     "dev:landing": "vite --config vite.config.landing.mts",
     "build:landing": "vite build --config vite.config.landing.mts",
