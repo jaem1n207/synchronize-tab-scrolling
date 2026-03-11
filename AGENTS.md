@@ -107,8 +107,13 @@ pnpm start:firefox   # Firefox
 
 ### CI/CD & Store Deployment
 
-- **Release trigger**: Push to `main` runs `.github/workflows/release.yml`
+This repository has **two independent CI/CD pipelines**. They are isolated so that landing page changes never trigger extension releases, and vice versa.
+
+#### Extension Release (`release.yml`)
+
+- **Trigger**: Push to `main`, with `paths-ignore` for `src/landing/**`, `vite.config.landing.mts`, `deploy-landing.yml`
 - **Version management**: semantic-release analyzes Conventional Commits to determine version
+- **Scope filtering**: `release.config.js` has `releaseRules: [{ scope: 'landing', release: false }]` — commits with `(landing)` scope are excluded from version bumps
 - **Store publishing**: Automated via semantic-release plugins:
   - Chrome Web Store: `semantic-release-chrome` (OAuth 2.0)
   - Firefox AMO: `semantic-release-amo` (JWT, auto-submits source code)
@@ -116,6 +121,27 @@ pnpm start:firefox   # Firefox
 - **Build separation**: Chrome and Firefox builds share `extension/` output — CI copies to `build/chrome/` and `build/firefox/` before semantic-release
 - **Edge reuses Chrome build**: Same Chromium zip uploaded to both stores
 - **Credential renewal**: Edge API Key expires and requires manual renewal in Partner Center
+
+#### Landing Page Deploy (`deploy-landing.yml`)
+
+- **Trigger**: Push to `main` with `paths` filter: `src/landing/**`, `src/shared/**`, `vite.config.landing.mts`, `uno.config.ts`, `tsconfig.json`
+- **Deployment**: GitHub Pages via `actions/deploy-pages@v4`
+- **URL**: `https://jaem1n207.github.io/synchronize-tab-scrolling/`
+- **Analytics**: Umami Cloud (script in `src/landing/index.html`)
+
+#### CI Isolation Rules
+
+| Change                                                       | `release.yml`          | `deploy-landing.yml` |
+| ------------------------------------------------------------ | ---------------------- | -------------------- |
+| `src/landing/**` only                                        | Skipped (paths-ignore) | Runs                 |
+| `src/popup/**`, `src/background/**`, `src/contentScripts/**` | Runs                   | Skipped              |
+| `src/shared/**`                                              | Runs                   | Runs                 |
+| Both landing + extension                                     | Runs                   | Runs                 |
+
+**When committing landing page changes, ALWAYS use `(landing)` scope** (e.g., `feat(landing): ...`, `fix(landing): ...`). This ensures:
+
+1. `release.yml` is skipped if only landing files changed (workflow `paths-ignore`)
+2. Even if the workflow runs (e.g., shared code also changed), the landing commit won't bump the extension version (`releaseRules`)
 
 See `docs/guides/store-deployment.md` for detailed pipeline, credentials, and troubleshooting.
 
@@ -173,6 +199,7 @@ When adding a new extension page (like an options page), update the following fi
 - **Code Organization**: Encapsulate complex logic into clear, purpose-specific functions
 - **Theme Support**: Support dark/light mode
 - **Commit Convention**: Conventional Commits with commitlint validation
+- **Commit Scopes**: Use `(landing)` scope for landing page changes (e.g., `feat(landing): add CTA section`). This is **critical** — `release.config.js` ignores `landing` scope commits to prevent extension version bumps. Without the scope, landing-only changes could trigger an unnecessary extension release to Chrome/Edge/Firefox stores.
 - **Pull Requests**: Always create PRs with `--assignee jaem1n207`
 
 ## Error Handling & User Experience Patterns
