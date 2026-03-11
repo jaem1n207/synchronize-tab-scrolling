@@ -1,6 +1,5 @@
 /// <reference types="vitest/globals" />
 
-import type { TranslationStrings } from '~/landing/lib/translations/types';
 import de from '~/landing/lib/translations/de';
 import en from '~/landing/lib/translations/en';
 import id from '~/landing/lib/translations/id';
@@ -9,6 +8,7 @@ import ko from '~/landing/lib/translations/ko';
 import pl from '~/landing/lib/translations/pl';
 import ru from '~/landing/lib/translations/ru';
 import tr from '~/landing/lib/translations/tr';
+import type { TranslationStrings } from '~/landing/lib/translations/types';
 import viTranslation from '~/landing/lib/translations/vi';
 import zhTW from '~/landing/lib/translations/zh_TW';
 
