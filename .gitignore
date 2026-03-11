@@ -10,6 +10,7 @@
 *.zip
 build
 dist
+dist-landing
 dist-ssr
 extension/manifest.json
 node_modules

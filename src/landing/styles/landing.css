@@ -1,0 +1,19 @@
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+}
