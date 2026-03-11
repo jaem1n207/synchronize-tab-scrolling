@@ -20,7 +20,43 @@ export function useScrollSync({
     target: HTMLDivElement;
     ratio: number;
     guard: 'left' | 'right';
+    direction: 'left-to-right' | 'right-to-left';
   } | null>(null);
+
+  // Ratio difference between right and left panels, captured when manual
+  // adjustment ends. Applied during sync so the adjusted alignment persists.
+  const offsetRef = useRef(0);
+
+  // Ref mirror of isAdjusting — avoids re-creating scroll listeners on every
+  // keydown/keyup, which would cancel in-flight rAF and guard timers
+  const isAdjustingRef = useRef(isAdjusting);
+  isAdjustingRef.current = isAdjusting;
+
+  const prevAdjustingRef = useRef(false);
+
+  useEffect(() => {
+    const wasAdjusting = prevAdjustingRef.current;
+    prevAdjustingRef.current = isAdjusting;
+
+    if (wasAdjusting && !isAdjusting && isSynced) {
+      const left = leftRef.current;
+      const right = rightRef.current;
+      if (!left || !right) return;
+
+      const leftMax = left.scrollHeight - left.clientHeight;
+      const rightMax = right.scrollHeight - right.clientHeight;
+      const leftRatio = leftMax > 0 ? left.scrollTop / leftMax : 0;
+      const rightRatio = rightMax > 0 ? right.scrollTop / rightMax : 0;
+
+      offsetRef.current = rightRatio - leftRatio;
+    }
+  }, [isAdjusting, isSynced, leftRef, rightRef]);
+
+  useEffect(() => {
+    if (!isSynced) {
+      offsetRef.current = 0;
+    }
+  }, [isSynced]);
 
   useEffect(() => {
     const left = leftRef.current;
@@ -46,14 +82,15 @@ export function useScrollSync({
       source: HTMLDivElement,
       target: HTMLDivElement,
       guardPanel: 'left' | 'right',
+      direction: 'left-to-right' | 'right-to-left',
     ) {
-      if (isAdjusting) return;
+      if (isAdjustingRef.current) return;
       if (guardRef.current === guardPanel) return;
 
       const maxScroll = source.scrollHeight - source.clientHeight;
       const ratio = maxScroll > 0 ? source.scrollTop / maxScroll : 0;
 
-      pendingRef.current = { target, ratio, guard: guardPanel };
+      pendingRef.current = { target, ratio, guard: guardPanel, direction };
 
       if (rafRef.current === null) {
         rafRef.current = requestAnimationFrame(() => {
@@ -65,19 +102,23 @@ export function useScrollSync({
           const targetMax = pending.target.scrollHeight - pending.target.clientHeight;
           if (targetMax <= 0) return;
 
+          const offset = offsetRef.current;
+          const targetRatio =
+            pending.direction === 'left-to-right' ? pending.ratio + offset : pending.ratio - offset;
+
           // Guard BEFORE scrollTop write — suppresses target's rebound scroll event
           setGuard(pending.guard);
-          pending.target.scrollTop = pending.ratio * targetMax;
+          pending.target.scrollTop = Math.max(0, Math.min(1, targetRatio)) * targetMax;
         });
       }
     }
 
     function onLeftScroll() {
-      scheduleSync(left!, right!, 'right');
+      scheduleSync(left!, right!, 'right', 'left-to-right');
     }
 
     function onRightScroll() {
-      scheduleSync(right!, left!, 'left');
+      scheduleSync(right!, left!, 'left', 'right-to-left');
     }
 
     left.addEventListener('scroll', onLeftScroll, { passive: true });
@@ -98,5 +139,5 @@ export function useScrollSync({
       guardRef.current = null;
       pendingRef.current = null;
     };
-  }, [leftRef, rightRef, isSynced, isAdjusting]);
+  }, [leftRef, rightRef, isSynced]);
 }
