@@ -6,6 +6,7 @@ import { type AddressInfo } from 'node:net';
 import { chromium, type Browser } from '@playwright/test';
 
 const DIST_DIR = join(process.cwd(), 'dist-landing');
+const LANDING_BASE = process.env.LANDING_BASE ?? '/';
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -21,13 +22,16 @@ const MIME_TYPES: Record<string, string> = {
 function startStaticServer(): Promise<{ server: Server; port: number }> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
-      const urlPath = req.url?.split('?')[0] ?? '/';
+      const rawPath = req.url?.split('?')[0] ?? '/';
+      const stripped = rawPath.startsWith(LANDING_BASE)
+        ? '/' + rawPath.slice(LANDING_BASE.length)
+        : rawPath;
       let filePath: string;
 
-      if (urlPath === '/' || urlPath === '/index.html') {
+      if (stripped === '/' || stripped === '/index.html') {
         filePath = join(DIST_DIR, 'landing', 'index.html');
       } else {
-        filePath = join(DIST_DIR, urlPath);
+        filePath = join(DIST_DIR, stripped);
       }
 
       try {
@@ -66,7 +70,7 @@ async function prerender() {
 
     page.on('pageerror', (err) => console.error(`[browser] error: ${err.message}`));
 
-    await page.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle' });
+    await page.goto(`http://localhost:${port}${LANDING_BASE}`, { waitUntil: 'networkidle' });
     await page.waitForSelector('#app > *', { timeout: 30_000 });
 
     const appHtml = await page.evaluate(() => {
