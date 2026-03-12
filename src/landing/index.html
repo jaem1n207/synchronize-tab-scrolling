@@ -225,6 +225,9 @@
 
         if (locale !== 'en') {
           document.documentElement.classList.add('i18n-loading');
+          setTimeout(function () {
+            document.documentElement.classList.remove('i18n-loading');
+          }, 3000);
         }
       })();
     </script>

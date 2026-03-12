@@ -29,7 +29,11 @@ function init() {
 
   if (hasPrerenderedContent) {
     hydrateRoot(appContainer, app, {
-      onRecoverableError: () => undefined,
+      onRecoverableError: (error, errorInfo) => {
+        console.warn('[landing] Recoverable hydration error:', error, {
+          componentStack: errorInfo?.componentStack,
+        });
+      },
     });
   } else {
     createRoot(appContainer).render(app);
