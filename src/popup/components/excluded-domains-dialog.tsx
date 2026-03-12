@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/shared/components/ui/dialog';
-import { ScrollArea } from '~/shared/components/ui/scroll-area';
 import { t } from '~/shared/i18n';
 import {
   ANIMATION_DURATIONS,
@@ -216,7 +215,7 @@ export function ExcludedDomainsDialog({
           <DialogDescription>{t('excludedDomainsDescription')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <input
@@ -299,7 +298,7 @@ export function ExcludedDomainsDialog({
               </p>
             </div>
           ) : (
-            <ScrollArea className="max-h-[240px]">
+            <div className="max-h-[240px] overflow-y-auto overscroll-contain">
               <div
                 aria-label={t('excludedDomainsDescription')}
                 className="space-y-1.5"
@@ -359,6 +358,7 @@ export function ExcludedDomainsDialog({
                               'text-sm truncate',
                               isPendingRemove && 'text-destructive',
                             )}
+                            title={domain}
                           >
                             {domain}
                           </span>
@@ -386,7 +386,7 @@ export function ExcludedDomainsDialog({
                   })}
                 </AnimatePresence>
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
       </DialogContent>
