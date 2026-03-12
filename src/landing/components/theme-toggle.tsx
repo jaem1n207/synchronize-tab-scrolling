@@ -1,56 +1,73 @@
 import { motion, AnimatePresence } from 'motion/react';
-import IconSun from '~icons/lucide/sun';
-import IconMoon from '~icons/lucide/moon';
 
 import { Button } from '~/shared/components/ui/button';
 import { useSystemTheme } from '~/shared/hooks/use-system-theme';
 import { ANIMATION_DURATIONS } from '~/shared/lib/animations';
 
+import IconMoon from '~icons/lucide/moon';
+import IconSun from '~icons/lucide/sun';
+
 type Theme = 'light' | 'dark';
 
-function resolveInitialTheme(systemTheme: Theme): Theme {
-  if (typeof window === 'undefined') return systemTheme;
-  const stored = localStorage.getItem('landing-theme');
-  if (stored === 'light' || stored === 'dark') return stored;
-  return systemTheme;
+const THEME_STORAGE_KEY = 'landing-theme';
+
+function getStoredTheme(): Theme | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  return stored === 'light' || stored === 'dark' ? stored : null;
 }
 
-function applyTheme(theme: Theme) {
+function applyThemeToDOM(theme: Theme) {
   document.documentElement.classList.toggle('dark', theme === 'dark');
-  localStorage.setItem('landing-theme', theme);
+}
+
+function persistThemeChoice(theme: Theme) {
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
 }
 
 export function ThemeToggle() {
   const systemTheme = useSystemTheme();
-  const [theme, setTheme] = useState<Theme>(() => resolveInitialTheme(systemTheme));
+  const [theme, setTheme] = useState<Theme>(() => getStoredTheme() ?? systemTheme);
+  const [isExplicit, setIsExplicit] = useState<boolean>(() => getStoredTheme() !== null);
 
   useEffect(() => {
-    applyTheme(theme);
+    applyThemeToDOM(theme);
   }, [theme]);
 
+  useEffect(() => {
+    if (!isExplicit) {
+      setTheme(systemTheme);
+    }
+  }, [systemTheme, isExplicit]);
+
   const toggle = useCallback(() => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    setTheme((prev) => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      persistThemeChoice(next);
+      setIsExplicit(true);
+      return next;
+    });
   }, []);
 
   const isDark = theme === 'dark';
 
   return (
     <Button
-      variant="ghost"
-      size="icon"
-      onClick={toggle}
       aria-label="Toggle dark mode"
+      className="relative overflow-hidden"
       data-umami-event="theme-toggle"
       data-umami-event-theme={isDark ? 'light' : 'dark'}
-      className="relative overflow-hidden"
+      size="icon"
+      variant="ghost"
+      onClick={toggle}
     >
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence initial={false} mode="wait">
         {isDark ? (
           <motion.div
             key="moon"
-            initial={{ rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             exit={{ rotate: 180, opacity: 0 }}
+            initial={{ rotate: -180, opacity: 0 }}
             transition={{ duration: ANIMATION_DURATIONS.normal }}
           >
             <IconMoon className="size-5" />
@@ -58,9 +75,9 @@ export function ThemeToggle() {
         ) : (
           <motion.div
             key="sun"
-            initial={{ rotate: 180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             exit={{ rotate: -180, opacity: 0 }}
+            initial={{ rotate: 180, opacity: 0 }}
             transition={{ duration: ANIMATION_DURATIONS.normal }}
           >
             <IconSun className="size-5" />
