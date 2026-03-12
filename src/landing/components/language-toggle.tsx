@@ -41,9 +41,9 @@ export function LanguageToggle() {
         {SUPPORTED_LOCALES.map((loc) => (
           <DropdownMenuItem
             key={loc}
+            className={locale === loc ? 'bg-accent' : ''}
             data-umami-event="language-select"
             data-umami-event-locale={loc}
-            className={locale === loc ? 'bg-accent' : ''}
             onSelect={() => setLocale(loc)}
           >
             <span className="min-w-8 font-mono text-xs text-muted-foreground">

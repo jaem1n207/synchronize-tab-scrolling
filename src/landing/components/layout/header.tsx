@@ -1,14 +1,15 @@
 import { motion, AnimatePresence } from 'motion/react';
-import IconMenu from '~icons/lucide/menu';
-import IconX from '~icons/lucide/x';
 
-import { cn } from '~/shared/lib/utils';
+import { InstallButtons } from '~/landing/components/install-buttons';
+import { LanguageToggle } from '~/landing/components/language-toggle';
+import { ThemeToggle } from '~/landing/components/theme-toggle';
+import { useTranslation } from '~/landing/lib/i18n';
 import { Button } from '~/shared/components/ui/button';
 import { ANIMATION_DURATIONS } from '~/shared/lib/animations';
-import { useTranslation } from '~/landing/lib/i18n';
-import { ThemeToggle } from '~/landing/components/theme-toggle';
-import { LanguageToggle } from '~/landing/components/language-toggle';
-import { InstallButtons } from '~/landing/components/install-buttons';
+import { cn } from '~/shared/lib/utils';
+
+import IconMenu from '~icons/lucide/menu';
+import IconX from '~icons/lucide/x';
 
 interface NavLink {
   label: string;
@@ -59,20 +60,20 @@ export function Header() {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <button
+          className="flex items-center gap-2 rounded-md text-foreground font-bold tracking-tight bg-transparent border-none cursor-pointer p-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           type="button"
           onClick={() => window.scrollTo({ top: 0 })}
-          className="flex items-center gap-2 rounded-md text-foreground font-bold tracking-tight bg-transparent border-none cursor-pointer p-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <span className="md:hidden text-lg">STS</span>
           <span className="hidden md:inline text-base">Synchronize Tab Scrolling</span>
         </button>
 
-        <nav className="hidden items-center gap-6 md:flex" aria-label="Main navigation">
+        <nav aria-label="Main navigation" className="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => (
             <a
               key={link.href}
-              href={link.href}
               className="rounded-md text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              href={link.href}
             >
               {link.label}
             </a>
@@ -88,12 +89,12 @@ export function Header() {
           </div>
 
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileOpen((prev) => !prev)}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             className="md:hidden"
+            size="icon"
+            variant="ghost"
+            onClick={() => setMobileOpen((prev) => !prev)}
           >
             {mobileOpen ? <IconX className="size-5" /> : <IconMenu className="size-5" />}
           </Button>
@@ -103,19 +104,19 @@ export function Header() {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: ANIMATION_DURATIONS.normal }}
             className="overflow-hidden border-b border-border bg-background md:hidden"
+            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0 }}
+            transition={{ duration: ANIMATION_DURATIONS.normal }}
           >
-            <nav className="flex flex-col gap-1 px-4 py-4" aria-label="Mobile navigation">
+            <nav aria-label="Mobile navigation" className="flex flex-col gap-1 px-4 py-4">
               {navLinks.map((link) => (
                 <a
                   key={link.href}
+                  className="rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   href={link.href}
                   onClick={closeMobile}
-                  className="rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {link.label}
                 </a>
