@@ -16,19 +16,31 @@ test('loads page and renders core SEO tags', async ({ page }) => {
   ).toBeVisible();
   await expect(page).toHaveTitle(/Synchronize Tab Scrolling/i);
 
-  await expect(page.locator('meta[property="og:title"]')).toHaveCount(1);
-  await expect(page.locator('meta[property="og:description"]')).toHaveCount(1);
-  await expect(page.locator('meta[property="og:image"]')).toHaveCount(1);
-  await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    'content',
+    /Synchronize Tab Scrolling/,
+  );
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+    'content',
+    /.{10,}/,
+  );
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    'content',
+    /og-image\.png$/,
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    /synchronize-tab-scrolling/,
+  );
 
   const jsonLdScripts = page.locator('script[type="application/ld+json"]');
-  const count = await jsonLdScripts.count();
-  expect(count).toBeGreaterThanOrEqual(2);
+  await expect(jsonLdScripts).toHaveCount(2);
 
-  for (let i = 0; i < count; i++) {
-    const text = await jsonLdScripts.nth(i).textContent();
-    expect(text).toBeTruthy();
-    const parsed = JSON.parse(text!);
+  const jsonLdContents = await jsonLdScripts.evaluateAll((scripts) =>
+    scripts.map((el) => el.textContent ?? ''),
+  );
+  for (const content of jsonLdContents) {
+    const parsed = JSON.parse(content);
     expect(parsed).toHaveProperty('@context', 'https://schema.org');
     expect(parsed).toHaveProperty('@type');
   }
