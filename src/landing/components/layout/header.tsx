@@ -85,7 +85,7 @@ export function Header() {
           <ThemeToggle />
 
           <div className="hidden md:block ml-2">
-            <InstallButtons variant="compact" />
+            <InstallButtons position="header" variant="compact" />
           </div>
 
           <Button
@@ -122,7 +122,7 @@ export function Header() {
                 </a>
               ))}
               <div className="pt-3 pb-1">
-                <InstallButtons variant="hero" />
+                <InstallButtons position="header" variant="hero" />
               </div>
             </nav>
           </motion.div>

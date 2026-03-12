@@ -16,6 +16,7 @@ import IconEdge from '~icons/simple-icons/microsoftedge';
 
 interface InstallButtonsProps {
   variant?: 'hero' | 'compact';
+  position?: string;
 }
 
 interface BrowserConfig {
@@ -41,9 +42,10 @@ function toPrimaryBrowserKey(browser: BrowserName): BrowserKey {
   return 'chrome';
 }
 
-export function InstallButtons({ variant = 'hero' }: InstallButtonsProps) {
+export function InstallButtons({ variant = 'hero', position }: InstallButtonsProps) {
   const t = useTranslation();
-  const primaryKey = useMemo(() => toPrimaryBrowserKey(detectBrowser()), []);
+  const userBrowser = useMemo(() => detectBrowser(), []);
+  const primaryKey = useMemo(() => toPrimaryBrowserKey(userBrowser), [userBrowser]);
   const primaryBrowser = useMemo(
     () => BROWSERS.find((b) => b.key === primaryKey) ?? BROWSERS[0],
     [primaryKey],
@@ -65,6 +67,8 @@ export function InstallButtons({ variant = 'hero' }: InstallButtonsProps) {
         )}
         data-umami-event="install-primary"
         data-umami-event-browser={primaryBrowser.label}
+        data-umami-event-position={position}
+        data-umami-event-user-browser={userBrowser}
         href={STORE_URLS[primaryBrowser.key]}
         rel="noopener noreferrer"
         target="_blank"
@@ -88,6 +92,8 @@ export function InstallButtons({ variant = 'hero' }: InstallButtonsProps) {
                   className="rounded-md p-1.5 ring-offset-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   data-umami-event="install-secondary"
                   data-umami-event-browser={browser.label}
+                  data-umami-event-position={position}
+                  data-umami-event-user-browser={userBrowser}
                   href={STORE_URLS[browser.key]}
                   rel="noopener noreferrer"
                   target="_blank"

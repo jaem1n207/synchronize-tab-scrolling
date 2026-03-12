@@ -114,7 +114,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 12 }}
           transition={{ ...ENTRANCE_TRANSITION, delay: STAGGER_MS.cta }}
         >
-          <InstallButtons variant="hero" />
+          <InstallButtons position="hero" variant="hero" />
         </motion.div>
       </div>
     </section>

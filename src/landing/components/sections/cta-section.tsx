@@ -1,6 +1,6 @@
-import { useTranslation } from '~/landing/lib/i18n';
-import { SectionContainer } from '~/landing/components/layout/section-container';
 import { InstallButtons } from '~/landing/components/install-buttons';
+import { SectionContainer } from '~/landing/components/layout/section-container';
+import { useTranslation } from '~/landing/lib/i18n';
 
 export function CtaSection() {
   const t = useTranslation();
@@ -15,7 +15,7 @@ export function CtaSection() {
       <div className="relative text-center">
         <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">{t.cta.title}</h2>
         <p className="mb-8 text-lg text-muted-foreground">{t.cta.subtitle}</p>
-        <InstallButtons variant="hero" />
+        <InstallButtons position="cta" variant="hero" />
       </div>
     </SectionContainer>
   );

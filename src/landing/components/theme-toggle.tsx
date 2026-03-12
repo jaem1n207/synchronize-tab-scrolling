@@ -41,6 +41,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label="Toggle dark mode"
       data-umami-event="theme-toggle"
+      data-umami-event-theme={isDark ? 'light' : 'dark'}
       className="relative overflow-hidden"
     >
       <AnimatePresence mode="wait" initial={false}>

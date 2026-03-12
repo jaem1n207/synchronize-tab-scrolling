@@ -31,6 +31,7 @@ export function LanguageToggle() {
           aria-label={`${LOCALE_DISPLAY_NAMES[locale]}: Change language`}
           className="font-semibold tabular-nums"
           data-umami-event="language-toggle"
+          data-umami-event-current={locale}
           size="sm"
           variant="ghost"
         >
@@ -43,6 +44,7 @@ export function LanguageToggle() {
             key={loc}
             className={locale === loc ? 'bg-accent' : ''}
             data-umami-event="language-select"
+            data-umami-event-from={locale}
             data-umami-event-locale={loc}
             onSelect={() => setLocale(loc)}
           >
