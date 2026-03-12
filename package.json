@@ -57,6 +57,7 @@
     "build:landing": "vite build --config vite.config.landing.mts",
     "preview:landing": "vite preview --config vite.config.landing.mts",
     "prerender:landing": "esno scripts/prerender-landing.ts",
+    "fetch-stats": "esno scripts/fetch-store-stats.ts",
     "--------------------------------tools-----------------------------": "",
     "clear": "rimraf --glob extension/dist extension/manifest.json extension.*",
     "clean": "find . -type f -name 'vite.config.*.timestamp-*' -ls -delete 2>/dev/null",
@@ -152,7 +153,8 @@
     "vitest-axe": "^0.1.0",
     "web-ext": "^8.8.0",
     "webext-bridge": "^6.0.1",
-    "webextension-polyfill": "^0.12.0"
+    "webextension-polyfill": "^0.12.0",
+    "webextension-store-meta": "^1.2.10"
   },
   "packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a"
 }
