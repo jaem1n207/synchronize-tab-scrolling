@@ -55,7 +55,7 @@ export function Footer() {
           <span>
             {t.footer.madeBy}{' '}
             <a
-              className="font-medium text-foreground underline-offset-4 hover:underline"
+              className="rounded-sm font-medium text-foreground underline-offset-4 ring-offset-background hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               href="https://github.com/jaem1n207"
               rel="noopener noreferrer"
               target="_blank"
@@ -72,7 +72,7 @@ export function Footer() {
 function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <a
-      className="group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className="group inline-flex items-center gap-1 rounded-sm text-sm text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       href={href}
       rel="noopener noreferrer"
       target="_blank"

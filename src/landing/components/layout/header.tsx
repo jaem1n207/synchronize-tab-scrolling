@@ -61,7 +61,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0 })}
-          className="flex items-center gap-2 text-foreground font-bold tracking-tight bg-transparent border-none cursor-pointer p-0"
+          className="flex items-center gap-2 rounded-md text-foreground font-bold tracking-tight bg-transparent border-none cursor-pointer p-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <span className="md:hidden text-lg">STS</span>
           <span className="hidden md:inline text-base">Synchronize Tab Scrolling</span>
@@ -72,7 +72,7 @@ export function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-md text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {link.label}
             </a>
@@ -115,7 +115,7 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   onClick={closeMobile}
-                  className="rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground ring-offset-background transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {link.label}
                 </a>
