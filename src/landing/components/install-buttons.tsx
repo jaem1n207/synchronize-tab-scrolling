@@ -16,7 +16,7 @@ import IconEdge from '~icons/simple-icons/microsoftedge';
 
 interface InstallButtonsProps {
   variant?: 'hero' | 'compact';
-  position?: string;
+  position?: 'hero' | 'header' | 'cta';
 }
 
 interface BrowserConfig {
