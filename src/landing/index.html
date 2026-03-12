@@ -186,7 +186,10 @@
     <!-- Theme initialization (blocking to prevent FOUC) -->
     <script>
       (function () {
-        var theme = localStorage.getItem('landing-theme');
+        var theme;
+        try {
+          theme = localStorage.getItem('landing-theme');
+        } catch (_) {}
         if (
           theme === 'dark' ||
           (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -199,7 +202,10 @@
     <script>
       (function () {
         var SUPPORTED = ['en', 'ko', 'de', 'ru', 'it', 'vi', 'id', 'pl', 'tr', 'zh_TW'];
-        var stored = localStorage.getItem('landing-locale');
+        var stored;
+        try {
+          stored = localStorage.getItem('landing-locale');
+        } catch (_) {}
         var locale = 'en';
         var lang = '';
         var prefix = '';
