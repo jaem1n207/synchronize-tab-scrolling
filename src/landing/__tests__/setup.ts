@@ -9,27 +9,35 @@ class MockIntersectionObserver implements IntersectionObserver {
   readonly rootMargin: string = '';
   readonly thresholds: ReadonlyArray<number> = [];
   private callback: IntersectionObserverCallback;
+  private targets = new Set<Element>();
 
   constructor(callback: IntersectionObserverCallback) {
     this.callback = callback;
     MockIntersectionObserver.instances.push(this);
   }
 
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
+  observe(target: Element): void {
+    this.targets.add(target);
+  }
+  unobserve(target: Element): void {
+    this.targets.delete(target);
+  }
+  disconnect(): void {
+    this.targets.clear();
+  }
   takeRecords(): IntersectionObserverEntry[] {
     return [];
   }
 
   triggerIntersection(isIntersecting: boolean): void {
+    const target = this.targets.values().next().value ?? document.createElement('div');
     const entry = {
       isIntersecting,
       intersectionRatio: isIntersecting ? 1 : 0,
       boundingClientRect: {} as DOMRectReadOnly,
       intersectionRect: {} as DOMRectReadOnly,
       rootBounds: null,
-      target: document.createElement('div'),
+      target,
       time: Date.now(),
     };
     this.callback([entry], this);

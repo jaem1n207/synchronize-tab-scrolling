@@ -22,11 +22,16 @@ test('loads page and renders core SEO tags', async ({ page }) => {
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
 
   const jsonLdScripts = page.locator('script[type="application/ld+json"]');
-  await expect(jsonLdScripts).toHaveCount(2);
+  const count = await jsonLdScripts.count();
+  expect(count).toBeGreaterThanOrEqual(2);
 
-  const firstJsonLd = await jsonLdScripts.first().textContent();
-  expect(firstJsonLd).toBeTruthy();
-  expect(() => JSON.parse(firstJsonLd ?? '{}')).not.toThrow();
+  for (let i = 0; i < count; i++) {
+    const text = await jsonLdScripts.nth(i).textContent();
+    expect(text).toBeTruthy();
+    const parsed = JSON.parse(text!);
+    expect(parsed).toHaveProperty('@context', 'https://schema.org');
+    expect(parsed).toHaveProperty('@type');
+  }
 });
 
 test('renders critical sections', async ({ page }) => {
@@ -47,22 +52,18 @@ test('install links point to real store domains', async ({ page }) => {
     page.getByRole('heading', { level: 1, name: 'Stop losing your place.' }),
   ).toBeVisible();
 
-  const hrefs = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('a[href]'))
-      .map((element) => element.getAttribute('href'))
-      .filter((href): href is string => Boolean(href));
+  const installHrefs = await page.evaluate(() => {
+    const selectors = [
+      'a[data-umami-event="install-primary"]',
+      'a[data-umami-event="install-secondary"]',
+    ];
+    return selectors.flatMap((sel) =>
+      Array.from(document.querySelectorAll(sel)).map((el) => el.getAttribute('href') ?? ''),
+    );
   });
 
-  const storeHrefs = hrefs.filter((href) =>
-    [
-      'https://chromewebstore.google.com/',
-      'https://addons.mozilla.org/',
-      'https://microsoftedge.microsoft.com/',
-    ].some((prefix) => href.startsWith(prefix)),
-  );
-
-  expect(storeHrefs.length).toBeGreaterThan(0);
-  for (const href of storeHrefs) {
+  expect(installHrefs.length).toBeGreaterThan(0);
+  for (const href of installHrefs) {
     expect(STORE_HOST_PATTERNS.some((prefix) => href.startsWith(prefix))).toBeTruthy();
   }
 });

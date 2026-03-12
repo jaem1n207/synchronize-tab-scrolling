@@ -30,6 +30,10 @@ describe('useScrollSync', () => {
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   function flushAnimationFrames() {
     const callbacks = [...rafQueue];
     rafQueue = [];

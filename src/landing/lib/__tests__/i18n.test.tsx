@@ -50,6 +50,14 @@ function setNavigatorLanguage(value: string) {
   });
 }
 
+afterEach(() => {
+  Object.defineProperty(window.navigator, 'language', {
+    value: 'en-US',
+    configurable: true,
+  });
+  document.documentElement.lang = 'en';
+});
+
 describe('resolveInitialLocale behavior through LocaleProvider', () => {
   it('uses stored locale when localStorage has a valid value', () => {
     localStorage.setItem('landing-locale', 'ru');

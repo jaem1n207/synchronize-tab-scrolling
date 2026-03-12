@@ -6,6 +6,7 @@ import { axe } from 'vitest-axe';
 import * as axeMatchers from 'vitest-axe/matchers';
 
 import { render } from '~/landing/__tests__/test-utils';
+import { App } from '~/landing/app';
 import { HeroSection } from '~/landing/components/hero/hero-section';
 import { Footer } from '~/landing/components/layout/footer';
 import { Header } from '~/landing/components/layout/header';
@@ -51,6 +52,13 @@ describe('Landing accessibility', () => {
 
   it('passes axe checks for Footer', async () => {
     const { container } = render(<Footer />);
+
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('passes axe checks for full page', async () => {
+    const { container } = render(<App />);
 
     const results = await axe(container);
     expect(results).toHaveNoViolations();

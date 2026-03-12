@@ -36,7 +36,7 @@ describe('LanguageToggle', () => {
     }
   });
 
-  it('supports keyboard navigation and updates locale when selecting a language', async () => {
+  it('opens menu via Enter key and updates locale when selecting a language', async () => {
     const user = userEvent.setup();
     render(<LanguageToggle />);
 
