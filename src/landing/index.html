@@ -120,14 +120,20 @@
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Synchronize Tab Scrolling",
-        "description": "Scroll once, sync everywhere. A browser extension that keeps multiple tabs scrolling together.",
+        "description": "Scroll once, sync everywhere. A free, open-source browser extension that synchronizes scroll positions across multiple tabs. Compare documents, translations, or code side by side.",
         "url": "https://jaem1n207.github.io/synchronize-tab-scrolling/",
         "applicationCategory": "BrowserApplication",
-        "operatingSystem": "Windows, macOS, Linux",
+        "applicationSubCategory": "Productivity",
+        "operatingSystem": "Windows, macOS, Linux, ChromeOS",
+        "inLanguage": ["en", "ko", "de", "ru", "it", "vi", "id", "pl", "tr", "zh-TW"],
+        "datePublished": "2023-07-12",
+        "dateModified": "2026-03-12",
+        "isAccessibleForFree": true,
         "offers": {
           "@type": "Offer",
           "price": "0",
-          "priceCurrency": "USD"
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
         },
         "aggregateRating": {
           "@type": "AggregateRating",
@@ -149,9 +155,13 @@
           "name": "jaem1n207",
           "url": "https://github.com/jaem1n207"
         },
-        "license": "https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/LICENSE",
-        "browserRequirements": "Requires Chrome, Firefox, Edge, or any Chromium-based browser",
-        "downloadUrl": "https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc",
+        "license": "https://opensource.org/licenses/MIT",
+        "browserRequirements": "Chrome 88+, Firefox 109+, Edge 88+, or any Chromium-based browser",
+        "downloadUrl": [
+          "https://chromewebstore.google.com/detail/synchronize-tab-scrolling/phceoocamipnafpgnchbfhkdlbleeafc",
+          "https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling/",
+          "https://microsoftedge.microsoft.com/addons/detail/synchronize-tab-scrolling/jonclaakmpjodjggkadldgkapccdofnn"
+        ],
         "softwareVersion": "2.9.0",
         "screenshot": "https://jaem1n207.github.io/synchronize-tab-scrolling/og-image.png"
       }
@@ -193,6 +203,30 @@
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "Hold Option (Mac) or Alt (Windows) while scrolling to adjust individual tab positions without breaking the sync. Release the key and sync continues from the new alignment."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I sync scrolling between different websites?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Synchronize Tab Scrolling works across any two or more tabs regardless of URL. It synchronizes by proportional scroll position, so even pages with different lengths stay aligned."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does this extension work for comparing translations?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes — this is one of the primary use cases. Open the original and translated document in two tabs, select both in the extension popup, and scroll either tab. Both scroll together proportionally. Use Option/Alt to fine-tune alignment when paragraph lengths differ."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is there a Firefox version?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Synchronize Tab Scrolling is available on Firefox via Mozilla Add-ons (AMO), as well as Chrome Web Store for Chrome and Brave, and Microsoft Edge Add-ons for Edge."
             }
           }
         ]
