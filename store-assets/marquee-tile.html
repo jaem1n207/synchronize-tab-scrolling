@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1400px;
+        height: 560px;
+        background: #09090b;
+        color: white;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        overflow: hidden;
+        position: relative;
+      }
+      .bg-glow-left {
+        position: absolute;
+        left: -100px;
+        top: -100px;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
+        pointer-events: none;
+      }
+      .bg-glow-right {
+        position: absolute;
+        right: -50px;
+        bottom: -150px;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 60%);
+        pointer-events: none;
+      }
+      .bg-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 60px 60px;
+        pointer-events: none;
+        mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
+        -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        padding: 0 100px;
+        gap: 80px;
+      }
+
+      .left {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .logo-area {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 28px;
+      }
+      .logo {
+        width: 44px;
+        height: 44px;
+        background: #18181b;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      .logo svg {
+        width: 26px;
+        height: 26px;
+      }
+      .brand {
+        font-size: 16px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.6);
+        letter-spacing: 0.01em;
+      }
+
+      .tagline {
+        font-size: 48px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        margin-bottom: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.75) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .description {
+        font-size: 17px;
+        color: rgba(255, 255, 255, 0.4);
+        line-height: 1.55;
+        max-width: 480px;
+        margin-bottom: 28px;
+      }
+
+      .browser-badges {
+        display: flex;
+        gap: 10px;
+      }
+      .badge {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 22px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.55);
+        font-weight: 500;
+      }
+      .badge-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+      .badge-chrome .badge-dot {
+        background: #4285f4;
+      }
+      .badge-firefox .badge-dot {
+        background: #ff7139;
+      }
+      .badge-edge .badge-dot {
+        background: #0078d7;
+      }
+      .badge-brave .badge-dot {
+        background: #fb542b;
+      }
+
+      .right {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 0;
+        position: relative;
+      }
+
+      .mini-browser {
+        width: 260px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: #18181b;
+        box-shadow:
+          0 16px 48px rgba(0, 0, 0, 0.4),
+          0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+      .mini-browser.active {
+        border-color: rgba(59, 130, 246, 0.3);
+        box-shadow:
+          0 16px 48px rgba(0, 0, 0, 0.4),
+          0 0 24px rgba(59, 130, 246, 0.08),
+          0 0 0 1px rgba(59, 130, 246, 0.2);
+      }
+      .mini-chrome {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        background: #1c1c1f;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .mini-tl {
+        display: flex;
+        gap: 4px;
+      }
+      .mini-tl span {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+      .mini-tab {
+        padding: 3px 10px;
+        margin-left: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 4px 4px 0 0;
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.6);
+        font-weight: 500;
+        border-bottom: 1.5px solid rgba(59, 130, 246, 0.4);
+      }
+      .mini-url {
+        padding: 4px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        background: #1a1a1d;
+      }
+      .mini-url-inner {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 4px;
+        padding: 3px 7px;
+      }
+      .mini-url-text {
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.35);
+      }
+      .mini-content {
+        height: 200px;
+        padding: 12px;
+        position: relative;
+      }
+      .mini-line {
+        height: 5px;
+        border-radius: 3px;
+        margin-bottom: 7px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .mini-line.heading {
+        height: 9px;
+        width: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        margin-bottom: 10px;
+      }
+      .mini-line.hl {
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.12);
+      }
+      .mini-track {
+        position: absolute;
+        right: 3px;
+        top: 6px;
+        bottom: 6px;
+        width: 3px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 2px;
+      }
+      .mini-thumb {
+        width: 3px;
+        height: 35px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 2px;
+        position: absolute;
+        top: 35%;
+      }
+
+      .conn {
+        width: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .conn-line-v {
+        width: 1.5px;
+        height: 80px;
+        background: linear-gradient(180deg, transparent, rgba(59, 130, 246, 0.4), transparent);
+      }
+      .conn-dot {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 24px;
+        height: 24px;
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .conn-dot-inner {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-glow-left"></div>
+    <div class="bg-glow-right"></div>
+    <div class="bg-grid"></div>
+
+    <div class="container">
+      <div class="left">
+        <div class="logo-area">
+          <div class="logo">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M6.5 16c0-2.5 2-4.5 4.5-4.5 1.7 0 3.1.9 3.9 2.3L16 16l-1.1 2.2c-.8 1.4-2.2 2.3-3.9 2.3-2.5 0-4.5-2-4.5-4.5zm10.1-2.2L17.7 16l-1.1 2.2c.8 1.4 2.2 2.3 3.9 2.3 2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5c-1.7 0-3.1.9-3.9 2.3z"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <span class="brand">Synchronize Tab Scrolling</span>
+        </div>
+
+        <h1 class="tagline">Scroll once,<br />sync everywhere.</h1>
+        <p class="description">
+          A free, open-source browser extension that keeps multiple tabs scrolling together. Compare
+          documents, code, or translations side by side.
+        </p>
+
+        <div class="browser-badges">
+          <div class="badge badge-chrome"><span class="badge-dot"></span>Chrome</div>
+          <div class="badge badge-firefox"><span class="badge-dot"></span>Firefox</div>
+          <div class="badge badge-edge"><span class="badge-dot"></span>Edge</div>
+          <div class="badge badge-brave"><span class="badge-dot"></span>Brave</div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="mini-browser active">
+          <div class="mini-chrome">
+            <div class="mini-tl">
+              <span style="background: #ff5f57"></span>
+              <span style="background: #febc2e"></span>
+              <span style="background: #28c840"></span>
+            </div>
+            <div class="mini-tab">article.en</div>
+          </div>
+          <div class="mini-url">
+            <div class="mini-url-inner">
+              <span class="mini-url-text">example.com/article</span>
+            </div>
+          </div>
+          <div class="mini-content">
+            <div class="mini-line heading" style="width: 55%"></div>
+            <div class="mini-line" style="width: 88%"></div>
+            <div class="mini-line" style="width: 82%"></div>
+            <div class="mini-line" style="width: 90%"></div>
+            <div class="mini-line hl" style="width: 85%"></div>
+            <div class="mini-line hl" style="width: 78%"></div>
+            <div class="mini-line hl" style="width: 90%"></div>
+            <div class="mini-line" style="width: 70%"></div>
+            <div class="mini-line" style="width: 88%"></div>
+            <div class="mini-line" style="width: 75%"></div>
+            <div class="mini-line" style="width: 82%"></div>
+            <div class="mini-line" style="width: 90%"></div>
+            <div class="mini-line" style="width: 65%"></div>
+            <div class="mini-line" style="width: 80%"></div>
+            <div class="mini-track"><div class="mini-thumb"></div></div>
+          </div>
+        </div>
+
+        <div class="conn">
+          <div class="conn-line-v"></div>
+          <div class="conn-dot"><div class="conn-dot-inner"></div></div>
+        </div>
+
+        <div class="mini-browser active">
+          <div class="mini-chrome">
+            <div class="mini-tl">
+              <span style="background: #ff5f57"></span>
+              <span style="background: #febc2e"></span>
+              <span style="background: #28c840"></span>
+            </div>
+            <div class="mini-tab">article.ko</div>
+          </div>
+          <div class="mini-url">
+            <div class="mini-url-inner">
+              <span class="mini-url-text">example.com/ko/article</span>
+            </div>
+          </div>
+          <div class="mini-content">
+            <div class="mini-line heading" style="width: 45%"></div>
+            <div class="mini-line" style="width: 85%"></div>
+            <div class="mini-line" style="width: 90%"></div>
+            <div class="mini-line" style="width: 78%"></div>
+            <div class="mini-line hl" style="width: 82%"></div>
+            <div class="mini-line hl" style="width: 88%"></div>
+            <div class="mini-line hl" style="width: 75%"></div>
+            <div class="mini-line" style="width: 88%"></div>
+            <div class="mini-line" style="width: 68%"></div>
+            <div class="mini-line" style="width: 85%"></div>
+            <div class="mini-line" style="width: 80%"></div>
+            <div class="mini-line" style="width: 92%"></div>
+            <div class="mini-line" style="width: 70%"></div>
+            <div class="mini-line" style="width: 78%"></div>
+            <div class="mini-track"><div class="mini-thumb"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
