@@ -51,6 +51,8 @@ jobs:
 
       - name: Prerender landing page for SEO
         run: pnpm prerender:landing
+        env:
+          LANDING_BASE: /synchronize-tab-scrolling/
 
       - uses: actions/upload-pages-artifact@v3
         with:
