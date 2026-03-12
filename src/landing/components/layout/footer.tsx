@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 
-import { GITHUB_REPO_URL, DEMO_VIDEO_URL, SUPPORT_EMAIL } from '~/landing/lib/constants';
+import { DEMO_VIDEO_URL, GITHUB_REPO_URL, SUPPORT_EMAIL } from '~/landing/lib/constants';
 import { useTranslation } from '~/landing/lib/i18n';
 
 import IconExternalLink from '~icons/lucide/external-link';
@@ -28,10 +28,14 @@ export function Footer() {
           <h4 className="text-sm font-semibold text-foreground">{t.footer.links}</h4>
           <ul className="space-y-2">
             <li>
-              <ExternalLink href={GITHUB_REPO_URL}>{t.footer.github}</ExternalLink>
+              <ExternalLink data-umami-event="footer-github" href={GITHUB_REPO_URL}>
+                {t.footer.github}
+              </ExternalLink>
             </li>
             <li>
-              <ExternalLink href={DEMO_VIDEO_URL}>Demo</ExternalLink>
+              <ExternalLink data-umami-event="footer-demo" href={DEMO_VIDEO_URL}>
+                Demo
+              </ExternalLink>
             </li>
           </ul>
         </div>
@@ -40,10 +44,14 @@ export function Footer() {
           <h4 className="text-sm font-semibold text-foreground">{t.footer.support}</h4>
           <ul className="space-y-2">
             <li>
-              <ExternalLink href={BUG_REPORT_URL}>{t.footer.reportBug}</ExternalLink>
+              <ExternalLink data-umami-event="footer-bug-report" href={BUG_REPORT_URL}>
+                {t.footer.reportBug}
+              </ExternalLink>
             </li>
             <li>
-              <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>{t.footer.email}</ExternalLink>
+              <ExternalLink data-umami-event="footer-email" href={`mailto:${SUPPORT_EMAIL}`}>
+                {t.footer.email}
+              </ExternalLink>
             </li>
           </ul>
         </div>
@@ -56,6 +64,7 @@ export function Footer() {
             {t.footer.madeBy}{' '}
             <a
               className="rounded-sm font-medium text-foreground underline-offset-4 ring-offset-background hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              data-umami-event="footer-author"
               href="https://github.com/jaem1n207"
               rel="noopener noreferrer"
               target="_blank"
@@ -69,13 +78,14 @@ export function Footer() {
   );
 }
 
-function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
+function ExternalLink({ href, children, ...rest }: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
   return (
     <a
       className="group inline-flex items-center gap-1 rounded-sm text-sm text-muted-foreground ring-offset-background transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       href={href}
       rel="noopener noreferrer"
       target="_blank"
+      {...rest}
     >
       {children}
       <IconExternalLink className="size-3 opacity-0 transition-opacity group-hover:opacity-100" />
