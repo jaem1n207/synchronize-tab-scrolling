@@ -9,10 +9,7 @@
       name="description"
       content="Scroll once, sync everywhere. A free, open-source browser extension that keeps multiple tabs scrolling together. Compare documents, code, or translations side by side."
     />
-    <link
-      rel="canonical"
-      href="https://jaem1n207.github.io/synchronize-tab-scrolling/"
-    />
+    <link rel="canonical" href="https://jaem1n207.github.io/synchronize-tab-scrolling/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <link
@@ -77,10 +74,7 @@
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta
-      property="og:title"
-      content="Synchronize Tab Scrolling — Scroll once, sync everywhere"
-    />
+    <meta property="og:title" content="Synchronize Tab Scrolling — Scroll once, sync everywhere" />
     <meta
       property="og:description"
       content="A free, open-source browser extension that keeps multiple tabs scrolling together. Compare documents, code, or translations side by side."
@@ -89,18 +83,12 @@
       property="og:image"
       content="https://jaem1n207.github.io/synchronize-tab-scrolling/og-image.png"
     />
-    <meta
-      property="og:url"
-      content="https://jaem1n207.github.io/synchronize-tab-scrolling/"
-    />
+    <meta property="og:url" content="https://jaem1n207.github.io/synchronize-tab-scrolling/" />
     <meta property="og:site_name" content="Synchronize Tab Scrolling" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="Synchronize Tab Scrolling — Scroll once, sync everywhere"
-    />
+    <meta name="twitter:title" content="Synchronize Tab Scrolling — Scroll once, sync everywhere" />
     <meta
       name="twitter:description"
       content="A free, open-source browser extension that keeps multiple tabs scrolling together."
@@ -195,6 +183,52 @@
       }
     </script>
 
+    <!-- Theme initialization (blocking to prevent FOUC) -->
+    <script>
+      (function () {
+        var theme = localStorage.getItem('landing-theme');
+        if (
+          theme === 'dark' ||
+          (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        ) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
+    <script>
+      (function () {
+        var SUPPORTED = ['en', 'ko', 'de', 'ru', 'it', 'vi', 'id', 'pl', 'tr', 'zh_TW'];
+        var stored = localStorage.getItem('landing-locale');
+        var locale = 'en';
+        var lang = '';
+        var prefix = '';
+
+        if (stored && SUPPORTED.indexOf(stored) !== -1) {
+          locale = stored;
+        } else {
+          lang = navigator.language || '';
+          if (
+            lang.indexOf('zh') === 0 &&
+            (lang.indexOf('TW') !== -1 || lang.indexOf('Hant') !== -1)
+          ) {
+            locale = 'zh_TW';
+          } else {
+            prefix = lang.split('-')[0];
+            if (prefix && SUPPORTED.indexOf(prefix) !== -1) {
+              locale = prefix;
+            }
+          }
+        }
+
+        document.documentElement.lang = locale === 'zh_TW' ? 'zh-TW' : locale;
+
+        if (locale !== 'en') {
+          document.documentElement.classList.add('i18n-loading');
+        }
+      })();
+    </script>
+
     <!-- Analytics: Umami Cloud (privacy-first, no cookies) -->
     <script
       defer
@@ -216,17 +250,15 @@
       >
         <h1>Synchronize Tab Scrolling</h1>
         <p>
-          <strong>Scroll once, sync everywhere.</strong> A free, open-source
-          browser extension that keeps multiple tabs scrolling together —
-          perfect for comparing translations, code, or documents side by side.
+          <strong>Scroll once, sync everywhere.</strong> A free, open-source browser extension that
+          keeps multiple tabs scrolling together — perfect for comparing translations, code, or
+          documents side by side.
         </p>
         <h2>How it works</h2>
         <ol>
           <li>Install the extension from your browser's store</li>
           <li>Open the tabs you want to sync</li>
-          <li>
-            Click the extension icon, select your tabs, and start scrolling
-          </li>
+          <li>Click the extension icon, select your tabs, and start scrolling</li>
         </ol>
         <h2>Features</h2>
         <ul>
@@ -246,8 +278,7 @@
             >
           </li>
           <li>
-            <a
-              href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling"
+            <a href="https://addons.mozilla.org/firefox/addon/synchronize-tab-scrolling"
               >Firefox Add-ons</a
             >
           </li>
@@ -260,9 +291,7 @@
         </ul>
         <p>
           Free · No account required · Open source ·
-          <a href="https://github.com/jaem1n207/synchronize-tab-scrolling"
-            >View on GitHub</a
-          >
+          <a href="https://github.com/jaem1n207/synchronize-tab-scrolling">View on GitHub</a>
         </p>
       </div>
     </noscript>

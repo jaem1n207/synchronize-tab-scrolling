@@ -1,3 +1,7 @@
+html.i18n-loading #app {
+  visibility: hidden;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -14,6 +18,7 @@
   }
 
   ::selection {
-    @apply bg-primary/20 text-primary;
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary));
   }
 }
