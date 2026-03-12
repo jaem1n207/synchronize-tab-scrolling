@@ -7,7 +7,9 @@ on:
     paths-ignore:
       - 'src/landing/**'
       - 'vite.config.landing.mts'
+      - 'scripts/fetch-store-stats.ts'
       - '.github/workflows/deploy-landing.yml'
+      - '.github/workflows/update-store-stats.yml'
 
 permissions:
   contents: read
