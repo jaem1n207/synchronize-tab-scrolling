@@ -288,6 +288,15 @@ See `docs/guides/store-deployment.md` (Korean) for the complete CI/CD pipeline:
 - Credential renewal procedures
 - Troubleshooting deployment failures
 
+### Store Stats Automation
+
+See `docs/guides/store-stats-automation.md` (Korean) for the store stats automation guide:
+
+- Weekly cron fetches CWS (HTML scraping) + AMO (REST API v5) ratings, version, users
+- Vite `transformIndexHtml` plugin injects data into JSON-LD `aggregateRating` and `softwareVersion`
+- Fallback strategy: existing `store-stats.json` values preserved when fetch fails
+- CI isolation: stats commits use `(landing)` scope, trigger landing deploy only
+
 ### Landing Test & Deploy Fix
 
 See `docs/guides/landing-test-and-deploy-fix.md` (Korean) for the landing page test review and deploy fix:
