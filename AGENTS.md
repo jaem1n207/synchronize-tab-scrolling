@@ -308,6 +308,17 @@ See `docs/guides/landing-test-and-deploy-fix.md` (Korean) for the landing page t
 - Playwright `evaluateAll()` vs `textContent()` for data extraction
 - `detectBrowser()` Arc/Dia classification rationale
 
+### Landing Page FOUC & Flash Prevention
+
+See `docs/guides/landing-fouc-and-flash-prevention.md` (Korean) for the FOUC and content flash prevention guide:
+
+- Dark theme FOUC: blocking `<script>` in `<head>` reads `landing-theme` from localStorage or `prefers-color-scheme`
+- System theme sync: separate explicit user toggle from auto-applied system theme — only persist to localStorage on user click
+- i18n content flash: blocking locale detection + `visibility: hidden` on `#app` + fail-open 3s timeout
+- `localStorage` can throw `SecurityError` — always `try/catch` in blocking scripts
+- Prerender hydration mismatch: `detectBrowser()` returns `'chrome'` during Playwright prerender, differs for non-Chrome users
+- Parallel branch workflow: verify `git log main..<branch>` shows only intended commits before creating PR
+
 ### Module Architecture Documentation
 
 Each major module has detailed README documentation:
