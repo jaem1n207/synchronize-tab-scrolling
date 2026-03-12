@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1280px;
+        height: 800px;
+        background: #09090b;
+        color: white;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        overflow: hidden;
+        position: relative;
+      }
+      .bg-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 60% 50% at 50% 50%,
+          rgba(255, 255, 255, 0.025) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .container {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 80px;
+        padding: 48px 80px;
+      }
+
+      .text-side {
+        flex: 1;
+        max-width: 400px;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .logo {
+        width: 28px;
+        height: 28px;
+        background: #18181b;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .logo svg {
+        width: 18px;
+        height: 18px;
+      }
+      .brand-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.4);
+      }
+      .headline {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+        margin-bottom: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.78) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .subtext {
+        font-size: 15px;
+        color: rgba(255, 255, 255, 0.4);
+        line-height: 1.6;
+      }
+      .features-list {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .feature-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 5px;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .feature-icon svg {
+        width: 11px;
+        height: 11px;
+        color: #60a5fa;
+      }
+
+      .popup-side {
+        flex-shrink: 0;
+      }
+
+      .popup {
+        width: 420px;
+        background: #18181b;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        box-shadow:
+          0 25px 80px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+      }
+
+      .chips-area {
+        padding: 14px 16px 0;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 16px;
+        font-size: 11px;
+        color: #60a5fa;
+        font-weight: 500;
+      }
+      .chip-x {
+        width: 12px;
+        height: 12px;
+        color: rgba(96, 165, 250, 0.5);
+        cursor: pointer;
+      }
+
+      .search-area {
+        padding: 12px 16px;
+      }
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 8px 12px;
+      }
+      .search-icon {
+        width: 14px;
+        height: 14px;
+        color: rgba(255, 255, 255, 0.3);
+      }
+      .search-text {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.3);
+      }
+      .search-count {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.2);
+        margin-left: auto;
+      }
+
+      .tab-list {
+        padding: 0 8px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .tab-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .tab-item:hover,
+      .tab-item.active {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .tab-check {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .tab-check.checked {
+        background: #3b82f6;
+        border-color: #3b82f6;
+      }
+      .tab-check svg {
+        width: 10px;
+        height: 10px;
+        color: white;
+      }
+      .tab-favicon {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+      .fav-blue {
+        background: #4285f4;
+      }
+      .fav-orange {
+        background: #f97316;
+      }
+      .fav-green {
+        background: #22c55e;
+      }
+      .fav-purple {
+        background: #8b5cf6;
+      }
+      .fav-red {
+        background: #ef4444;
+      }
+      .fav-teal {
+        background: #14b8a6;
+      }
+      .fav-gray {
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .tab-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .tab-title {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tab-url {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.25);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 1px;
+      }
+      .tab-badge {
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .badge-match {
+        background: rgba(59, 130, 246, 0.1);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+      }
+      .tab-item.disabled {
+        opacity: 0.35;
+      }
+      .tab-item.current .tab-title::after {
+        content: 'current';
+        margin-left: 6px;
+        font-size: 9px;
+        color: rgba(255, 255, 255, 0.25);
+        font-weight: 400;
+      }
+
+      .popup-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 10px 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .btn {
+        padding: 6px 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: #3b82f6;
+        color: white;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      }
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .kbd {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 5px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        font-size: 10px;
+        font-family: inherit;
+        color: rgba(255, 255, 255, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <div class="container">
+      <div class="text-side">
+        <div class="header">
+          <div class="logo">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M6.5 16c0-2.5 2-4.5 4.5-4.5 1.7 0 3.1.9 3.9 2.3L16 16l-1.1 2.2c-.8 1.4-2.2 2.3-3.9 2.3-2.5 0-4.5-2-4.5-4.5zm10.1-2.2L17.7 16l-1.1 2.2c.8 1.4 2.2 2.3 3.9 2.3 2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5c-1.7 0-3.1.9-3.9 2.3z"
+                stroke="white"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+          <span class="brand-name">Synchronize Tab Scrolling</span>
+        </div>
+
+        <h1 class="headline">Select tabs to sync in one click</h1>
+        <p class="subtext">
+          A command palette-style interface for quickly finding and selecting tabs. Search by title
+          or URL, filter by domain, and start syncing instantly.
+        </p>
+
+        <div class="features-list">
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </div>
+            Fuzzy search by title or URL
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+            Select all or filter same domain
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              </svg>
+            </div>
+            Full keyboard navigation
+          </div>
+        </div>
+      </div>
+
+      <div class="popup-side">
+        <div class="popup">
+          <div class="chips-area">
+            <div class="chip">
+              React Documentation
+              <svg
+                class="chip-x"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </div>
+            <div class="chip">
+              React API Reference
+              <svg
+                class="chip-x"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </div>
+          </div>
+
+          <div class="search-area">
+            <div class="search-box">
+              <svg
+                class="search-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <span class="search-text">Search tabs...</span>
+              <span class="search-count">8 tabs</span>
+            </div>
+          </div>
+
+          <div class="tab-list">
+            <div class="tab-item active">
+              <div class="tab-check checked">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div class="tab-favicon fav-blue"></div>
+              <div class="tab-info">
+                <div class="tab-title">React Documentation</div>
+                <div class="tab-url">react.dev/learn</div>
+              </div>
+              <div class="tab-badge badge-match">98%</div>
+            </div>
+
+            <div class="tab-item active">
+              <div class="tab-check checked">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <div class="tab-favicon fav-blue"></div>
+              <div class="tab-info">
+                <div class="tab-title">React API Reference</div>
+                <div class="tab-url">react.dev/reference</div>
+              </div>
+              <div class="tab-badge badge-match">95%</div>
+            </div>
+
+            <div class="tab-item">
+              <div class="tab-check"></div>
+              <div class="tab-favicon fav-orange"></div>
+              <div class="tab-info">
+                <div class="tab-title">Hacker News</div>
+                <div class="tab-url">news.ycombinator.com</div>
+              </div>
+            </div>
+
+            <div class="tab-item">
+              <div class="tab-check"></div>
+              <div class="tab-favicon fav-green"></div>
+              <div class="tab-info">
+                <div class="tab-title">Spotify Web Player</div>
+                <div class="tab-url">open.spotify.com</div>
+              </div>
+            </div>
+
+            <div class="tab-item current">
+              <div class="tab-check"></div>
+              <div class="tab-favicon fav-purple"></div>
+              <div class="tab-info">
+                <div class="tab-title">GitHub - jaem1n207/sync...</div>
+                <div class="tab-url">github.com/jaem1n207</div>
+              </div>
+            </div>
+
+            <div class="tab-item disabled">
+              <div class="tab-check" style="opacity: 0.4"></div>
+              <div class="tab-favicon fav-gray"></div>
+              <div class="tab-info">
+                <div class="tab-title" style="color: rgba(255, 255, 255, 0.3)">
+                  Chrome Web Store
+                </div>
+                <div class="tab-url">chromewebstore.google.com</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="popup-footer">
+            <div class="btn btn-secondary">
+              Actions <span class="kbd" style="margin-left: 4px">&hairsp;&#8984;K&hairsp;</span>
+            </div>
+            <div class="btn btn-primary">Start Sync</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

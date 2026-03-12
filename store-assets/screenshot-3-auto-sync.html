@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1280px;
+        height: 800px;
+        background: #09090b;
+        color: white;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        overflow: hidden;
+        position: relative;
+      }
+      .bg-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 50% 60% at 65% 55%,
+          rgba(255, 255, 255, 0.02) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .container {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 80px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .logo {
+        width: 28px;
+        height: 28px;
+        background: #18181b;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .logo svg {
+        width: 18px;
+        height: 18px;
+      }
+      .brand-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .headline {
+        font-size: 40px;
+        font-weight: 700;
+        text-align: center;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+        margin-bottom: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.78) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .subheadline {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.4);
+        text-align: center;
+        margin-bottom: 44px;
+      }
+
+      .browser {
+        width: 880px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: #18181b;
+        box-shadow:
+          0 25px 80px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+        position: relative;
+      }
+      .browser-chrome {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: #1c1c1f;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .traffic-lights {
+        display: flex;
+        gap: 6px;
+      }
+      .traffic-lights span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .tl-red {
+        background: #ff5f57;
+      }
+      .tl-yellow {
+        background: #febc2e;
+      }
+      .tl-green {
+        background: #28c840;
+      }
+      .tab-bar {
+        display: flex;
+        gap: 2px;
+        margin-left: 8px;
+      }
+      .tab {
+        padding: 5px 14px;
+        border-radius: 6px 6px 0 0;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.5);
+        font-weight: 500;
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .tab.active {
+        color: rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.06);
+        border-bottom: 2px solid rgba(59, 130, 246, 0.5);
+      }
+      .url-bar {
+        padding: 6px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        background: #1a1a1d;
+      }
+      .url-bar-inner {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 6px;
+        padding: 5px 10px;
+      }
+      .url-text {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .browser-content {
+        height: 320px;
+        padding: 24px;
+        position: relative;
+      }
+      .content-line {
+        height: 8px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .content-line.heading {
+        height: 14px;
+        width: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        margin-bottom: 16px;
+      }
+      .w-90 {
+        width: 90%;
+      }
+      .w-85 {
+        width: 85%;
+      }
+      .w-80 {
+        width: 80%;
+      }
+      .w-75 {
+        width: 75%;
+      }
+      .w-70 {
+        width: 70%;
+      }
+      .w-65 {
+        width: 65%;
+      }
+      .w-95 {
+        width: 95%;
+      }
+      .w-50 {
+        width: 50%;
+      }
+
+      .toast {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        width: 340px;
+        background: #1c1c1f;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow:
+          0 16px 48px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(12px);
+      }
+      .toast-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .toast-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .toast-icon svg {
+        width: 16px;
+        height: 16px;
+        color: #60a5fa;
+      }
+      .toast-text {
+        flex: 1;
+      }
+      .toast-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 4px;
+      }
+      .toast-desc {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.4);
+        line-height: 1.4;
+      }
+      .toast-close {
+        width: 20px;
+        height: 20px;
+        color: rgba(255, 255, 255, 0.25);
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .toast-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .toast-btn {
+        flex: 1;
+        padding: 7px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        text-align: center;
+      }
+      .toast-btn-primary {
+        background: #3b82f6;
+        color: white;
+      }
+      .toast-btn-secondary {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .toast-btn-text {
+        background: none;
+        color: rgba(255, 255, 255, 0.3);
+        font-weight: 500;
+        font-size: 11px;
+        padding: 4px 0;
+      }
+
+      .toast-glow {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        width: 360px;
+        height: 180px;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(59, 130, 246, 0.08) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+        border-radius: 12px;
+      }
+
+      .tab-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #60a5fa;
+      }
+
+      .flow-diagram {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 32px;
+      }
+      .flow-step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .flow-arrow {
+        color: rgba(255, 255, 255, 0.15);
+        font-size: 16px;
+      }
+      .flow-step.highlight {
+        background: rgba(59, 130, 246, 0.08);
+        border-color: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <div class="container">
+      <div class="header">
+        <div class="logo">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M6.5 16c0-2.5 2-4.5 4.5-4.5 1.7 0 3.1.9 3.9 2.3L16 16l-1.1 2.2c-.8 1.4-2.2 2.3-3.9 2.3-2.5 0-4.5-2-4.5-4.5zm10.1-2.2L17.7 16l-1.1 2.2c.8 1.4 2.2 2.3 3.9 2.3 2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5c-1.7 0-3.1.9-3.9 2.3z"
+              stroke="white"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <span class="brand-name">Synchronize Tab Scrolling</span>
+      </div>
+
+      <h1 class="headline">Smart sync suggestions</h1>
+      <p class="subheadline">
+        Automatically detects matching tabs and suggests syncing with one click
+      </p>
+
+      <div class="browser">
+        <div class="browser-chrome">
+          <div class="traffic-lights">
+            <span class="tl-red"></span>
+            <span class="tl-yellow"></span>
+            <span class="tl-green"></span>
+          </div>
+          <div class="tab-bar">
+            <div class="tab active">MDN Web Docs</div>
+            <div class="tab">MDN Web Docs</div>
+          </div>
+        </div>
+        <div class="url-bar">
+          <div class="url-bar-inner">
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(255,255,255,0.25)"
+              stroke-width="2"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <span class="url-text">developer.mozilla.org/en-US/docs/Web/API</span>
+          </div>
+        </div>
+        <div class="browser-content">
+          <div class="content-line heading" style="width: 45%"></div>
+          <div class="content-line w-90"></div>
+          <div class="content-line w-85"></div>
+          <div class="content-line w-95"></div>
+          <div class="content-line w-70"></div>
+          <div class="content-line w-80"></div>
+          <div class="content-line w-90"></div>
+          <div class="content-line w-75"></div>
+          <div class="content-line heading" style="width: 35%; margin-top: 8px"></div>
+          <div class="content-line w-85"></div>
+          <div class="content-line w-90"></div>
+          <div class="content-line w-65"></div>
+          <div class="content-line w-80"></div>
+          <div class="content-line w-70"></div>
+
+          <div class="toast-glow"></div>
+          <div class="toast">
+            <div class="toast-header">
+              <div class="toast-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </div>
+              <div class="toast-text">
+                <div class="toast-title">
+                  Found <span class="tab-count-badge">2 tabs</span> with same URL
+                </div>
+                <div class="toast-desc">Start syncing scroll positions across these tabs?</div>
+              </div>
+              <svg
+                class="toast-close"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </div>
+            <div class="toast-actions">
+              <div class="toast-btn toast-btn-secondary">Not Now</div>
+              <div class="toast-btn toast-btn-primary">Start Sync</div>
+            </div>
+            <div style="text-align: center; margin-top: 8px">
+              <span class="toast-btn-text">Never show again for this site</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-diagram">
+        <div class="flow-step">Open same URL in 2+ tabs</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step highlight">Toast appears automatically</div>
+        <span class="flow-arrow">&rarr;</span>
+        <div class="flow-step">One click to sync</div>
+      </div>
+    </div>
+  </body>
+</html>
