@@ -36,6 +36,7 @@ export function SyncToggleButton({ isSynced, onToggle }: SyncToggleButtonProps) 
             : 'bg-primary text-primary-foreground hover:bg-primary/90',
         )}
         data-umami-event="hero-sync-toggle"
+        data-umami-event-action={isSynced ? 'disable' : 'enable'}
         type="button"
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.96 }}
