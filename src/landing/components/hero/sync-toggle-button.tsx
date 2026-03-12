@@ -27,7 +27,6 @@ export function SyncToggleButton({ isSynced, onToggle }: SyncToggleButtonProps) 
       )}
 
       <motion.button
-        layout
         aria-pressed={isSynced}
         className={cn(
           'relative inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold cursor-pointer',
