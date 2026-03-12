@@ -1,9 +1,9 @@
 {
-  "updatedAt": "2026-03-12T09:39:32.206Z",
+  "updatedAt": "2026-03-12T10:00:42.708Z",
   "chrome": {
     "ratingValue": 4.2,
     "ratingCount": 12,
-    "version": "2.8.2",
+    "version": "2.9.0",
     "users": "1,000"
   },
   "firefox": {

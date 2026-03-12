@@ -47,13 +47,20 @@ interface AmoAddonResponse {
 function loadExistingStats(): StoreStats {
   try {
     return JSON.parse(readFileSync(STATS_PATH, 'utf-8')) as StoreStats;
-  } catch {
-    console.warn('[fetch-stats] No existing store-stats.json found, using defaults');
-    return {
-      updatedAt: new Date().toISOString(),
-      chrome: { ratingValue: 0, ratingCount: 0, version: '', users: '' },
-      firefox: { ratingValue: 0, ratingCount: 0, version: '', users: '' },
-    };
+  } catch (error: unknown) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      console.warn('[fetch-stats] No existing store-stats.json found, using defaults');
+      return {
+        updatedAt: new Date().toISOString(),
+        chrome: { ratingValue: 0, ratingCount: 0, version: '', users: '' },
+        firefox: { ratingValue: 0, ratingCount: 0, version: '', users: '' },
+      };
+    }
+    throw error;
   }
 }
 
@@ -87,10 +94,17 @@ async function fetchChromeWebStore(): Promise<StoreData | null> {
   }
 }
 
+const AMO_TIMEOUT_MS = 10_000;
+
 async function fetchFirefoxAmo(): Promise<StoreData | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AMO_TIMEOUT_MS);
+
   try {
     console.log('[fetch-stats] Fetching Firefox AMO data...');
-    const response = await fetch(`${AMO_API_BASE}/${AMO_ADDON_SLUG}/`);
+    const response = await fetch(`${AMO_API_BASE}/${AMO_ADDON_SLUG}/`, {
+      signal: controller.signal,
+    });
 
     if (!response.ok) {
       console.error(`[fetch-stats] AMO API returned ${response.status}: ${response.statusText}`);
@@ -103,6 +117,11 @@ async function fetchFirefoxAmo(): Promise<StoreData | null> {
     const version = data.current_version?.version ?? '';
     const users = String(data.average_daily_users ?? '');
 
+    if (Number.isNaN(ratingValue) || !Number.isFinite(ratingValue)) {
+      console.warn('[fetch-stats] AMO returned invalid rating data');
+      return null;
+    }
+
     console.log(
       `[fetch-stats] AMO: rating=${ratingValue}, count=${ratingCount}, version=${version}, users=${users}`,
     );
@@ -113,6 +132,8 @@ async function fetchFirefoxAmo(): Promise<StoreData | null> {
       error instanceof Error ? error.message : error,
     );
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -140,7 +161,9 @@ async function main() {
     updated.chrome.version !== existing.chrome.version ||
     updated.firefox.ratingValue !== existing.firefox.ratingValue ||
     updated.firefox.ratingCount !== existing.firefox.ratingCount ||
-    updated.firefox.version !== existing.firefox.version;
+    updated.firefox.version !== existing.firefox.version ||
+    updated.chrome.users !== existing.chrome.users ||
+    updated.firefox.users !== existing.firefox.users;
 
   if (!hasChanged) {
     console.log('[fetch-stats] No changes detected — skipping write');
