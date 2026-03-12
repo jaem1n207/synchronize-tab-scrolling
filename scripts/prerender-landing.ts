@@ -1,7 +1,7 @@
-import { createServer, type Server } from 'node:http';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
+import { join, extname } from 'node:path';
 
 import { chromium, type Browser } from '@playwright/test';
 
