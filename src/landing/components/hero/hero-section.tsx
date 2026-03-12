@@ -241,10 +241,12 @@ function ControlsBlock({
       <SyncStatusBadge state={syncState} />
       <SyncToggleButton isSynced={isSynced} onToggle={onToggle} />
       <ScrollHint isSynced={isSynced} text={scrollHint} />
-      {isSynced && <ModifierHint modifierSymbol={modifierSymbol} visible={!isAdjusting} />}
-      {isSynced && hasManualOffset && (
-        <OffsetIndicator label={manualOffsetLabel} value={signedPercent} />
-      )}
+      <ModifierHint modifierSymbol={modifierSymbol} visible={isSynced && !isAdjusting} />
+      <OffsetIndicator
+        label={manualOffsetLabel}
+        value={signedPercent}
+        visible={isSynced && hasManualOffset}
+      />
     </motion.div>
   );
 }
@@ -315,21 +317,20 @@ function ModifierHint({ modifierSymbol, visible }: ModifierHintProps) {
 interface OffsetIndicatorProps {
   label: string;
   value: string;
+  visible: boolean;
 }
 
-function OffsetIndicator({ label, value }: OffsetIndicatorProps) {
+function OffsetIndicator({ label, value, visible }: OffsetIndicatorProps) {
   return (
-    <motion.span
-      animate={{ opacity: 1, y: 0 }}
-      className="inline-flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
-      initial={{ opacity: 0, y: 4 }}
-      transition={{
-        duration: ANIMATION_DURATIONS.fast,
-        ease: EASING_FUNCTIONS.easeOut,
-      }}
+    <span
+      aria-hidden={!visible}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary transition-opacity duration-150',
+        visible ? 'opacity-100' : 'opacity-0',
+      )}
     >
       <span>{label}</span>
       <span className="font-mono">{value}</span>
-    </motion.span>
+    </span>
   );
 }
