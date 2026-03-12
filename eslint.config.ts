@@ -132,6 +132,7 @@ export default tsEslint.config(
     },
     rules: {
       ...playwrightPlugin.configs.recommended.rules,
+      'playwright/expect-expect': ['error', { assertFunctionNames: ['expect', 'expectFocusRing'] }],
     },
   },
 

@@ -60,7 +60,7 @@ export function InstallButtons({ variant = 'hero' }: InstallButtonsProps) {
     <div className={cn('flex flex-col items-center gap-3', isHero ? 'gap-4' : 'gap-2')}>
       <motion.a
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-lg bg-primary font-semibold text-primary-foreground shadow-sm transition-colors',
+          'inline-flex items-center justify-center gap-2 rounded-lg bg-primary font-semibold text-primary-foreground shadow-sm ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           isHero ? 'px-7 py-3.5 text-base' : 'px-5 py-2 text-sm',
         )}
         data-umami-event="install-primary"
@@ -85,7 +85,7 @@ export function InstallButtons({ variant = 'hero' }: InstallButtonsProps) {
                 <a
                   key={browser.key}
                   aria-label={t.common.addTo.replace('{browser}', browser.label)}
-                  className="rounded-md p-1.5 transition-colors hover:bg-accent"
+                  className="rounded-md p-1.5 ring-offset-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   data-umami-event="install-secondary"
                   data-umami-event-browser={browser.label}
                   href={STORE_URLS[browser.key]}
