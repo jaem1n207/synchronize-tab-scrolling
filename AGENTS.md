@@ -288,6 +288,17 @@ See `docs/guides/store-deployment.md` (Korean) for the complete CI/CD pipeline:
 - Credential renewal procedures
 - Troubleshooting deployment failures
 
+### Landing Test & Deploy Fix
+
+See `docs/guides/landing-test-and-deploy-fix.md` (Korean) for the landing page test review and deploy fix:
+
+- PR #355 CodeRabbit review feedback analysis (16 comments: 10 fixed, 6 rejected with rationale)
+- Prerender LANDING_BASE bug: static server not stripping path prefix → asset 404s in CI
+- GitHub Actions env var scoping pitfall (step-level vs job-level)
+- Vitest `vi.unstubAllGlobals()` vs `vi.clearAllMocks()` distinction
+- Playwright `evaluateAll()` vs `textContent()` for data extraction
+- `detectBrowser()` Arc/Dia classification rationale
+
 ### Module Architecture Documentation
 
 Each major module has detailed README documentation:
