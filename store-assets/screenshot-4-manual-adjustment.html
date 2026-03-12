@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1280px;
+        height: 800px;
+        background: #09090b;
+        color: white;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        overflow: hidden;
+        position: relative;
+      }
+      .bg-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 70% 50% at 50% 55%,
+          rgba(255, 255, 255, 0.025) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+      .container {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 80px;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .logo {
+        width: 28px;
+        height: 28px;
+        background: #18181b;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .logo svg {
+        width: 18px;
+        height: 18px;
+      }
+      .brand-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.4);
+      }
+      .headline {
+        font-size: 40px;
+        font-weight: 700;
+        text-align: center;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+        margin-bottom: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.78) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .subheadline {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.4);
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .demo-area {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        width: 100%;
+        max-width: 960px;
+      }
+
+      .browser {
+        flex: 1;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: #18181b;
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+        position: relative;
+      }
+      .browser.adjusted {
+        border-color: rgba(245, 158, 11, 0.3);
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.5),
+          0 0 30px rgba(245, 158, 11, 0.08),
+          0 0 0 1px rgba(245, 158, 11, 0.25);
+      }
+      .browser.synced {
+        border-color: rgba(59, 130, 246, 0.3);
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.5),
+          0 0 30px rgba(59, 130, 246, 0.08),
+          0 0 0 1px rgba(59, 130, 246, 0.25);
+      }
+      .browser-chrome {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: #1c1c1f;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .traffic-lights {
+        display: flex;
+        gap: 6px;
+      }
+      .traffic-lights span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .tl-red {
+        background: #ff5f57;
+      }
+      .tl-yellow {
+        background: #febc2e;
+      }
+      .tl-green {
+        background: #28c840;
+      }
+      .tab {
+        padding: 5px 14px;
+        border-radius: 6px 6px 0 0;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 500;
+        background: rgba(255, 255, 255, 0.06);
+        margin-left: 8px;
+      }
+
+      .url-bar {
+        padding: 6px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        background: #1a1a1d;
+      }
+      .url-bar-inner {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 6px;
+        padding: 5px 10px;
+      }
+      .url-text {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .browser-content {
+        height: 280px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+      .content-line {
+        height: 8px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .content-line.heading {
+        height: 14px;
+        background: rgba(255, 255, 255, 0.1);
+        margin-bottom: 16px;
+      }
+      .w-90 {
+        width: 90%;
+      }
+      .w-85 {
+        width: 85%;
+      }
+      .w-80 {
+        width: 80%;
+      }
+      .w-75 {
+        width: 75%;
+      }
+      .w-70 {
+        width: 70%;
+      }
+      .w-65 {
+        width: 65%;
+      }
+      .w-95 {
+        width: 95%;
+      }
+      .w-50 {
+        width: 50%;
+      }
+
+      .content-line.highlight-blue {
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.15);
+      }
+      .content-line.highlight-amber {
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.15);
+      }
+
+      .scroll-track {
+        position: absolute;
+        right: 4px;
+        top: 8px;
+        bottom: 8px;
+        width: 5px;
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 3px;
+      }
+      .scroll-thumb {
+        width: 5px;
+        height: 50px;
+        border-radius: 3px;
+        position: absolute;
+      }
+      .scroll-thumb.pos-35 {
+        top: 35%;
+        background: rgba(59, 130, 246, 0.3);
+      }
+      .scroll-thumb.pos-50 {
+        top: 50%;
+        background: rgba(245, 158, 11, 0.4);
+      }
+
+      .connection {
+        width: 80px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .conn-line {
+        width: 2px;
+        height: 100px;
+        background: linear-gradient(
+          180deg,
+          transparent 0%,
+          rgba(245, 158, 11, 0.4) 30%,
+          rgba(245, 158, 11, 0.4) 70%,
+          transparent 100%
+        );
+      }
+      .adjust-badge {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #f59e0b;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        backdrop-filter: blur(8px);
+      }
+      .adjust-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #f59e0b;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+      }
+
+      .key-hint {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 32px;
+        padding: 12px 24px;
+        background: rgba(245, 158, 11, 0.06);
+        border: 1px solid rgba(245, 158, 11, 0.15);
+        border-radius: 10px;
+      }
+      .kbd-large {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 14px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.7);
+        font-family: inherit;
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+      }
+      .key-hint-text {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .key-hint-text strong {
+        color: #f59e0b;
+        font-weight: 600;
+      }
+      .plus-sign {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.3);
+      }
+      .scroll-icon-container {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .offset-indicator {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+        border-radius: 6px;
+        font-size: 11px;
+        color: #f59e0b;
+        font-weight: 500;
+      }
+      .offset-value {
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-glow"></div>
+    <div class="container">
+      <div class="header">
+        <div class="logo">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M6.5 16c0-2.5 2-4.5 4.5-4.5 1.7 0 3.1.9 3.9 2.3L16 16l-1.1 2.2c-.8 1.4-2.2 2.3-3.9 2.3-2.5 0-4.5-2-4.5-4.5zm10.1-2.2L17.7 16l-1.1 2.2c.8 1.4 2.2 2.3 3.9 2.3 2.5 0 4.5-2 4.5-4.5s-2-4.5-4.5-4.5c-1.7 0-3.1.9-3.9 2.3z"
+              stroke="white"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <span class="brand-name">Synchronize Tab Scrolling</span>
+      </div>
+
+      <h1 class="headline">Fine-tune alignment</h1>
+      <p class="subheadline">
+        Hold Option/Alt while scrolling to adjust individual tab positions without breaking sync
+      </p>
+
+      <div class="demo-area">
+        <div class="browser synced">
+          <div class="browser-chrome">
+            <div class="traffic-lights">
+              <span class="tl-red"></span><span class="tl-yellow"></span
+              ><span class="tl-green"></span>
+            </div>
+            <div class="tab">spec-v1.pdf</div>
+          </div>
+          <div class="url-bar">
+            <div class="url-bar-inner">
+              <span class="url-text">docs.company.com/spec-v1</span>
+            </div>
+          </div>
+          <div class="browser-content">
+            <div class="content-line heading" style="width: 55%"></div>
+            <div class="content-line w-90"></div>
+            <div class="content-line w-85"></div>
+            <div class="content-line w-80"></div>
+            <div class="content-line w-90 highlight-blue"></div>
+            <div class="content-line w-85 highlight-blue"></div>
+            <div class="content-line w-75 highlight-blue"></div>
+            <div class="content-line w-70"></div>
+            <div class="content-line w-90"></div>
+            <div class="content-line w-85"></div>
+            <div class="content-line w-80"></div>
+            <div class="content-line w-95"></div>
+            <div class="content-line w-65"></div>
+            <div class="content-line w-80"></div>
+            <div class="scroll-track"><div class="scroll-thumb pos-35"></div></div>
+          </div>
+        </div>
+
+        <div class="connection">
+          <div class="conn-line"></div>
+          <div class="adjust-badge">
+            <span class="adjust-dot"></span>
+            Adjusting
+          </div>
+        </div>
+
+        <div class="browser adjusted">
+          <div class="browser-chrome">
+            <div class="traffic-lights">
+              <span class="tl-red"></span><span class="tl-yellow"></span
+              ><span class="tl-green"></span>
+            </div>
+            <div class="tab">spec-v2.pdf</div>
+          </div>
+          <div class="url-bar">
+            <div class="url-bar-inner">
+              <span class="url-text">docs.company.com/spec-v2</span>
+            </div>
+          </div>
+          <div class="browser-content">
+            <div class="content-line heading" style="width: 55%"></div>
+            <div class="content-line w-85"></div>
+            <div class="content-line w-90"></div>
+            <div class="content-line w-80"></div>
+            <div class="content-line w-75"></div>
+            <div class="content-line w-90"></div>
+            <div class="content-line w-70"></div>
+            <div class="content-line w-85 highlight-amber"></div>
+            <div class="content-line w-80 highlight-amber"></div>
+            <div class="content-line w-90 highlight-amber"></div>
+            <div class="content-line w-65"></div>
+            <div class="content-line w-80"></div>
+            <div class="content-line w-95"></div>
+            <div class="content-line w-75"></div>
+            <div class="scroll-track"><div class="scroll-thumb pos-50"></div></div>
+            <div class="offset-indicator">
+              <span>Manual offset</span>
+              <span class="offset-value">+15.0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="key-hint">
+        <span class="kbd-large">&thinsp;&#8997;&thinsp;</span>
+        <span class="plus-sign">+</span>
+        <div class="scroll-icon-container">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="rgba(255,255,255,0.5)"
+            stroke-width="2"
+          >
+            <path d="M12 5v14" />
+            <path d="m19 12-7 7-7-7" />
+          </svg>
+        </div>
+        <span class="key-hint-text"
+          >Hold <strong>Option</strong> (Mac) or <strong>Alt</strong> (Windows) + scroll to
+          <strong>adjust position independently</strong></span
+        >
+      </div>
+    </div>
+  </body>
+</html>
