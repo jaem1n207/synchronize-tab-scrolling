@@ -39,6 +39,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Update sitemap lastmod and JSON-LD dateModified
+        run: |
+          CONTENT_DATE=$(git log -1 --format=%cd --date=short -- src/landing/ src/shared/)
+          if [ -z "$CONTENT_DATE" ]; then
+            echo "No landing commits found, skipping date update"
+            exit 0
+          fi
+          echo "Last landing content commit: $CONTENT_DATE"
+          sed -i "s/<lastmod>.*<\/lastmod>/<lastmod>${CONTENT_DATE}<\/lastmod>/" src/landing/public/sitemap.xml
+          sed -i "s/\"dateModified\": \"[^\"]*\"/\"dateModified\": \"${CONTENT_DATE}\"/" src/landing/index.html
+
       - name: Build landing page
         run: pnpm build:landing
         env:
