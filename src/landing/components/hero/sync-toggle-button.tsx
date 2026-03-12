@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { useTranslation } from '~/landing/lib/i18n';
 import { ANIMATION_DURATIONS, EASING_FUNCTIONS } from '~/shared/lib/animations';
@@ -30,7 +30,7 @@ export function SyncToggleButton({ isSynced, onToggle }: SyncToggleButtonProps) 
         layout
         aria-pressed={isSynced}
         className={cn(
-          'relative inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold',
+          'relative inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold cursor-pointer',
           'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           isSynced
             ? 'bg-green-700 text-white hover:bg-green-800 dark:bg-green-700 dark:hover:bg-green-600'
