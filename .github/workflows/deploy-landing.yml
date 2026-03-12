@@ -8,6 +8,7 @@ on:
       - 'src/landing/**'
       - 'src/shared/**'
       - 'scripts/prerender-landing.ts'
+      - 'scripts/fetch-store-stats.ts'
       - 'vite.config.landing.mts'
       - 'uno.config.ts'
       - 'tsconfig.json'

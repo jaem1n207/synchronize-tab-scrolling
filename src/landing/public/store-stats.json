@@ -1,0 +1,15 @@
+{
+  "updatedAt": "2026-03-12T10:00:42.708Z",
+  "chrome": {
+    "ratingValue": 4.2,
+    "ratingCount": 12,
+    "version": "2.9.0",
+    "users": "1,000"
+  },
+  "firefox": {
+    "ratingValue": 5,
+    "ratingCount": 2,
+    "version": "2.9.0",
+    "users": "35"
+  }
+}
