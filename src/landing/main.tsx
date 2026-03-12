@@ -1,13 +1,13 @@
 import { StrictMode } from 'react';
 
-import { createRoot, hydrateRoot } from 'react-dom/client';
 import { MotionConfig } from 'motion/react';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 
 import '~/shared/styles';
 import './styles/landing.css';
 
-import { LocaleProvider } from '~/landing/lib/i18n';
 import { App } from '~/landing/app';
+import { LocaleProvider } from '~/landing/lib/i18n';
 
 function init() {
   const appContainer = document.getElementById('app');
@@ -28,10 +28,20 @@ function init() {
   const hasPrerenderedContent = appContainer.children.length > 0;
 
   if (hasPrerenderedContent) {
-    hydrateRoot(appContainer, app);
+    hydrateRoot(appContainer, app, {
+      onRecoverableError: (error, errorInfo) => {
+        console.warn('[landing] Recoverable hydration error:', error, {
+          componentStack: errorInfo?.componentStack,
+        });
+      },
+    });
   } else {
     createRoot(appContainer).render(app);
   }
+
+  requestAnimationFrame(() => {
+    document.documentElement.classList.remove('i18n-loading');
+  });
 }
 
 init();
