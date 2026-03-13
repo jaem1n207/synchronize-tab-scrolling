@@ -237,6 +237,44 @@ sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
 
 ---
 
+## Pitfall 9: CSS Grid의 min-width: auto와 Radix Dialog 내 ScrollArea
+
+### 규칙
+
+> Radix `DialogContent`(display: grid) 내부에서 텍스트 말줄임(truncate)을 사용할 때, Grid 항목에 `min-w-0`을 반드시 추가하세요. Dialog 내부에서 스크롤이 필요하면 Radix `ScrollArea` 대신 네이티브 `overflow-y-auto`를 사용하세요.
+
+### 배경
+
+`ExcludedDomainsDialog`에서 두 가지 UI 버그가 동시에 발생했습니다:
+
+1. **긴 URL 오버플로우**: 긴 도메인 이름이 다이얼로그 경계를 넘어 화면 밖으로 넘침
+2. **마우스 스크롤 불가**: 7개 이상의 도메인이 있을 때 마우스 휠로 스크롤할 수 없음
+
+### 왜 문제인가?
+
+**문제 1 — CSS Grid `min-width: auto`:**
+
+CSS Grid 명세에 의해, Grid 항목의 기본 `min-width`는 `auto`입니다. 이는 항목이 콘텐츠 너비 이하로 축소되지 않음을 의미합니다. `DialogContent`가 `display: grid`를 사용하므로, 긴 텍스트가 있는 자식 요소는 Grid 항목으로서 콘텐츠 너비만큼 확장되어 `truncate`(text-overflow: ellipsis)가 동작하지 않습니다.
+
+```
+DialogContent (display: grid, max-w-425px)
+  └── div.space-y-4 (Grid 항목, min-width: auto ← 문제)
+       └── span.truncate → 부모가 축소 불가이므로 말줄임 무시됨
+```
+
+**문제 2 — Radix ScrollArea + Dialog 스크롤 잠금:**
+
+Radix `Dialog`는 `react-remove-scroll` 라이브러리로 배경 스크롤을 차단합니다. Radix `ScrollArea`를 Dialog 내부에 중첩하면, Dialog의 스크롤 잠금이 ScrollArea의 wheel 이벤트까지 가로채서 마우스 스크롤이 완전히 차단됩니다.
+
+### 적용 원칙
+
+- `DialogContent` 내부의 콘텐츠 wrapper에 **항상** `min-w-0` 추가
+- `truncate` 체인: 모든 상위 Flex/Grid 항목에 `min-w-0`이 있어야 동작
+- Dialog 내부에서 스크롤이 필요하면 **네이티브** `overflow-y-auto` + `overscroll-contain` 사용
+- Radix `ScrollArea`는 Dialog 외부에서만 사용
+
+---
+
 ## Code Review Checklist
 
 스크롤 동기화 관련 PR을 리뷰할 때 확인해야 할 항목:
@@ -249,3 +287,5 @@ sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
 - [ ] 새 상태를 저장할 때, 탭별 독립 데이터가 `browser.storage.local`에 저장되고 있지 않은가?
 - [ ] 새로운 인메모리 `Set`/`Map`이 서비스 워커 재시작 후 복원되는가?
 - [ ] content script ping 전에 `syncState` 기반 사전 체크가 있는가?
+- [ ] `DialogContent` 내부의 Grid 항목에 `min-w-0`이 있는가? (`truncate` 사용 시 필수)
+- [ ] Dialog 내부에서 Radix `ScrollArea`를 사용하고 있지 않은가? (네이티브 `overflow-y-auto` 사용)
