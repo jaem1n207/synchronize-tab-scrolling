@@ -240,3 +240,60 @@ if (e.nativeEvent.isComposing || e.keyCode === 229) return;
 - 입력값 변경
 
 초기화가 누락되면 이전 항목의 삭제 대기 상태가 남아 의도하지 않은 삭제가 발생할 수 있습니다.
+
+### 5. UI 레이아웃 제약 조건
+
+`ExcludedDomainsDialog`는 Radix `DialogContent` 내부에 렌더링됩니다. 두 가지 CSS 제약 조건을 반드시 유지해야 합니다:
+
+#### CSS Grid `min-width: auto` 문제
+
+`DialogContent`는 내부적으로 `display: grid`를 사용합니다. Grid 항목은 기본적으로 `min-width: auto`가 적용되어, 콘텐츠 너비 이하로 축소되지 않습니다. 긴 도메인 이름이 있으면 다이얼로그 경계를 넘어 오버플로우됩니다.
+
+```tsx
+❌ BAD: min-w-0 누락
+<DialogContent>
+  <div className="space-y-4">  ← Grid 항목이 콘텐츠 너비로 확장
+    <span className="truncate">very-long-domain.vercel.app</span>
+    → truncate가 동작하지 않음, 텍스트가 다이얼로그 밖으로 넘침
+  </div>
+</DialogContent>
+
+✅ GOOD: min-w-0으로 Grid 항목 축소 허용
+<DialogContent>
+  <div className="space-y-4 min-w-0">  ← 콘텐츠 너비 이하로 축소 가능
+    <span className="truncate">very-long-domain.vercel.app</span>
+    → truncate 정상 동작, 말줄임표 표시
+  </div>
+</DialogContent>
+```
+
+`truncate` CSS 체인이 동작하려면 **모든 상위 요소**가 너비 제약을 가져야 합니다:
+
+- `DialogContent` → 고정 너비 (`max-w-*` 제약, 현재 `max-w-md`)
+- `space-y-4` wrapper → `min-w-0` (Grid 항목 축소 허용)
+- 도메인 텍스트 컨테이너 → `min-w-0` (Flex 항목 축소 허용)
+- 도메인 텍스트 → `truncate` (말줄임표)
+
+#### Radix ScrollArea와 Dialog 스크롤 충돌
+
+Radix `Dialog`는 내부적으로 `react-remove-scroll`을 사용하여 배경 스크롤을 차단합니다. 이 컴포넌트 내부에 Radix `ScrollArea`를 중첩하면 wheel 이벤트가 Dialog의 스크롤 잠금에 의해 차단되어 마우스 스크롤이 동작하지 않습니다.
+
+```tsx
+❌ BAD: Radix Dialog 내부에 Radix ScrollArea 중첩
+<DialogContent>
+  <ScrollArea className="max-h-[240px]">
+    <ul>{domains}</ul>
+  </ScrollArea>
+</DialogContent>
+→ react-remove-scroll이 wheel 이벤트를 가로챔 → 스크롤 불가
+
+✅ GOOD: 네이티브 overflow 스크롤 사용
+<DialogContent>
+  <div className="max-h-[240px] overflow-y-auto overscroll-contain">
+    <ul>{domains}</ul>
+  </div>
+</DialogContent>
+→ 브라우저 네이티브 스크롤 → 정상 동작
+```
+
+`overscroll-contain`은 도메인 목록의 스크롤이 끝까지 도달했을 때 Dialog 자체가 스크롤되는 것(스크롤 체이닝)을 방지합니다.
