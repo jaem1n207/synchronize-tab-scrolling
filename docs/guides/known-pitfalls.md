@@ -256,8 +256,8 @@ sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
 
 CSS Grid 명세에 의해, Grid 항목의 기본 `min-width`는 `auto`입니다. 이는 항목이 콘텐츠 너비 이하로 축소되지 않음을 의미합니다. `DialogContent`가 `display: grid`를 사용하므로, 긴 텍스트가 있는 자식 요소는 Grid 항목으로서 콘텐츠 너비만큼 확장되어 `truncate`(text-overflow: ellipsis)가 동작하지 않습니다.
 
-```
-DialogContent (display: grid, max-w-425px)
+```text
+DialogContent (display: grid, max-w-md)
   └── div.space-y-4 (Grid 항목, min-width: auto ← 문제)
        └── span.truncate → 부모가 축소 불가이므로 말줄임 무시됨
 ```

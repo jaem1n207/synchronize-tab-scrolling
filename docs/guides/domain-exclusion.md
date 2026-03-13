@@ -249,7 +249,7 @@ if (e.nativeEvent.isComposing || e.keyCode === 229) return;
 
 `DialogContent`는 내부적으로 `display: grid`를 사용합니다. Grid 항목은 기본적으로 `min-width: auto`가 적용되어, 콘텐츠 너비 이하로 축소되지 않습니다. 긴 도메인 이름이 있으면 다이얼로그 경계를 넘어 오버플로우됩니다.
 
-```
+```tsx
 ❌ BAD: min-w-0 누락
 <DialogContent>
   <div className="space-y-4">  ← Grid 항목이 콘텐츠 너비로 확장
@@ -269,7 +269,7 @@ if (e.nativeEvent.isComposing || e.keyCode === 229) return;
 
 `truncate` CSS 체인이 동작하려면 **모든 상위 요소**가 너비 제약을 가져야 합니다:
 
-- `DialogContent` → 고정 너비 (`sm:max-w-425px`)
+- `DialogContent` → 고정 너비 (`max-w-*` 제약, 현재 `max-w-md`)
 - `space-y-4` wrapper → `min-w-0` (Grid 항목 축소 허용)
 - 도메인 텍스트 컨테이너 → `min-w-0` (Flex 항목 축소 허용)
 - 도메인 텍스트 → `truncate` (말줄임표)
@@ -278,7 +278,7 @@ if (e.nativeEvent.isComposing || e.keyCode === 229) return;
 
 Radix `Dialog`는 내부적으로 `react-remove-scroll`을 사용하여 배경 스크롤을 차단합니다. 이 컴포넌트 내부에 Radix `ScrollArea`를 중첩하면 wheel 이벤트가 Dialog의 스크롤 잠금에 의해 차단되어 마우스 스크롤이 동작하지 않습니다.
 
-```
+```tsx
 ❌ BAD: Radix Dialog 내부에 Radix ScrollArea 중첩
 <DialogContent>
   <ScrollArea className="max-h-[240px]">
