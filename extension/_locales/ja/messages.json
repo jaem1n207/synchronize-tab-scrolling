@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "このタブを追加すると、手動で調整したスクロール位置がリセットされます"
   },
+  "existingSyncWarning": {
+    "message": "現在$COUNT$個のタブを同期中です。これを開始すると現在の同期が置き換えられます。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "置き換えて同期"
+  },
   "startSyncButton": {
     "message": "同期開始"
   },

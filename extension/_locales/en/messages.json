@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "Adding this tab will reset your scroll position adjustments"
   },
+  "existingSyncWarning": {
+    "message": "You're currently syncing $COUNT$ tabs. Starting this will replace the active sync.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "Replace & Sync"
+  },
   "startSyncButton": {
     "message": "Start Sync"
   },
