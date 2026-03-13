@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "Das Hinzufügen dieses Tabs setzt Ihre manuell angepasste Scrollposition zurück"
   },
+  "existingSyncWarning": {
+    "message": "Sie synchronisieren derzeit $COUNT$ Tabs. Dies wird die aktive Synchronisation ersetzen.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "Ersetzen & Sync"
+  },
   "startSyncButton": {
     "message": "Sync starten"
   },

@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "이 탭을 추가하면 수동으로 조정한 스크롤 위치가 초기화됩니다"
   },
+  "existingSyncWarning": {
+    "message": "현재 $COUNT$개 탭을 동기화 중입니다. 이 동기화를 시작하면 기존 동기화가 중지됩니다.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "교체 후 동기화"
+  },
   "startSyncButton": {
     "message": "동기화 시작"
   },

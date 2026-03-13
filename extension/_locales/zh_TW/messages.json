@@ -514,6 +514,18 @@
   "warningResetScrollOffsets": {
     "message": "新增此標籤頁將重設您手動調整的捲動位置"
   },
+  "existingSyncWarning": {
+    "message": "目前正在同步$COUNT$個標籤頁。開始此操作將取代目前的同步。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "replaceSyncButton": {
+    "message": "取代並同步"
+  },
   "startSyncButton": {
     "message": "開始同步"
   },
