@@ -108,7 +108,7 @@ const id: TranslationStrings = {
       noAnalytics: 'Tanpa cookie pelacak',
       offline: 'Berfungsi offline',
       openSource: 'Sumber terbuka',
-      languages: '10 bahasa',
+      languages: '9 bahasa',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: 'Berfungsi di semua browser utama',

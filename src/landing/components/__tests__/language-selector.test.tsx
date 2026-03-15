@@ -20,7 +20,7 @@ describe('LanguageToggle', () => {
     expect(trigger).toHaveAttribute('data-umami-event', 'language-toggle');
   });
 
-  it('opens dropdown and shows all 10 supported languages', async () => {
+  it('opens dropdown and shows all 9 supported languages', async () => {
     const user = userEvent.setup();
     render(<LanguageToggle />);
 

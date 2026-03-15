@@ -107,7 +107,7 @@ const tr: TranslationStrings = {
       noAnalytics: 'İzleme çerezi yok',
       offline: 'Çevrimdışı çalışır',
       openSource: 'Açık kaynak',
-      languages: '10 dil',
+      languages: '9 dil',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: 'Tüm büyük tarayıcılarda çalışır',

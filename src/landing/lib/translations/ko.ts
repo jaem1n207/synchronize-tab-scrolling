@@ -102,7 +102,7 @@ const ko: TranslationStrings = {
       noAnalytics: '추적 쿠키 없음',
       offline: '오프라인 작동',
       openSource: '오픈소스',
-      languages: '10개 언어 지원',
+      languages: '9개 언어 지원',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: '모든 주요 브라우저에서 작동',
