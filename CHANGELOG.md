@@ -1,3 +1,41 @@
+## [2.9.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.9.0...v2.9.1) (2026-03-15)
+
+
+### Bug Fixes
+
+* add data-testid to scroll container for robust test queries ([d471906](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/d471906ff7ccf2b2f939c8e0245d6799a1e06865))
+* **landing:** add fail-open timeout for i18n-loading and log hydration errors ([1e78def](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/1e78defb964bfd43cc142b6d25f99f0923214aac))
+* **landing:** complete sitemap hreflang for all supported locales ([fb6a92f](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/fb6a92fde96f03ebab597f35ec2b51e068d87fd5))
+* **landing:** eliminate hero section layout shift on sync toggle ([#357](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/357)) ([514eefa](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/514eefa875d9b65febea86710c6c9210f3da6b3c))
+* **landing:** enrich analytics events with position, user browser, and state data ([a4c5af5](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/a4c5af5655d913dec0ec7bdc69eb91b9aa70eaf4))
+* **landing:** fix keyboard accessibility and header layout shift ([#358](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/358)) ([c7040ae](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c7040ae15d3cace5a94d69386b643a3898ac1f26))
+* **landing:** guard blocking scripts against localStorage access failures ([e0fefea](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e0fefea14c7bfbbf69916b5507ed4ac78e3ea496))
+* **landing:** handle LANDING_BASE prefix in prerender static server ([75aa24f](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/75aa24fd240dc2a7988430e4d7471dff74eb365b))
+* **landing:** pass LANDING_BASE env to prerender step in deploy workflow ([a6f107f](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/a6f107f48b7dce75f753005b666ea79908d83fb0))
+* **landing:** prevent dark theme FOUC and respect system theme changes ([e856a61](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e856a61eebff26e4a9fdc5b544e095444080895b))
+* **landing:** prevent English content flash for non-English users during hydration ([e172b7e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/e172b7e0e7ec204da145f8da27d201aeb213355b))
+* **landing:** use union type for InstallButtons position prop ([7d9c873](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/7d9c873d0dc5af17f0ed0b604c6ecd01bff70514))
+* resolve scroll and overflow issues in excluded domains dialog ([#366](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/366)) ([274ed11](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/274ed11d60eb284c0aed76359bbd4ec435bdaa7a))
+
+
+### Features
+
+* **landing:** add de, ru, it, vi, id, pl, tr, zh_TW translations ([8ee07a4](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/8ee07a4c3c1994936eab31f88eba284a74fec7e1))
+* **landing:** add GSC verification and enhance meta tags ([ee68b28](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/ee68b28d5c147a8493ee3e86ddf2a877e93a26dd))
+* **landing:** add hreflang meta tags for en and ko ([312b8d3](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/312b8d39eb6b83f6626f67cd719215f2e9e243bc))
+* **landing:** add noscript fallback for non-JS crawlers ([d13762e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/d13762e9800154cafebd2ef8f92e451beb314df8))
+* **landing:** add Playwright-based prerender for SEO ([a440060](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/a4400606f40b85b170b1b7bda6aae1681b6f9587))
+* **landing:** add resource hints for Umami analytics ([3a0f847](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/3a0f847f0f0c265aae920090bb2367df40984200))
+* **landing:** add sitemap.xml and robots.txt ([24a9b95](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/24a9b95e0512a6108bf8e11f02b0f2d0fff39812))
+* **landing:** add Umami analytics tracking to footer links ([bee7c9e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/bee7c9e91e9a816d99e01e461153bb48c6461345))
+* **landing:** automate store stats for JSON-LD aggregateRating ([#359](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/359)) ([92d085d](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/92d085de6ebd533719047f6dabf92a9af6a9d66d))
+* **landing:** enhance JSON-LD structured data and expand FAQ ([85c9b87](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/85c9b8741901e65ef7bc91efe9245a223e5cc38e)), closes [hi#intent](https://github.com/hi/issues/intent)
+* **landing:** enhance JSON-LD with ratings, features, and FAQ schema ([311ea2f](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/311ea2fc0b1d6c89610cad94571af1369e1beffa))
+* **landing:** expand i18n to 10 languages and convert toggle to dropdown ([c2ac8dd](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c2ac8ddf9bb9950bdefa66afbdc859802450c6d5))
+* **landing:** implement extension landing page ([#349](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/349)) ([88b076a](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/88b076a9bdf6b8ffc872381eb72794a0a86fc4c9))
+* **landing:** smooth scroll sync, manual offset demo, and platform-aware text ([#351](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/351)) ([6228587](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/62285871162129923b1416efa9f152c8178e328b)), closes [#352](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/352)
+* **landing:** update languages badge to 10 and add all hreflang tags ([77f35b1](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/77f35b13731099011168dc00302c9c2e41853f7e))
+
 ## [2.9.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.9.0...v2.9.1) (2026-03-13)
 
 
