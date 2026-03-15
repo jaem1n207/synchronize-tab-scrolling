@@ -82,8 +82,7 @@ describe('ExcludedDomainsDialog', () => {
     it('uses native overflow-y-auto instead of Radix ScrollArea', () => {
       renderDialog();
 
-      const listbox = screen.getByRole('listbox');
-      const scrollContainer = listbox.parentElement!;
+      const scrollContainer = screen.getByTestId('scroll-container');
 
       expect(scrollContainer.tagName).toBe('DIV');
       expect(scrollContainer.className).toContain('overflow-y-auto');
@@ -92,8 +91,7 @@ describe('ExcludedDomainsDialog', () => {
     it('has overscroll-contain to prevent scroll chaining to dialog', () => {
       renderDialog();
 
-      const listbox = screen.getByRole('listbox');
-      const scrollContainer = listbox.parentElement!;
+      const scrollContainer = screen.getByTestId('scroll-container');
 
       expect(scrollContainer.className).toContain('overscroll-contain');
     });
@@ -101,8 +99,7 @@ describe('ExcludedDomainsDialog', () => {
     it('has max-height constraint for the scrollable area', () => {
       renderDialog();
 
-      const listbox = screen.getByRole('listbox');
-      const scrollContainer = listbox.parentElement!;
+      const scrollContainer = screen.getByTestId('scroll-container');
 
       expect(scrollContainer.className).toMatch(/max-h-/);
     });

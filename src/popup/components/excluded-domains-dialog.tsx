@@ -298,7 +298,10 @@ export function ExcludedDomainsDialog({
               </p>
             </div>
           ) : (
-            <div className="max-h-[240px] overflow-y-auto overscroll-contain">
+            <div
+              className="max-h-[240px] overflow-y-auto overscroll-contain"
+              data-testid="scroll-container"
+            >
               <div
                 aria-label={t('excludedDomainsDescription')}
                 className="space-y-1.5"
