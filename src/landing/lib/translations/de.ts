@@ -109,7 +109,7 @@ const de: TranslationStrings = {
       noAnalytics: 'Keine Tracking-Cookies',
       offline: 'Funktioniert offline',
       openSource: 'Open Source',
-      languages: '10 Sprachen',
+      languages: '9 Sprachen',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: 'Funktioniert in allen gängigen Browsern',

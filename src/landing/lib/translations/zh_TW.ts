@@ -98,7 +98,7 @@ const zh_TW: TranslationStrings = {
       noAnalytics: '無追蹤 Cookie',
       offline: '可離線使用',
       openSource: '開放原始碼',
-      languages: '10 種語言',
+      languages: '9 種語言',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: '支援所有主流瀏覽器',

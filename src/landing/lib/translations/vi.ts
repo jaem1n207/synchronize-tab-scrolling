@@ -104,7 +104,7 @@ const vi: TranslationStrings = {
       noAnalytics: 'Không cookie theo dõi',
       offline: 'Hoạt động ngoại tuyến',
       openSource: 'Mã nguồn mở',
-      languages: '10 ngôn ngữ',
+      languages: '9 ngôn ngữ',
       accessible: 'WCAG 2.1 AA',
     },
     browsers: 'Hoạt động trên tất cả trình duyệt phổ biến',
