@@ -1,337 +1,155 @@
 # AGENTS.md
 
-This file provides guidance to AI coding agents when working with code in this repository.
+Cross-browser extension (Chrome/Edge/Firefox/Brave) synchronizing scroll positions across tabs. React 19 + TypeScript, Vite, UnoCSS + Tailwind + shadcn/ui, webextension-polyfill, webext-bridge.
 
-## Project Overview
+## Structure
 
-This is a cross-browser extension (Chrome, Edge, Firefox, Brave) for synchronizing scroll positions across browser tabs. The extension enables users to scroll in one tab and have linked tabs automatically scroll to the same proportional position, which is particularly useful for comparing documents, reviewing code changes, or analyzing data side by side.
+```
+src/
+├── background/          # Service worker (MV3). State, message relay, auto-sync
+├── contentScripts/      # Page injection. Scroll sync engine, Shadow DOM UI
+├── popup/               # Extension popup. Tab selection, sync control
+├── shared/              # Cross-cutting. 13 utils, 4 hooks, shadcn UI, types, i18n
+├── landing/             # Marketing site. SEPARATE build/CI/deploy pipeline
+└── manifest.ts          # Dynamic manifest (Firefox vs Chromium)
+scripts/                 # Build: prepare, prerender, manifest, i18n validate, store stats
+docs/guides/             # Domain guides (Korean). Required reading before modifying related code
+.github/workflows/       # 3 pipelines: release, deploy-landing, update-store-stats
+```
 
-## Tech Stack
+## Where to Look
 
-- **Framework**: React 19 with TypeScript
-- **Build Tool**: Vite
-- **Styling**: UnoCSS + Tailwind + Shadcn UI
-- **Extension API**: webextension-polyfill for cross-browser compatibility
-- **Messaging**: webext-bridge for content script communication
-- **Icons**: unplugin-icons
+| Task                    | Location                                                     | Notes                                                                    |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Scroll sync logic       | `src/contentScripts/scroll-sync.ts`                          | 987-line state machine. Read `docs/guides/scroll-sync-pipeline.md` first |
+| Add message type        | `src/shared/types/messages.ts` + `shim.d.ts`                 | Must update ProtocolMap augmentation in both                             |
+| Add shared utility      | `src/shared/lib/`                                            | Export via barrel `index.ts`                                             |
+| Add popup feature       | `src/popup/components/` + `src/popup/hooks/`                 | See `src/popup/README.md`                                                |
+| Add i18n key            | `extension/_locales/` + `src/shared/i18n/_locales/`          | Must exist in BOTH. Run `pnpm i18n:validate`                             |
+| Modify background state | `src/background/lib/sync-state.ts` or `auto-sync-state.ts`   | Mutable objects. Persist via storage                                     |
+| Add background handler  | `src/background/handlers/`                                   | Register in `main.ts` startup sequence                                   |
+| Add content script UI   | `src/contentScripts/panel.tsx` or `suggestion-toast.tsx`     | Shadow DOM. z-index 2147483647                                           |
+| Add shadcn component    | `src/shared/components/ui/`                                  | Re-export in barrel. Uses UnoCSS                                         |
+| Modify manifest         | `src/manifest.ts`                                            | Check Firefox vs Chromium branches                                       |
+| Add extension page      | `src/manifest.ts` + `vite.config.mts` + `scripts/prepare.ts` | Must update all three                                                    |
+| Landing page work       | `src/landing/`                                               | Separate build. ALWAYS use `(landing)` commit scope                      |
+| CI/CD changes           | `.github/workflows/`                                         | Two isolated pipelines. See CI Isolation Rules below                     |
 
-## Development Commands
+## Commands
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Development mode (Chrome/Edge/Brave)
-pnpm dev
-
-# Development mode (Firefox)
-pnpm dev-firefox
-
-# Production build
-pnpm build
-
-# Type checking
-pnpm typecheck
-
-# Linting with auto-fix
-pnpm lint:fix
-
-# Format code
-pnpm format:fix
-
-# Run tests
-pnpm test
-
-# Package extension
-pnpm pack        # Creates .zip, .crx, and .xpi files
-
-# Launch extension in browser for testing
-pnpm start:chromium  # Chrome/Edge/Brave
-pnpm start:firefox   # Firefox
+pnpm dev                # Dev (Chrome/Edge/Brave)
+pnpm dev-firefox        # Dev (Firefox)
+pnpm build              # Production build
+pnpm typecheck          # Type checking
+pnpm lint:fix           # ESLint + auto-fix
+pnpm format:fix         # Prettier
+pnpm test               # Vitest unit tests
+pnpm test:e2e           # Playwright E2E (extension)
+pnpm test:e2e:landing   # Playwright E2E (landing)
+pnpm i18n:validate      # Validate locale key parity
+pnpm health             # All checks (lint + format + typecheck + i18n)
+pnpm pack               # Create .zip, .crx, .xpi
+pnpm start:chromium     # Launch in Chrome/Edge/Brave
+pnpm start:firefox      # Launch in Firefox
 ```
+
+## Conventions
+
+- **Files**: kebab-case. **Components**: PascalCase. **Hooks**: useCamelCase
+- **Imports**: `~/` alias → `src/`. ESLint-enforced ordering: react → external → `~/` → relative → type
+- **Barrel files**: Every directory with multiple exports has `index.ts`
+- **TypeScript**: `interface` over `type`. Union types over enum. No `any`, no `as` assertions. `import type` enforced
+- **Formatting**: Prettier — `singleQuote`, `printWidth: 100`, `tabWidth: 2`, `semi: true`
+- **Commits**: Conventional Commits. Landing changes MUST use `(landing)` scope — without it, commits trigger extension store releases. `release.config.js`: `releaseRules: [{ scope: 'landing', release: false }]`
+- **Pull Requests**: Always `--assignee jaem1n207`
+
+## Anti-Patterns
+
+### P0: Timing & State (will cause sync bugs)
+
+1. **No async I/O in scroll handlers** — Never `await` in `handleScrollCore()`. Scroll fires 20x/sec
+2. **Grace period invariant** — `PROGRAMMATIC_SCROLL_GRACE_PERIOD` (200ms) must exceed pipeline max (~115ms)
+3. **Cache sync at ALL points** — `cachedManualOffset` must update at every save/clear. Mismatch → misaligned scrolling
+4. **Startup ordering** — `restoreSyncState()` before `initializeAutoSync()`. Wrong order → race conditions
+5. **Cleanup before new sync** — `scroll:stop` to old tabs BEFORE `scroll:start` to new. Prevents orphaned DOM
+
+### P1: Storage & State (will cause leaks)
+
+6. **Tab-specific data → `sessionStorage`** — Never `browser.storage.local` for per-tab state
+7. **SW in-memory state lost on restart** — `Set`/`Map` state must restore from persistent storage
+8. **Check `syncState` before pinging content scripts** — Chrome throttles background tab network
+
+### P2: UI (will cause visual bugs)
+
+9. **CSS Grid + truncate** — Add `min-w-0` to Grid items in DialogContent
+10. **Dialog scroll** — Use `overflow-y-auto` + `overscroll-contain`, NOT Radix ScrollArea
+11. **IME guard** — Check `isComposing || keyCode === 229` before keyboard nav in CJK input
+
+### P3: i18n (will cause missing translations)
+
+12. **Dual locale dirs** — Keys in BOTH `extension/_locales/` AND `src/shared/i18n/_locales/`
+13. **9 locales complete** — en, ko, ja, fr, es, de, zh_CN, zh_TW, hi
+
+### Never
+
+- `@ts-ignore`, `as any` — fix the type
+- Empty `catch(e) {}` — log or handle
+- Delete failing tests to "pass"
+
+## CI/CD
+
+### Two Isolated Pipelines
+
+| Change                | `release.yml` | `deploy-landing.yml` |
+| --------------------- | ------------- | -------------------- |
+| `src/landing/**` only | Skipped       | Runs                 |
+| Extension code only   | Runs          | Skipped              |
+| `src/shared/**`       | Runs          | Runs                 |
+| Both                  | Runs          | Runs                 |
+
+- **Extension release**: semantic-release → Chrome Web Store + Firefox AMO + Edge Add-ons. Dual build (Chrome + Firefox). Edge API key expires — manual renewal
+- **Landing deploy**: Build → Playwright prerender → GitHub Pages. `LANDING_BASE=/synchronize-tab-scrolling/`
+- **Store stats**: Weekly cron fetches CWS + AMO ratings. Commits with `(landing)` scope
 
 ## Architecture
 
-### Extension Components
-
-1. **Background Script** (`src/background/main.ts`)
-   - Service worker (Manifest V3) for Chrome/Edge/Brave
-   - Background script for Firefox
-   - Manages extension lifecycle and tab events
-   - Handles message passing between components
-   - See `src/background/README.md` for detailed architecture
-
-2. **Content Scripts** (`src/contentScripts/`)
-   - Injected into web pages
-   - Creates Shadow DOM for UI isolation
-   - Handles scroll synchronization logic
-   - Communicates with background script via webext-bridge
-   - See `src/contentScripts/README.md` for detailed architecture
-
-3. **Popup** (`src/popup/`)
-   - Main UI for tab selection and sync control
-   - Built with React and Shadcn UI components
-   - See `src/popup/README.md` for detailed architecture
-
-### Build Configuration
-
-- **Vite Configs**:
-  - `vite.config.mts`: Main config for popup page
-  - `vite.config.background.mts`: Background script bundling
-  - `vite.config.content.mts`: Content script bundling
-
-- **Manifest Generation** (`src/manifest.ts`):
-  - Dynamically generates manifest.json based on environment
-  - Handles browser-specific differences (Firefox vs Chromium)
-  - Configures permissions: tabs, storage, activeTab, host_permissions
-
-### Key Implementation Details
-
-1. **Cross-browser Support**:
-   - Uses `webextension-polyfill` for unified API
-   - Conditional manifest settings for Firefox (`browser_specific_settings`)
-   - Different background script configurations per browser
-
-2. **Message Passing**:
-   - Uses `webext-bridge` for typed message communication
-   - Background ↔ Content Script messaging for scroll sync
-
-3. **Error Handling**:
-   - Comprehensive error logging with React 19 error hooks
-   - Separate logger instances per component scope
-
-4. **Development Features**:
-   - HMR support for faster development
-   - Content script auto-reload in dev mode
-   - Debug naming for dev builds
-
-### CI/CD & Store Deployment
-
-This repository has **two independent CI/CD pipelines**. They are isolated so that landing page changes never trigger extension releases, and vice versa.
-
-#### Extension Release (`release.yml`)
-
-- **Trigger**: Push to `main`, with `paths-ignore` for `src/landing/**`, `vite.config.landing.mts`, `deploy-landing.yml`
-- **Version management**: semantic-release analyzes Conventional Commits to determine version
-- **Scope filtering**: `release.config.js` has `releaseRules: [{ scope: 'landing', release: false }]` — commits with `(landing)` scope are excluded from version bumps
-- **Store publishing**: Automated via semantic-release plugins:
-  - Chrome Web Store: `semantic-release-chrome` (OAuth 2.0)
-  - Firefox AMO: `semantic-release-amo` (JWT, auto-submits source code)
-  - Edge Add-ons: `@semantic-release/exec` → `scripts/publish-edge.mjs` (API v1.1, soft-fail)
-- **Build separation**: Chrome and Firefox builds share `extension/` output — CI copies to `build/chrome/` and `build/firefox/` before semantic-release
-- **Edge reuses Chrome build**: Same Chromium zip uploaded to both stores
-- **Credential renewal**: Edge API Key expires and requires manual renewal in Partner Center
-
-#### Landing Page Deploy (`deploy-landing.yml`)
-
-- **Trigger**: Push to `main` with `paths` filter: `src/landing/**`, `src/shared/**`, `vite.config.landing.mts`, `uno.config.ts`, `tsconfig.json`
-- **Deployment**: GitHub Pages via `actions/deploy-pages@v4`
-- **URL**: `https://jaem1n207.github.io/synchronize-tab-scrolling/`
-- **Analytics**: Umami Cloud (script in `src/landing/index.html`)
-
-#### CI Isolation Rules
-
-| Change                                                       | `release.yml`          | `deploy-landing.yml` |
-| ------------------------------------------------------------ | ---------------------- | -------------------- |
-| `src/landing/**` only                                        | Skipped (paths-ignore) | Runs                 |
-| `src/popup/**`, `src/background/**`, `src/contentScripts/**` | Runs                   | Skipped              |
-| `src/shared/**`                                              | Runs                   | Runs                 |
-| Both landing + extension                                     | Runs                   | Runs                 |
-
-**When committing landing page changes, ALWAYS use `(landing)` scope** (e.g., `feat(landing): ...`, `fix(landing): ...`). This ensures:
-
-1. `release.yml` is skipped if only landing files changed (workflow `paths-ignore`)
-2. Even if the workflow runs (e.g., shared code also changed), the landing commit won't bump the extension version (`releaseRules`)
-
-See `docs/guides/store-deployment.md` for detailed pipeline, credentials, and troubleshooting.
-
-## Important Notes
-
-- Extension uses Shadow DOM in content scripts for style isolation
-- All network requests should use HTTPS (CSP requirement)
-- Follows Manifest V3 for Chrome/Edge, with compatibility for Firefox
-- Uses absolute z-index (2147483647) for content script UI to ensure visibility
-
-### Adding New Extension Pages (e.g., Options Page)
-
-When adding a new extension page (like an options page), update the following files:
-
-1. `src/manifest.ts` - Add `options_ui` configuration
-2. `vite.config.mts` - Add page entry to `rollupOptions.input`
-3. `scripts/prepare.ts` - Add view name to `views` array in `stubIndexHtml()` function
-
-## File Structure Patterns
-
-- Components: `src/shared/components/ui/` (Shadcn UI components)
-- Utilities: `src/shared/lib/`
-- Internationalization: `src/shared/i18n/`
-- Type definitions: `.d.ts` files at root and in src/
-
-## Code Architecture & Design Patterns
-
-### Structure Guidelines
-
-- **FSD Segment Structure**: Each slice contains model/ (state), ui/ (components), api/ (server communication), lib/ (utilities)
-- **Naming Conventions**: kebab-case for files/folders, PascalCase for component names
-- **TypeScript Patterns**: Prefer interface over type, Union Types over enum
-- **Type Safety**: Avoid any and type assertions like `as string`, prefer complete type inference including deep nested fields
-- **Programming Style**: Declarative and functional programming patterns preferred
-
-### UI Components
-
-- **Form Validation**: Zod schemas with TanStack Form for robust form handling
-- **UI Library**: shadcn/ui as base, customize using Awesome shadcn/ui
-- **Animations**: Framer Motion for smooth transitions, reference MagicUI for advanced animated components
-- **Styling**: UnoCSS
-- **Accessibility**: Strict adherence to WCAG 2.1 AA guidelines for universal access
-
-### Testing & Code Quality Philosophy
-
-- **Testing Focus**: Write tests only for core business logic with strong domain coupling
-- **Test Runner**: Vitest preferred for fast TypeScript testing
-- **Code Comments**: Minimal comments - prefer self-documenting code with clear variable/function names
-- **Exception**: Comments only for reusable utility interfaces, domain-specific hacky code, and complex calculations that require step-by-step explanation
-
-### Development Workflow
-
-- **Package Manager**: pnpm
-- **New Dependencies**: Always install latest version
-- **Code Organization**: Encapsulate complex logic into clear, purpose-specific functions
-- **Theme Support**: Support dark/light mode
-- **Commit Convention**: Conventional Commits with commitlint validation
-- **Commit Scopes**: Use `(landing)` scope for landing page changes (e.g., `feat(landing): add CTA section`). This is **critical** — `release.config.js` ignores `landing` scope commits to prevent extension version bumps. Without the scope, landing-only changes could trigger an unnecessary extension release to Chrome/Edge/Firefox stores.
-- **Pull Requests**: Always create PRs with `--assignee jaem1n207`
-
-## Error Handling & User Experience Patterns
-
-### Suspense Integration
-
-- **Network Requests**: Wrap all async data fetching with React Suspense
-- **Loading States**: Provide meaningful loading indicators during data fetching
-- **Granular Boundaries**: Use multiple Suspense boundaries for different UI sections
-- **Fallback Components**: Design consistent loading skeletons that match final UI structure
-- **Progressive Loading**: Load critical content first, defer secondary content
-
-### ErrorBoundary Strategy
-
-- **Granular Error Boundaries**: Wrap individual features and widgets with dedicated error boundaries
-- **Error Segmentation**: Isolate errors to prevent entire app crashes
-- **Graceful Degradation**: Provide meaningful error messages and recovery options
-- **User Experience**: Implement retry mechanisms and alternative workflows
-- **Error Context**: Capture and log detailed error context for debugging
-- **Recovery Patterns**: Allow users to retry failed operations or continue with partial data
-
-## Accessibility Standards
-
-All components and features must follow WCAG 2.1 AA guidelines:
-
-- **Semantic HTML**: Use proper HTML5 semantic elements, maintain logical heading hierarchy, define landmark regions
-- **Keyboard Navigation**: All interactive elements keyboard accessible, visible focus indicators (3:1 contrast), logical tab order, Escape key for modals/overlays
-- **Screen Readers**: Use ARIA labels/states/live regions, test with NVDA, JAWS, and VoiceOver
-- **Color & Contrast**: 4.5:1 contrast for normal text, 3:1 for large text, never rely solely on color to convey information
-- **Forms**: Associate all controls with labels, mark required fields with `aria-required`, group related controls with fieldset/legend
-- **Dynamic Content**: Use `aria-live="polite"` for status updates, `aria-live="assertive"` for urgent alerts
-- **Responsive**: Support up to 200% text zoom without horizontal scrolling
-- **Motion**: Respect `prefers-reduced-motion` for animations
-
-> For detailed accessibility audit patterns, see the `accessibility-auditor` and `web-design-guidelines` agent skills.
+- **Message passing**: webext-bridge (24 typed messages via `ProtocolMap` in `shim.d.ts`). CustomEvent for same-context (faster, untyped)
+- **State**: No Redux/Zustand. Mutable module-level objects + `withAutoSyncLock()` mutex. Persisted to `browser.storage.local`
+- **Content script UI**: Two independent React roots in Shadow DOM (`panel.tsx`, `suggestion-toast.tsx`). z-index 2147483647
+- **Build**: 4 Vite configs — popup (HTML+JS), background (IIFE), content (IIFE), landing (HTML+JS). `mangle: false` for CWS readability
+- **Manifest**: Generated by `scripts/manifest.ts` at build time, not by Vite
 
 ## Domain Knowledge
 
-### Critical Pitfalls
+### Required Reading (Korean)
 
-See `docs/guides/known-pitfalls.md` (Korean) for 8 critical pitfalls with code examples:
+| Feature                     | Guide                                              |
+| --------------------------- | -------------------------------------------------- |
+| Scroll sync engine          | `docs/guides/scroll-sync-pipeline.md`              |
+| Critical pitfalls (9)       | `docs/guides/known-pitfalls.md`                    |
+| Domain exclusion            | `docs/guides/domain-exclusion.md`                  |
+| Sync suggestion replacement | `docs/guides/sync-suggestion-replacement.md`       |
+| Landing FOUC prevention     | `docs/guides/landing-fouc-and-flash-prevention.md` |
+| Store deployment            | `docs/guides/store-deployment.md`                  |
+| Store stats automation      | `docs/guides/store-stats-automation.md`            |
+| Landing test fixes          | `docs/guides/landing-test-and-deploy-fix.md`       |
 
-1. Async I/O in hot paths
-2. Event vs connection confusion
-3. Grace period timing
-4. Cache sync issues
-5. Timing invariants
-6. Global storage misuse
-7. Service worker state loss
-8. Background state priority
+### Module READMEs
 
-### Scroll Sync Pipeline
+Each module has detailed architecture docs. See subdirectory AGENTS.md for background, contentScripts, and landing specifics:
 
-See `docs/guides/scroll-sync-pipeline.md` (Korean) for the complete scroll synchronization pipeline:
+- `src/background/README.md` + `AGENTS.md` — Service worker, state management, handlers
+- `src/contentScripts/README.md` + `AGENTS.md` — Scroll sync engine, Shadow DOM, timing
+- `src/landing/AGENTS.md` — Separate build/CI, i18n, theme, prerender
+- `src/popup/README.md` — Popup architecture, hooks, components
+- `src/shared/lib/README.md` — 13 utility modules
+- `src/shared/hooks/README.md` — 4 shared hooks
+- `src/shared/types/README.md` — Message, sync-state, auto-sync-state types
 
-- Timing constants and thresholds
-- Manual offset lifecycle
-- Connection monitoring flow
+## Notes
 
-### Domain Exclusion Management
-
-See `docs/guides/domain-exclusion.md` (Korean) for the domain exclusion feature guide:
-
-- Temporary snooze (2h) and permanent exclusion architecture
-- Data flow: Toast → Background → Storage
-- Popup UI keyboard navigation (Raycast-like `aria-activedescendant` pattern)
-- Two-stage Enter confirmation for safe deletion
-- IME (CJK) composition guard
-- i18n key sync requirements (`extension/_locales/` + `src/shared/i18n/_locales/`)
-
-### Sync Suggestion Replacement
-
-See `docs/guides/sync-suggestion-replacement.md` (Korean) for the sync suggestion replacement guide:
-
-- Cleanup sequence when replacing active sync (scroll:stop → state reset → scroll:start)
-- hasExistingSync context propagation from background to toast UI
-- Amber warning banner and "Replace & Sync" button behavior
-- Pitfalls: cleanup ordering, condition guards, i18n key sync
-
-### Store Deployment Pipeline
-
-See `docs/guides/store-deployment.md` (Korean) for the complete CI/CD pipeline:
-
-- GitHub Actions workflow and semantic-release configuration
-- Store credentials setup (Chrome, Firefox, Edge)
-- Credential renewal procedures
-- Troubleshooting deployment failures
-
-### Store Stats Automation
-
-See `docs/guides/store-stats-automation.md` (Korean) for the store stats automation guide:
-
-- Weekly cron fetches CWS (HTML scraping) + AMO (REST API v5) ratings, version, users
-- Vite `transformIndexHtml` plugin injects data into JSON-LD `aggregateRating` and `softwareVersion`
-- Fallback strategy: existing `store-stats.json` values preserved when fetch fails
-- CI isolation: stats commits use `(landing)` scope, trigger landing deploy only
-
-### Landing Test & Deploy Fix
-
-See `docs/guides/landing-test-and-deploy-fix.md` (Korean) for the landing page test review and deploy fix:
-
-- PR #355 CodeRabbit review feedback analysis (16 comments: 10 fixed, 6 rejected with rationale)
-- Prerender LANDING_BASE bug: static server not stripping path prefix → asset 404s in CI
-- GitHub Actions env var scoping pitfall (step-level vs job-level)
-- Vitest `vi.unstubAllGlobals()` vs `vi.clearAllMocks()` distinction
-- Playwright `evaluateAll()` vs `textContent()` for data extraction
-- `detectBrowser()` Arc/Dia classification rationale
-
-### Landing Page FOUC & Flash Prevention
-
-See `docs/guides/landing-fouc-and-flash-prevention.md` (Korean) for the FOUC and content flash prevention guide:
-
-- Dark theme FOUC: blocking `<script>` in `<head>` reads `landing-theme` from localStorage or `prefers-color-scheme`
-- System theme sync: separate explicit user toggle from auto-applied system theme — only persist to localStorage on user click
-- i18n content flash: blocking locale detection + `visibility: hidden` on `#app` + fail-open 3s timeout
-- `localStorage` can throw `SecurityError` — always `try/catch` in blocking scripts
-- Prerender hydration mismatch: `detectBrowser()` returns `'chrome'` during Playwright prerender, differs for non-Chrome users
-- Parallel branch workflow: verify `git log main..<branch>` shows only intended commits before creating PR
-
-### Module Architecture Documentation
-
-Each major module has detailed README documentation:
-
-- `src/background/README.md` — Service worker architecture, message flow, key responsibilities
-- `src/background/lib/README.md` — State management modules (sync-state, auto-sync, content-script-manager, keep-alive, messaging)
-- `src/background/handlers/README.md` — Event handler registration pattern (scroll-sync, connection, auto-sync, tab-event handlers)
-- `src/contentScripts/README.md` — Content script injection, scroll sync logic, Shadow DOM isolation
-- `src/contentScripts/hooks/README.md` — useDragPosition and usePanelState hooks
-- `src/contentScripts/components/README.md` — SyncControlPanel component (WCAG 2.1 AA, Shadow DOM compatible)
-- `src/popup/README.md` — Popup UI architecture with 6 main components
-- `src/popup/hooks/README.md` — 5 custom hooks for popup state management
-- `src/popup/components/README.md` — 8 popup components with hierarchy and state management
-- `src/shared/lib/README.md` — 13 utility modules (URL utils, scroll math, tab similarity, Korean search, etc.)
-- `src/shared/hooks/README.md` — 4 shared hooks (keyboard shortcuts, modifier key, persistent state, system theme)
-- `src/shared/types/README.md` — Type definitions for messages, sync-state, auto-sync-state
+- Shadow DOM in content scripts — styles must inject into shadow root
+- HTTPS required (CSP). `localStorage` can throw `SecurityError` — always try/catch
+- Content script re-injection: check for orphaned containers before creating new roots
+- `pnpm health` before submitting PRs
