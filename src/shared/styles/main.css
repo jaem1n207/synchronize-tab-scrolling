@@ -19,9 +19,18 @@
 
   :root {
     color-scheme: light only;
+
+    /* Raise hover/selection contrast from presetShadcn neutral defaults
+       (96.1% vs 100% surface, ~3.9% delta) so cmdk/Radix highlights stay
+       visible on typical Windows LCDs — Mac Retina panels mask the gap. */
+    --accent: 0 0% 90%;
+    --muted: 0 0% 90%;
   }
 
   .dark {
     color-scheme: dark only;
+
+    --accent: 0 0% 20%;
+    --muted: 0 0% 20%;
   }
 }
