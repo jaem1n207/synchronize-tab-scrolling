@@ -261,9 +261,10 @@ async function ensureToastContainer(): Promise<void> {
       --primary-foreground: 0 0% 98%;
       --secondary: 0 0% 96.1%;
       --secondary-foreground: 0 0% 9%;
-      --muted: 0 0% 96.1%;
+      /* 96.1% was imperceptible on Windows LCDs — see docs/guides/known-pitfalls.md */
+      --muted: 0 0% 90%;
       --muted-foreground: 0 0% 45.1%;
-      --accent: 0 0% 96.1%;
+      --accent: 0 0% 90%;
       --accent-foreground: 0 0% 9%;
       --destructive: 0 84.2% 60.2%;
       --destructive-foreground: 0 0% 98%;
