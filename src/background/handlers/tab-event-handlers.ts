@@ -3,7 +3,10 @@ import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadUrlSyncEnabled } from '~/shared/lib/storage';
-import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
+import {
+  buildTranslatedPageSignature,
+  getAutoSyncPageKey,
+} from '~/shared/lib/translated-page-url-utils';
 
 import {
   removeTabFromAllAutoSyncGroups,
@@ -179,7 +182,8 @@ export function registerTabEventHandlers(): void {
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.url || (changeInfo.status === 'loading' && tab.url)) {
       const url = changeInfo.url || tab.url || '';
-      const normalizedUrl = getAutoSyncPageKey(url);
+      const newTabSignature = buildTranslatedPageSignature(url);
+      const normalizedUrl = newTabSignature?.canonicalKey ?? null;
 
       if (normalizedUrl) {
         if (syncState.isActive && !syncState.linkedTabs.includes(tabId)) {
@@ -204,7 +208,13 @@ export function registerTabEventHandlers(): void {
               normalizedUrl,
               trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
             });
-            await showAddTabSuggestion(tabId, tab.title || 'Untitled', normalizedUrl);
+            await showAddTabSuggestion(
+              tabId,
+              tab.title || 'Untitled',
+              normalizedUrl,
+              newTabSignature?.matchKind,
+              newTabSignature?.confidence,
+            );
           }
         }
 

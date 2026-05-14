@@ -477,6 +477,8 @@ describe('registerTabEventHandlers', () => {
         20,
         'Candidate tab',
         'https://example.com/match',
+        'same-url',
+        'low',
       );
     });
 
@@ -503,6 +505,8 @@ describe('registerTabEventHandlers', () => {
         20,
         'Turkish docs',
         'https://example.com/docs',
+        'translated-page',
+        'high',
       );
     });
 
