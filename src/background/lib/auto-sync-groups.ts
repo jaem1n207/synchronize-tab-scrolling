@@ -264,6 +264,18 @@ export function isTabInActiveAutoSyncGroup(tabId: number): boolean {
 }
 
 /**
+ * Get the auto-sync group key that currently contains the given tab.
+ */
+export function getAutoSyncGroupKeyForTab(tabId: number): string | null {
+  for (const [normalizedUrl, group] of autoSyncState.groups) {
+    if (group.tabIds.has(tabId)) {
+      return normalizedUrl;
+    }
+  }
+  return null;
+}
+
+/**
  * Update auto-sync group for a tab based on its URL (with mutex lock)
  * @param tabId - The tab ID
  * @param url - The tab's URL
@@ -342,7 +354,7 @@ async function updateAutoSyncGroupInternal(
   let matchKind = translatedSignature?.matchKind;
   let matchConfidence = translatedSignature?.confidence;
 
-  if (!group && autoSyncState.groups.size > 0) {
+  if (!skipStartSync && !group && autoSyncState.groups.size > 0) {
     const candidate = await findTranslatedPageCandidateGroup({
       tabId,
       url,
@@ -370,9 +382,6 @@ async function updateAutoSyncGroupInternal(
     };
     autoSyncState.groups.set(groupKey, group);
     logger.info('[AUTO-SYNC] Created new group', { normalizedUrl: groupKey });
-  } else if (matchKind && matchConfidence) {
-    group.matchKind = matchKind;
-    group.matchConfidence = matchConfidence;
   }
 
   if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(tabId)) {
@@ -383,6 +392,11 @@ async function updateAutoSyncGroupInternal(
       tabId,
     });
     return null;
+  }
+
+  if (!isNewGroup && matchKind && matchConfidence) {
+    group.matchKind = matchKind;
+    group.matchConfidence = matchConfidence;
   }
 
   group.tabIds.add(tabId);
