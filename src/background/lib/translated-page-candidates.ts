@@ -21,6 +21,8 @@ interface CandidateLookupResult {
   matchConfidence: TranslatedPageConfidence;
 }
 
+const MAX_CANDIDATE_METADATA_PROBES = 10;
+
 async function getSafeTabUrl(
   tabId: number,
   getTabUrl: CandidateLookupArgs['getTabUrl'],
@@ -74,29 +76,44 @@ export async function findTranslatedPageCandidateGroup({
     return null;
   }
 
-  for (const [normalizedUrl, group] of eligibleGroups) {
-    const representativeTabId = getRepresentativeTabId(group);
-    if (representativeTabId === null) {
-      continue;
-    }
+  const candidateResults = await Promise.all(
+    eligibleGroups
+      .slice(0, MAX_CANDIDATE_METADATA_PROBES)
+      .map(async ([normalizedUrl, group]): Promise<CandidateLookupResult | null> => {
+        const representativeTabId = getRepresentativeTabId(group);
+        if (representativeTabId === null) {
+          return null;
+        }
 
-    const candidateUrl = await getSafeTabUrl(representativeTabId, getTabUrl);
-    if (!candidateUrl) {
-      continue;
-    }
+        const candidateUrl = await getSafeTabUrl(representativeTabId, getTabUrl);
+        if (!candidateUrl) {
+          return null;
+        }
 
-    const candidateMetadata = await getSafeMetadata(representativeTabId, candidateUrl, getMetadata);
-    if (!candidateMetadata) {
-      continue;
-    }
+        const candidateMetadata = await getSafeMetadata(
+          representativeTabId,
+          candidateUrl,
+          getMetadata,
+        );
+        if (!candidateMetadata) {
+          return null;
+        }
 
-    if (isTranslatedPageMetadataMatch(sourceMetadata, candidateMetadata)) {
-      return {
-        normalizedUrl,
-        matchKind: 'possible-translation',
-        matchConfidence: 'medium',
-      };
-    }
+        if (isTranslatedPageMetadataMatch(sourceMetadata, candidateMetadata)) {
+          return {
+            normalizedUrl,
+            matchKind: 'possible-translation',
+            matchConfidence: 'medium',
+          };
+        }
+
+        return null;
+      }),
+  );
+
+  const candidate = candidateResults.find((result) => result !== null);
+  if (candidate) {
+    return candidate;
   }
 
   return null;

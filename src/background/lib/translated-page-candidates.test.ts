@@ -9,6 +9,12 @@ function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSync
   return { tabIds: new Set(tabIds), isActive };
 }
 
+async function flushMicrotasks(count: number = 5): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    await Promise.resolve();
+  }
+}
+
 describe('findTranslatedPageCandidateGroup', () => {
   it('returns an inactive existing group when metadata alternates connect the pages', async () => {
     const groups = new Map<string, AutoSyncGroup>([
@@ -184,5 +190,64 @@ describe('findTranslatedPageCandidateGroup', () => {
     });
     expect(getTabUrl).toHaveBeenCalledTimes(1);
     expect(getTabUrl).toHaveBeenCalledWith(3);
+  });
+
+  it('probes eligible candidate metadata concurrently and preserves group-order result priority', async () => {
+    let resolveFirstCandidate: (metadata: TranslatedPageMetadata) => void = () => {};
+
+    const groups = new Map<string, AutoSyncGroup>([
+      ['https://example.com/first', createGroup([1])],
+      ['https://example.com/second', createGroup([2])],
+      ['https://example.com/third', createGroup([3])],
+    ]);
+    const getTabUrl = vi.fn(async (tabId: number) => `https://example.com/${tabId}`);
+    const getMetadata = vi.fn((tabId: number): Promise<TranslatedPageMetadata | null> => {
+      if (tabId === 9) {
+        return Promise.resolve({
+          url: 'https://example.com/tr/baslangic',
+          alternateUrls: [{ hreflang: 'en', href: 'https://example.com/first' }],
+        });
+      }
+
+      if (tabId === 1) {
+        return new Promise((resolve) => {
+          resolveFirstCandidate = resolve;
+        });
+      }
+
+      if (tabId === 2) {
+        return Promise.resolve({
+          url: 'https://example.com/second',
+          alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
+        });
+      }
+
+      return Promise.resolve(null);
+    });
+
+    const resultPromise = findTranslatedPageCandidateGroup({
+      tabId: 9,
+      url: 'https://example.com/tr/baslangic',
+      groups,
+      getTabUrl,
+      getMetadata,
+    });
+
+    await flushMicrotasks();
+
+    expect(getMetadata).toHaveBeenCalledWith(1, 'https://example.com/1');
+    expect(getMetadata).toHaveBeenCalledWith(2, 'https://example.com/2');
+    expect(getMetadata).toHaveBeenCalledWith(3, 'https://example.com/3');
+
+    resolveFirstCandidate({
+      url: 'https://example.com/first',
+      alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
+    });
+
+    await expect(resultPromise).resolves.toEqual({
+      normalizedUrl: 'https://example.com/first',
+      matchKind: 'possible-translation',
+      matchConfidence: 'medium',
+    });
   });
 });
