@@ -28,6 +28,8 @@ export type {
   SyncStatusBroadcastMessage,
   SyncSuggestionMessage,
   SyncSuggestionResponseMessage,
+  TranslatedPageMetadataRequestMessage,
+  TranslatedPageMetadataResponseMessage,
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
 } from './messages';

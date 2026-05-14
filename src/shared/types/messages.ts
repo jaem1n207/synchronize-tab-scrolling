@@ -221,9 +221,9 @@ export interface TranslatedPageMetadataRequestMessage {
   tabId: number;
 }
 
-export interface TranslatedPageMetadataResponseMessage extends TranslatedPageMetadata {
-  success: boolean;
-}
+export type TranslatedPageMetadataResponseMessage =
+  | ({ success: true } & TranslatedPageMetadata)
+  | { success: false; error?: string };
 
 /**
  * Response to sync suggestion (user accepted or rejected)
