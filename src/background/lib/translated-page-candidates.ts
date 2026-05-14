@@ -10,6 +10,7 @@ interface CandidateLookupArgs {
   tabId: number;
   url: string;
   groups: Map<string, AutoSyncGroup>;
+  maxGroupSize?: number;
   getTabUrl: (tabId: number) => Promise<string | null>;
   getMetadata: (tabId: number, url: string) => Promise<TranslatedPageMetadata | null>;
 }
@@ -52,11 +53,16 @@ export async function findTranslatedPageCandidateGroup({
   tabId,
   url,
   groups,
+  maxGroupSize,
   getTabUrl,
   getMetadata,
 }: CandidateLookupArgs): Promise<CandidateLookupResult | null> {
   const eligibleGroups = Array.from(groups.entries()).filter(
-    ([, group]) => !group.isActive && !group.tabIds.has(tabId) && group.tabIds.size > 0,
+    ([, group]) =>
+      !group.isActive &&
+      !group.tabIds.has(tabId) &&
+      group.tabIds.size > 0 &&
+      (maxGroupSize === undefined || group.tabIds.size < maxGroupSize),
   );
 
   if (eligibleGroups.length === 0) {

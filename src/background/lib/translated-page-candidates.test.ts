@@ -149,4 +149,40 @@ describe('findTranslatedPageCandidateGroup', () => {
     expect(getTabUrl).toHaveBeenCalledWith(3);
     expect(getTabUrl).toHaveBeenCalledWith(4);
   });
+
+  it('skips groups at the configured maximum size when matching candidates', async () => {
+    const groups = new Map<string, AutoSyncGroup>([
+      ['https://example.com/full', createGroup([1, 2])],
+      ['https://example.com/getting-started', createGroup([3])],
+    ]);
+
+    const getTabUrl = vi.fn(async () => 'https://example.com/en/getting-started');
+    const getMetadata = vi
+      .fn<(_: number, url: string) => Promise<TranslatedPageMetadata | null>>()
+      .mockResolvedValueOnce({
+        url: 'https://example.com/tr/baslangic',
+        alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
+      })
+      .mockResolvedValueOnce({
+        url: 'https://example.com/en/getting-started',
+        alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
+      });
+
+    await expect(
+      findTranslatedPageCandidateGroup({
+        tabId: 4,
+        url: 'https://example.com/tr/baslangic',
+        groups,
+        maxGroupSize: 2,
+        getTabUrl,
+        getMetadata,
+      }),
+    ).resolves.toEqual({
+      normalizedUrl: 'https://example.com/getting-started',
+      matchKind: 'possible-translation',
+      matchConfidence: 'medium',
+    });
+    expect(getTabUrl).toHaveBeenCalledTimes(1);
+    expect(getTabUrl).toHaveBeenCalledWith(3);
+  });
 });
