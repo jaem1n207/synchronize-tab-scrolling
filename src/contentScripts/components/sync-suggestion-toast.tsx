@@ -35,6 +35,18 @@ interface AddTabToastProps {
   className?: string;
 }
 
+function getSyncSuggestionTitleKey(suggestion: SyncSuggestionMessage): Parameters<typeof t>[0] {
+  if (suggestion.matchKind === 'possible-translation') {
+    return 'foundTabsMayBeTranslations';
+  }
+
+  if (suggestion.matchKind === 'translated-page') {
+    return 'foundTabsWithSameTranslatedPage';
+  }
+
+  return 'foundTabsWithSameUrl';
+}
+
 /**
  * Toast component for suggesting sync of same-URL tabs
  * Shows when auto-sync option is enabled and multiple tabs with same URL are detected
@@ -125,7 +137,7 @@ export function SyncSuggestionToast({
             <div className="flex-1 min-w-0 pointer-events-none">
               {/* Line 1: Title (no truncation) */}
               <h4 className="font-medium text-sm text-foreground">
-                {t('foundTabsWithSameUrl', String(suggestion.tabCount))}
+                {t(getSyncSuggestionTitleKey(suggestion), String(suggestion.tabCount))}
               </h4>
               {/* Line 2: Tab titles (no truncation) */}
               <p className="mt-1 text-xs text-muted-foreground">

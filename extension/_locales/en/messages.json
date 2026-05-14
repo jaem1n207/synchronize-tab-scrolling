@@ -502,6 +502,24 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "Found $COUNT$ tabs for the same translated page. Start sync?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "These $COUNT$ tabs may be translations of the same page. Start sync?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "New tab \"$TITLE$\" has same URL. Add to sync?",
     "placeholders": {
