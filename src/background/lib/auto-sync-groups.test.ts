@@ -38,7 +38,6 @@ interface AutoSyncGroup {
 
 const {
   sendMessageMock,
-  normalizeUrlForAutoSyncMock,
   isLocalDevelopmentServerMock,
   isUrlExcludedMock,
   isForbiddenUrlMock,
@@ -58,7 +57,6 @@ const {
   mockedMaxGroupSize,
 } = vi.hoisted(() => {
   const sendMessageMock = vi.fn();
-  const normalizeUrlForAutoSyncMock = vi.fn();
   const isLocalDevelopmentServerMock = vi.fn();
   const isUrlExcludedMock = vi.fn();
   const isForbiddenUrlMock = vi.fn();
@@ -85,7 +83,6 @@ const {
 
   return {
     sendMessageMock,
-    normalizeUrlForAutoSyncMock,
     isLocalDevelopmentServerMock,
     isUrlExcludedMock,
     isForbiddenUrlMock,
@@ -111,7 +108,6 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
-  normalizeUrlForAutoSync: normalizeUrlForAutoSyncMock,
   isLocalDevelopmentServer: isLocalDevelopmentServerMock,
   isUrlExcluded: isUrlExcludedMock,
 }));
@@ -162,7 +158,6 @@ describe('auto-sync-groups', () => {
     dismissedUrlGroups.clear();
     pendingSuggestions.clear();
 
-    normalizeUrlForAutoSyncMock.mockImplementation((url: string) => url);
     isForbiddenUrlMock.mockReturnValue(false);
     isLocalDevelopmentServerMock.mockReturnValue(false);
     isUrlExcludedMock.mockReturnValue(false);
@@ -439,8 +434,6 @@ describe('auto-sync-groups', () => {
     });
 
     it('groups path-locale translated pages by canonical page key', async () => {
-      normalizeUrlForAutoSyncMock.mockImplementation((url: string) => url.split('?')[0]);
-
       await updateAutoSyncGroup(1, 'https://example.com/en/docs/install');
       await updateAutoSyncGroup(2, 'https://example.com/tr/docs/install');
 
@@ -449,6 +442,26 @@ describe('auto-sync-groups', () => {
       expect(group?.matchKind).toBe('translated-page');
       expect(group?.matchConfidence).toBe('high');
       expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com/docs/install');
+    });
+
+    it('upgrades same-url group metadata when a localized page joins later', async () => {
+      await updateAutoSyncGroup(1, 'https://example.com/docs/install');
+      await updateAutoSyncGroup(2, 'https://example.com/en/docs/install');
+
+      const group = autoSyncState.groups.get('https://example.com/docs/install');
+      expect(group?.tabIds).toEqual(new Set([1, 2]));
+      expect(group?.matchKind).toBe('translated-page');
+      expect(group?.matchConfidence).toBe('high');
+    });
+
+    it('keeps translated metadata when canonical no-locale page joins later', async () => {
+      await updateAutoSyncGroup(1, 'https://example.com/en/docs/install');
+      await updateAutoSyncGroup(2, 'https://example.com/docs/install');
+
+      const group = autoSyncState.groups.get('https://example.com/docs/install');
+      expect(group?.tabIds).toEqual(new Set([1, 2]));
+      expect(group?.matchKind).toBe('translated-page');
+      expect(group?.matchConfidence).toBe('high');
     });
 
     it('keeps identity query values separate for query-locale pages', async () => {

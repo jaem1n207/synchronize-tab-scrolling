@@ -200,6 +200,14 @@ async function updateAutoSyncGroupInternal(
     logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
   }
 
+  if (
+    translatedSignature?.matchKind === 'translated-page' &&
+    group.matchKind !== 'translated-page'
+  ) {
+    group.matchKind = translatedSignature.matchKind;
+    group.matchConfidence = translatedSignature.confidence;
+  }
+
   if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(tabId)) {
     logger.warn('[AUTO-SYNC] Group size limit reached, tab not added', {
       normalizedUrl,
