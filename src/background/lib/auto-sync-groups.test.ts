@@ -43,6 +43,10 @@ interface AutoSyncGroup {
   tabUrls?: Map<number, string>;
 }
 
+interface DelayedMetadataProbe {
+  resolve?: (response: { success: false }) => void;
+}
+
 const {
   sendMessageMock,
   isLocalDevelopmentServerMock,
@@ -175,6 +179,33 @@ vi.mock('./messaging', () => ({
 
 function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSyncGroup {
   return { tabIds: new Set(tabIds), isActive };
+}
+
+async function flushMicrotasks(count: number = 5): Promise<void> {
+  for (let index = 0; index < count; index += 1) {
+    await Promise.resolve();
+  }
+}
+
+function installQueuedAutoSyncLock(): void {
+  let lockTail = Promise.resolve();
+
+  withAutoSyncLockMock.mockImplementation(async (fn: () => unknown) => {
+    const previousLock = lockTail;
+    let releaseLock = (): void => {};
+
+    lockTail = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    await previousLock;
+
+    try {
+      return await fn();
+    } finally {
+      releaseLock();
+    }
+  });
 }
 
 describe('auto-sync-groups', () => {
@@ -1010,7 +1041,7 @@ describe('auto-sync-groups', () => {
   });
 
   describe('refreshTranslatedPageCandidateGroups', () => {
-    it('injects singleton tabs and merges translated slug candidates without showing suggestions', async () => {
+    it('merges translated slug candidates without injecting responsive singleton tabs', async () => {
       autoSyncState.groups.set('https://example.com/getting-started', {
         ...createGroup([1], false),
         tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
@@ -1060,14 +1091,7 @@ describe('auto-sync-groups', () => {
 
       await refreshTranslatedPageCandidateGroups();
 
-      expect(mockedBrowser.scripting.executeScript).toHaveBeenCalledWith({
-        target: { tabId: 2 },
-        files: ['dist/contentScripts/index.global.js'],
-      });
-      expect(mockedBrowser.scripting.executeScript).toHaveBeenCalledWith({
-        target: { tabId: 1 },
-        files: ['dist/contentScripts/index.global.js'],
-      });
+      expect(mockedBrowser.scripting.executeScript).not.toHaveBeenCalled();
       expect(autoSyncState.groups.get('https://example.com/getting-started')).toMatchObject({
         tabIds: new Set([1, 2]),
         matchKind: 'possible-translation',
@@ -1081,6 +1105,53 @@ describe('auto-sync-groups', () => {
       );
       expect(autoSyncState.groups.has('https://example.com/baslangic')).toBe(false);
       expect(showSyncSuggestion).not.toHaveBeenCalled();
+    });
+
+    it('does not hold the auto-sync lock while waiting on metadata probes', async () => {
+      mockedSendMessageWithTimeout.mockReset();
+
+      const delayedMetadataProbe: DelayedMetadataProbe = {};
+      const metadataProbeStarted = new Promise<void>((resolve) => {
+        mockedSendMessageWithTimeout
+          .mockImplementationOnce(async () => {
+            resolve();
+            return new Promise<{ success: false }>((metadataResolve) => {
+              delayedMetadataProbe.resolve = metadataResolve;
+            });
+          })
+          .mockResolvedValue({ success: false });
+      });
+
+      installQueuedAutoSyncLock();
+      autoSyncState.groups.set('https://example.com/getting-started', {
+        ...createGroup([1], false),
+        tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
+      });
+      autoSyncState.groups.set('https://example.com/baslangic', {
+        ...createGroup([2], false),
+        tabUrls: new Map([[2, 'https://example.com/tr/baslangic']]),
+      });
+
+      const refreshPromise = refreshTranslatedPageCandidateGroups();
+      await metadataProbeStarted;
+
+      let updateSettled = false;
+      const updatePromise = updateAutoSyncGroup(99, 'https://other.example/docs', true, true).then(
+        () => {
+          updateSettled = true;
+        },
+      );
+
+      await flushMicrotasks();
+
+      expect(updateSettled).toBe(true);
+      expect(autoSyncState.groups.has('https://other.example/docs')).toBe(true);
+
+      expect(delayedMetadataProbe.resolve).toBeDefined();
+      delayedMetadataProbe.resolve?.({ success: false });
+
+      await updatePromise;
+      await refreshPromise;
     });
   });
 

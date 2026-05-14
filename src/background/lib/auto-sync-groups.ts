@@ -43,6 +43,22 @@ interface GroupMetadata {
   matchConfidence: TranslatedPageConfidence;
 }
 
+interface SingletonGroupSnapshot {
+  groupKey: string;
+  tabId: number;
+  url: string | null;
+  matchKind?: AutoSyncSuggestionMatchKind;
+  matchConfidence?: TranslatedPageConfidence;
+}
+
+interface ResolvedSingletonGroupSnapshot extends SingletonGroupSnapshot {
+  url: string;
+}
+
+type MetadataProbeResult =
+  | { responded: true; metadata: TranslatedPageMetadata | null }
+  | { responded: false };
+
 function getCurrentGroupMetadata(group: AutoSyncGroup): GroupMetadata | null {
   if (!group.tabUrls || group.tabUrls.size < group.tabIds.size) {
     return null;
@@ -110,7 +126,7 @@ function getAlternateUrls(value: unknown): TranslatedPageMetadata['alternateUrls
   });
 }
 
-async function getTabMetadata(tabId: number, url: string): Promise<TranslatedPageMetadata | null> {
+async function requestTabMetadata(tabId: number, url: string): Promise<MetadataProbeResult> {
   try {
     const response = await sendMessageWithTimeout(
       'translated-page:get-metadata',
@@ -120,18 +136,26 @@ async function getTabMetadata(tabId: number, url: string): Promise<TranslatedPag
     );
 
     if (!isRecord(response) || response.success !== true) {
-      return null;
+      return { responded: true, metadata: null };
     }
 
     return {
-      url,
-      title: getOptionalString(response.title),
-      canonicalUrl: getOptionalString(response.canonicalUrl),
-      alternateUrls: getAlternateUrls(response.alternateUrls),
+      responded: true,
+      metadata: {
+        url,
+        title: getOptionalString(response.title),
+        canonicalUrl: getOptionalString(response.canonicalUrl),
+        alternateUrls: getAlternateUrls(response.alternateUrls),
+      },
     };
   } catch {
-    return null;
+    return { responded: false };
   }
+}
+
+async function getTabMetadata(tabId: number, url: string): Promise<TranslatedPageMetadata | null> {
+  const result = await requestTabMetadata(tabId, url);
+  return result.responded ? result.metadata : null;
 }
 
 function getSingletonTabId(group: AutoSyncGroup): number | null {
@@ -180,12 +204,31 @@ async function ensureContentScriptInjectedForMetadata(
   }
 }
 
+function getMetadataCacheKey(tabId: number, url: string): string {
+  return `${tabId}\n${url}`;
+}
+
 async function getInjectedTabMetadata(
   tabId: number,
   url: string,
   injectedTabIds: Set<number>,
   failedInjectionTabIds: Set<number>,
+  metadataCache?: Map<string, TranslatedPageMetadata>,
 ): Promise<TranslatedPageMetadata | null> {
+  const cacheKey = getMetadataCacheKey(tabId, url);
+  const cachedMetadata = metadataCache?.get(cacheKey);
+  if (cachedMetadata) {
+    return cachedMetadata;
+  }
+
+  const initialProbe = await requestTabMetadata(tabId, url);
+  if (initialProbe.responded) {
+    if (initialProbe.metadata) {
+      metadataCache?.set(cacheKey, initialProbe.metadata);
+    }
+    return initialProbe.metadata;
+  }
+
   const injected = await ensureContentScriptInjectedForMetadata(
     tabId,
     injectedTabIds,
@@ -196,7 +239,13 @@ async function getInjectedTabMetadata(
     return null;
   }
 
-  return getTabMetadata(tabId, url);
+  await waitForContentScriptSettle();
+
+  const metadata = await getTabMetadata(tabId, url);
+  if (metadata) {
+    metadataCache?.set(cacheKey, metadata);
+  }
+  return metadata;
 }
 
 function recomputeAutoSyncGroupMetadata(group: AutoSyncGroup): boolean {
@@ -232,96 +281,166 @@ export function refreshAutoSyncGroupMetadata(
 }
 
 export async function refreshTranslatedPageCandidateGroups(): Promise<void> {
-  await withAutoSyncLock(refreshTranslatedPageCandidateGroupsInternal);
+  const snapshots = await withAutoSyncLock(snapshotTranslatedPageCandidateGroups);
+  await refreshTranslatedPageCandidateGroupsFromSnapshots(snapshots);
 }
 
-async function refreshTranslatedPageCandidateGroupsInternal(): Promise<void> {
+async function snapshotTranslatedPageCandidateGroups(): Promise<Array<SingletonGroupSnapshot>> {
   if (!autoSyncState.enabled || autoSyncState.groups.size < 2) {
-    return;
+    return [];
   }
 
-  const sourceEntries = Array.from(autoSyncState.groups.entries())
+  return Array.from(autoSyncState.groups.entries())
     .filter(([, group]) => !group.isActive && getSingletonTabId(group) !== null)
     .slice(0, MAX_TRANSLATED_PAGE_INIT_REPROBE_GROUPS)
-    .reverse();
-
-  if (sourceEntries.length < 2) {
-    return;
-  }
-
-  const injectedTabIds = new Set<number>();
-  const failedInjectionTabIds = new Set<number>();
-
-  await Promise.all(
-    sourceEntries.map(async ([, group]) => {
+    .reverse()
+    .flatMap(([groupKey, group]) => {
       const tabId = getSingletonTabId(group);
+
       if (tabId === null) {
-        return;
+        return [];
       }
 
-      await ensureContentScriptInjectedForMetadata(tabId, injectedTabIds, failedInjectionTabIds);
+      return {
+        groupKey,
+        tabId,
+        url: group.tabUrls?.get(tabId) ?? null,
+        matchKind: group.matchKind,
+        matchConfidence: group.matchConfidence,
+      };
+    });
+}
+
+async function resolveSingletonSnapshots(
+  snapshots: Array<SingletonGroupSnapshot>,
+): Promise<Array<ResolvedSingletonGroupSnapshot>> {
+  const resolvedSnapshots = await Promise.all(
+    snapshots.map(async (snapshot) => {
+      const url = snapshot.url ?? (await getTabUrl(snapshot.tabId));
+      return url ? { ...snapshot, url } : null;
     }),
   );
 
-  if (injectedTabIds.size > 0) {
-    await waitForContentScriptSettle();
+  return resolvedSnapshots.filter(
+    (snapshot): snapshot is ResolvedSingletonGroupSnapshot => snapshot !== null,
+  );
+}
+
+function buildSnapshotGroup(snapshot: ResolvedSingletonGroupSnapshot): AutoSyncGroup {
+  return {
+    tabIds: new Set([snapshot.tabId]),
+    isActive: false,
+    matchKind: snapshot.matchKind,
+    matchConfidence: snapshot.matchConfidence,
+    tabUrls: new Map([[snapshot.tabId, snapshot.url]]),
+  };
+}
+
+function groupUrlStillMatches(group: AutoSyncGroup, tabId: number, expectedUrl: string): boolean {
+  const storedUrl = group.tabUrls?.get(tabId);
+  return storedUrl === undefined || storedUrl === expectedUrl;
+}
+
+async function refreshTranslatedPageCandidateGroupsFromSnapshots(
+  snapshots: Array<SingletonGroupSnapshot>,
+): Promise<void> {
+  const resolvedSnapshots = await resolveSingletonSnapshots(snapshots);
+
+  if (resolvedSnapshots.length < 2) {
+    return;
   }
+
+  const snapshotByGroupKey = new Map(
+    resolvedSnapshots.map((snapshot) => [snapshot.groupKey, snapshot]),
+  );
+  const snapshotByTabId = new Map(resolvedSnapshots.map((snapshot) => [snapshot.tabId, snapshot]));
+  const probeGroups = new Map(
+    resolvedSnapshots.map((snapshot) => [snapshot.groupKey, buildSnapshotGroup(snapshot)]),
+  );
+  const injectedTabIds = new Set<number>();
+  const failedInjectionTabIds = new Set<number>();
+  const metadataCache = new Map<string, TranslatedPageMetadata>();
 
   let didMergeCandidate = false;
 
-  for (const [sourceGroupKey] of sourceEntries) {
-    const sourceGroup = autoSyncState.groups.get(sourceGroupKey);
-    if (!sourceGroup || sourceGroup.isActive) {
-      continue;
-    }
-
-    const sourceTabId = getSingletonTabId(sourceGroup);
-    if (sourceTabId === null) {
-      continue;
-    }
-
-    const sourceUrl = sourceGroup.tabUrls?.get(sourceTabId) ?? (await getTabUrl(sourceTabId));
-    if (!sourceUrl) {
-      continue;
-    }
-
+  for (const sourceSnapshot of resolvedSnapshots) {
     const candidate = await findTranslatedPageCandidateGroup({
-      tabId: sourceTabId,
-      url: sourceUrl,
-      groups: autoSyncState.groups,
+      tabId: sourceSnapshot.tabId,
+      url: sourceSnapshot.url,
+      groups: probeGroups,
       maxGroupSize: MAX_AUTO_SYNC_GROUP_SIZE,
-      getTabUrl,
+      getTabUrl: async (tabId) => snapshotByTabId.get(tabId)?.url ?? (await getTabUrl(tabId)),
       getMetadata: (metadataTabId, metadataUrl) =>
-        getInjectedTabMetadata(metadataTabId, metadataUrl, injectedTabIds, failedInjectionTabIds),
+        getInjectedTabMetadata(
+          metadataTabId,
+          metadataUrl,
+          injectedTabIds,
+          failedInjectionTabIds,
+          metadataCache,
+        ),
     });
 
-    if (!candidate || candidate.normalizedUrl === sourceGroupKey) {
+    if (!candidate || candidate.normalizedUrl === sourceSnapshot.groupKey) {
       continue;
     }
 
-    const targetGroup = autoSyncState.groups.get(candidate.normalizedUrl);
-    if (
-      !targetGroup ||
-      targetGroup.isActive ||
-      targetGroup.tabIds.has(sourceTabId) ||
-      targetGroup.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE
-    ) {
+    const targetSnapshot = snapshotByGroupKey.get(candidate.normalizedUrl);
+    if (!targetSnapshot) {
       continue;
     }
 
-    removeTabFromAutoSyncGroup(sourceGroupKey, sourceTabId);
+    const [latestSourceUrl, latestTargetUrl] = await Promise.all([
+      getTabUrl(sourceSnapshot.tabId),
+      getTabUrl(targetSnapshot.tabId),
+    ]);
 
-    targetGroup.tabIds.add(sourceTabId);
-    targetGroup.tabUrls ??= new Map();
-    targetGroup.tabUrls.set(sourceTabId, sourceUrl);
-    targetGroup.matchKind = candidate.matchKind;
-    targetGroup.matchConfidence = candidate.matchConfidence;
-    recomputeAutoSyncGroupMetadata(targetGroup);
+    if (latestSourceUrl !== sourceSnapshot.url || latestTargetUrl !== targetSnapshot.url) {
+      continue;
+    }
+
+    const didMerge = await withAutoSyncLock(async () => {
+      if (!autoSyncState.enabled) {
+        return false;
+      }
+
+      const sourceGroup = autoSyncState.groups.get(sourceSnapshot.groupKey);
+      const targetGroup = autoSyncState.groups.get(candidate.normalizedUrl);
+
+      if (
+        !sourceGroup ||
+        !targetGroup ||
+        sourceGroup.isActive ||
+        targetGroup.isActive ||
+        getSingletonTabId(sourceGroup) !== sourceSnapshot.tabId ||
+        getSingletonTabId(targetGroup) !== targetSnapshot.tabId ||
+        targetGroup.tabIds.has(sourceSnapshot.tabId) ||
+        targetGroup.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE ||
+        !groupUrlStillMatches(sourceGroup, sourceSnapshot.tabId, sourceSnapshot.url) ||
+        !groupUrlStillMatches(targetGroup, targetSnapshot.tabId, targetSnapshot.url)
+      ) {
+        return false;
+      }
+
+      removeTabFromAutoSyncGroup(sourceSnapshot.groupKey, sourceSnapshot.tabId);
+
+      targetGroup.tabIds.add(sourceSnapshot.tabId);
+      targetGroup.tabUrls ??= new Map();
+      targetGroup.tabUrls.set(sourceSnapshot.tabId, sourceSnapshot.url);
+      targetGroup.matchKind = candidate.matchKind;
+      targetGroup.matchConfidence = candidate.matchConfidence;
+      recomputeAutoSyncGroupMetadata(targetGroup);
+
+      return true;
+    });
+
+    if (!didMerge) {
+      continue;
+    }
 
     didMergeCandidate = true;
     logger.info('[AUTO-SYNC] Refreshed translated page candidate group', {
-      tabId: sourceTabId,
-      sourceGroupKey,
+      tabId: sourceSnapshot.tabId,
+      sourceGroupKey: sourceSnapshot.groupKey,
       targetGroupKey: candidate.normalizedUrl,
       matchKind: candidate.matchKind,
       matchConfidence: candidate.matchConfidence,
