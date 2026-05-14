@@ -3,6 +3,12 @@
  * Implements P0 requirement: Basic Scroll Synchronization
  */
 
+import type {
+  AutoSyncSuggestionMatchKind,
+  TranslatedPageConfidence,
+  TranslatedPageMetadata,
+} from '~/shared/lib/translated-page-url-utils';
+
 /**
  * Scroll sync mode types
  * - ratio: Proportional positioning based on document height ratios (P0)
@@ -157,6 +163,8 @@ export interface AutoSyncGroupInfo {
   normalizedUrl: string;
   tabIds: Array<number>;
   isActive: boolean;
+  matchKind?: AutoSyncSuggestionMatchKind;
+  matchConfidence?: TranslatedPageConfidence;
 }
 
 /**
@@ -201,10 +209,20 @@ export interface SyncSuggestionMessage {
   tabCount: number;
   tabIds: Array<number>;
   tabTitles: Array<string>;
+  matchKind?: AutoSyncSuggestionMatchKind;
+  matchConfidence?: TranslatedPageConfidence;
   /** When true, another sync session is already active. Accepting this suggestion will replace it. */
   hasExistingSync?: boolean;
   /** Number of tabs in the currently active sync session (present only when hasExistingSync is true) */
   existingSyncTabCount?: number;
+}
+
+export interface TranslatedPageMetadataRequestMessage {
+  tabId: number;
+}
+
+export interface TranslatedPageMetadataResponseMessage extends TranslatedPageMetadata {
+  success: boolean;
 }
 
 /**
@@ -227,6 +245,8 @@ export interface AddTabToSyncMessage {
   tabTitle: string;
   hasManualOffsets: boolean;
   normalizedUrl: string;
+  matchKind?: AutoSyncSuggestionMatchKind;
+  matchConfidence?: TranslatedPageConfidence;
 }
 
 /**
@@ -289,6 +309,7 @@ export interface ProtocolMap {
   'auto-sync:get-status': AutoSyncStatusResponse;
   'sync-suggestion:show': SyncSuggestionMessage;
   'sync-suggestion:response': SyncSuggestionResponseMessage;
+  'translated-page:get-metadata': TranslatedPageMetadataRequestMessage;
   'sync-suggestion:add-tab': AddTabToSyncMessage;
   'sync-suggestion:add-tab-response': AddTabToSyncResponseMessage;
   'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;

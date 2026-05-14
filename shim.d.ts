@@ -19,6 +19,8 @@ import type {
   SyncStatusBroadcastMessage,
   SyncSuggestionMessage,
   SyncSuggestionResponseMessage,
+  TranslatedPageMetadataRequestMessage,
+  TranslatedPageMetadataResponseMessage,
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
 } from '~/shared/types/messages';
@@ -50,6 +52,10 @@ declare module 'webext-bridge' {
     'auto-sync:get-status': ProtocolWithReturn<Record<string, never>, unknown>;
     'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, unknown>;
     'sync-suggestion:response': ProtocolWithReturn<SyncSuggestionResponseMessage, unknown>;
+    'translated-page:get-metadata': ProtocolWithReturn<
+      TranslatedPageMetadataRequestMessage,
+      TranslatedPageMetadataResponseMessage
+    >;
     'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, unknown>;
     'sync-suggestion:add-tab-response': ProtocolWithReturn<AddTabToSyncResponseMessage, unknown>;
     'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
