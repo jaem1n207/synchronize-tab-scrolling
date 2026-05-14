@@ -502,6 +502,24 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "同じ翻訳ページのタブが$COUNT$個見つかりました。同期を開始しますか？",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "これら$COUNT$個のタブは同じページの翻訳かもしれません。同期を開始しますか？",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "新しいタブ「$TITLE$」が同じURLです。同期に追加しますか？",
     "placeholders": {
