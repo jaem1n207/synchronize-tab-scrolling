@@ -150,4 +150,20 @@ describe('applyLocalePreservingSync', () => {
     const result = applyLocalePreservingSync('invalid-url', 'https://example.com/en-US/docs');
     expect(result).toBe('invalid-url');
   });
+
+  it('should preserve target query locale through translated page sync', () => {
+    const result = applyLocalePreservingSync(
+      'https://example.com/docs/install?page=config&lang=en',
+      'https://example.com/docs/current?page=setup&lang=tr#section',
+    );
+    expect(result).toBe('https://example.com/docs/install?page=config&lang=tr#section');
+  });
+
+  it('should preserve target subdomain locale through translated page sync', () => {
+    const result = applyLocalePreservingSync(
+      'https://en.example.com/docs/install',
+      'https://tr.example.com/docs/current#section',
+    );
+    expect(result).toBe('https://tr.example.com/docs/install#section');
+  });
 });
