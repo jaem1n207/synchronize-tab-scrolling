@@ -15,6 +15,7 @@ const {
   clearAllSnoozesMock,
   saveAutoSyncEnabledMock,
   updateAutoSyncGroupMock,
+  refreshTranslatedPageCandidateGroupsMock,
   stopAutoSyncForGroupMock,
   broadcastAutoSyncGroupUpdateMock,
   removeTabFromAutoSyncGroupMock,
@@ -38,6 +39,7 @@ const {
   clearAllSnoozesMock: vi.fn(),
   saveAutoSyncEnabledMock: vi.fn(),
   updateAutoSyncGroupMock: vi.fn(),
+  refreshTranslatedPageCandidateGroupsMock: vi.fn(),
   stopAutoSyncForGroupMock: vi.fn(),
   broadcastAutoSyncGroupUpdateMock: vi.fn(),
   removeTabFromAutoSyncGroupMock: vi.fn(),
@@ -93,6 +95,7 @@ vi.mock('~/shared/lib/storage', () => ({
 
 vi.mock('./auto-sync-groups', () => ({
   updateAutoSyncGroup: updateAutoSyncGroupMock,
+  refreshTranslatedPageCandidateGroups: refreshTranslatedPageCandidateGroupsMock,
   stopAutoSyncForGroup: stopAutoSyncForGroupMock,
   broadcastAutoSyncGroupUpdate: broadcastAutoSyncGroupUpdateMock,
   removeTabFromAutoSyncGroup: removeTabFromAutoSyncGroupMock,
@@ -160,6 +163,7 @@ describe('auto-sync-lifecycle', () => {
 
     executeScriptMock.mockResolvedValue(undefined);
     broadcastAutoSyncGroupUpdateMock.mockResolvedValue(undefined);
+    refreshTranslatedPageCandidateGroupsMock.mockResolvedValue(undefined);
     showSyncSuggestionMock.mockResolvedValue(undefined);
     stopAutoSyncForGroupMock.mockResolvedValue(undefined);
     sendMessageMock.mockResolvedValue(undefined);
@@ -493,6 +497,48 @@ describe('auto-sync-lifecycle', () => {
       await promise;
 
       expect(showSyncSuggestionMock).not.toHaveBeenCalled();
+    });
+
+    it('refreshes translated singleton candidates before showing initialization suggestions', async () => {
+      tabsQueryMock.mockResolvedValue([
+        { id: 1, url: 'https://example.com/en/getting-started' },
+        { id: 2, url: 'https://example.com/tr/baslangic' },
+      ]);
+      refreshTranslatedPageCandidateGroupsMock.mockImplementationOnce(async () => {
+        autoSyncStateMock.groups.delete('https://example.com/tr/baslangic');
+        autoSyncStateMock.groups.set('https://example.com/en/getting-started', {
+          tabIds: new Set([1, 2]),
+          isActive: false,
+          matchKind: 'possible-translation',
+          matchConfidence: 'medium',
+          tabUrls: new Map([
+            [1, 'https://example.com/en/getting-started'],
+            [2, 'https://example.com/tr/baslangic'],
+          ]),
+        });
+      });
+
+      const promise = initializeAutoSync(true);
+      await flushAllTimers();
+      await promise;
+
+      expect(updateAutoSyncGroupMock).toHaveBeenCalledWith(
+        1,
+        'https://example.com/en/getting-started',
+        true,
+        true,
+      );
+      expect(updateAutoSyncGroupMock).toHaveBeenCalledWith(
+        2,
+        'https://example.com/tr/baslangic',
+        true,
+        true,
+      );
+      expect(refreshTranslatedPageCandidateGroupsMock).toHaveBeenCalledTimes(1);
+      expect(showSyncSuggestionMock).toHaveBeenCalledWith('https://example.com/en/getting-started');
+      expect(showSyncSuggestionMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+        refreshTranslatedPageCandidateGroupsMock.mock.invocationCallOrder[0] ?? 0,
+      );
     });
 
     it('broadcasts group updates after initialization completes', async () => {

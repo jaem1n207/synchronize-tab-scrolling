@@ -13,6 +13,7 @@ import {
 
 import {
   updateAutoSyncGroup,
+  refreshTranslatedPageCandidateGroups,
   stopAutoSyncForGroup,
   broadcastAutoSyncGroupUpdate,
   removeTabFromAutoSyncGroup,
@@ -144,6 +145,7 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100));
+    await refreshTranslatedPageCandidateGroups();
 
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
       if (group.tabIds.size >= 2 && !group.isActive) {
