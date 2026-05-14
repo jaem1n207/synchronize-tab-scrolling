@@ -359,6 +359,7 @@ async function updateAutoSyncGroupInternal(
       tabId,
       url,
       groups: autoSyncState.groups,
+      maxGroupSize: MAX_AUTO_SYNC_GROUP_SIZE,
       getTabUrl,
       getMetadata: getTabMetadata,
     });
