@@ -92,7 +92,7 @@ describe('CommandItem', () => {
     });
     expect(firstOption.querySelector(INDICATOR_SELECTOR)).toBeNull();
     expect(secondOption.querySelector(INDICATOR_SELECTOR)?.getAttribute('data-motion-mode')).toBe(
-      'instant',
+      'animated',
     );
     expect(getIndicatorCount()).toBe(1);
   });

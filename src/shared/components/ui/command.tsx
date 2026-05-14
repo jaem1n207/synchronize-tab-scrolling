@@ -12,11 +12,9 @@ import IconSearch from '~icons/lucide/search';
 
 const COMMAND_ITEM_INDICATOR_LAYOUT_ID = 'command-item-leading-indicator';
 
-type CommandIndicatorSource = 'pointer' | 'selected';
-
 interface CommandIndicatorContextValue {
   activeItemId: string | null;
-  activeItemSource: CommandIndicatorSource | null;
+  shouldAnimateActiveItem: boolean;
   setPointerItemId: React.Dispatch<React.SetStateAction<string | null>>;
   setPointerDisabledItemId: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedItemId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -43,25 +41,25 @@ function Command({ ref, className, ...props }: CommandProps) {
   const [pointerItemId, setPointerItemId] = React.useState<string | null>(null);
   const [pointerDisabledItemId, setPointerDisabledItemId] = React.useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = React.useState<string | null>(null);
+  const previousActiveItemId = React.useRef<string | null>(null);
   const activeItemId = pointerDisabledItemId ? null : (pointerItemId ?? selectedItemId);
-  const activeItemSource: CommandIndicatorSource | null = pointerDisabledItemId
-    ? null
-    : pointerItemId
-      ? 'pointer'
-      : selectedItemId
-        ? 'selected'
-        : null;
+  const shouldAnimateActiveItem =
+    previousActiveItemId.current !== null && previousActiveItemId.current !== activeItemId;
   const layoutGroupId = React.useId();
   const indicatorContext = React.useMemo(
     () => ({
       activeItemId,
-      activeItemSource,
+      shouldAnimateActiveItem,
       setPointerItemId,
       setPointerDisabledItemId,
       setSelectedItemId,
     }),
-    [activeItemId, activeItemSource],
+    [activeItemId, shouldAnimateActiveItem],
   );
+
+  React.useLayoutEffect(() => {
+    previousActiveItemId.current = activeItemId;
+  }, [activeItemId]);
 
   return (
     <CommandIndicatorContext.Provider value={indicatorContext}>
@@ -313,8 +311,7 @@ function CommandItem({
   );
 
   const isIndicatorActive = indicatorContext?.activeItemId === itemId && !isItemDisabled();
-  const indicatorMotionMode =
-    indicatorContext?.activeItemSource === 'pointer' ? 'animated' : 'instant';
+  const indicatorMotionMode = indicatorContext?.shouldAnimateActiveItem ? 'animated' : 'instant';
   const indicatorTransition =
     indicatorMotionMode === 'animated' ? getMotionSpringTransition() : { duration: 0 };
 
