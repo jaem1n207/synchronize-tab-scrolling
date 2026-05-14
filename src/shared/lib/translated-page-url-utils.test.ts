@@ -18,6 +18,26 @@ describe('buildTranslatedPageSignature', () => {
     );
   });
 
+  it('keeps www and apex hosts separate for same-url keys', () => {
+    expect(getAutoSyncPageKey('https://www.example.com/docs')).toBe('https://www.example.com/docs');
+    expect(getAutoSyncPageKey('https://example.com/docs')).toBe('https://example.com/docs');
+    expect(getAutoSyncPageKey('https://www.example.com/docs')).not.toBe(
+      getAutoSyncPageKey('https://example.com/docs'),
+    );
+  });
+
+  it('preserves host identity when canonicalizing path locale variants', () => {
+    expect(getAutoSyncPageKey('https://www.example.com/en/docs/install')).toBe(
+      'https://www.example.com/docs/install',
+    );
+    expect(getAutoSyncPageKey('https://www.example.com/tr/docs/install')).toBe(
+      'https://www.example.com/docs/install',
+    );
+    expect(getAutoSyncPageKey('https://www.example.com/en/docs/install')).not.toBe(
+      getAutoSyncPageKey('https://example.com/en/docs/install'),
+    );
+  });
+
   it('builds the same canonical key for query locale variants while preserving identity query', () => {
     expect(getAutoSyncPageKey('https://example.com/docs/install?lang=en&page=setup')).toBe(
       'https://example.com/docs/install?page=setup',
@@ -39,6 +59,18 @@ describe('buildTranslatedPageSignature', () => {
     );
     expect(getAutoSyncPageKey('https://tr.example.com/docs/install')).toBe(
       'https://example.com/docs/install',
+    );
+  });
+
+  it('preserves www base host when matching subdomain locale variants', () => {
+    expect(getAutoSyncPageKey('https://en.www.example.com/docs/install')).toBe(
+      'https://www.example.com/docs/install',
+    );
+    expect(getAutoSyncPageKey('https://tr.www.example.com/docs/install')).toBe(
+      'https://www.example.com/docs/install',
+    );
+    expect(getAutoSyncPageKey('https://en.www.example.com/docs/install')).not.toBe(
+      getAutoSyncPageKey('https://en.example.com/docs/install'),
     );
   });
 

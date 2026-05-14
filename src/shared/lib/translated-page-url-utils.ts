@@ -68,12 +68,12 @@ function isLocaleValue(value: string): boolean {
   return BASE_LOCALE_CODES.has(normalizedValue) || REGIONAL_LOCALE_PATTERN.test(value);
 }
 
-function stripWww(hostname: string): string {
-  return hostname.toLowerCase().replace(/^www\./, '');
+function normalizeHostname(hostname: string): string {
+  return hostname.toLowerCase();
 }
 
 function getHostnameWithoutLocale(hostname: string, locale?: LocaleDescriptor): string {
-  const normalizedHostname = stripWww(hostname);
+  const normalizedHostname = normalizeHostname(hostname);
 
   if (locale?.source !== 'subdomain') {
     return normalizedHostname;
@@ -211,7 +211,7 @@ function getQueryLocale(searchParams: URLSearchParams): LocaleDescriptor | undef
 }
 
 function getSubdomainLocale(hostname: string): LocaleDescriptor | undefined {
-  const labels = stripWww(hostname).split('.');
+  const labels = normalizeHostname(hostname).split('.');
   const firstLabel = labels[0];
 
   if (labels.length < 3 || !isLocaleValue(firstLabel)) {
@@ -254,7 +254,7 @@ function buildMetadataUrlKey(url: string): string | null {
     return null;
   }
 
-  const hostname = stripWww(parsedUrl.hostname);
+  const hostname = normalizeHostname(parsedUrl.hostname);
   const host = getHostWithPort(hostname, parsedUrl.port);
   const query = stringifyQueryParams(getNonTrackingQueryParams(parsedUrl.searchParams));
   const search = query ? `?${query}` : '';

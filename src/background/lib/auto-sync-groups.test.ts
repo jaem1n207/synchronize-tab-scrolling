@@ -433,6 +433,17 @@ describe('auto-sync-groups', () => {
       expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com/');
     });
 
+    it('keeps www and apex ordinary pages in separate groups', async () => {
+      await updateAutoSyncGroup(1, 'https://www.example.com/docs');
+      await updateAutoSyncGroup(2, 'https://example.com/docs');
+
+      expect(autoSyncState.groups.get('https://www.example.com/docs')?.tabIds).toEqual(
+        new Set([1]),
+      );
+      expect(autoSyncState.groups.get('https://example.com/docs')?.tabIds).toEqual(new Set([2]));
+      expect(showSyncSuggestion).not.toHaveBeenCalled();
+    });
+
     it('groups path-locale translated pages by canonical page key', async () => {
       await updateAutoSyncGroup(1, 'https://example.com/en/docs/install');
       await updateAutoSyncGroup(2, 'https://example.com/tr/docs/install');
