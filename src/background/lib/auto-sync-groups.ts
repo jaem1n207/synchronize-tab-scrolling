@@ -1,11 +1,11 @@
 import { sendMessage } from 'webext-bridge/background';
 
-import {
-  isLocalDevelopmentServer,
-  isUrlExcluded,
-  normalizeUrlForAutoSync,
-} from '~/shared/lib/auto-sync-url-utils';
+import { isLocalDevelopmentServer, isUrlExcluded } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import {
+  buildTranslatedPageSignature,
+  getAutoSyncPageKey,
+} from '~/shared/lib/translated-page-url-utils';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
@@ -153,11 +153,13 @@ async function updateAutoSyncGroupInternal(
     return null;
   }
 
-  const normalizedUrl = normalizeUrlForAutoSync(url);
+  const normalizedUrl = getAutoSyncPageKey(url);
   if (!normalizedUrl) {
     logger.info('[AUTO-SYNC] URL normalization returned null, skipping');
     return null;
   }
+
+  const translatedSignature = buildTranslatedPageSignature(url);
 
   if (isForbiddenUrl(url)) {
     logger.debug(`[AUTO-SYNC] URL is forbidden, skipping auto-sync`, { url, tabId });
@@ -188,7 +190,12 @@ async function updateAutoSyncGroupInternal(
   let group = autoSyncState.groups.get(normalizedUrl);
   const isNewGroup = !group;
   if (!group) {
-    group = { tabIds: new Set(), isActive: false };
+    group = {
+      tabIds: new Set(),
+      isActive: false,
+      matchKind: translatedSignature?.matchKind,
+      matchConfidence: translatedSignature?.confidence,
+    };
     autoSyncState.groups.set(normalizedUrl, group);
     logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
   }
@@ -260,6 +267,8 @@ export async function broadcastAutoSyncGroupUpdate(): Promise<void> {
       normalizedUrl,
       tabIds: Array.from(group.tabIds),
       isActive: group.isActive,
+      matchKind: group.matchKind,
+      matchConfidence: group.matchConfidence,
     });
   }
 

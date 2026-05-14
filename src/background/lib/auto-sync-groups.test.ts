@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/background';
 
+import type {
+  AutoSyncSuggestionMatchKind,
+  TranslatedPageConfidence,
+} from '~/shared/lib/translated-page-url-utils';
+
 import {
   broadcastAutoSyncGroupUpdate,
   cancelAutoSyncRetry,
@@ -27,6 +32,8 @@ import {
 interface AutoSyncGroup {
   tabIds: Set<number>;
   isActive: boolean;
+  matchKind?: AutoSyncSuggestionMatchKind;
+  matchConfidence?: TranslatedPageConfidence;
 }
 
 const {
@@ -399,18 +406,18 @@ describe('auto-sync-groups', () => {
     it('creates a new group and adds tab', async () => {
       const result = await updateAutoSyncGroup(10, 'https://example.com');
 
-      expect(result).toBe('https://example.com');
-      expect(autoSyncState.groups.get('https://example.com')?.tabIds).toEqual(new Set([10]));
-      expect(autoSyncState.groups.get('https://example.com')?.isActive).toBe(false);
+      expect(result).toBe('https://example.com/');
+      expect(autoSyncState.groups.get('https://example.com/')?.tabIds).toEqual(new Set([10]));
+      expect(autoSyncState.groups.get('https://example.com/')?.isActive).toBe(false);
     });
 
     it('adds tab to an existing group', async () => {
-      autoSyncState.groups.set('https://example.com', createGroup([1], false));
+      autoSyncState.groups.set('https://example.com/', createGroup([1], false));
 
       const result = await updateAutoSyncGroup(2, 'https://example.com');
 
-      expect(result).toBe('https://example.com');
-      expect(autoSyncState.groups.get('https://example.com')?.tabIds).toEqual(new Set([1, 2]));
+      expect(result).toBe('https://example.com/');
+      expect(autoSyncState.groups.get('https://example.com/')?.tabIds).toEqual(new Set([1, 2]));
     });
 
     it('removes tab from old group when URL changes', async () => {
@@ -418,9 +425,9 @@ describe('auto-sync-groups', () => {
 
       const result = await updateAutoSyncGroup(1, 'https://new.com');
 
-      expect(result).toBe('https://new.com');
+      expect(result).toBe('https://new.com/');
       expect(autoSyncState.groups.get('https://old.com')?.tabIds).toEqual(new Set([2]));
-      expect(autoSyncState.groups.get('https://new.com')?.tabIds).toEqual(new Set([1]));
+      expect(autoSyncState.groups.get('https://new.com/')?.tabIds).toEqual(new Set([1]));
     });
 
     it('shows suggestion when group reaches 2+ tabs and group is inactive and not dismissed', async () => {
@@ -428,20 +435,56 @@ describe('auto-sync-groups', () => {
       await updateAutoSyncGroup(2, 'https://example.com');
 
       expect(showSyncSuggestion).toHaveBeenCalledTimes(1);
-      expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com');
+      expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com/');
+    });
+
+    it('groups path-locale translated pages by canonical page key', async () => {
+      normalizeUrlForAutoSyncMock.mockImplementation((url: string) => url.split('?')[0]);
+
+      await updateAutoSyncGroup(1, 'https://example.com/en/docs/install');
+      await updateAutoSyncGroup(2, 'https://example.com/tr/docs/install');
+
+      const group = autoSyncState.groups.get('https://example.com/docs/install');
+      expect(group?.tabIds).toEqual(new Set([1, 2]));
+      expect(group?.matchKind).toBe('translated-page');
+      expect(group?.matchConfidence).toBe('high');
+      expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com/docs/install');
+    });
+
+    it('keeps identity query values separate for query-locale pages', async () => {
+      await updateAutoSyncGroup(1, 'https://example.com/docs?lang=en&page=setup');
+      await updateAutoSyncGroup(2, 'https://example.com/docs?lang=tr&page=config');
+
+      expect(autoSyncState.groups.get('https://example.com/docs?page=setup')?.tabIds).toEqual(
+        new Set([1]),
+      );
+      expect(autoSyncState.groups.get('https://example.com/docs?page=config')?.tabIds).toEqual(
+        new Set([2]),
+      );
+      expect(showSyncSuggestion).not.toHaveBeenCalled();
+    });
+
+    it('groups subdomain-locale translated pages by canonical page key', async () => {
+      await updateAutoSyncGroup(1, 'https://en.example.com/docs/install');
+      await updateAutoSyncGroup(2, 'https://tr.example.com/docs/install');
+
+      expect(autoSyncState.groups.get('https://example.com/docs/install')?.tabIds).toEqual(
+        new Set([1, 2]),
+      );
+      expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com/docs/install');
     });
 
     it('sends suggestion to single tab when pending suggestion already exists', async () => {
-      autoSyncState.groups.set('https://example.com', createGroup([1], false));
-      pendingSuggestions.add('https://example.com');
+      autoSyncState.groups.set('https://example.com/', createGroup([1], false));
+      pendingSuggestions.add('https://example.com/');
 
       await updateAutoSyncGroup(2, 'https://example.com');
 
       expect(sendSuggestionToSingleTab).toHaveBeenCalledTimes(1);
       expect(sendSuggestionToSingleTab).toHaveBeenCalledWith(
         2,
-        'https://example.com',
-        autoSyncState.groups.get('https://example.com'),
+        'https://example.com/',
+        autoSyncState.groups.get('https://example.com/'),
       );
       expect(showSyncSuggestion).not.toHaveBeenCalled();
     });
@@ -482,12 +525,12 @@ describe('auto-sync-groups', () => {
         { length: MAX_AUTO_SYNC_GROUP_SIZE },
         (_, index) => index + 1,
       );
-      autoSyncState.groups.set('https://example.com', createGroup(fullGroupTabIds, false));
+      autoSyncState.groups.set('https://example.com/', createGroup(fullGroupTabIds, false));
 
       const result = await updateAutoSyncGroup(MAX_AUTO_SYNC_GROUP_SIZE + 1, 'https://example.com');
 
       expect(result).toBeNull();
-      expect(autoSyncState.groups.get('https://example.com')?.tabIds.size).toBe(
+      expect(autoSyncState.groups.get('https://example.com/')?.tabIds.size).toBe(
         MAX_AUTO_SYNC_GROUP_SIZE,
       );
     });
@@ -499,7 +542,15 @@ describe('auto-sync-groups', () => {
       expect(sendMessage).toHaveBeenCalledWith(
         'auto-sync:group-updated',
         {
-          groups: [{ normalizedUrl: 'https://example.com', tabIds: [1], isActive: false }],
+          groups: [
+            {
+              normalizedUrl: 'https://example.com/',
+              tabIds: [1],
+              isActive: false,
+              matchKind: 'same-url',
+              matchConfidence: 'low',
+            },
+          ],
         },
         { context: 'content-script', tabId: 1 },
       );
@@ -512,12 +563,10 @@ describe('auto-sync-groups', () => {
     });
 
     it('returns normalized URL on success', async () => {
-      normalizeUrlForAutoSyncMock.mockReturnValue('https://example.com/normalized');
-
       const result = await updateAutoSyncGroup(1, 'https://example.com/path?a=1');
 
-      expect(result).toBe('https://example.com/normalized');
-      expect(autoSyncState.groups.has('https://example.com/normalized')).toBe(true);
+      expect(result).toBe('https://example.com/path');
+      expect(autoSyncState.groups.has('https://example.com/path')).toBe(true);
     });
   });
 
@@ -533,8 +582,20 @@ describe('auto-sync-groups', () => {
         'auto-sync:group-updated',
         {
           groups: [
-            { normalizedUrl: 'https://example.com/a', tabIds: [1, 2], isActive: false },
-            { normalizedUrl: 'https://example.com/b', tabIds: [2, 3], isActive: true },
+            {
+              normalizedUrl: 'https://example.com/a',
+              tabIds: [1, 2],
+              isActive: false,
+              matchKind: undefined,
+              matchConfidence: undefined,
+            },
+            {
+              normalizedUrl: 'https://example.com/b',
+              tabIds: [2, 3],
+              isActive: true,
+              matchKind: undefined,
+              matchConfidence: undefined,
+            },
           ],
         },
         { context: 'content-script', tabId: 1 },
@@ -543,8 +604,20 @@ describe('auto-sync-groups', () => {
         'auto-sync:group-updated',
         {
           groups: [
-            { normalizedUrl: 'https://example.com/a', tabIds: [1, 2], isActive: false },
-            { normalizedUrl: 'https://example.com/b', tabIds: [2, 3], isActive: true },
+            {
+              normalizedUrl: 'https://example.com/a',
+              tabIds: [1, 2],
+              isActive: false,
+              matchKind: undefined,
+              matchConfidence: undefined,
+            },
+            {
+              normalizedUrl: 'https://example.com/b',
+              tabIds: [2, 3],
+              isActive: true,
+              matchKind: undefined,
+              matchConfidence: undefined,
+            },
           ],
         },
         { context: 'content-script', tabId: 2 },
@@ -553,8 +626,20 @@ describe('auto-sync-groups', () => {
         'auto-sync:group-updated',
         {
           groups: [
-            { normalizedUrl: 'https://example.com/a', tabIds: [1, 2], isActive: false },
-            { normalizedUrl: 'https://example.com/b', tabIds: [2, 3], isActive: true },
+            {
+              normalizedUrl: 'https://example.com/a',
+              tabIds: [1, 2],
+              isActive: false,
+              matchKind: undefined,
+              matchConfidence: undefined,
+            },
+            {
+              normalizedUrl: 'https://example.com/b',
+              tabIds: [2, 3],
+              isActive: true,
+              matchKind: undefined,
+              matchConfidence: undefined,
+            },
           ],
         },
         { context: 'content-script', tabId: 3 },
@@ -585,7 +670,13 @@ describe('auto-sync-groups', () => {
       await broadcastAutoSyncGroupUpdate();
 
       const messagePayload = sendMessageMock.mock.calls[0]?.[1] as {
-        groups: Array<{ normalizedUrl: string; tabIds: Array<number>; isActive: boolean }>;
+        groups: Array<{
+          normalizedUrl: string;
+          tabIds: Array<number>;
+          isActive: boolean;
+          matchKind?: AutoSyncSuggestionMatchKind;
+          matchConfidence?: TranslatedPageConfidence;
+        }>;
       };
 
       expect(messagePayload.groups).toEqual([
@@ -593,6 +684,8 @@ describe('auto-sync-groups', () => {
           normalizedUrl: 'https://example.com',
           tabIds: [5, 6],
           isActive: true,
+          matchKind: undefined,
+          matchConfidence: undefined,
         },
       ]);
     });
