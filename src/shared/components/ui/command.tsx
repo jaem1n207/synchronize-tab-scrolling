@@ -5,11 +5,7 @@ import { Command as CommandPrimitive } from 'cmdk';
 import { LayoutGroup, motion } from 'motion/react';
 
 import { Dialog, DialogContent } from '~/shared/components/ui/dialog';
-import {
-  ANIMATION_DURATIONS,
-  EASING_FUNCTIONS,
-  getMotionTransition,
-} from '~/shared/lib/animations';
+import { getMotionSpringTransition } from '~/shared/lib/animations';
 import { cn } from '~/shared/lib/utils';
 
 import IconSearch from '~icons/lucide/search';
@@ -320,9 +316,7 @@ function CommandItem({
   const indicatorMotionMode =
     indicatorContext?.activeItemSource === 'pointer' ? 'animated' : 'instant';
   const indicatorTransition =
-    indicatorMotionMode === 'animated'
-      ? getMotionTransition(ANIMATION_DURATIONS.fast, EASING_FUNCTIONS.easeOutCubic)
-      : { duration: 0 };
+    indicatorMotionMode === 'animated' ? getMotionSpringTransition() : { duration: 0 };
 
   return (
     <CommandPrimitive.Item
