@@ -1,8 +1,10 @@
 /// <reference types="vitest/globals" />
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { Command, CommandItem, CommandList } from './command';
+
+const INDICATOR_SELECTOR = '[data-slot="command-item-leading-indicator"]';
 
 if (!globalThis.ResizeObserver) {
   vi.stubGlobal(
@@ -17,37 +19,109 @@ if (!globalThis.ResizeObserver) {
 
 Element.prototype.scrollIntoView = vi.fn();
 
+function getIndicatorCount() {
+  return document.querySelectorAll(INDICATOR_SELECTOR).length;
+}
+
 describe('CommandItem', () => {
-  it('uses a non-color leading indicator for hover and keyboard-active states', () => {
+  it('moves one shared leading indicator from the selected item to the hovered item', async () => {
     render(
       <Command>
         <CommandList>
-          <CommandItem>Open tab</CommandItem>
+          <CommandItem>Previous item</CommandItem>
+          <CommandItem>Next item</CommandItem>
         </CommandList>
       </Command>,
     );
 
-    const item = screen.getByRole('option', { name: 'Open tab' });
+    const previousItem = screen.getByRole('option', { name: 'Previous item' });
+    const nextItem = screen.getByRole('option', { name: 'Next item' });
 
-    expect(item.className).not.toContain('hover:bg-accent');
-    expect(item.className).not.toContain('hover:text-accent-foreground');
-    expect(item.className).toContain("data-[selected='true']:bg-accent");
-    expect(item.className).toContain('data-[selected=true]:text-accent-foreground');
-    expect(item.className).toContain("before:content-['']");
-    expect(item.className).toContain('before:absolute');
-    expect(item.className).toContain('before:left-0');
-    expect(item.className).toContain('before:top-1.5');
-    expect(item.className).toContain('before:bottom-1.5');
-    expect(item.className).toContain('before:w-1');
-    expect(item.className).toContain('before:rounded-r-sm');
-    expect(item.className).toContain('before:bg-foreground');
-    expect(item.className).toContain('before:opacity-0');
-    expect(item.className).toContain('before:transition-opacity');
-    expect(item.className).toContain('hover:before:opacity-100');
-    expect(item.className).toContain('data-[selected=true]:before:opacity-100');
-    expect(item.className).toContain('data-[disabled=true]:before:opacity-0');
-    expect(item.className).toContain('data-[disabled=true]:data-[selected=true]:before:opacity-0');
-    expect(item.className).toContain('data-[disabled=true]:pointer-events-none');
-    expect(item.className).toContain('data-[disabled=true]:opacity-50');
+    expect(previousItem.className).not.toContain('before:');
+    expect(nextItem.className).not.toContain('before:');
+
+    await waitFor(() => {
+      expect(previousItem.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
+    });
+    expect(getIndicatorCount()).toBe(1);
+
+    fireEvent.pointerEnter(nextItem);
+
+    await waitFor(() => {
+      expect(nextItem.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
+    });
+    expect(previousItem.querySelector(INDICATOR_SELECTOR)).toBeNull();
+    expect(getIndicatorCount()).toBe(1);
+    expect(nextItem.querySelector(INDICATOR_SELECTOR)?.getAttribute('data-layout-id')).toBe(
+      'command-item-leading-indicator',
+    );
+  });
+
+  it('moves the shared indicator when cmdk changes the selected item', async () => {
+    render(
+      <Command>
+        <CommandList>
+          <CommandItem>First option</CommandItem>
+          <CommandItem>Second option</CommandItem>
+        </CommandList>
+      </Command>,
+    );
+
+    const firstOption = screen.getByRole('option', { name: 'First option' });
+    const secondOption = screen.getByRole('option', { name: 'Second option' });
+
+    await waitFor(() => {
+      expect(firstOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
+    });
+    expect(getIndicatorCount()).toBe(1);
+
+    secondOption.setAttribute('data-selected', 'true');
+    firstOption.setAttribute('data-selected', 'false');
+
+    await waitFor(() => {
+      expect(secondOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
+    });
+    expect(firstOption.querySelector(INDICATOR_SELECTOR)).toBeNull();
+    expect(getIndicatorCount()).toBe(1);
+  });
+
+  it('removes the moving indicator when a disabled item becomes selected or hovered', async () => {
+    render(
+      <Command>
+        <CommandList>
+          <CommandItem>Enabled option</CommandItem>
+          <CommandItem disabled>Disabled option</CommandItem>
+        </CommandList>
+      </Command>,
+    );
+
+    const enabledOption = screen.getByRole('option', { name: 'Enabled option' });
+    const disabledOption = screen.getByRole('option', { name: 'Disabled option' });
+
+    fireEvent.pointerEnter(enabledOption);
+
+    await waitFor(() => {
+      expect(enabledOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
+    });
+    expect(getIndicatorCount()).toBe(1);
+
+    disabledOption.setAttribute('data-selected', 'true');
+    fireEvent.pointerEnter(disabledOption);
+
+    await waitFor(() => {
+      expect(getIndicatorCount()).toBe(0);
+    });
+    expect(enabledOption.querySelector(INDICATOR_SELECTOR)).toBeNull();
+    expect(disabledOption.querySelector(INDICATOR_SELECTOR)).toBeNull();
+    expect(disabledOption.className).toContain('data-[disabled=true]:cursor-not-allowed');
+    expect(disabledOption.className).toContain('data-[disabled=true]:opacity-50');
+
+    fireEvent.pointerEnter(enabledOption);
+
+    await waitFor(() => {
+      expect(enabledOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
+    });
+    expect(disabledOption.querySelector(INDICATOR_SELECTOR)).toBeNull();
+    expect(getIndicatorCount()).toBe(1);
   });
 });
