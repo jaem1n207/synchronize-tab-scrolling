@@ -502,6 +502,24 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "发现$COUNT$个同一翻译页面的标签页。开始同步吗？",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "这$COUNT$个标签页可能是同一页面的译文。开始同步吗？",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "新标签页\"$TITLE$\"具有相同的URL。添加到同步吗？",
     "placeholders": {
