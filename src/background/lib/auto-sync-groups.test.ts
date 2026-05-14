@@ -643,15 +643,18 @@ describe('auto-sync-groups', () => {
         ...createGroup([1], false),
         tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
       });
-      mockedBrowser.tabs.get.mockResolvedValueOnce({
-        id: 1,
-        url: 'https://example.com/en/getting-started',
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => ({
+        id: tabId,
+        url:
+          tabId === 2
+            ? 'https://example.com/tr/baslangic'
+            : 'https://example.com/en/getting-started',
         index: 0,
         highlighted: false,
         active: false,
         pinned: false,
         incognito: false,
-      });
+      }));
       mockedSendMessageWithTimeout
         .mockResolvedValueOnce({
           success: true,
@@ -685,6 +688,83 @@ describe('auto-sync-groups', () => {
         { context: 'content-script', tabId: 2 },
         500,
       );
+    });
+
+    it('does not hold the auto-sync lock while updateAutoSyncGroup waits on metadata probes', async () => {
+      mockedSendMessageWithTimeout.mockReset();
+
+      const delayedMetadataProbe: DelayedMetadataProbe = {};
+      const metadataProbeStarted = new Promise<void>((resolve) => {
+        mockedSendMessageWithTimeout
+          .mockImplementationOnce(async () => {
+            resolve();
+            return new Promise<{ success: false }>((metadataResolve) => {
+              delayedMetadataProbe.resolve = metadataResolve;
+            });
+          })
+          .mockResolvedValue({ success: false });
+      });
+
+      installQueuedAutoSyncLock();
+      autoSyncState.groups.set('https://example.com/getting-started', {
+        ...createGroup([1], false),
+        tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
+      });
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => ({
+        id: tabId,
+        url: tabId === 1 ? 'https://example.com/en/getting-started' : 'https://other.example/docs',
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      }));
+
+      const translatedUpdatePromise = updateAutoSyncGroup(2, 'https://example.com/tr/baslangic');
+      await metadataProbeStarted;
+
+      let unrelatedUpdateSettled = false;
+      const unrelatedUpdatePromise = updateAutoSyncGroup(
+        99,
+        'https://other.example/docs',
+        true,
+        true,
+      ).then(() => {
+        unrelatedUpdateSettled = true;
+      });
+
+      await flushMicrotasks(50);
+
+      expect(unrelatedUpdateSettled).toBe(true);
+      expect(autoSyncState.groups.has('https://other.example/docs')).toBe(true);
+
+      expect(delayedMetadataProbe.resolve).toBeDefined();
+      delayedMetadataProbe.resolve?.({ success: false });
+
+      await unrelatedUpdatePromise;
+      await translatedUpdatePromise;
+    });
+
+    it('keeps stale metadata response URLs out of medium-confidence update grouping', async () => {
+      const groupKey = 'https://example.com/getting-started';
+      autoSyncState.groups.set(groupKey, {
+        ...createGroup([1], false),
+        tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
+      });
+      mockedSendMessageWithTimeout.mockResolvedValue({
+        success: true,
+        url: 'https://example.com/tr/other-page',
+        alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
+      });
+
+      const result = await updateAutoSyncGroup(2, 'https://example.com/tr/baslangic');
+
+      expect(result).toBe('https://example.com/baslangic');
+      expect(autoSyncState.groups.get(groupKey)?.tabIds).toEqual(new Set([1]));
+      expect(autoSyncState.groups.get('https://example.com/baslangic')?.tabIds).toEqual(
+        new Set([2]),
+      );
+      expect(showSyncSuggestion).not.toHaveBeenCalled();
     });
 
     it('skips medium-confidence candidate lookup when start sync is skipped', async () => {
@@ -1107,6 +1187,86 @@ describe('auto-sync-groups', () => {
       expect(showSyncSuggestion).not.toHaveBeenCalled();
     });
 
+    it('merges three translated slug singleton groups into one medium-confidence group', async () => {
+      mockedBrowser.tabs.get.mockReset();
+      mockedSendMessageWithTimeout.mockReset();
+      withAutoSyncLockMock.mockImplementation((fn: () => Promise<unknown>) => fn());
+
+      const urls = new Map([
+        [1, 'https://example.com/en/getting-started'],
+        [2, 'https://example.com/tr/baslangic'],
+        [3, 'https://example.com/fr/demarrage'],
+      ]);
+      autoSyncState.groups.set('https://example.com/getting-started', {
+        ...createGroup([1], false),
+        tabUrls: new Map([[1, urls.get(1) ?? '']]),
+      });
+      autoSyncState.groups.set('https://example.com/baslangic', {
+        ...createGroup([2], false),
+        tabUrls: new Map([[2, urls.get(2) ?? '']]),
+      });
+      autoSyncState.groups.set('https://example.com/demarrage', {
+        ...createGroup([3], false),
+        tabUrls: new Map([[3, urls.get(3) ?? '']]),
+      });
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => ({
+        id: tabId,
+        url: urls.get(tabId),
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      }));
+      mockedSendMessageWithTimeout.mockImplementation(async (_type, payload) => {
+        if (
+          typeof payload !== 'object' ||
+          payload === null ||
+          Array.isArray(payload) ||
+          !('tabId' in payload) ||
+          typeof payload.tabId !== 'number'
+        ) {
+          return { success: false, url: '', alternateUrls: [] };
+        }
+
+        const url = urls.get(payload.tabId);
+        if (!url) {
+          return { success: false, url: '', alternateUrls: [] };
+        }
+
+        return {
+          success: true,
+          url,
+          alternateUrls:
+            payload.tabId === 1
+              ? [
+                  { hreflang: 'tr', href: urls.get(2) ?? '' },
+                  { hreflang: 'fr', href: urls.get(3) ?? '' },
+                ]
+              : [{ hreflang: 'en', href: urls.get(1) ?? '' }],
+        };
+      });
+
+      await refreshTranslatedPageCandidateGroups();
+
+      const group = autoSyncState.groups.get('https://example.com/getting-started');
+      expect(group).toMatchObject({
+        tabIds: new Set([1, 3, 2]),
+        matchKind: 'possible-translation',
+        matchConfidence: 'medium',
+      });
+      expect(group?.tabUrls).toEqual(
+        new Map([
+          [1, 'https://example.com/en/getting-started'],
+          [3, 'https://example.com/fr/demarrage'],
+          [2, 'https://example.com/tr/baslangic'],
+        ]),
+      );
+      expect(autoSyncState.groups.has('https://example.com/baslangic')).toBe(false);
+      expect(autoSyncState.groups.has('https://example.com/demarrage')).toBe(false);
+      expect(showSyncSuggestion).not.toHaveBeenCalled();
+    });
+
     it('does not hold the auto-sync lock while waiting on metadata probes', async () => {
       mockedSendMessageWithTimeout.mockReset();
 
@@ -1142,7 +1302,7 @@ describe('auto-sync-groups', () => {
         },
       );
 
-      await flushMicrotasks();
+      await flushMicrotasks(50);
 
       expect(updateSettled).toBe(true);
       expect(autoSyncState.groups.has('https://other.example/docs')).toBe(true);
