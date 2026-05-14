@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/background';
+import browser from 'webextension-polyfill';
 
 import type {
   AutoSyncSuggestionMatchKind,
@@ -30,6 +31,7 @@ import {
   sendSuggestionToSingleTab,
   showSyncSuggestion,
 } from './auto-sync-suggestions';
+import { sendMessageWithTimeout } from './messaging';
 
 interface AutoSyncGroup {
   tabIds: Set<number>;
@@ -49,6 +51,8 @@ const {
   isDomainSnoozedMock,
   withAutoSyncLockMock,
   isTabManuallyOverriddenMock,
+  sendMessageWithTimeoutMock,
+  tabsGetMock,
   loggerInfoMock,
   loggerDebugMock,
   loggerWarnMock,
@@ -68,6 +72,8 @@ const {
   const isDomainSnoozedMock = vi.fn().mockReturnValue(false);
   const withAutoSyncLockMock = vi.fn().mockImplementation((fn: () => Promise<unknown>) => fn());
   const isTabManuallyOverriddenMock = vi.fn().mockReturnValue(false);
+  const sendMessageWithTimeoutMock = vi.fn();
+  const tabsGetMock = vi.fn();
 
   const loggerInfoMock = vi.fn();
   const loggerDebugMock = vi.fn();
@@ -94,6 +100,8 @@ const {
     isDomainSnoozedMock,
     withAutoSyncLockMock,
     isTabManuallyOverriddenMock,
+    sendMessageWithTimeoutMock,
+    tabsGetMock,
     loggerInfoMock,
     loggerDebugMock,
     loggerWarnMock,
@@ -108,6 +116,14 @@ const {
 
 vi.mock('webext-bridge/background', () => ({
   sendMessage: sendMessageMock,
+}));
+
+vi.mock('webextension-polyfill', () => ({
+  default: {
+    tabs: {
+      get: tabsGetMock,
+    },
+  },
 }));
 
 vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
@@ -145,11 +161,18 @@ vi.mock('./auto-sync-suggestions', () => ({
   isDomainPermanentlyExcluded: vi.fn().mockReturnValue(false),
 }));
 
+vi.mock('./messaging', () => ({
+  sendMessageWithTimeout: sendMessageWithTimeoutMock,
+}));
+
 function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSyncGroup {
   return { tabIds: new Set(tabIds), isActive };
 }
 
 describe('auto-sync-groups', () => {
+  const mockedBrowser = vi.mocked(browser, true);
+  const mockedSendMessageWithTimeout = vi.mocked(sendMessageWithTimeout);
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -168,6 +191,16 @@ describe('auto-sync-groups', () => {
     isDomainSnoozedMock.mockReturnValue(false);
 
     sendMessageMock.mockResolvedValue(undefined);
+    mockedBrowser.tabs.get.mockResolvedValue({
+      id: 1,
+      url: 'https://candidate.test/',
+      index: 0,
+      highlighted: false,
+      active: false,
+      pinned: false,
+      incognito: false,
+    });
+    mockedSendMessageWithTimeout.mockResolvedValue({ success: false });
     showSyncSuggestionMock.mockResolvedValue(undefined);
     sendSuggestionToSingleTabMock.mockResolvedValue(undefined);
     withAutoSyncLockMock.mockImplementation((fn: () => Promise<unknown>) => fn());
@@ -549,6 +582,56 @@ describe('auto-sync-groups', () => {
       expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com/docs/install');
     });
 
+    it('joins an inactive translated-slug candidate group with medium-confidence metadata', async () => {
+      const groupKey = 'https://example.com/getting-started';
+      autoSyncState.groups.set(groupKey, {
+        ...createGroup([1], false),
+        tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
+      });
+      mockedBrowser.tabs.get.mockResolvedValueOnce({
+        id: 1,
+        url: 'https://example.com/en/getting-started',
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      });
+      mockedSendMessageWithTimeout
+        .mockResolvedValueOnce({
+          success: true,
+          url: 'https://example.com/tr/baslangic',
+          alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          url: 'https://example.com/en/getting-started',
+          alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
+        });
+
+      const result = await updateAutoSyncGroup(2, 'https://example.com/tr/baslangic');
+
+      const group = autoSyncState.groups.get(groupKey);
+      expect(result).toBe(groupKey);
+      expect(group?.tabIds).toEqual(new Set([1, 2]));
+      expect(group?.tabUrls).toEqual(
+        new Map([
+          [1, 'https://example.com/en/getting-started'],
+          [2, 'https://example.com/tr/baslangic'],
+        ]),
+      );
+      expect(group?.matchKind).toBe('possible-translation');
+      expect(group?.matchConfidence).toBe('medium');
+      expect(autoSyncState.groups.has('https://example.com/baslangic')).toBe(false);
+      expect(showSyncSuggestion).toHaveBeenCalledWith(groupKey);
+      expect(mockedSendMessageWithTimeout).toHaveBeenCalledWith(
+        'translated-page:get-metadata',
+        { tabId: 2 },
+        { context: 'content-script', tabId: 2 },
+        500,
+      );
+    });
+
     it('sends suggestion to single tab when pending suggestion already exists', async () => {
       autoSyncState.groups.set('https://example.com/', createGroup([1], false));
       pendingSuggestions.add('https://example.com/');
@@ -741,6 +824,30 @@ describe('auto-sync-groups', () => {
       expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
         matchKind: 'translated-page',
         matchConfidence: 'high',
+      });
+    });
+
+    it('preserves medium translated-slug metadata when current URL keys still differ', () => {
+      autoSyncState.groups.set('https://example.com/getting-started', {
+        ...createGroup([1, 2], false),
+        matchKind: 'possible-translation',
+        matchConfidence: 'medium',
+        tabUrls: new Map([
+          [1, 'https://example.com/en/getting-started'],
+          [2, 'https://example.com/tr/baslangic'],
+        ]),
+      });
+
+      const didRefresh = refreshAutoSyncGroupMetadata(
+        'https://example.com/getting-started',
+        2,
+        'https://example.com/tr/baslangic',
+      );
+
+      expect(didRefresh).toBe(false);
+      expect(autoSyncState.groups.get('https://example.com/getting-started')).toMatchObject({
+        matchKind: 'possible-translation',
+        matchConfidence: 'medium',
       });
     });
   });

@@ -1,4 +1,5 @@
 import { sendMessage } from 'webext-bridge/background';
+import browser from 'webextension-polyfill';
 
 import { isLocalDevelopmentServer, isUrlExcluded } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
@@ -7,6 +8,7 @@ import {
   getAutoSyncPageKey,
   type AutoSyncSuggestionMatchKind,
   type TranslatedPageConfidence,
+  type TranslatedPageMetadata,
 } from '~/shared/lib/translated-page-url-utils';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
@@ -27,6 +29,8 @@ import {
   isDomainSnoozed,
   isDomainPermanentlyExcluded,
 } from './auto-sync-suggestions';
+import { sendMessageWithTimeout } from './messaging';
+import { findTranslatedPageCandidateGroup } from './translated-page-candidates';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
 
@@ -40,15 +44,90 @@ function getCurrentGroupMetadata(group: AutoSyncGroup): GroupMetadata | null {
     return null;
   }
 
-  const hasTranslatedPage = Array.from(group.tabUrls.values()).some(
-    (url) => buildTranslatedPageSignature(url)?.matchKind === 'translated-page',
+  const translatedSignatures = Array.from(group.tabUrls.values()).flatMap((url) => {
+    const signature = buildTranslatedPageSignature(url);
+    return signature ? [signature] : [];
+  });
+  const canonicalKeys = new Set(translatedSignatures.map((signature) => signature.canonicalKey));
+  const hasTranslatedPage = translatedSignatures.some(
+    (signature) => signature.matchKind === 'translated-page',
   );
 
-  if (hasTranslatedPage) {
+  if (hasTranslatedPage && canonicalKeys.size === 1) {
     return { matchKind: 'translated-page', matchConfidence: 'high' };
   }
 
+  if (
+    group.matchKind === 'possible-translation' &&
+    group.matchConfidence === 'medium' &&
+    canonicalKeys.size > 1
+  ) {
+    return { matchKind: 'possible-translation', matchConfidence: 'medium' };
+  }
+
   return { matchKind: 'same-url', matchConfidence: 'low' };
+}
+
+async function getTabUrl(tabId: number): Promise<string | null> {
+  try {
+    const tab = await browser.tabs.get(tabId);
+    return tab.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getAlternateUrls(value: unknown): TranslatedPageMetadata['alternateUrls'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const hreflang = getOptionalString(item.hreflang);
+    const href = getOptionalString(item.href);
+
+    if (!hreflang || !href) {
+      return [];
+    }
+
+    return [{ hreflang, href }];
+  });
+}
+
+async function getTabMetadata(tabId: number, url: string): Promise<TranslatedPageMetadata | null> {
+  try {
+    const response = await sendMessageWithTimeout(
+      'translated-page:get-metadata',
+      { tabId },
+      { context: 'content-script', tabId },
+      500,
+    );
+
+    if (!isRecord(response) || response.success !== true) {
+      return null;
+    }
+
+    return {
+      url,
+      title: getOptionalString(response.title),
+      canonicalUrl: getOptionalString(response.canonicalUrl),
+      alternateUrls: getAlternateUrls(response.alternateUrls),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function recomputeAutoSyncGroupMetadata(group: AutoSyncGroup): boolean {
@@ -258,23 +337,47 @@ async function updateAutoSyncGroupInternal(
   logger.info('[AUTO-SYNC] Removing tab from existing groups', { tabId });
   await removeTabFromAllAutoSyncGroups(tabId);
 
-  let group = autoSyncState.groups.get(normalizedUrl);
+  let groupKey = normalizedUrl;
+  let group = autoSyncState.groups.get(groupKey);
+  let matchKind = translatedSignature?.matchKind;
+  let matchConfidence = translatedSignature?.confidence;
+
+  if (!group && autoSyncState.groups.size > 0) {
+    const candidate = await findTranslatedPageCandidateGroup({
+      tabId,
+      url,
+      groups: autoSyncState.groups,
+      getTabUrl,
+      getMetadata: getTabMetadata,
+    });
+
+    if (candidate) {
+      groupKey = candidate.normalizedUrl;
+      group = autoSyncState.groups.get(groupKey);
+      matchKind = candidate.matchKind;
+      matchConfidence = candidate.matchConfidence;
+    }
+  }
+
   const isNewGroup = !group;
   if (!group) {
     group = {
       tabIds: new Set(),
       isActive: false,
-      matchKind: translatedSignature?.matchKind,
-      matchConfidence: translatedSignature?.confidence,
+      matchKind,
+      matchConfidence,
       tabUrls: new Map(),
     };
-    autoSyncState.groups.set(normalizedUrl, group);
-    logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
+    autoSyncState.groups.set(groupKey, group);
+    logger.info('[AUTO-SYNC] Created new group', { normalizedUrl: groupKey });
+  } else if (matchKind && matchConfidence) {
+    group.matchKind = matchKind;
+    group.matchConfidence = matchConfidence;
   }
 
   if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(tabId)) {
     logger.warn('[AUTO-SYNC] Group size limit reached, tab not added', {
-      normalizedUrl,
+      normalizedUrl: groupKey,
       currentSize: group.tabIds.size,
       maxSize: MAX_AUTO_SYNC_GROUP_SIZE,
       tabId,
@@ -289,7 +392,7 @@ async function updateAutoSyncGroupInternal(
 
   logger.info('[AUTO-SYNC] Tab added to group', {
     tabId,
-    normalizedUrl,
+    normalizedUrl: groupKey,
     groupSize: group.tabIds.size,
     groupTabIds: Array.from(group.tabIds),
     isNewGroup,
@@ -306,22 +409,22 @@ async function updateAutoSyncGroupInternal(
 
   if (
     shouldShowSuggestion &&
-    !dismissedUrlGroups.has(normalizedUrl) &&
-    !isDomainPermanentlyExcluded(normalizedUrl) &&
-    !isDomainSnoozed(normalizedUrl)
+    !dismissedUrlGroups.has(groupKey) &&
+    !isDomainPermanentlyExcluded(groupKey) &&
+    !isDomainSnoozed(groupKey)
   ) {
-    if (pendingSuggestions.has(normalizedUrl)) {
+    if (pendingSuggestions.has(groupKey)) {
       logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab (from updateAutoSyncGroup)', {
         tabId,
-        normalizedUrl,
+        normalizedUrl: groupKey,
       });
-      await sendSuggestionToSingleTab(tabId, normalizedUrl, group);
+      await sendSuggestionToSingleTab(tabId, groupKey, group);
     } else {
       logger.info('[AUTO-SYNC] Showing suggestion for group', {
-        normalizedUrl,
+        normalizedUrl: groupKey,
         tabIds: Array.from(group.tabIds),
       });
-      await showSyncSuggestion(normalizedUrl);
+      await showSyncSuggestion(groupKey);
     }
   }
 
@@ -329,7 +432,7 @@ async function updateAutoSyncGroupInternal(
     await broadcastAutoSyncGroupUpdate();
   }
 
-  return normalizedUrl;
+  return groupKey;
 }
 
 /**
