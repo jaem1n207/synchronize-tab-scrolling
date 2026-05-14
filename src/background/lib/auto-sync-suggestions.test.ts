@@ -452,6 +452,27 @@ describe('auto-sync-suggestions', () => {
       });
     });
 
+    it('includes possible-translation metadata in medium-confidence suggestion payload', async () => {
+      const normalizedUrl = 'https://example.com/getting-started';
+      autoSyncState.groups.set(
+        normalizedUrl,
+        createGroup([1, 2], false, {
+          matchKind: 'possible-translation',
+          matchConfidence: 'medium',
+        }),
+      );
+
+      await showSyncSuggestion(normalizedUrl);
+
+      const showCalls = mockedSendMessageWithTimeout.mock.calls.filter(
+        (call) => call[0] === 'sync-suggestion:show',
+      );
+      expect(showCalls[0]?.[1]).toMatchObject({
+        matchKind: 'possible-translation',
+        matchConfidence: 'medium',
+      });
+    });
+
     it('uses 2000ms timeout when sending suggestion to tabs', async () => {
       const normalizedUrl = 'https://timeout-2000.test';
       autoSyncState.groups.set(normalizedUrl, createGroup([40, 41]));
