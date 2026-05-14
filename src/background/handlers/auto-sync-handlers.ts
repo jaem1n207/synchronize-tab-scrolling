@@ -42,6 +42,8 @@ export function registerAutoSyncHandlers(): void {
         normalizedUrl,
         tabIds: Array.from(group.tabIds),
         isActive: group.isActive,
+        matchKind: group.matchKind,
+        matchConfidence: group.matchConfidence,
       });
     }
 
