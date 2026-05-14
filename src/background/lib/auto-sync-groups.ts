@@ -646,16 +646,23 @@ export async function updateAutoSyncGroup(
     return preparation.result;
   }
 
-  const candidate = await findTranslatedPageCandidateGroup({
-    tabId,
-    url,
-    groups: preparation.lookup.groups,
-    maxGroupSize: MAX_AUTO_SYNC_GROUP_SIZE,
-    getTabUrl,
-    getMetadata: getTabMetadata,
-  });
+  const shouldProbeCandidates = hasEligibleCandidateGroups(preparation.lookup);
+  const candidate = shouldProbeCandidates
+    ? await findTranslatedPageCandidateGroup({
+        tabId,
+        url,
+        groups: preparation.lookup.groups,
+        maxGroupSize: MAX_AUTO_SYNC_GROUP_SIZE,
+        getTabUrl,
+        getMetadata: getTabMetadata,
+      })
+    : null;
 
-  const candidateApplyResolution = await resolveCandidateApplyState(preparation.lookup, candidate);
+  const candidateApplyResolution = await resolveCandidateApplyState(
+    preparation.lookup,
+    candidate,
+    shouldProbeCandidates,
+  );
 
   if (candidateApplyResolution.status === 'source-stale') {
     logger.info('[AUTO-SYNC] Tab URL changed before translated candidate apply', {
@@ -761,7 +768,19 @@ async function prepareUpdateAutoSyncGroup(
 async function resolveCandidateApplyState(
   lookup: UpdateCandidateLookup,
   candidate: CandidateLookupResult | null,
+  shouldValidateSource: boolean,
 ): Promise<CandidateApplyResolution> {
+  if (shouldValidateSource) {
+    const latestSourceUrl = await getTabUrl(lookup.context.tabId);
+    if (!latestSourceUrl || latestSourceUrl !== lookup.context.url) {
+      return { status: 'source-stale' };
+    }
+
+    if (getAutoSyncPageKey(latestSourceUrl) !== lookup.context.normalizedUrl) {
+      return { status: 'source-stale' };
+    }
+  }
+
   if (!candidate) {
     return { status: 'apply', state: null };
   }
@@ -771,20 +790,23 @@ async function resolveCandidateApplyState(
     return { status: 'apply', state: null };
   }
 
-  const [latestSourceUrl, latestTargetUrl] = await Promise.all([
-    getTabUrl(lookup.context.tabId),
-    getTabUrl(targetSnapshot.tabId),
-  ]);
-
-  if (latestSourceUrl !== lookup.context.url) {
-    return { status: 'source-stale' };
-  }
+  const latestTargetUrl = await getTabUrl(targetSnapshot.tabId);
 
   if (latestTargetUrl !== targetSnapshot.url) {
     return { status: 'apply', state: null };
   }
 
   return { status: 'apply', state: { candidate, targetSnapshot } };
+}
+
+function hasEligibleCandidateGroups(lookup: UpdateCandidateLookup): boolean {
+  return Array.from(lookup.groups.values()).some(
+    (group) =>
+      !group.isActive &&
+      !group.tabIds.has(lookup.context.tabId) &&
+      group.tabIds.size > 0 &&
+      group.tabIds.size < MAX_AUTO_SYNC_GROUP_SIZE,
+  );
 }
 
 function getCandidateTargetSnapshot(

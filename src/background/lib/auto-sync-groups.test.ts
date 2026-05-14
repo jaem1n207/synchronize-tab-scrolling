@@ -556,6 +556,15 @@ describe('auto-sync-groups', () => {
 
     it('removes tab from old group when URL changes', async () => {
       autoSyncState.groups.set('https://old.com', createGroup([1, 2], false));
+      mockedBrowser.tabs.get.mockResolvedValue({
+        id: 1,
+        url: 'https://new.com',
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      });
 
       const result = await updateAutoSyncGroup(1, 'https://new.com');
 
@@ -574,6 +583,15 @@ describe('auto-sync-groups', () => {
 
     it('keeps www and apex ordinary pages in separate groups', async () => {
       await updateAutoSyncGroup(1, 'https://www.example.com/docs');
+      mockedBrowser.tabs.get.mockResolvedValue({
+        id: 2,
+        url: 'https://example.com/docs',
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      });
       await updateAutoSyncGroup(2, 'https://example.com/docs');
 
       expect(autoSyncState.groups.get('https://www.example.com/docs')?.tabIds).toEqual(
@@ -616,6 +634,15 @@ describe('auto-sync-groups', () => {
 
     it('keeps identity query values separate for query-locale pages', async () => {
       await updateAutoSyncGroup(1, 'https://example.com/docs?lang=en&page=setup');
+      mockedBrowser.tabs.get.mockResolvedValue({
+        id: 2,
+        url: 'https://example.com/docs?lang=tr&page=config',
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      });
       await updateAutoSyncGroup(2, 'https://example.com/docs?lang=tr&page=config');
 
       expect(autoSyncState.groups.get('https://example.com/docs?page=setup')?.tabIds).toEqual(
@@ -751,6 +778,15 @@ describe('auto-sync-groups', () => {
         ...createGroup([1], false),
         tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
       });
+      mockedBrowser.tabs.get.mockResolvedValue({
+        id: 2,
+        url: 'https://example.com/tr/baslangic',
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      });
       mockedSendMessageWithTimeout.mockResolvedValue({
         success: true,
         url: 'https://example.com/tr/other-page',
@@ -765,6 +801,56 @@ describe('auto-sync-groups', () => {
         new Set([2]),
       );
       expect(showSyncSuggestion).not.toHaveBeenCalled();
+    });
+
+    it('skips stale no-candidate metadata apply after tab moves to a newer URL group', async () => {
+      mockedSendMessageWithTimeout.mockReset();
+
+      const delayedMetadataProbe: DelayedMetadataProbe = {};
+      const metadataProbeStarted = new Promise<void>((resolve) => {
+        mockedSendMessageWithTimeout.mockImplementationOnce(async () => {
+          resolve();
+          return new Promise<{ success: false }>((metadataResolve) => {
+            delayedMetadataProbe.resolve = metadataResolve;
+          });
+        });
+      });
+      const currentUrls = new Map([
+        [1, 'https://example.com/en/getting-started'],
+        [2, 'https://example.com/tr/baslangic'],
+      ]);
+      autoSyncState.groups.set('https://example.com/getting-started', {
+        ...createGroup([1], false),
+        tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
+      });
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => ({
+        id: tabId,
+        url: currentUrls.get(tabId),
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      }));
+
+      const staleUpdatePromise = updateAutoSyncGroup(2, 'https://example.com/tr/baslangic');
+      await metadataProbeStarted;
+
+      currentUrls.set(2, 'https://example.com/tr/newer');
+      const newerResult = await updateAutoSyncGroup(2, 'https://example.com/tr/newer', true, true);
+
+      expect(newerResult).toBe('https://example.com/newer');
+      expect(autoSyncState.groups.get('https://example.com/newer')?.tabIds).toEqual(new Set([2]));
+
+      expect(delayedMetadataProbe.resolve).toBeDefined();
+      delayedMetadataProbe.resolve?.({ success: false });
+
+      await expect(staleUpdatePromise).resolves.toBeNull();
+      expect(autoSyncState.groups.get('https://example.com/newer')?.tabIds).toEqual(new Set([2]));
+      expect(autoSyncState.groups.has('https://example.com/baslangic')).toBe(false);
+      expect(autoSyncState.groups.get('https://example.com/getting-started')?.tabIds).toEqual(
+        new Set([1]),
+      );
     });
 
     it('skips medium-confidence candidate lookup when start sync is skipped', async () => {
