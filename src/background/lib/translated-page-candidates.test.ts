@@ -117,6 +117,26 @@ describe('findTranslatedPageCandidateGroup', () => {
     ).resolves.toBeNull();
   });
 
+  it('returns null when metadata belongs to a different response URL than the probed tab URL', async () => {
+    const getMetadata = vi
+      .fn<(_: number, url: string) => Promise<TranslatedPageMetadata | null>>()
+      .mockResolvedValueOnce({
+        url: 'https://example.com/tr/other-page',
+        alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
+      });
+
+    await expect(
+      findTranslatedPageCandidateGroup({
+        tabId: 2,
+        url: 'https://example.com/tr/baslangic',
+        groups: new Map([['https://example.com/getting-started', createGroup([1])]]),
+        getTabUrl: vi.fn(async () => 'https://example.com/en/getting-started'),
+        getMetadata,
+      }),
+    ).resolves.toBeNull();
+    expect(getMetadata).toHaveBeenCalledTimes(1);
+  });
+
   it('skips active groups, groups that already contain the tab, and failed tab URL lookups', async () => {
     const groups = new Map<string, AutoSyncGroup>([
       ['https://example.com/active', createGroup([1], true)],
@@ -200,7 +220,17 @@ describe('findTranslatedPageCandidateGroup', () => {
       ['https://example.com/second', createGroup([2])],
       ['https://example.com/third', createGroup([3])],
     ]);
-    const getTabUrl = vi.fn(async (tabId: number) => `https://example.com/${tabId}`);
+    const getTabUrl = vi.fn(async (tabId: number) => {
+      if (tabId === 1) {
+        return 'https://example.com/first';
+      }
+
+      if (tabId === 2) {
+        return 'https://example.com/second';
+      }
+
+      return 'https://example.com/third';
+    });
     const getMetadata = vi.fn((tabId: number): Promise<TranslatedPageMetadata | null> => {
       if (tabId === 9) {
         return Promise.resolve({
@@ -235,9 +265,9 @@ describe('findTranslatedPageCandidateGroup', () => {
 
     await flushMicrotasks();
 
-    expect(getMetadata).toHaveBeenCalledWith(1, 'https://example.com/1');
-    expect(getMetadata).toHaveBeenCalledWith(2, 'https://example.com/2');
-    expect(getMetadata).toHaveBeenCalledWith(3, 'https://example.com/3');
+    expect(getMetadata).toHaveBeenCalledWith(1, 'https://example.com/first');
+    expect(getMetadata).toHaveBeenCalledWith(2, 'https://example.com/second');
+    expect(getMetadata).toHaveBeenCalledWith(3, 'https://example.com/third');
 
     resolveFirstCandidate({
       url: 'https://example.com/first',

@@ -15,7 +15,7 @@ interface CandidateLookupArgs {
   getMetadata: (tabId: number, url: string) => Promise<TranslatedPageMetadata | null>;
 }
 
-interface CandidateLookupResult {
+export interface CandidateLookupResult {
   normalizedUrl: string;
   matchKind: AutoSyncSuggestionMatchKind;
   matchConfidence: TranslatedPageConfidence;
@@ -40,10 +40,39 @@ async function getSafeMetadata(
   getMetadata: CandidateLookupArgs['getMetadata'],
 ): Promise<TranslatedPageMetadata | null> {
   try {
-    return await getMetadata(tabId, url);
+    const metadata = await getMetadata(tabId, url);
+    if (!metadata || !isMetadataForRequestedUrl(metadata, url)) {
+      return null;
+    }
+
+    return metadata;
   } catch {
     return null;
   }
+}
+
+function getProbeUrlKey(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return null;
+    }
+
+    parsedUrl.hash = '';
+    return parsedUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isMetadataForRequestedUrl(
+  metadata: TranslatedPageMetadata,
+  requestedUrl: string,
+): boolean {
+  const metadataUrlKey = getProbeUrlKey(metadata.url);
+  const requestedUrlKey = getProbeUrlKey(requestedUrl);
+
+  return Boolean(metadataUrlKey && requestedUrlKey && metadataUrlKey === requestedUrlKey);
 }
 
 function getRepresentativeTabId(group: AutoSyncGroup): number | null {
