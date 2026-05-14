@@ -25,6 +25,7 @@ export {
 } from './locale-utils';
 export { ExtensionLogger } from './logger';
 export { throttleAndDebounce } from './performance-utils';
+export * from './translated-page-url-utils';
 export {
   calculateScrollRatio,
   clampScrollOffset,
