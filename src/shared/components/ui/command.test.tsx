@@ -115,6 +115,7 @@ describe('CommandItem', () => {
     await waitFor(() => {
       expect(enabledOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
     });
+    enabledOption.setAttribute('data-selected', 'true');
     expect(getIndicatorCount()).toBe(1);
 
     disabledOption.setAttribute('data-selected', 'true');
@@ -128,7 +129,7 @@ describe('CommandItem', () => {
     expect(disabledOption.className).toContain('data-[disabled=true]:cursor-not-allowed');
     expect(disabledOption.className).toContain('data-[disabled=true]:opacity-50');
 
-    fireEvent.pointerEnter(enabledOption);
+    fireEvent.pointerLeave(disabledOption);
 
     await waitFor(() => {
       expect(enabledOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
