@@ -91,6 +91,8 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
         tabCount: g.tabIds.size,
         tabIds: Array.from(g.tabIds),
         isActive: g.isActive,
+        matchKind: g.matchKind,
+        matchConfidence: g.matchConfidence,
       })),
     });
 
@@ -164,6 +166,8 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
         tabCount: g.tabIds.size,
         tabIds: Array.from(g.tabIds),
         isActive: g.isActive,
+        matchKind: g.matchKind,
+        matchConfidence: g.matchConfidence,
       })),
     });
   } catch (error) {

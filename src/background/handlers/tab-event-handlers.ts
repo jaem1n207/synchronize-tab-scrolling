@@ -1,9 +1,9 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadUrlSyncEnabled } from '~/shared/lib/storage';
+import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
 
 import {
   removeTabFromAllAutoSyncGroups,
@@ -140,7 +140,7 @@ export function registerTabEventHandlers(): void {
       await updateAutoSyncGroup(tab.id, tab.url, true, true);
 
       // ✅ FIX: Show suggestion after content script is ready (delayed)
-      const normalizedUrl = normalizeUrlForAutoSync(tab.url);
+      const normalizedUrl = getAutoSyncPageKey(tab.url);
       if (normalizedUrl) {
         const group = autoSyncState.groups.get(normalizedUrl);
         if (group && group.tabIds.size >= 2 && !group.isActive) {
@@ -177,7 +177,7 @@ export function registerTabEventHandlers(): void {
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.url || (changeInfo.status === 'loading' && tab.url)) {
       const url = changeInfo.url || tab.url || '';
-      const normalizedUrl = normalizeUrlForAutoSync(url);
+      const normalizedUrl = getAutoSyncPageKey(url);
 
       if (normalizedUrl) {
         if (syncState.isActive && !syncState.linkedTabs.includes(tabId)) {
@@ -186,7 +186,7 @@ export function registerTabEventHandlers(): void {
               try {
                 const syncedTab = await browser.tabs.get(syncedTabId);
                 const syncedNormalizedUrl = syncedTab.url
-                  ? normalizeUrlForAutoSync(syncedTab.url)
+                  ? getAutoSyncPageKey(syncedTab.url)
                   : null;
                 return syncedNormalizedUrl === normalizedUrl;
               } catch {
