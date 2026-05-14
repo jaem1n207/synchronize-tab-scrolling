@@ -298,7 +298,7 @@ function buildTargetQuerySearch(source: URL, targetLocale: LocaleDescriptor): st
 
 function buildPathLocaleUrl(
   source: URL,
-  sourceLocale: LocaleDescriptor,
+  sourceLocale: LocaleDescriptor | undefined,
   target: URL,
   targetLocale: LocaleDescriptor,
 ): string {
@@ -318,7 +318,7 @@ function buildPathLocaleUrl(
 
 function buildQueryLocaleUrl(
   source: URL,
-  sourceLocale: LocaleDescriptor,
+  sourceLocale: LocaleDescriptor | undefined,
   target: URL,
   targetLocale: LocaleDescriptor,
 ): string {
@@ -331,7 +331,7 @@ function buildQueryLocaleUrl(
 
 function buildSubdomainLocaleUrl(
   source: URL,
-  sourceLocale: LocaleDescriptor,
+  sourceLocale: LocaleDescriptor | undefined,
   target: URL,
   targetLocale: LocaleDescriptor,
 ): string {
@@ -413,7 +413,7 @@ export function applyTranslatedPageLocaleSync(sourceUrl: string, targetUrl: stri
     return sourceUrl;
   }
 
-  if (!sourceLocale || !targetLocale) {
+  if (!targetLocale) {
     return buildUrlFromParts(
       source.protocol,
       source.hostname,

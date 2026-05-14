@@ -105,6 +105,15 @@ describe('applyTranslatedPageLocaleSync', () => {
     ).toBe('https://example.com/tr/docs/install#target');
   });
 
+  it('adds target path locale when source has no locale carrier', () => {
+    expect(
+      applyTranslatedPageLocaleSync(
+        'https://example.com/docs/install',
+        'https://example.com/tr/docs/current#section',
+      ),
+    ).toBe('https://example.com/tr/docs/install#section');
+  });
+
   it('preserves target query locale', () => {
     expect(
       applyTranslatedPageLocaleSync(
@@ -112,6 +121,15 @@ describe('applyTranslatedPageLocaleSync', () => {
         'https://example.com/docs/current?lang=tr#target',
       ),
     ).toBe('https://example.com/docs/install?lang=tr#target');
+  });
+
+  it('adds target query locale when source has no locale carrier', () => {
+    expect(
+      applyTranslatedPageLocaleSync(
+        'https://example.com/docs/install?page=config',
+        'https://example.com/docs/current?lang=tr#section',
+      ),
+    ).toBe('https://example.com/docs/install?page=config&lang=tr#section');
   });
 
   it('uses source identity query and target locale query for query-identity pages', () => {
@@ -130,6 +148,15 @@ describe('applyTranslatedPageLocaleSync', () => {
         'https://tr.example.com/docs/current#target',
       ),
     ).toBe('https://tr.example.com/docs/install#target');
+  });
+
+  it('adds target subdomain locale when source has no locale carrier', () => {
+    expect(
+      applyTranslatedPageLocaleSync(
+        'https://example.com/docs/install',
+        'https://tr.example.com/docs/current#section',
+      ),
+    ).toBe('https://tr.example.com/docs/install#section');
   });
 
   it('uses target carrier when source and target carriers differ', () => {
