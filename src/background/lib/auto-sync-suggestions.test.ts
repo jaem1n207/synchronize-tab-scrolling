@@ -928,6 +928,32 @@ describe('auto-sync-suggestions', () => {
       );
     });
 
+    it('includes match metadata in add-tab message when provided', async () => {
+      syncState.linkedTabs = [22];
+
+      await showAddTabSuggestion(
+        23,
+        'Translated Tab',
+        'https://payload-add-tab.test/docs',
+        'translated-page',
+        'high',
+      );
+
+      expect(mockedSendMessageWithTimeout).toHaveBeenCalledWith(
+        'sync-suggestion:add-tab',
+        {
+          tabId: 23,
+          tabTitle: 'Translated Tab',
+          hasManualOffsets: false,
+          normalizedUrl: 'https://payload-add-tab.test/docs',
+          matchKind: 'translated-page',
+          matchConfidence: 'high',
+        },
+        { context: 'content-script', tabId: 22 },
+        2000,
+      );
+    });
+
     it('handles mixed success and failure results without throwing', async () => {
       syncState.linkedTabs = [30, 31];
 

@@ -4,6 +4,10 @@ import browser from 'webextension-polyfill';
 import { extractDomainFromUrl } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
+import type {
+  AutoSyncSuggestionMatchKind,
+  TranslatedPageConfidence,
+} from '~/shared/lib/translated-page-url-utils';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import {
@@ -369,6 +373,8 @@ export async function showAddTabSuggestion(
   tabId: number,
   tabTitle: string,
   normalizedUrl: string,
+  matchKind?: AutoSyncSuggestionMatchKind,
+  matchConfidence?: TranslatedPageConfidence,
 ): Promise<void> {
   if (isDomainPermanentlyExcluded(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is permanently excluded', {
@@ -418,6 +424,8 @@ export async function showAddTabSuggestion(
             tabTitle,
             hasManualOffsets,
             normalizedUrl,
+            ...(matchKind && { matchKind }),
+            ...(matchConfidence && { matchConfidence }),
           },
           { context: 'content-script', tabId: targetTabId },
           2_000, // 2 second timeout
