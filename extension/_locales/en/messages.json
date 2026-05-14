@@ -529,6 +529,24 @@
       }
     }
   },
+  "newTabSameTranslatedPage": {
+    "message": "New tab \"$TITLE$\" is the same translated page. Add to sync?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "New tab \"$TITLE$\" may be a translation of the synced page. Add to sync?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
   "warningResetScrollOffsets": {
     "message": "Adding this tab will reset your scroll position adjustments"
   },

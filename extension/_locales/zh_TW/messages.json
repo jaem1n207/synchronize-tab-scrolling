@@ -529,6 +529,24 @@
       }
     }
   },
+  "newTabSameTranslatedPage": {
+    "message": "新標籤頁\"$TITLE$\"是同一翻譯頁面。新增至同步嗎？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "新標籤頁\"$TITLE$\"可能是已同步頁面的翻譯版本。新增至同步嗎？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
   "warningResetScrollOffsets": {
     "message": "新增此標籤頁將重設您手動調整的捲動位置"
   },

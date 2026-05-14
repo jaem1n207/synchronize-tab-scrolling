@@ -529,6 +529,24 @@
       }
     }
   },
+  "newTabSameTranslatedPage": {
+    "message": "नया टैब \"$TITLE$\" वही अनुवादित पेज है। सिंक में जोड़ें?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "नया टैब \"$TITLE$\" सिंक किए गए पेज का अनुवाद हो सकता है। सिंक में जोड़ें?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
   "warningResetScrollOffsets": {
     "message": "इस टैब को जोड़ने से आपकी मैन्युअल स्क्रॉल स्थिति समायोजन रीसेट हो जाएंगी"
   },

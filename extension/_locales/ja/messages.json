@@ -529,6 +529,24 @@
       }
     }
   },
+  "newTabSameTranslatedPage": {
+    "message": "新しいタブ「$TITLE$」が同じ翻訳ページです。同期に追加しますか？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "新しいタブ「$TITLE$」は同期中ページの翻訳である可能性があります。同期に追加しますか？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
   "warningResetScrollOffsets": {
     "message": "このタブを追加すると、手動で調整したスクロール位置がリセットされます"
   },

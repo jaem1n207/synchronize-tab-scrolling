@@ -529,6 +529,24 @@
       }
     }
   },
+  "newTabSameTranslatedPage": {
+    "message": "新标签页\"$TITLE$\"是同一翻译页面。添加到同步吗？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "新标签页\"$TITLE$\"可能是已同步页面的翻译版本。添加到同步吗？",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
   "warningResetScrollOffsets": {
     "message": "添加此标签页将重置您手动调整的滚动位置"
   },

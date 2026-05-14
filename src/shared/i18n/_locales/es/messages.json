@@ -529,6 +529,24 @@
       }
     }
   },
+  "newTabSameTranslatedPage": {
+    "message": "La nueva pestaña \"$TITLE$\" es la misma página traducida. ¿Agregar a la sincronización?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "La nueva pestaña \"$TITLE$\" puede ser una traducción de la página sincronizada. ¿Agregar a la sincronización?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
   "warningResetScrollOffsets": {
     "message": "Agregar esta pestaña restablecerá los ajustes de posición de desplazamiento"
   },

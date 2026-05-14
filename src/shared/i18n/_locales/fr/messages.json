@@ -529,6 +529,24 @@
       }
     }
   },
+  "newTabSameTranslatedPage": {
+    "message": "Le nouvel onglet \"$TITLE$\" correspond à la même page traduite. L'ajouter à la synchronisation ?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "Le nouvel onglet \"$TITLE$\" peut être une traduction de la page synchronisée. L'ajouter à la synchronisation ?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
   "warningResetScrollOffsets": {
     "message": "L'ajout de cet onglet réinitialisera vos ajustements de position de défilement"
   },
