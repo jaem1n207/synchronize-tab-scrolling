@@ -5,7 +5,7 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadUrlSyncEnabled } from '~/shared/lib/storage';
 import {
   buildTranslatedPageSignature,
-  getAutoSyncPageKey,
+  type TranslatedPageSignature,
 } from '~/shared/lib/translated-page-url-utils';
 
 import {
@@ -187,33 +187,43 @@ export function registerTabEventHandlers(): void {
 
       if (normalizedUrl) {
         if (syncState.isActive && !syncState.linkedTabs.includes(tabId)) {
-          const syncedTabsWithSameUrl = await Promise.all(
+          const syncedTabSignaturesWithSameUrl = await Promise.all(
             syncState.linkedTabs.map(async (syncedTabId) => {
               try {
                 const syncedTab = await browser.tabs.get(syncedTabId);
-                const syncedNormalizedUrl = syncedTab.url
-                  ? getAutoSyncPageKey(syncedTab.url)
+                const syncedTabSignature = syncedTab.url
+                  ? buildTranslatedPageSignature(syncedTab.url)
                   : null;
-                return syncedNormalizedUrl === normalizedUrl;
+                return syncedTabSignature?.canonicalKey === normalizedUrl
+                  ? syncedTabSignature
+                  : null;
               } catch {
-                return false;
+                return null;
               }
             }),
           );
+          const matchingSyncedTabSignature =
+            syncedTabSignaturesWithSameUrl.find(
+              (signature): signature is TranslatedPageSignature => signature !== null,
+            ) ?? null;
 
-          if (syncedTabsWithSameUrl.some((match) => match) && !addTabSuggestedTabs.has(tabId)) {
+          if (matchingSyncedTabSignature && !addTabSuggestedTabs.has(tabId)) {
             addTabSuggestedTabs.add(tabId);
             logger.info('[AUTO-SYNC] Detected new tab with same URL as synced tab (immediate)', {
               tabId,
               normalizedUrl,
               trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
             });
+            const isTranslatedPageMatch =
+              newTabSignature?.matchKind === 'translated-page' ||
+              matchingSyncedTabSignature.matchKind === 'translated-page';
+
             await showAddTabSuggestion(
               tabId,
               tab.title || 'Untitled',
               normalizedUrl,
-              newTabSignature?.matchKind,
-              newTabSignature?.confidence,
+              isTranslatedPageMatch ? 'translated-page' : newTabSignature?.matchKind,
+              isTranslatedPageMatch ? 'high' : newTabSignature?.confidence,
             );
           }
         }
