@@ -35,6 +35,7 @@ interface AutoSyncGroup {
   isActive: boolean;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
+  tabUrls?: Map<number, string>;
 }
 
 const {
@@ -256,11 +257,19 @@ describe('auto-sync-groups', () => {
 
   describe('removeTabFromAllAutoSyncGroups', () => {
     it('removes tab from its group', async () => {
-      autoSyncState.groups.set('https://example.com', createGroup([1, 2, 3], false));
+      autoSyncState.groups.set('https://example.com', {
+        ...createGroup([1, 2, 3], false),
+        tabUrls: new Map([
+          [1, 'https://example.com'],
+          [2, 'https://example.com'],
+          [3, 'https://example.com'],
+        ]),
+      });
 
       await removeTabFromAllAutoSyncGroups(2);
 
       expect(autoSyncState.groups.get('https://example.com')?.tabIds.has(2)).toBe(false);
+      expect(autoSyncState.groups.get('https://example.com')?.tabUrls?.has(2)).toBe(false);
       expect(autoSyncState.groups.get('https://example.com')?.tabIds.size).toBe(2);
     });
 
@@ -404,6 +413,9 @@ describe('auto-sync-groups', () => {
 
       expect(result).toBe('https://example.com/');
       expect(autoSyncState.groups.get('https://example.com/')?.tabIds).toEqual(new Set([10]));
+      expect(autoSyncState.groups.get('https://example.com/')?.tabUrls).toEqual(
+        new Map([[10, 'https://example.com']]),
+      );
       expect(autoSyncState.groups.get('https://example.com/')?.isActive).toBe(false);
     });
 
@@ -601,10 +613,15 @@ describe('auto-sync-groups', () => {
         ...createGroup([1, 2], false),
         matchKind: 'same-url',
         matchConfidence: 'low',
+        tabUrls: new Map([
+          [1, 'https://example.com/docs'],
+          [2, 'https://example.com/docs'],
+        ]),
       });
 
       const didRefresh = refreshAutoSyncGroupMetadata(
         'https://example.com/docs',
+        1,
         'https://example.com/en/docs',
       );
 
@@ -620,10 +637,15 @@ describe('auto-sync-groups', () => {
         ...createGroup([1, 2], false),
         matchKind: 'same-url',
         matchConfidence: 'low',
+        tabUrls: new Map([
+          [1, 'https://example.com/docs'],
+          [2, 'https://example.com/docs'],
+        ]),
       });
 
       const didRefresh = refreshAutoSyncGroupMetadata(
         'https://example.com/docs',
+        1,
         'https://example.com/docs',
       );
 
@@ -631,6 +653,56 @@ describe('auto-sync-groups', () => {
       expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
         matchKind: 'same-url',
         matchConfidence: 'low',
+      });
+    });
+
+    it('downgrades translated metadata when no current group URL has a locale variant', () => {
+      autoSyncState.groups.set('https://example.com/docs', {
+        ...createGroup([1, 2], false),
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+        tabUrls: new Map([
+          [1, 'https://example.com/en/docs'],
+          [2, 'https://example.com/docs'],
+        ]),
+      });
+
+      const didRefresh = refreshAutoSyncGroupMetadata(
+        'https://example.com/docs',
+        1,
+        'https://example.com/docs',
+      );
+
+      expect(didRefresh).toBe(true);
+      expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
+      expect(autoSyncState.groups.get('https://example.com/docs')?.tabUrls).toEqual(
+        new Map([
+          [1, 'https://example.com/docs'],
+          [2, 'https://example.com/docs'],
+        ]),
+      );
+    });
+
+    it('keeps legacy groups without complete tab URLs conservative', () => {
+      autoSyncState.groups.set('https://example.com/docs', {
+        ...createGroup([1, 2], false),
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+
+      const didRefresh = refreshAutoSyncGroupMetadata(
+        'https://example.com/docs',
+        1,
+        'https://example.com/docs',
+      );
+
+      expect(didRefresh).toBe(false);
+      expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
       });
     });
   });

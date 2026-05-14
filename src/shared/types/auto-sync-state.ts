@@ -12,6 +12,7 @@ export interface AutoSyncGroup {
   isActive: boolean;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
+  tabUrls?: Map<number, string>;
 }
 
 /**

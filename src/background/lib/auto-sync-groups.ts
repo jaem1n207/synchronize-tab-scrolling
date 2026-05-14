@@ -5,8 +5,11 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   buildTranslatedPageSignature,
   getAutoSyncPageKey,
+  type AutoSyncSuggestionMatchKind,
+  type TranslatedPageConfidence,
 } from '~/shared/lib/translated-page-url-utils';
 import { isForbiddenUrl } from '~/shared/lib/url-utils';
+import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
 import {
@@ -27,25 +30,57 @@ import {
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
 
-function applyTranslatedPageMetadata(normalizedUrl: string, url: string): boolean {
-  const translatedSignature = buildTranslatedPageSignature(url);
-  const group = autoSyncState.groups.get(normalizedUrl);
+interface GroupMetadata {
+  matchKind: AutoSyncSuggestionMatchKind;
+  matchConfidence: TranslatedPageConfidence;
+}
+
+function getCurrentGroupMetadata(group: AutoSyncGroup): GroupMetadata | null {
+  if (!group.tabUrls || group.tabUrls.size < group.tabIds.size) {
+    return null;
+  }
+
+  const hasTranslatedPage = Array.from(group.tabUrls.values()).some(
+    (url) => buildTranslatedPageSignature(url)?.matchKind === 'translated-page',
+  );
+
+  if (hasTranslatedPage) {
+    return { matchKind: 'translated-page', matchConfidence: 'high' };
+  }
+
+  return { matchKind: 'same-url', matchConfidence: 'low' };
+}
+
+function recomputeAutoSyncGroupMetadata(group: AutoSyncGroup): boolean {
+  const metadata = getCurrentGroupMetadata(group);
 
   if (
-    !group ||
-    translatedSignature?.matchKind !== 'translated-page' ||
-    group.matchKind === 'translated-page'
+    !metadata ||
+    (group.matchKind === metadata.matchKind && group.matchConfidence === metadata.matchConfidence)
   ) {
     return false;
   }
 
-  group.matchKind = translatedSignature.matchKind;
-  group.matchConfidence = translatedSignature.confidence;
+  group.matchKind = metadata.matchKind;
+  group.matchConfidence = metadata.matchConfidence;
   return true;
 }
 
-export function refreshAutoSyncGroupMetadata(normalizedUrl: string, url: string): boolean {
-  return applyTranslatedPageMetadata(normalizedUrl, url);
+export function refreshAutoSyncGroupMetadata(
+  normalizedUrl: string,
+  tabId: number,
+  url: string,
+): boolean {
+  const group = autoSyncState.groups.get(normalizedUrl);
+
+  if (!group || !group.tabIds.has(tabId)) {
+    return false;
+  }
+
+  group.tabUrls ??= new Map();
+  group.tabUrls.set(tabId, url);
+
+  return recomputeAutoSyncGroupMetadata(group);
 }
 
 /**
@@ -92,6 +127,7 @@ export async function removeTabFromAllAutoSyncGroups(tabId: number): Promise<voi
   for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
     if (group.tabIds.has(tabId)) {
       group.tabIds.delete(tabId);
+      group.tabUrls?.delete(tabId);
       logger.debug(`Removed tab ${tabId} from auto-sync group`, { normalizedUrl });
 
       if (group.tabIds.size < 2) {
@@ -104,6 +140,8 @@ export async function removeTabFromAllAutoSyncGroups(tabId: number): Promise<voi
       if (group.tabIds.size === 0) {
         autoSyncState.groups.delete(normalizedUrl);
         logger.debug(`Removed empty auto-sync group`, { normalizedUrl });
+      } else {
+        recomputeAutoSyncGroupMetadata(group);
       }
     }
   }
@@ -216,12 +254,11 @@ async function updateAutoSyncGroupInternal(
       isActive: false,
       matchKind: translatedSignature?.matchKind,
       matchConfidence: translatedSignature?.confidence,
+      tabUrls: new Map(),
     };
     autoSyncState.groups.set(normalizedUrl, group);
     logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
   }
-
-  applyTranslatedPageMetadata(normalizedUrl, url);
 
   if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(tabId)) {
     logger.warn('[AUTO-SYNC] Group size limit reached, tab not added', {
@@ -234,6 +271,10 @@ async function updateAutoSyncGroupInternal(
   }
 
   group.tabIds.add(tabId);
+  group.tabUrls ??= new Map();
+  group.tabUrls.set(tabId, url);
+  recomputeAutoSyncGroupMetadata(group);
+
   logger.info('[AUTO-SYNC] Tab added to group', {
     tabId,
     normalizedUrl,
