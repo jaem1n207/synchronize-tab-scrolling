@@ -510,6 +510,55 @@ describe('registerTabEventHandlers', () => {
       );
     });
 
+    it('uses metadata alternates for medium-confidence translated slug active sync suggestions', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [10];
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 10,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+        url: 'https://example.com/en/getting-started',
+      } as browser.Tabs.Tab);
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_message, _payload, target) => {
+        const targetTabId = (target as { tabId?: number }).tabId;
+
+        if (targetTabId === 20) {
+          return {
+            success: true,
+            url: 'https://example.com/tr/baslangic',
+            alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
+          };
+        }
+
+        if (targetTabId === 10) {
+          return {
+            success: true,
+            url: 'https://example.com/en/getting-started',
+            alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
+          };
+        }
+
+        return { success: false, url: '', alternateUrls: [] };
+      });
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { url: 'https://example.com/tr/baslangic' },
+        { id: 20, url: 'https://example.com/tr/baslangic', title: 'Turkish getting started' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledWith(
+        20,
+        'Turkish getting started',
+        'https://example.com/getting-started',
+        'possible-translation',
+        'medium',
+      );
+    });
+
     it('uses translated metadata when synced tab is localized and new tab is canonical', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [10];

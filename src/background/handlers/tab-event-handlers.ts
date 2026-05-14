@@ -5,6 +5,8 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadUrlSyncEnabled } from '~/shared/lib/storage';
 import {
   buildTranslatedPageSignature,
+  isTranslatedPageMetadataMatch,
+  type TranslatedPageMetadata,
   type TranslatedPageSignature,
 } from '~/shared/lib/translated-page-url-utils';
 
@@ -36,6 +38,130 @@ import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/tab-event-handlers' });
+const ACTIVE_SYNC_METADATA_TIMEOUT_MS = 500;
+const MAX_ACTIVE_SYNC_METADATA_PROBES = 10;
+
+interface ActiveSyncMetadataMatch {
+  normalizedUrl: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getAlternateUrls(value: unknown): TranslatedPageMetadata['alternateUrls'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const hreflang = getOptionalString(item.hreflang);
+    const href = getOptionalString(item.href);
+
+    if (!hreflang || !href) {
+      return [];
+    }
+
+    return [{ hreflang, href }];
+  });
+}
+
+function getMetadataUrlKey(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return null;
+    }
+
+    parsedUrl.hash = '';
+    return parsedUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isMetadataForRequestedUrl(
+  metadata: TranslatedPageMetadata,
+  requestedUrl: string,
+): boolean {
+  const metadataUrlKey = getMetadataUrlKey(metadata.url);
+  const requestedUrlKey = getMetadataUrlKey(requestedUrl);
+
+  return Boolean(metadataUrlKey && requestedUrlKey && metadataUrlKey === requestedUrlKey);
+}
+
+async function getActiveSyncTabMetadata(
+  tabId: number,
+  url: string,
+): Promise<TranslatedPageMetadata | null> {
+  try {
+    const response = await sendMessageWithTimeout(
+      'translated-page:get-metadata',
+      { tabId },
+      { context: 'content-script', tabId },
+      ACTIVE_SYNC_METADATA_TIMEOUT_MS,
+    );
+
+    if (!isRecord(response) || response.success !== true) {
+      return null;
+    }
+
+    const metadata: TranslatedPageMetadata = {
+      url: getOptionalString(response.url) ?? url,
+      title: getOptionalString(response.title),
+      canonicalUrl: getOptionalString(response.canonicalUrl),
+      alternateUrls: getAlternateUrls(response.alternateUrls),
+    };
+
+    return isMetadataForRequestedUrl(metadata, url) ? metadata : null;
+  } catch {
+    return null;
+  }
+}
+
+async function findActiveSyncMetadataMatch(
+  tabId: number,
+  url: string,
+): Promise<ActiveSyncMetadataMatch | null> {
+  const sourceMetadata = await getActiveSyncTabMetadata(tabId, url);
+  if (!sourceMetadata) {
+    return null;
+  }
+
+  const candidateMatches = await Promise.all(
+    syncState.linkedTabs
+      .filter((syncedTabId) => syncedTabId !== tabId)
+      .slice(0, MAX_ACTIVE_SYNC_METADATA_PROBES)
+      .map(async (syncedTabId): Promise<ActiveSyncMetadataMatch | null> => {
+        try {
+          const syncedTab = await browser.tabs.get(syncedTabId);
+          if (!syncedTab.url) {
+            return null;
+          }
+
+          const syncedMetadata = await getActiveSyncTabMetadata(syncedTabId, syncedTab.url);
+          if (!syncedMetadata || !isTranslatedPageMetadataMatch(sourceMetadata, syncedMetadata)) {
+            return null;
+          }
+
+          const syncedSignature = buildTranslatedPageSignature(syncedTab.url);
+          return syncedSignature ? { normalizedUrl: syncedSignature.canonicalKey } : null;
+        } catch {
+          return null;
+        }
+      }),
+  );
+
+  return candidateMatches.find((match) => match !== null) ?? null;
+}
 
 export function registerTabEventHandlers(): void {
   browser.tabs.onRemoved.addListener(async (tabId) => {
@@ -226,6 +352,24 @@ export function registerTabEventHandlers(): void {
               isTranslatedPageMatch ? 'translated-page' : newTabSignature?.matchKind,
               isTranslatedPageMatch ? 'high' : newTabSignature?.confidence,
             );
+          } else if (!addTabSuggestedTabs.has(tabId)) {
+            const metadataMatch = await findActiveSyncMetadataMatch(tabId, url);
+            if (metadataMatch) {
+              addTabSuggestedTabs.add(tabId);
+              logger.info('[AUTO-SYNC] Detected translated metadata match for active sync tab', {
+                tabId,
+                normalizedUrl: metadataMatch.normalizedUrl,
+                trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
+              });
+
+              await showAddTabSuggestion(
+                tabId,
+                tab.title || 'Untitled',
+                metadataMatch.normalizedUrl,
+                'possible-translation',
+                'medium',
+              );
+            }
           }
         }
 
