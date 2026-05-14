@@ -31,9 +31,10 @@ Tab1+Tab2가 동기화 중인 상태에서 Tab3+Tab4가 다른 URL로 열리면 
 
 쿼리 파라미터는 그룹화 전에 역할별로 분류합니다:
 
-- 로케일 쿼리 키는 번역 페이지 키에서 제거합니다: `lang`, `locale`, `hl`, `language`, `lng`, `ui`, `culture`
+- 로케일 쿼리 키는 값이 실제 로케일일 때만 번역 페이지 키에서 제거합니다: `lang`, `locale`, `hl`, `language`, `lng`, `ui`, `culture`
 - 추적 쿼리 키는 번역 페이지 키에서 제거합니다: `utm_*`, `ref`, `source`, `fbclid`, `gclid`
 - 페이지 정체성 쿼리 키는 번역 페이지 키에 남깁니다. 예: `id`, `page`, `doc`, `article`, `slug`
+- 로케일처럼 보이는 키라도 값이 로케일이 아니면 페이지 정체성으로 보존합니다. 예: `language=typescript`, `language=python`
 
 번역된 슬러그는 중간 신뢰도로만 처리합니다. 예를 들어 `/en/getting-started`와 `/tr/baslangic`처럼 경로 자체가 달라지는 경우에는 `link rel="alternate" hreflang` 또는 canonical 관계처럼 결정적인 페이지 메타데이터가 있어야 합니다. 메타데이터를 가져올 수 없거나, 응답 URL이 요청한 탭 URL과 맞지 않거나, 두 페이지를 연결하는 관계가 확인되지 않으면 번역 페이지 제안을 표시하지 않습니다.
 
