@@ -1,8 +1,9 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import { extractDomainFromUrl, normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
+import { extractDomainFromUrl } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import {
@@ -441,7 +442,7 @@ async function hasSyncedTabMatchingUrl(normalizedUrl: string): Promise<boolean> 
   const results = await Promise.allSettled(
     syncState.linkedTabs.map(async (tabId) => {
       const tab = await browser.tabs.get(tabId);
-      return tab.url ? normalizeUrlForAutoSync(tab.url) === normalizedUrl : false;
+      return tab.url ? getAutoSyncPageKey(tab.url) === normalizedUrl : false;
     }),
   );
   return results.some((r) => r.status === 'fulfilled' && r.value);

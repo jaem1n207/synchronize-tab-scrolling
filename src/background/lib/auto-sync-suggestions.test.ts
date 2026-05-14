@@ -79,13 +79,11 @@ vi.mock('./sync-state', () => ({
   },
 }));
 
-const { normalizeUrlForAutoSyncMock, extractDomainFromUrlMock } = vi.hoisted(() => ({
-  normalizeUrlForAutoSyncMock: vi.fn(),
+const { extractDomainFromUrlMock } = vi.hoisted(() => ({
   extractDomainFromUrlMock: vi.fn(),
 }));
 
 vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
-  normalizeUrlForAutoSync: normalizeUrlForAutoSyncMock,
   extractDomainFromUrl: extractDomainFromUrlMock,
 }));
 
@@ -136,10 +134,6 @@ describe('auto-sync-suggestions', () => {
     syncState.connectionStatuses = {};
     syncState.lastActiveSyncedTabId = null;
 
-    normalizeUrlForAutoSyncMock.mockImplementation((url: string) => {
-      if (!url) return null;
-      return url.split('?')[0].split('#')[0] ?? null;
-    });
     extractDomainFromUrlMock.mockImplementation((url: string) => {
       try {
         return new URL(url).hostname;
@@ -504,6 +498,26 @@ describe('auto-sync-suggestions', () => {
       mockedBrowser.tabs.get.mockImplementation(async (tabId: number) =>
         createMockTab(tabId, `Tab ${tabId}`, `${normalizedUrl}?lang=ko`),
       );
+
+      await showSyncSuggestion(normalizedUrl);
+
+      expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
+    });
+
+    it('skips translated page suggestion when active sync already contains a locale variant', async () => {
+      const normalizedUrl = 'https://example.com/docs/install';
+      autoSyncState.groups.set(normalizedUrl, createGroup([100, 101]));
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [200];
+
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => {
+        if (tabId === 200) {
+          return createMockTab(tabId, 'Synced English Docs', 'https://example.com/en/docs/install');
+        }
+        return createMockTab(tabId, `Tab ${tabId}`, 'https://example.com/tr/docs/install');
+      });
 
       await showSyncSuggestion(normalizedUrl);
 
