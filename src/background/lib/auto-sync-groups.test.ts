@@ -12,6 +12,7 @@ import {
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
   refreshAutoSyncGroupMetadata,
+  removeTabFromAutoSyncGroup,
   removeTabFromAllAutoSyncGroups,
   stopAutoSyncForGroup,
   updateAutoSyncGroup,
@@ -307,6 +308,43 @@ describe('auto-sync-groups', () => {
 
       expect(autoSyncState.groups.get('https://example.com')?.tabIds).toEqual(new Set([1, 2]));
       expect(sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeTabFromAutoSyncGroup', () => {
+    it('removes tab URL and downgrades metadata when localized member leaves', () => {
+      autoSyncState.groups.set('https://example.com/docs', {
+        ...createGroup([1, 2, 3], false),
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+        tabUrls: new Map([
+          [1, 'https://example.com/en/docs'],
+          [2, 'https://example.com/docs'],
+          [3, 'https://example.com/docs'],
+        ]),
+      });
+
+      const didRemove = removeTabFromAutoSyncGroup('https://example.com/docs', 1);
+
+      expect(didRemove).toBe(true);
+      expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
+        tabIds: new Set([2, 3]),
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
+      expect(autoSyncState.groups.get('https://example.com/docs')?.tabUrls).toEqual(
+        new Map([
+          [2, 'https://example.com/docs'],
+          [3, 'https://example.com/docs'],
+        ]),
+      );
+    });
+
+    it('returns false when group or tab is missing', () => {
+      autoSyncState.groups.set('https://example.com/docs', createGroup([2], false));
+
+      expect(removeTabFromAutoSyncGroup('https://missing.example/docs', 2)).toBe(false);
+      expect(removeTabFromAutoSyncGroup('https://example.com/docs', 3)).toBe(false);
     });
   });
 

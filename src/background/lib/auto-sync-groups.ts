@@ -83,6 +83,27 @@ export function refreshAutoSyncGroupMetadata(
   return recomputeAutoSyncGroupMetadata(group);
 }
 
+export function removeTabFromAutoSyncGroup(normalizedUrl: string, tabId: number): boolean {
+  const group = autoSyncState.groups.get(normalizedUrl);
+
+  if (!group?.tabIds.has(tabId)) {
+    return false;
+  }
+
+  group.tabIds.delete(tabId);
+  group.tabUrls?.delete(tabId);
+  logger.debug(`Removed tab ${tabId} from auto-sync group`, { normalizedUrl });
+
+  if (group.tabIds.size === 0) {
+    autoSyncState.groups.delete(normalizedUrl);
+    logger.debug(`Removed empty auto-sync group`, { normalizedUrl });
+  } else {
+    recomputeAutoSyncGroupMetadata(group);
+  }
+
+  return true;
+}
+
 /**
  * Cancel any pending retry timer for a group
  */
@@ -126,22 +147,13 @@ export async function stopAutoSyncForGroup(normalizedUrl: string): Promise<void>
 export async function removeTabFromAllAutoSyncGroups(tabId: number): Promise<void> {
   for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
     if (group.tabIds.has(tabId)) {
-      group.tabIds.delete(tabId);
-      group.tabUrls?.delete(tabId);
-      logger.debug(`Removed tab ${tabId} from auto-sync group`, { normalizedUrl });
+      removeTabFromAutoSyncGroup(normalizedUrl, tabId);
 
       if (group.tabIds.size < 2) {
         cancelAutoSyncRetry(normalizedUrl);
         if (group.isActive) {
           await stopAutoSyncForGroup(normalizedUrl);
         }
-      }
-
-      if (group.tabIds.size === 0) {
-        autoSyncState.groups.delete(normalizedUrl);
-        logger.debug(`Removed empty auto-sync group`, { normalizedUrl });
-      } else {
-        recomputeAutoSyncGroupMetadata(group);
       }
     }
   }
