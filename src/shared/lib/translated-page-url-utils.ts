@@ -87,12 +87,12 @@ function getHostWithPort(hostname: string, port: string): string {
   return port ? `${hostname}:${port}` : hostname;
 }
 
-function isNoiseQueryParam(key: string): boolean {
+function isNoiseQueryParam(key: string, value: string): boolean {
   const normalizedKey = key.toLowerCase();
   return (
     normalizedKey.startsWith('utm_') ||
     TRACKING_QUERY_KEYS.has(normalizedKey) ||
-    LOCALE_QUERY_KEYS.has(normalizedKey)
+    (LOCALE_QUERY_KEYS.has(normalizedKey) && isLocaleValue(value))
   );
 }
 
@@ -105,7 +105,7 @@ function getIdentityQueryParams(searchParams: URLSearchParams): Array<IdentityQu
   const params: Array<IdentityQueryParam> = [];
 
   searchParams.forEach((value, key) => {
-    if (!isNoiseQueryParam(key)) {
+    if (!isNoiseQueryParam(key, value)) {
       params.push({ key, value });
     }
   });

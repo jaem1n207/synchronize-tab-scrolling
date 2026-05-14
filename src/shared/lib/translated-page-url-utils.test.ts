@@ -47,6 +47,27 @@ describe('buildTranslatedPageSignature', () => {
     );
   });
 
+  it('keeps non-locale language values distinct on path locale pages', () => {
+    expect(getAutoSyncPageKey('https://example.com/en/docs?language=typescript')).toBe(
+      'https://example.com/docs?language=typescript',
+    );
+    expect(getAutoSyncPageKey('https://example.com/tr/docs?language=python')).toBe(
+      'https://example.com/docs?language=python',
+    );
+    expect(getAutoSyncPageKey('https://example.com/en/docs?language=typescript')).not.toBe(
+      getAutoSyncPageKey('https://example.com/tr/docs?language=python'),
+    );
+  });
+
+  it('still removes locale-valued query carriers from path locale pages', () => {
+    expect(getAutoSyncPageKey('https://example.com/en/docs?lang=en&page=setup')).toBe(
+      'https://example.com/docs?page=setup',
+    );
+    expect(getAutoSyncPageKey('https://example.com/tr/docs?lang=tr&page=setup')).toBe(
+      'https://example.com/docs?page=setup',
+    );
+  });
+
   it('keeps different identity query values separate', () => {
     expect(getAutoSyncPageKey('https://example.com/docs/install?lang=en&page=setup')).not.toBe(
       getAutoSyncPageKey('https://example.com/docs/install?lang=tr&page=config'),
