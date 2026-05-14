@@ -89,12 +89,12 @@ describe('applyLocalePreservingSync', () => {
     expect(result).toBe('https://example.com/fr/docs/install');
   });
 
-  it('should use source pathname when only target has locale', () => {
+  it('should preserve target locale when only target has locale', () => {
     const result = applyLocalePreservingSync(
       'https://example.com/docs/install',
       'https://example.com/en-US/docs/next',
     );
-    expect(result).toBe('https://example.com/docs/install');
+    expect(result).toBe('https://example.com/en-US/docs/install');
   });
 
   it('should use source pathname when neither has locale', () => {
