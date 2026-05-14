@@ -39,6 +39,7 @@ import {
   MAX_RECONNECTION_ATTEMPTS,
   RECONNECTION_BACKOFF_MS,
 } from './lib/scroll-sync-state';
+import { collectTranslatedPageMetadata } from './lib/translated-page-metadata';
 import { destroyPanel, hidePanel, showPanel } from './panel';
 import {
   showSyncSuggestionToast,
@@ -603,6 +604,10 @@ function stopVisibilityChangeMonitoring() {
  * Initialize scroll sync system
  */
 export function initScrollSync() {
+  onMessage('translated-page:get-metadata', () => {
+    return collectTranslatedPageMetadata(window.location.href);
+  });
+
   // Listen for start sync message
   onMessage('scroll:start', async ({ data }) => {
     const payload = data;
