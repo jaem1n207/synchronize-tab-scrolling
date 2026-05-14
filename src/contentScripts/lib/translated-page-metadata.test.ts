@@ -33,11 +33,28 @@ describe('collectTranslatedPageMetadata', () => {
     document.head.innerHTML = `
       <link rel="alternate" href="https://example.com/tr/baslangic" />
       <link rel="alternate" hreflang="tr" />
+      <link rel="alternate" hreflang="fr" href="" />
+      <link rel="alternate" hreflang="es" href="   " />
+      <link rel="alternate" hreflang="" href="https://example.com/empty-locale" />
+      <link rel="alternate" hreflang="   " href="https://example.com/blank-locale" />
       <link rel="alternate" hreflang="de" href="https://example.com/de/erste-schritte" />
     `;
 
     expect(collectTranslatedPageMetadata('https://example.com/en/getting-started')).toMatchObject({
       alternateUrls: [{ hreflang: 'de', href: 'https://example.com/de/erste-schritte' }],
+    });
+  });
+
+  it('ignores canonical links with empty or blank href', () => {
+    document.head.innerHTML = `
+      <link rel="canonical" href="" />
+      <link rel="canonical" href="   " />
+      <link rel="alternate" hreflang="ko" href="https://example.com/ko/start" />
+    `;
+
+    expect(collectTranslatedPageMetadata('https://example.com/en/getting-started')).toMatchObject({
+      canonicalUrl: undefined,
+      alternateUrls: [{ hreflang: 'ko', href: 'https://example.com/ko/start' }],
     });
   });
 

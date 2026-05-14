@@ -1,10 +1,12 @@
 import type { TranslatedPageMetadataResponseMessage } from '~/shared/types/messages';
 
 export function collectTranslatedPageMetadata(url: string): TranslatedPageMetadataResponseMessage {
-  const canonicalLink = document.querySelector<HTMLLinkElement>('link[rel~="canonical"][href]');
+  const canonicalLink = Array.from(
+    document.querySelectorAll<HTMLLinkElement>('link[rel~="canonical"]'),
+  ).find((link) => link.getAttribute('href')?.trim());
   const alternateLinks = Array.from(
-    document.querySelectorAll<HTMLLinkElement>('link[rel~="alternate"][hreflang][href]'),
-  );
+    document.querySelectorAll<HTMLLinkElement>('link[rel~="alternate"]'),
+  ).filter((link) => link.getAttribute('hreflang')?.trim() && link.getAttribute('href')?.trim());
 
   return {
     success: true,
