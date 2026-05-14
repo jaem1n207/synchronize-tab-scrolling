@@ -538,6 +538,38 @@ describe('registerTabEventHandlers', () => {
       );
     });
 
+    it('uses translated metadata when canonical synced tab is listed before localized synced tab', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [10, 11];
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
+        const url = tabId === 10 ? 'https://example.com/docs' : 'https://example.com/en/docs';
+
+        return {
+          id: tabId,
+          index: 0,
+          highlighted: false,
+          active: false,
+          pinned: false,
+          incognito: false,
+          url,
+        } as browser.Tabs.Tab;
+      });
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { url: 'https://example.com/docs' },
+        { id: 20, url: 'https://example.com/docs', title: 'Canonical docs' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledWith(
+        20,
+        'Canonical docs',
+        'https://example.com/docs',
+        'translated-page',
+        'high',
+      );
+    });
+
     it('does not show add-tab suggestion twice for the same tab (deduplication)', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [10];

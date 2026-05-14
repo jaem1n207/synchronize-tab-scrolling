@@ -202,12 +202,11 @@ export function registerTabEventHandlers(): void {
               }
             }),
           );
-          const matchingSyncedTabSignature =
-            syncedTabSignaturesWithSameUrl.find(
-              (signature): signature is TranslatedPageSignature => signature !== null,
-            ) ?? null;
+          const matchingSyncedTabSignatures = syncedTabSignaturesWithSameUrl.filter(
+            (signature): signature is TranslatedPageSignature => signature !== null,
+          );
 
-          if (matchingSyncedTabSignature && !addTabSuggestedTabs.has(tabId)) {
+          if (matchingSyncedTabSignatures.length > 0 && !addTabSuggestedTabs.has(tabId)) {
             addTabSuggestedTabs.add(tabId);
             logger.info('[AUTO-SYNC] Detected new tab with same URL as synced tab (immediate)', {
               tabId,
@@ -216,7 +215,9 @@ export function registerTabEventHandlers(): void {
             });
             const isTranslatedPageMatch =
               newTabSignature?.matchKind === 'translated-page' ||
-              matchingSyncedTabSignature.matchKind === 'translated-page';
+              matchingSyncedTabSignatures.some(
+                (signature) => signature.matchKind === 'translated-page',
+              );
 
             await showAddTabSuggestion(
               tabId,
