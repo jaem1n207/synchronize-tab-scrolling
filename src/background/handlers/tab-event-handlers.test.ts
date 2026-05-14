@@ -6,6 +6,7 @@ import { loadUrlSyncEnabled } from '~/shared/lib/storage';
 
 import {
   broadcastAutoSyncGroupUpdate,
+  refreshAutoSyncGroupMetadata,
   removeTabFromAllAutoSyncGroups,
   updateAutoSyncGroup,
 } from '../lib/auto-sync-groups';
@@ -85,6 +86,7 @@ vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
   updateAutoSyncGroup: vi.fn(),
   broadcastAutoSyncGroupUpdate: vi.fn(),
+  refreshAutoSyncGroupMetadata: vi.fn(),
 }));
 
 vi.mock('../lib/auto-sync-lifecycle', () => ({
@@ -189,6 +191,7 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(broadcastAutoSyncGroupUpdate).mockResolvedValue();
     vi.mocked(updateAutoSyncGroup).mockResolvedValue(null);
+    vi.mocked(refreshAutoSyncGroupMetadata).mockReturnValue(false);
     vi.mocked(sendMessage).mockResolvedValue(undefined);
     vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 1 });
     vi.mocked(isContentScriptAlive).mockResolvedValue(true);
@@ -556,6 +559,42 @@ describe('registerTabEventHandlers', () => {
       );
 
       expect(updateAutoSyncGroup).not.toHaveBeenCalled();
+    });
+
+    it('refreshes metadata when same-key tab URL changes to a locale variant', async () => {
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set('https://example.com/docs', {
+        tabIds: new Set([11, 12]),
+        isActive: false,
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
+      vi.mocked(refreshAutoSyncGroupMetadata).mockImplementationOnce((normalizedUrl, url) => {
+        const group = autoSyncState.groups.get(normalizedUrl);
+        if (url === 'https://example.com/en/docs' && group) {
+          group.matchKind = 'translated-page';
+          group.matchConfidence = 'high';
+          return true;
+        }
+        return false;
+      });
+
+      await getListener('tabs.onUpdated')(
+        11,
+        { url: 'https://example.com/en/docs' },
+        { id: 11, url: 'https://example.com/en/docs', title: 'English docs' },
+      );
+
+      expect(updateAutoSyncGroup).not.toHaveBeenCalled();
+      expect(refreshAutoSyncGroupMetadata).toHaveBeenCalledWith(
+        'https://example.com/docs',
+        'https://example.com/en/docs',
+      );
+      expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+      expect(broadcastAutoSyncGroupUpdate).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -9,6 +9,7 @@ import {
   removeTabFromAllAutoSyncGroups,
   updateAutoSyncGroup,
   broadcastAutoSyncGroupUpdate,
+  refreshAutoSyncGroupMetadata,
 } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
@@ -211,8 +212,14 @@ export function registerTabEventHandlers(): void {
 
           if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
             await updateAutoSyncGroup(tabId, url);
-          } else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
+          } else if (existingGroup && existingGroup.tabIds.has(tabId)) {
+            const didRefreshMetadata = refreshAutoSyncGroupMetadata(normalizedUrl, url);
+            if (didRefreshMetadata) {
+              await broadcastAutoSyncGroupUpdate();
+            }
+
             if (
+              !existingGroup.isActive &&
               existingGroup.tabIds.size >= 2 &&
               !pendingSuggestions.has(normalizedUrl) &&
               !dismissedUrlGroups.has(normalizedUrl) &&
