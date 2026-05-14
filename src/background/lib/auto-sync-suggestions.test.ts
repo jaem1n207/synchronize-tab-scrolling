@@ -87,10 +87,15 @@ vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
   extractDomainFromUrl: extractDomainFromUrlMock,
 }));
 
-function createGroup(tabIds: Array<number>, isActive: boolean = false): AutoSyncGroup {
+function createGroup(
+  tabIds: Array<number>,
+  isActive: boolean = false,
+  metadata: Partial<Pick<AutoSyncGroup, 'matchKind' | 'matchConfidence'>> = {},
+): AutoSyncGroup {
   return {
     tabIds: new Set(tabIds),
     isActive,
+    ...metadata,
   };
 }
 
@@ -426,6 +431,27 @@ describe('auto-sync-suggestions', () => {
       ]);
     });
 
+    it('includes translated-page match metadata in sync suggestion payload', async () => {
+      const normalizedUrl = 'https://example.com/docs/install';
+      autoSyncState.groups.set(
+        normalizedUrl,
+        createGroup([1, 2], false, {
+          matchKind: 'translated-page',
+          matchConfidence: 'high',
+        }),
+      );
+
+      await showSyncSuggestion(normalizedUrl);
+
+      const showCalls = mockedSendMessageWithTimeout.mock.calls.filter(
+        (call) => call[0] === 'sync-suggestion:show',
+      );
+      expect(showCalls[0]?.[1]).toMatchObject({
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+    });
+
     it('uses 2000ms timeout when sending suggestion to tabs', async () => {
       const normalizedUrl = 'https://timeout-2000.test';
       autoSyncState.groups.set(normalizedUrl, createGroup([40, 41]));
@@ -658,6 +684,24 @@ describe('auto-sync-suggestions', () => {
           tabTitles: ['One', 'Two', 'Three'],
           tabCount: 3,
         },
+        { context: 'content-script', tabId: 2 },
+      );
+    });
+
+    it('includes translated-page match metadata in pending single-tab suggestion payload', async () => {
+      const group = createGroup([1, 2], false, {
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+
+      await sendSuggestionToSingleTab(2, 'https://example.com/docs/install', group);
+
+      expect(mockedSendMessage).toHaveBeenCalledWith(
+        'sync-suggestion:show',
+        expect.objectContaining({
+          matchKind: 'translated-page',
+          matchConfidence: 'high',
+        }),
         { context: 'content-script', tabId: 2 },
       );
     });

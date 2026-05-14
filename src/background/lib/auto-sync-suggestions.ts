@@ -241,6 +241,8 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
             tabCount: tabIds.length,
             tabIds,
             tabTitles,
+            ...(group.matchKind && { matchKind: group.matchKind }),
+            ...(group.matchConfidence && { matchConfidence: group.matchConfidence }),
             ...(syncState.isActive &&
               syncState.linkedTabs.length > 0 && {
                 hasExistingSync: true,
@@ -338,6 +340,8 @@ export async function sendSuggestionToSingleTab(
         tabIds,
         tabTitles,
         tabCount: tabIds.length,
+        ...(group.matchKind && { matchKind: group.matchKind }),
+        ...(group.matchConfidence && { matchConfidence: group.matchConfidence }),
         ...(syncState.isActive &&
           syncState.linkedTabs.length > 0 && {
             hasExistingSync: true,
