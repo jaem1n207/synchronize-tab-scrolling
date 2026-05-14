@@ -109,7 +109,9 @@ export function removeLocaleFromPath(pathname: string, locale: string): string {
  * 3. 대상만 로케일 포함: 소스 경로를 대상의 로케일로 변환
  * 4. 둘 다 없음: 소스 경로 사용
  *
- * 모든 경우에 대상의 쿼리 파라미터와 해시는 보존됨
+ * 대상에 로케일이 있거나 둘 다 로케일이 없으면 대상의 해시를 보존함
+ * 대상 쿼리는 경로/서브도메인 로케일에서는 보존되고, 쿼리 로케일에서는 소스 식별 쿼리와 대상 로케일 쿼리를 사용함
+ * 소스만 로케일을 포함하고 대상에 로케일이 없으면 소스 URL을 그대로 사용함
  *
  * @param sourceUrl 변경된 소스 탭의 URL
  * @param targetUrl 동기화 대상 탭의 현재 URL
