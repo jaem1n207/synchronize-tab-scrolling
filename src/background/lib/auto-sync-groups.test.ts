@@ -14,6 +14,7 @@ import {
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
   refreshAutoSyncGroupMetadata,
+  refreshTranslatedPageCandidateGroups,
   removeTabFromAutoSyncGroup,
   removeTabFromAllAutoSyncGroups,
   stopAutoSyncForGroup,
@@ -54,6 +55,7 @@ const {
   isTabManuallyOverriddenMock,
   sendMessageWithTimeoutMock,
   tabsGetMock,
+  scriptingExecuteScriptMock,
   loggerInfoMock,
   loggerDebugMock,
   loggerWarnMock,
@@ -75,6 +77,7 @@ const {
   const isTabManuallyOverriddenMock = vi.fn().mockReturnValue(false);
   const sendMessageWithTimeoutMock = vi.fn();
   const tabsGetMock = vi.fn();
+  const scriptingExecuteScriptMock = vi.fn();
 
   const loggerInfoMock = vi.fn();
   const loggerDebugMock = vi.fn();
@@ -103,6 +106,7 @@ const {
     isTabManuallyOverriddenMock,
     sendMessageWithTimeoutMock,
     tabsGetMock,
+    scriptingExecuteScriptMock,
     loggerInfoMock,
     loggerDebugMock,
     loggerWarnMock,
@@ -123,6 +127,9 @@ vi.mock('webextension-polyfill', () => ({
   default: {
     tabs: {
       get: tabsGetMock,
+    },
+    scripting: {
+      executeScript: scriptingExecuteScriptMock,
     },
   },
 }));
@@ -201,6 +208,7 @@ describe('auto-sync-groups', () => {
       pinned: false,
       incognito: false,
     });
+    mockedBrowser.scripting.executeScript.mockResolvedValue([]);
     mockedSendMessageWithTimeout.mockResolvedValue({ success: false });
     showSyncSuggestionMock.mockResolvedValue(undefined);
     sendSuggestionToSingleTabMock.mockResolvedValue(undefined);
@@ -998,6 +1006,81 @@ describe('auto-sync-groups', () => {
         matchKind: 'possible-translation',
         matchConfidence: 'medium',
       });
+    });
+  });
+
+  describe('refreshTranslatedPageCandidateGroups', () => {
+    it('injects singleton tabs and merges translated slug candidates without showing suggestions', async () => {
+      autoSyncState.groups.set('https://example.com/getting-started', {
+        ...createGroup([1], false),
+        tabUrls: new Map([[1, 'https://example.com/en/getting-started']]),
+      });
+      autoSyncState.groups.set('https://example.com/baslangic', {
+        ...createGroup([2], false),
+        tabUrls: new Map([[2, 'https://example.com/tr/baslangic']]),
+      });
+      mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => ({
+        id: tabId,
+        url:
+          tabId === 1
+            ? 'https://example.com/en/getting-started'
+            : 'https://example.com/tr/baslangic',
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      }));
+      mockedSendMessageWithTimeout.mockImplementation(async (_type, payload) => {
+        if (
+          typeof payload !== 'object' ||
+          payload === null ||
+          Array.isArray(payload) ||
+          !('tabId' in payload) ||
+          typeof payload.tabId !== 'number'
+        ) {
+          return { success: false, url: '', alternateUrls: [] };
+        }
+
+        const { tabId } = payload;
+        if (tabId === 1) {
+          return {
+            success: true,
+            url: 'https://example.com/en/getting-started',
+            alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
+          };
+        }
+
+        return {
+          success: true,
+          url: 'https://example.com/tr/baslangic',
+          alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
+        };
+      });
+
+      await refreshTranslatedPageCandidateGroups();
+
+      expect(mockedBrowser.scripting.executeScript).toHaveBeenCalledWith({
+        target: { tabId: 2 },
+        files: ['dist/contentScripts/index.global.js'],
+      });
+      expect(mockedBrowser.scripting.executeScript).toHaveBeenCalledWith({
+        target: { tabId: 1 },
+        files: ['dist/contentScripts/index.global.js'],
+      });
+      expect(autoSyncState.groups.get('https://example.com/getting-started')).toMatchObject({
+        tabIds: new Set([1, 2]),
+        matchKind: 'possible-translation',
+        matchConfidence: 'medium',
+      });
+      expect(autoSyncState.groups.get('https://example.com/getting-started')?.tabUrls).toEqual(
+        new Map([
+          [1, 'https://example.com/en/getting-started'],
+          [2, 'https://example.com/tr/baslangic'],
+        ]),
+      );
+      expect(autoSyncState.groups.has('https://example.com/baslangic')).toBe(false);
+      expect(showSyncSuggestion).not.toHaveBeenCalled();
     });
   });
 

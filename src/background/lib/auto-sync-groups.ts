@@ -34,6 +34,10 @@ import { findTranslatedPageCandidateGroup } from './translated-page-candidates';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
 
+const CONTENT_SCRIPT_FILE = 'dist/contentScripts/index.global.js';
+const CONTENT_SCRIPT_SETTLE_DELAY_MS = 100;
+const MAX_TRANSLATED_PAGE_INIT_REPROBE_GROUPS = 10;
+
 interface GroupMetadata {
   matchKind: AutoSyncSuggestionMatchKind;
   matchConfidence: TranslatedPageConfidence;
@@ -130,6 +134,71 @@ async function getTabMetadata(tabId: number, url: string): Promise<TranslatedPag
   }
 }
 
+function getSingletonTabId(group: AutoSyncGroup): number | null {
+  if (group.tabIds.size !== 1) {
+    return null;
+  }
+
+  const [tabId] = group.tabIds;
+  return tabId ?? null;
+}
+
+async function waitForContentScriptSettle(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, CONTENT_SCRIPT_SETTLE_DELAY_MS);
+  });
+}
+
+async function ensureContentScriptInjectedForMetadata(
+  tabId: number,
+  injectedTabIds: Set<number>,
+  failedInjectionTabIds: Set<number>,
+): Promise<boolean> {
+  if (injectedTabIds.has(tabId)) {
+    return true;
+  }
+
+  if (failedInjectionTabIds.has(tabId)) {
+    return false;
+  }
+
+  try {
+    await browser.scripting.executeScript({
+      target: { tabId },
+      files: [CONTENT_SCRIPT_FILE],
+    });
+    injectedTabIds.add(tabId);
+    logger.info('[AUTO-SYNC] Content script injected for translated candidate probe', { tabId });
+    return true;
+  } catch (error) {
+    failedInjectionTabIds.add(tabId);
+    logger.warn('[AUTO-SYNC] Content script injection failed for translated candidate probe', {
+      tabId,
+      error,
+    });
+    return false;
+  }
+}
+
+async function getInjectedTabMetadata(
+  tabId: number,
+  url: string,
+  injectedTabIds: Set<number>,
+  failedInjectionTabIds: Set<number>,
+): Promise<TranslatedPageMetadata | null> {
+  const injected = await ensureContentScriptInjectedForMetadata(
+    tabId,
+    injectedTabIds,
+    failedInjectionTabIds,
+  );
+
+  if (!injected) {
+    return null;
+  }
+
+  return getTabMetadata(tabId, url);
+}
+
 function recomputeAutoSyncGroupMetadata(group: AutoSyncGroup): boolean {
   const metadata = getCurrentGroupMetadata(group);
 
@@ -160,6 +229,110 @@ export function refreshAutoSyncGroupMetadata(
   group.tabUrls.set(tabId, url);
 
   return recomputeAutoSyncGroupMetadata(group);
+}
+
+export async function refreshTranslatedPageCandidateGroups(): Promise<void> {
+  await withAutoSyncLock(refreshTranslatedPageCandidateGroupsInternal);
+}
+
+async function refreshTranslatedPageCandidateGroupsInternal(): Promise<void> {
+  if (!autoSyncState.enabled || autoSyncState.groups.size < 2) {
+    return;
+  }
+
+  const sourceEntries = Array.from(autoSyncState.groups.entries())
+    .filter(([, group]) => !group.isActive && getSingletonTabId(group) !== null)
+    .slice(0, MAX_TRANSLATED_PAGE_INIT_REPROBE_GROUPS)
+    .reverse();
+
+  if (sourceEntries.length < 2) {
+    return;
+  }
+
+  const injectedTabIds = new Set<number>();
+  const failedInjectionTabIds = new Set<number>();
+
+  await Promise.all(
+    sourceEntries.map(async ([, group]) => {
+      const tabId = getSingletonTabId(group);
+      if (tabId === null) {
+        return;
+      }
+
+      await ensureContentScriptInjectedForMetadata(tabId, injectedTabIds, failedInjectionTabIds);
+    }),
+  );
+
+  if (injectedTabIds.size > 0) {
+    await waitForContentScriptSettle();
+  }
+
+  let didMergeCandidate = false;
+
+  for (const [sourceGroupKey] of sourceEntries) {
+    const sourceGroup = autoSyncState.groups.get(sourceGroupKey);
+    if (!sourceGroup || sourceGroup.isActive) {
+      continue;
+    }
+
+    const sourceTabId = getSingletonTabId(sourceGroup);
+    if (sourceTabId === null) {
+      continue;
+    }
+
+    const sourceUrl = sourceGroup.tabUrls?.get(sourceTabId) ?? (await getTabUrl(sourceTabId));
+    if (!sourceUrl) {
+      continue;
+    }
+
+    const candidate = await findTranslatedPageCandidateGroup({
+      tabId: sourceTabId,
+      url: sourceUrl,
+      groups: autoSyncState.groups,
+      maxGroupSize: MAX_AUTO_SYNC_GROUP_SIZE,
+      getTabUrl,
+      getMetadata: (metadataTabId, metadataUrl) =>
+        getInjectedTabMetadata(metadataTabId, metadataUrl, injectedTabIds, failedInjectionTabIds),
+    });
+
+    if (!candidate || candidate.normalizedUrl === sourceGroupKey) {
+      continue;
+    }
+
+    const targetGroup = autoSyncState.groups.get(candidate.normalizedUrl);
+    if (
+      !targetGroup ||
+      targetGroup.isActive ||
+      targetGroup.tabIds.has(sourceTabId) ||
+      targetGroup.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE
+    ) {
+      continue;
+    }
+
+    removeTabFromAutoSyncGroup(sourceGroupKey, sourceTabId);
+
+    targetGroup.tabIds.add(sourceTabId);
+    targetGroup.tabUrls ??= new Map();
+    targetGroup.tabUrls.set(sourceTabId, sourceUrl);
+    targetGroup.matchKind = candidate.matchKind;
+    targetGroup.matchConfidence = candidate.matchConfidence;
+    recomputeAutoSyncGroupMetadata(targetGroup);
+
+    didMergeCandidate = true;
+    logger.info('[AUTO-SYNC] Refreshed translated page candidate group', {
+      tabId: sourceTabId,
+      sourceGroupKey,
+      targetGroupKey: candidate.normalizedUrl,
+      matchKind: candidate.matchKind,
+      matchConfidence: candidate.matchConfidence,
+    });
+  }
+
+  if (didMergeCandidate) {
+    logger.info('[AUTO-SYNC] Translated page candidate refresh complete', {
+      groupCount: autoSyncState.groups.size,
+    });
+  }
 }
 
 export function removeTabFromAutoSyncGroup(normalizedUrl: string, tabId: number): boolean {
