@@ -27,6 +27,27 @@ import {
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
 
+function applyTranslatedPageMetadata(normalizedUrl: string, url: string): boolean {
+  const translatedSignature = buildTranslatedPageSignature(url);
+  const group = autoSyncState.groups.get(normalizedUrl);
+
+  if (
+    !group ||
+    translatedSignature?.matchKind !== 'translated-page' ||
+    group.matchKind === 'translated-page'
+  ) {
+    return false;
+  }
+
+  group.matchKind = translatedSignature.matchKind;
+  group.matchConfidence = translatedSignature.confidence;
+  return true;
+}
+
+export function refreshAutoSyncGroupMetadata(normalizedUrl: string, url: string): boolean {
+  return applyTranslatedPageMetadata(normalizedUrl, url);
+}
+
 /**
  * Cancel any pending retry timer for a group
  */
@@ -200,13 +221,7 @@ async function updateAutoSyncGroupInternal(
     logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
   }
 
-  if (
-    translatedSignature?.matchKind === 'translated-page' &&
-    group.matchKind !== 'translated-page'
-  ) {
-    group.matchKind = translatedSignature.matchKind;
-    group.matchConfidence = translatedSignature.confidence;
-  }
+  applyTranslatedPageMetadata(normalizedUrl, url);
 
   if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(tabId)) {
     logger.warn('[AUTO-SYNC] Group size limit reached, tab not added', {

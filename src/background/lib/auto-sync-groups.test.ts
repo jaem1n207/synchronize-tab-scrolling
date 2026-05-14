@@ -11,6 +11,7 @@ import {
   cancelAutoSyncRetry,
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
+  refreshAutoSyncGroupMetadata,
   removeTabFromAllAutoSyncGroups,
   stopAutoSyncForGroup,
   updateAutoSyncGroup,
@@ -591,6 +592,46 @@ describe('auto-sync-groups', () => {
 
       expect(result).toBe('https://example.com/path');
       expect(autoSyncState.groups.has('https://example.com/path')).toBe(true);
+    });
+  });
+
+  describe('refreshAutoSyncGroupMetadata', () => {
+    it('upgrades same-key group metadata when URL becomes a locale variant', () => {
+      autoSyncState.groups.set('https://example.com/docs', {
+        ...createGroup([1, 2], false),
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
+
+      const didRefresh = refreshAutoSyncGroupMetadata(
+        'https://example.com/docs',
+        'https://example.com/en/docs',
+      );
+
+      expect(didRefresh).toBe(true);
+      expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+    });
+
+    it('does not refresh metadata for same-url variants', () => {
+      autoSyncState.groups.set('https://example.com/docs', {
+        ...createGroup([1, 2], false),
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
+
+      const didRefresh = refreshAutoSyncGroupMetadata(
+        'https://example.com/docs',
+        'https://example.com/docs',
+      );
+
+      expect(didRefresh).toBe(false);
+      expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
     });
   });
 
