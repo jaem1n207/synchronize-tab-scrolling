@@ -10,6 +10,7 @@ import {
   updateAutoSyncGroup,
   broadcastAutoSyncGroupUpdate,
   refreshAutoSyncGroupMetadata,
+  getAutoSyncGroupKeyForTab,
 } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
@@ -138,10 +139,10 @@ export function registerTabEventHandlers(): void {
       logger.debug(`New tab ${tab.id} created with URL, adding to auto-sync group (pending)`, {
         url: tab.url,
       });
-      await updateAutoSyncGroup(tab.id, tab.url, true, true);
+      const groupKey = await updateAutoSyncGroup(tab.id, tab.url, true, true);
 
       // ✅ FIX: Show suggestion after content script is ready (delayed)
-      const normalizedUrl = getAutoSyncPageKey(tab.url);
+      const normalizedUrl = groupKey;
       if (normalizedUrl) {
         const group = autoSyncState.groups.get(normalizedUrl);
         if (group && group.tabIds.size >= 2 && !group.isActive) {
@@ -208,12 +209,27 @@ export function registerTabEventHandlers(): void {
         }
 
         if (autoSyncState.enabled) {
-          const existingGroup = autoSyncState.groups.get(normalizedUrl);
+          const currentGroupKey = getAutoSyncGroupKeyForTab(tabId);
+          const currentGroup = currentGroupKey
+            ? autoSyncState.groups.get(currentGroupKey)
+            : undefined;
+          const currentTabUrl = currentGroup?.tabUrls?.get(tabId);
+          const existingGroupKey =
+            currentGroup &&
+            currentGroupKey &&
+            (currentGroupKey === normalizedUrl || currentTabUrl === url)
+              ? currentGroupKey
+              : normalizedUrl;
+          const existingGroup = autoSyncState.groups.get(existingGroupKey);
+          const shouldProbeCandidates =
+            existingGroupKey === normalizedUrl &&
+            existingGroup?.tabIds.size === 1 &&
+            autoSyncState.groups.size > 1;
 
-          if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
+          if (!existingGroup || !existingGroup.tabIds.has(tabId) || shouldProbeCandidates) {
             await updateAutoSyncGroup(tabId, url);
           } else if (existingGroup && existingGroup.tabIds.has(tabId)) {
-            const didRefreshMetadata = refreshAutoSyncGroupMetadata(normalizedUrl, tabId, url);
+            const didRefreshMetadata = refreshAutoSyncGroupMetadata(existingGroupKey, tabId, url);
             if (didRefreshMetadata) {
               await broadcastAutoSyncGroupUpdate();
             }
@@ -221,13 +237,13 @@ export function registerTabEventHandlers(): void {
             if (
               !existingGroup.isActive &&
               existingGroup.tabIds.size >= 2 &&
-              !pendingSuggestions.has(normalizedUrl) &&
-              !dismissedUrlGroups.has(normalizedUrl) &&
-              !isDomainPermanentlyExcluded(normalizedUrl) &&
-              !isDomainSnoozed(normalizedUrl) &&
+              !pendingSuggestions.has(existingGroupKey) &&
+              !dismissedUrlGroups.has(existingGroupKey) &&
+              !isDomainPermanentlyExcluded(existingGroupKey) &&
+              !isDomainSnoozed(existingGroupKey) &&
               !(syncState.isActive && syncState.linkedTabs.includes(tabId))
             ) {
-              await showSyncSuggestion(normalizedUrl);
+              await showSyncSuggestion(existingGroupKey);
             }
           }
         }
