@@ -43,6 +43,9 @@ describe('CommandItem', () => {
     await waitFor(() => {
       expect(previousItem.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
     });
+    expect(previousItem.querySelector(INDICATOR_SELECTOR)?.getAttribute('data-motion-mode')).toBe(
+      'instant',
+    );
     expect(getIndicatorCount()).toBe(1);
 
     fireEvent.pointerEnter(nextItem);
@@ -54,6 +57,9 @@ describe('CommandItem', () => {
     expect(getIndicatorCount()).toBe(1);
     expect(nextItem.querySelector(INDICATOR_SELECTOR)?.getAttribute('data-layout-id')).toBe(
       'command-item-leading-indicator',
+    );
+    expect(nextItem.querySelector(INDICATOR_SELECTOR)?.getAttribute('data-motion-mode')).toBe(
+      'animated',
     );
   });
 
@@ -73,6 +79,9 @@ describe('CommandItem', () => {
     await waitFor(() => {
       expect(firstOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
     });
+    expect(firstOption.querySelector(INDICATOR_SELECTOR)?.getAttribute('data-motion-mode')).toBe(
+      'instant',
+    );
     expect(getIndicatorCount()).toBe(1);
 
     secondOption.setAttribute('data-selected', 'true');
@@ -82,6 +91,9 @@ describe('CommandItem', () => {
       expect(secondOption.querySelector(INDICATOR_SELECTOR)).not.toBeNull();
     });
     expect(firstOption.querySelector(INDICATOR_SELECTOR)).toBeNull();
+    expect(secondOption.querySelector(INDICATOR_SELECTOR)?.getAttribute('data-motion-mode')).toBe(
+      'instant',
+    );
     expect(getIndicatorCount()).toBe(1);
   });
 

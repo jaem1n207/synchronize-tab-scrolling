@@ -16,8 +16,11 @@ import IconSearch from '~icons/lucide/search';
 
 const COMMAND_ITEM_INDICATOR_LAYOUT_ID = 'command-item-leading-indicator';
 
+type CommandIndicatorSource = 'pointer' | 'selected';
+
 interface CommandIndicatorContextValue {
   activeItemId: string | null;
+  activeItemSource: CommandIndicatorSource | null;
   setPointerItemId: React.Dispatch<React.SetStateAction<string | null>>;
   setPointerDisabledItemId: React.Dispatch<React.SetStateAction<string | null>>;
   setSelectedItemId: React.Dispatch<React.SetStateAction<string | null>>;
@@ -45,15 +48,23 @@ function Command({ ref, className, ...props }: CommandProps) {
   const [pointerDisabledItemId, setPointerDisabledItemId] = React.useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = React.useState<string | null>(null);
   const activeItemId = pointerDisabledItemId ? null : (pointerItemId ?? selectedItemId);
+  const activeItemSource: CommandIndicatorSource | null = pointerDisabledItemId
+    ? null
+    : pointerItemId
+      ? 'pointer'
+      : selectedItemId
+        ? 'selected'
+        : null;
   const layoutGroupId = React.useId();
   const indicatorContext = React.useMemo(
     () => ({
       activeItemId,
+      activeItemSource,
       setPointerItemId,
       setPointerDisabledItemId,
       setSelectedItemId,
     }),
-    [activeItemId],
+    [activeItemId, activeItemSource],
   );
 
   return (
@@ -306,6 +317,12 @@ function CommandItem({
   );
 
   const isIndicatorActive = indicatorContext?.activeItemId === itemId && !isItemDisabled();
+  const indicatorMotionMode =
+    indicatorContext?.activeItemSource === 'pointer' ? 'animated' : 'instant';
+  const indicatorTransition =
+    indicatorMotionMode === 'animated'
+      ? getMotionTransition(ANIMATION_DURATIONS.fast, EASING_FUNCTIONS.easeOutCubic)
+      : { duration: 0 };
 
   return (
     <CommandPrimitive.Item
@@ -324,9 +341,10 @@ function CommandItem({
           aria-hidden="true"
           className="pointer-events-none absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-sm bg-foreground"
           data-layout-id={COMMAND_ITEM_INDICATOR_LAYOUT_ID}
+          data-motion-mode={indicatorMotionMode}
           data-slot="command-item-leading-indicator"
           layoutId={COMMAND_ITEM_INDICATOR_LAYOUT_ID}
-          transition={getMotionTransition(ANIMATION_DURATIONS.fast, EASING_FUNCTIONS.easeOutCubic)}
+          transition={indicatorTransition}
         />
       )}
       {props.children}
