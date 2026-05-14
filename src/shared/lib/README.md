@@ -4,22 +4,26 @@ Pure utility functions and cross-cutting services used by background, content sc
 
 ## Module Overview
 
-| Module                   | Lines | Responsibility                                            | Tests |
-| ------------------------ | ----- | --------------------------------------------------------- | ----- |
-| `auto-sync-url-utils.ts` | —     | URL normalization and exclusion for auto-sync grouping    | Yes   |
-| `url-utils.ts`           | —     | Forbidden URL detection, URL validation                   | Yes   |
-| `scroll-math.ts`         | —     | Scroll position calculations, ratio-based positioning     | Yes   |
-| `tab-similarity.ts`      | —     | Tab title/URL similarity scoring for matching             | Yes   |
-| `korean-search.ts`       | —     | Korean text search with Hangul decomposition (초성 검색)  | Yes   |
-| `performance-utils.ts`   | —     | Debounce, throttle, and performance measurement utilities | Yes   |
-| `locale-utils.ts`        | —     | Locale detection and language code normalization          | Yes   |
-| `storage.ts`             | —     | Typed wrappers for `browser.storage.local` operations     | Yes   |
-| `logger.ts`              | —     | `ExtensionLogger` class with scoped, leveled logging      | —     |
-| `animations.ts`          | —     | CSS animation keyframe definitions                        | Yes   |
-| `env.ts`                 | —     | Environment detection (dev/prod, browser type)            | —     |
-| `platform.ts`            | —     | OS detection for platform-specific keybindings            | Yes   |
-| `utils.ts`               | —     | General-purpose utilities (cn, clsx wrappers)             | Yes   |
-| `index.ts`               | —     | Barrel file re-exporting all modules                      | —     |
+| Module                         | Lines | Responsibility                                            | Tests |
+| ------------------------------ | ----- | --------------------------------------------------------- | ----- |
+| `auto-sync-url-utils.ts`       | —     | URL normalization and exclusion for auto-sync grouping    | Yes   |
+| `url-utils.ts`                 | —     | Forbidden URL detection, URL validation                   | Yes   |
+| `scroll-math.ts`               | —     | Scroll position calculations, ratio-based positioning     | Yes   |
+| `tab-similarity.ts`            | —     | Tab title/URL similarity scoring for matching             | Yes   |
+| `korean-search.ts`             | —     | Korean text search with Hangul decomposition (초성 검색)  | Yes   |
+| `performance-utils.ts`         | —     | Debounce, throttle, and performance measurement utilities | Yes   |
+| `locale-utils.ts`              | —     | Locale detection; delegates URL sync locale preservation  | Yes   |
+| `translated-page-url-utils.ts` | —     | Translated-page keys, metadata matching, locale URL sync  | Yes   |
+| `storage.ts`                   | —     | Typed wrappers for `browser.storage.local` operations     | Yes   |
+| `logger.ts`                    | —     | `ExtensionLogger` class with scoped, leveled logging      | —     |
+| `animations.ts`                | —     | CSS animation keyframe definitions                        | Yes   |
+| `env.ts`                       | —     | Environment detection (dev/prod, browser type)            | —     |
+| `platform.ts`                  | —     | OS detection for platform-specific keybindings            | Yes   |
+| `utils.ts`                     | —     | General-purpose utilities (cn, clsx wrappers)             | Yes   |
+| `index.ts`                     | —     | Barrel file re-exporting all modules                      | —     |
+
+`locale-utils.ts` keeps the legacy locale API, but URL sync locale preservation delegates to
+`translated-page-url-utils.ts` so path, query, and subdomain locale carriers use one implementation.
 
 ## Testing Strategy
 
