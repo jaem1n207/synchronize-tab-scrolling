@@ -42,29 +42,30 @@ This plan implements one subsystem: translated-page URL identity for auto-sync a
 
 Add these message keys to every shared locale file and every extension locale file. The extension tree has a legacy `zh` folder; add the keys there too so runtime locale parity is preserved.
 
-| Key | English text |
-| --- | --- |
-| `foundTabsWithSameTranslatedPage` | `Found $COUNT$ tabs for the same translated page. Start sync?` |
-| `foundTabsMayBeTranslations` | `These $COUNT$ tabs may be translations of the same page. Start sync?` |
+| Key                               | English text                                                           |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| `foundTabsWithSameTranslatedPage` | `Found $COUNT$ tabs for the same translated page. Start sync?`         |
+| `foundTabsMayBeTranslations`      | `These $COUNT$ tabs may be translations of the same page. Start sync?` |
 
 Use these localized strings:
 
-| Locale | `foundTabsWithSameTranslatedPage` | `foundTabsMayBeTranslations` |
-| --- | --- | --- |
-| `en` | `Found $COUNT$ tabs for the same translated page. Start sync?` | `These $COUNT$ tabs may be translations of the same page. Start sync?` |
-| `ko` | `같은 번역 페이지의 탭 $COUNT$개를 찾았습니다. 동기화를 시작할까요?` | `이 탭 $COUNT$개는 같은 페이지의 번역판일 수 있습니다. 동기화를 시작할까요?` |
-| `ja` | `同じ翻訳ページのタブが $COUNT$ 個見つかりました。同期を開始しますか？` | `これら $COUNT$ 個のタブは同じページの翻訳版かもしれません。同期を開始しますか？` |
-| `fr` | `$COUNT$ onglets de la même page traduite ont été trouvés. Démarrer la synchronisation ?` | `Ces $COUNT$ onglets peuvent être des traductions de la même page. Démarrer la synchronisation ?` |
-| `es` | `Se encontraron $COUNT$ pestañas de la misma página traducida. ¿Iniciar sincronización?` | `Estas $COUNT$ pestañas pueden ser traducciones de la misma página. ¿Iniciar sincronización?` |
-| `de` | `$COUNT$ Tabs derselben übersetzten Seite gefunden. Synchronisierung starten?` | `Diese $COUNT$ Tabs könnten Übersetzungen derselben Seite sein. Synchronisierung starten?` |
-| `zh_CN` | `找到 $COUNT$ 个同一翻译页面的标签页。开始同步吗？` | `这 $COUNT$ 个标签页可能是同一页面的译文。开始同步吗？` |
-| `zh_TW` | `找到 $COUNT$ 個同一翻譯頁面的分頁。要開始同步嗎？` | `這 $COUNT$ 個分頁可能是同一頁面的翻譯版本。要開始同步嗎？` |
-| `hi` | `एक ही अनुवादित पेज के $COUNT$ टैब मिले। सिंक शुरू करें?` | `ये $COUNT$ टैब एक ही पेज के अनुवाद हो सकते हैं। सिंक शुरू करें?` |
-| `zh` | `找到 $COUNT$ 个同一翻译页面的标签页。开始同步吗？` | `这 $COUNT$ 个标签页可能是同一页面的译文。开始同步吗？` |
+| Locale  | `foundTabsWithSameTranslatedPage`                                                         | `foundTabsMayBeTranslations`                                                                      |
+| ------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `en`    | `Found $COUNT$ tabs for the same translated page. Start sync?`                            | `These $COUNT$ tabs may be translations of the same page. Start sync?`                            |
+| `ko`    | `같은 번역 페이지의 탭 $COUNT$개를 찾았습니다. 동기화를 시작할까요?`                      | `이 탭 $COUNT$개는 같은 페이지의 번역판일 수 있습니다. 동기화를 시작할까요?`                      |
+| `ja`    | `同じ翻訳ページのタブが $COUNT$ 個見つかりました。同期を開始しますか？`                   | `これら $COUNT$ 個のタブは同じページの翻訳版かもしれません。同期を開始しますか？`                 |
+| `fr`    | `$COUNT$ onglets de la même page traduite ont été trouvés. Démarrer la synchronisation ?` | `Ces $COUNT$ onglets peuvent être des traductions de la même page. Démarrer la synchronisation ?` |
+| `es`    | `Se encontraron $COUNT$ pestañas de la misma página traducida. ¿Iniciar sincronización?`  | `Estas $COUNT$ pestañas pueden ser traducciones de la misma página. ¿Iniciar sincronización?`     |
+| `de`    | `$COUNT$ Tabs derselben übersetzten Seite gefunden. Synchronisierung starten?`            | `Diese $COUNT$ Tabs könnten Übersetzungen derselben Seite sein. Synchronisierung starten?`        |
+| `zh_CN` | `找到 $COUNT$ 个同一翻译页面的标签页。开始同步吗？`                                       | `这 $COUNT$ 个标签页可能是同一页面的译文。开始同步吗？`                                           |
+| `zh_TW` | `找到 $COUNT$ 個同一翻譯頁面的分頁。要開始同步嗎？`                                       | `這 $COUNT$ 個分頁可能是同一頁面的翻譯版本。要開始同步嗎？`                                       |
+| `hi`    | `एक ही अनुवादित पेज के $COUNT$ टैब मिले। सिंक शुरू करें?`                                 | `ये $COUNT$ टैब एक ही पेज के अनुवाद हो सकते हैं। सिंक शुरू करें?`                                 |
+| `zh`    | `找到 $COUNT$ 个同一翻译页面的标签页。开始同步吗？`                                       | `这 $COUNT$ 个标签页可能是同一页面的译文。开始同步吗？`                                           |
 
 ## Task 1: Build Translated Page URL Utility
 
 **Files:**
+
 - Create: `src/shared/lib/translated-page-url-utils.ts`
 - Create: `src/shared/lib/translated-page-url-utils.test.ts`
 - Modify: `src/shared/lib/locale-utils.ts`
@@ -120,9 +121,9 @@ describe('buildTranslatedPageSignature', () => {
   });
 
   it('removes tracking query from canonical keys', () => {
-    expect(getAutoSyncPageKey('https://example.com/en/docs/install?utm_source=mail&gclid=abc')).toBe(
-      'https://example.com/docs/install',
-    );
+    expect(
+      getAutoSyncPageKey('https://example.com/en/docs/install?utm_source=mail&gclid=abc'),
+    ).toBe('https://example.com/docs/install');
   });
 
   it('falls back to same-url normalization when no locale carrier exists', () => {
@@ -144,16 +145,12 @@ describe('isTranslatedPageMetadataMatch', () => {
         {
           url: 'https://example.com/en/getting-started',
           canonicalUrl: 'https://example.com/en/getting-started',
-          alternateUrls: [
-            { hreflang: 'tr', href: 'https://example.com/tr/baslangic' },
-          ],
+          alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
         },
         {
           url: 'https://example.com/tr/baslangic',
           canonicalUrl: 'https://example.com/tr/baslangic',
-          alternateUrls: [
-            { hreflang: 'en', href: 'https://example.com/en/getting-started' },
-          ],
+          alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
         },
       ),
     ).toBe(true);
@@ -269,15 +266,88 @@ export interface TranslatedPageMetadata {
 }
 
 const BASE_LOCALE_CODES = new Set([
-  'af', 'ar', 'az', 'be', 'bg', 'bs', 'ca', 'cs', 'cy', 'da',
-  'de', 'dv', 'el', 'en', 'eo', 'es', 'et', 'eu', 'fa', 'fi',
-  'fo', 'fr', 'gl', 'gu', 'he', 'hi', 'hr', 'hu', 'hy', 'id',
-  'is', 'it', 'ja', 'ka', 'kk', 'kn', 'ko', 'kok', 'ky', 'lt',
-  'lv', 'mi', 'mk', 'mn', 'mr', 'ms', 'mt', 'nb', 'nl', 'nn',
-  'ns', 'pa', 'pl', 'ps', 'pt', 'qu', 'ro', 'ru', 'sa', 'se',
-  'sk', 'sl', 'sq', 'sr', 'sv', 'sw', 'syr', 'ta', 'te', 'th',
-  'tl', 'tn', 'tr', 'tt', 'ts', 'uk', 'ur', 'uz', 'vi', 'xh',
-  'zh', 'zu',
+  'af',
+  'ar',
+  'az',
+  'be',
+  'bg',
+  'bs',
+  'ca',
+  'cs',
+  'cy',
+  'da',
+  'de',
+  'dv',
+  'el',
+  'en',
+  'eo',
+  'es',
+  'et',
+  'eu',
+  'fa',
+  'fi',
+  'fo',
+  'fr',
+  'gl',
+  'gu',
+  'he',
+  'hi',
+  'hr',
+  'hu',
+  'hy',
+  'id',
+  'is',
+  'it',
+  'ja',
+  'ka',
+  'kk',
+  'kn',
+  'ko',
+  'kok',
+  'ky',
+  'lt',
+  'lv',
+  'mi',
+  'mk',
+  'mn',
+  'mr',
+  'ms',
+  'mt',
+  'nb',
+  'nl',
+  'nn',
+  'ns',
+  'pa',
+  'pl',
+  'ps',
+  'pt',
+  'qu',
+  'ro',
+  'ru',
+  'sa',
+  'se',
+  'sk',
+  'sl',
+  'sq',
+  'sr',
+  'sv',
+  'sw',
+  'syr',
+  'ta',
+  'te',
+  'th',
+  'tl',
+  'tn',
+  'tr',
+  'tt',
+  'ts',
+  'uk',
+  'ur',
+  'uz',
+  'vi',
+  'xh',
+  'zh',
+  'zu',
 ]);
 
 const LOCALE_QUERY_KEYS = new Set(['lang', 'locale', 'hl', 'language', 'lng', 'ui', 'culture']);
@@ -482,7 +552,9 @@ export function isTranslatedPageMetadataMatch(
     return false;
   }
 
-  const firstAlternates = new Set(first.alternateUrls.map((item) => normalizeMetadataUrl(item.href)));
+  const firstAlternates = new Set(
+    first.alternateUrls.map((item) => normalizeMetadataUrl(item.href)),
+  );
   const secondAlternates = new Set(
     second.alternateUrls.map((item) => normalizeMetadataUrl(item.href)),
   );
@@ -596,6 +668,7 @@ git commit -m "feat: add translated page URL utilities"
 ## Task 2: Add Match Metadata Types
 
 **Files:**
+
 - Modify: `src/shared/types/auto-sync-state.ts`
 - Modify: `src/shared/types/messages.ts`
 - Modify: `shim.d.ts`
@@ -720,6 +793,7 @@ git commit -m "feat: add translated page sync message metadata"
 ## Task 3: Use Translated Keys for High-Confidence Auto-Sync Groups
 
 **Files:**
+
 - Modify: `src/background/lib/auto-sync-groups.ts`
 - Modify: `src/background/lib/auto-sync-groups.test.ts`
 - Modify: `src/background/lib/auto-sync-lifecycle.ts`
@@ -791,40 +865,40 @@ import {
 Replace normalized URL calculation with:
 
 ```typescript
-  const normalizedUrl = getAutoSyncPageKey(url);
-  if (!normalizedUrl) {
-    logger.info('[AUTO-SYNC] URL normalization returned null, skipping');
-    return null;
-  }
+const normalizedUrl = getAutoSyncPageKey(url);
+if (!normalizedUrl) {
+  logger.info('[AUTO-SYNC] URL normalization returned null, skipping');
+  return null;
+}
 
-  const translatedSignature = buildTranslatedPageSignature(url);
+const translatedSignature = buildTranslatedPageSignature(url);
 ```
 
 When creating a new group, initialize match metadata:
 
 ```typescript
-  if (!group) {
-    group = {
-      tabIds: new Set(),
-      isActive: false,
-      matchKind: translatedSignature?.matchKind,
-      matchConfidence: translatedSignature?.confidence,
-    };
-    autoSyncState.groups.set(normalizedUrl, group);
-    logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
-  }
+if (!group) {
+  group = {
+    tabIds: new Set(),
+    isActive: false,
+    matchKind: translatedSignature?.matchKind,
+    matchConfidence: translatedSignature?.confidence,
+  };
+  autoSyncState.groups.set(normalizedUrl, group);
+  logger.info('[AUTO-SYNC] Created new group', { normalizedUrl });
+}
 ```
 
 When broadcasting groups, include metadata:
 
 ```typescript
-    groups.push({
-      normalizedUrl,
-      tabIds: Array.from(group.tabIds),
-      isActive: group.isActive,
-      matchKind: group.matchKind,
-      matchConfidence: group.matchConfidence,
-    });
+groups.push({
+  normalizedUrl,
+  tabIds: Array.from(group.tabIds),
+  isActive: group.isActive,
+  matchKind: group.matchKind,
+  matchConfidence: group.matchConfidence,
+});
 ```
 
 - [ ] **Step 4: Keep initialization logs compatible**
@@ -851,13 +925,13 @@ import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
 The `onCreated` delayed suggestion lookup should read:
 
 ```typescript
-      const normalizedUrl = getAutoSyncPageKey(tab.url);
+const normalizedUrl = getAutoSyncPageKey(tab.url);
 ```
 
 The `onUpdated` lookup should read:
 
 ```typescript
-      const normalizedUrl = getAutoSyncPageKey(url);
+const normalizedUrl = getAutoSyncPageKey(url);
 ```
 
 - [ ] **Step 6: Run group tests and typecheck**
@@ -881,6 +955,7 @@ git commit -m "feat: group translated pages for auto sync"
 ## Task 4: Render Translated Suggestion Copy
 
 **Files:**
+
 - Modify: `src/background/lib/auto-sync-suggestions.ts`
 - Modify: `src/background/lib/auto-sync-suggestions.test.ts`
 - Modify: `src/contentScripts/components/sync-suggestion-toast.tsx`
@@ -973,13 +1048,17 @@ function getSyncSuggestionTitleKey(suggestion: SyncSuggestionMessage) {
 Replace:
 
 ```tsx
-{t('foundTabsWithSameUrl', String(suggestion.tabCount))}
+{
+  t('foundTabsWithSameUrl', String(suggestion.tabCount));
+}
 ```
 
 with:
 
 ```tsx
-{t(getSyncSuggestionTitleKey(suggestion), String(suggestion.tabCount))}
+{
+  t(getSyncSuggestionTitleKey(suggestion), String(suggestion.tabCount));
+}
 ```
 
 - [ ] **Step 5: Add i18n keys**
@@ -1029,6 +1108,7 @@ git commit -m "feat: show translated page sync suggestions"
 ## Task 5: Preserve Target Locale During URL Sync
 
 **Files:**
+
 - Modify: `src/shared/lib/locale-utils.test.ts`
 - Modify: `src/__tests__/scenarios.test.ts`
 
@@ -1074,9 +1154,7 @@ Add a URL-sync scenario near existing content-script URL sync tests:
 
 ```typescript
 it('preserves target query locale when relaying URL sync', async () => {
-  mocks.applyLocalePreservingSyncMock.mockReturnValue(
-    'https://example.com/docs/config?lang=tr',
-  );
+  mocks.applyLocalePreservingSyncMock.mockReturnValue('https://example.com/docs/config?lang=tr');
 
   await initScrollSync();
   const handler = mocks.contentHandlers.get('url:sync');
@@ -1121,6 +1199,7 @@ git commit -m "test: cover translated page URL sync"
 ## Task 6: Add Content Metadata Extraction
 
 **Files:**
+
 - Create: `src/contentScripts/lib/translated-page-metadata.ts`
 - Create: `src/contentScripts/lib/translated-page-metadata.test.ts`
 - Modify: `src/contentScripts/scroll-sync.ts`
@@ -1220,9 +1299,9 @@ import { collectTranslatedPageMetadata } from './lib/translated-page-metadata';
 Register near the other `onMessage()` handlers:
 
 ```typescript
-  onMessage('translated-page:get-metadata', () => {
-    return collectTranslatedPageMetadata(window.location.href);
-  });
+onMessage('translated-page:get-metadata', () => {
+  return collectTranslatedPageMetadata(window.location.href);
+});
 ```
 
 - [ ] **Step 5: Run metadata tests and typecheck**
@@ -1246,6 +1325,7 @@ git commit -m "feat: collect translated page metadata"
 ## Task 7: Add Medium-Confidence Translated Slug Suggestions
 
 **Files:**
+
 - Create: `src/background/lib/translated-page-candidates.ts`
 - Create: `src/background/lib/translated-page-candidates.test.ts`
 - Modify: `src/background/lib/auto-sync-groups.ts`
@@ -1265,10 +1345,7 @@ import { findTranslatedPageCandidateGroup } from './translated-page-candidates';
 describe('findTranslatedPageCandidateGroup', () => {
   it('returns an existing group when metadata alternates connect the pages', async () => {
     const groups = new Map<string, AutoSyncGroup>([
-      [
-        'https://example.com/en/getting-started',
-        { tabIds: new Set([1]), isActive: false },
-      ],
+      ['https://example.com/en/getting-started', { tabIds: new Set([1]), isActive: false }],
     ]);
 
     const getTabUrl = vi.fn(async () => 'https://example.com/en/getting-started');
@@ -1433,34 +1510,34 @@ After calculating `normalizedUrl`, before creating a new group, attempt medium m
 existing group exists:
 
 ```typescript
-  let group = autoSyncState.groups.get(normalizedUrl);
-  let groupKey = normalizedUrl;
-  let matchKind = translatedSignature?.matchKind;
-  let matchConfidence = translatedSignature?.confidence;
+let group = autoSyncState.groups.get(normalizedUrl);
+let groupKey = normalizedUrl;
+let matchKind = translatedSignature?.matchKind;
+let matchConfidence = translatedSignature?.confidence;
 
-  if (!group) {
-    const candidate = await findTranslatedPageCandidateGroup({
-      tabId,
-      url,
-      groups: autoSyncState.groups,
-      getTabUrl: async (candidateTabId) => {
-        try {
-          const tab = await browser.tabs.get(candidateTabId);
-          return tab.url ?? null;
-        } catch {
-          return null;
-        }
-      },
-      getMetadata: getTabMetadata,
-    });
+if (!group) {
+  const candidate = await findTranslatedPageCandidateGroup({
+    tabId,
+    url,
+    groups: autoSyncState.groups,
+    getTabUrl: async (candidateTabId) => {
+      try {
+        const tab = await browser.tabs.get(candidateTabId);
+        return tab.url ?? null;
+      } catch {
+        return null;
+      }
+    },
+    getMetadata: getTabMetadata,
+  });
 
-    if (candidate) {
-      groupKey = candidate.normalizedUrl;
-      group = autoSyncState.groups.get(groupKey);
-      matchKind = candidate.matchKind;
-      matchConfidence = candidate.matchConfidence;
-    }
+  if (candidate) {
+    groupKey = candidate.normalizedUrl;
+    group = autoSyncState.groups.get(groupKey);
+    matchKind = candidate.matchKind;
+    matchConfidence = candidate.matchConfidence;
   }
+}
 ```
 
 Use `groupKey` instead of `normalizedUrl` for group map updates, pending suggestion checks, and the return value.
@@ -1512,6 +1589,7 @@ git commit -m "feat: suggest possible translated page matches"
 ## Task 8: Use Translated Keys for Add-Tab Suggestions During Active Sync
 
 **Files:**
+
 - Modify: `src/background/handlers/tab-event-handlers.ts`
 - Modify: `src/background/handlers/tab-event-handlers.test.ts`
 - Modify: `src/background/lib/auto-sync-suggestions.ts`
@@ -1596,36 +1674,36 @@ import {
 Replace the `onUpdated` URL key calculation with:
 
 ```typescript
-      const normalizedUrl = getAutoSyncPageKey(url);
+const normalizedUrl = getAutoSyncPageKey(url);
 ```
 
 Replace active-sync same URL comparison with:
 
 ```typescript
-          const syncedTabsWithSameUrl = await Promise.all(
-            syncState.linkedTabs.map(async (syncedTabId) => {
-              try {
-                const syncedTab = await browser.tabs.get(syncedTabId);
-                const syncedKey = syncedTab.url ? getAutoSyncPageKey(syncedTab.url) : null;
-                return syncedKey === normalizedUrl;
-              } catch {
-                return false;
-              }
-            }),
-          );
+const syncedTabsWithSameUrl = await Promise.all(
+  syncState.linkedTabs.map(async (syncedTabId) => {
+    try {
+      const syncedTab = await browser.tabs.get(syncedTabId);
+      const syncedKey = syncedTab.url ? getAutoSyncPageKey(syncedTab.url) : null;
+      return syncedKey === normalizedUrl;
+    } catch {
+      return false;
+    }
+  }),
+);
 
-          const translatedSignature = buildTranslatedPageSignature(url);
+const translatedSignature = buildTranslatedPageSignature(url);
 
-          if (syncedTabsWithSameUrl.some((match) => match) && !addTabSuggestedTabs.has(tabId)) {
-            addTabSuggestedTabs.add(tabId);
-            await showAddTabSuggestion(
-              tabId,
-              tab.title || 'Untitled',
-              normalizedUrl,
-              translatedSignature?.matchKind,
-              translatedSignature?.confidence,
-            );
-          }
+if (syncedTabsWithSameUrl.some((match) => match) && !addTabSuggestedTabs.has(tabId)) {
+  addTabSuggestedTabs.add(tabId);
+  await showAddTabSuggestion(
+    tabId,
+    tab.title || 'Untitled',
+    normalizedUrl,
+    translatedSignature?.matchKind,
+    translatedSignature?.confidence,
+  );
+}
 ```
 
 - [ ] **Step 4: Update add-tab payload tests**
@@ -1675,6 +1753,7 @@ git commit -m "feat: detect translated tabs for active sync"
 ## Task 9: Update Documentation and Run Health Checks
 
 **Files:**
+
 - Modify: `docs/guides/sync-suggestion-replacement.md`
 - Modify: `src/background/README.md` only if the auto-sync group responsibility table needs a translated-page note.
 - Modify: `src/shared/lib/README.md` to list `translated-page-url-utils.ts`.
