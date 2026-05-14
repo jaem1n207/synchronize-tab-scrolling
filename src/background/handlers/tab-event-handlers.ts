@@ -213,7 +213,7 @@ export function registerTabEventHandlers(): void {
           if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
             await updateAutoSyncGroup(tabId, url);
           } else if (existingGroup && existingGroup.tabIds.has(tabId)) {
-            const didRefreshMetadata = refreshAutoSyncGroupMetadata(normalizedUrl, url);
+            const didRefreshMetadata = refreshAutoSyncGroupMetadata(normalizedUrl, tabId, url);
             if (didRefreshMetadata) {
               await broadcastAutoSyncGroupUpdate();
             }

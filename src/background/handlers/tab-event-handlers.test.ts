@@ -569,15 +569,17 @@ describe('registerTabEventHandlers', () => {
         matchKind: 'same-url',
         matchConfidence: 'low',
       });
-      vi.mocked(refreshAutoSyncGroupMetadata).mockImplementationOnce((normalizedUrl, url) => {
-        const group = autoSyncState.groups.get(normalizedUrl);
-        if (url === 'https://example.com/en/docs' && group) {
-          group.matchKind = 'translated-page';
-          group.matchConfidence = 'high';
-          return true;
-        }
-        return false;
-      });
+      vi.mocked(refreshAutoSyncGroupMetadata).mockImplementationOnce(
+        (normalizedUrl, tabId, url) => {
+          const group = autoSyncState.groups.get(normalizedUrl);
+          if (tabId === 11 && url === 'https://example.com/en/docs' && group) {
+            group.matchKind = 'translated-page';
+            group.matchConfidence = 'high';
+            return true;
+          }
+          return false;
+        },
+      );
 
       await getListener('tabs.onUpdated')(
         11,
@@ -588,6 +590,7 @@ describe('registerTabEventHandlers', () => {
       expect(updateAutoSyncGroup).not.toHaveBeenCalled();
       expect(refreshAutoSyncGroupMetadata).toHaveBeenCalledWith(
         'https://example.com/docs',
+        11,
         'https://example.com/en/docs',
       );
       expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
