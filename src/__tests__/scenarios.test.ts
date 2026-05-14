@@ -1,3 +1,5 @@
+/// <reference types="vitest/jsdom" />
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
@@ -220,6 +222,10 @@ function getBackgroundCalls(messageId: string) {
   return mocks.sendMessageBackgroundMock.mock.calls.filter((call) => call[0] === messageId);
 }
 
+function setWindowUrl(url: string): void {
+  jsdom.reconfigure({ url });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -229,6 +235,7 @@ beforeEach(() => {
   mocks.storageData.clear();
   mocks.contentHandlers.clear();
 
+  setWindowUrl('http://localhost/start');
   history.replaceState({}, '', '/start');
 
   autoSyncState.enabled = false;
@@ -327,6 +334,40 @@ describe('Scenario: URL sync toggle behavior', () => {
     });
 
     expect(window.location.href).toBe(targetUrl);
+  });
+
+  it('preserves target query locale when relaying URL sync', async () => {
+    await startContentSync(23);
+    await saveUrlSyncEnabled(true);
+    setWindowUrl('https://example.com/docs/install?lang=tr');
+    mocks.applyLocalePreservingSyncMock.mockReturnValue('https://example.com/docs/install?lang=tr');
+
+    await invokeContentMessage('url:sync', {
+      url: 'https://example.com/docs/config?lang=en',
+      sourceTabId: 99,
+    });
+
+    expect(mocks.applyLocalePreservingSyncMock).toHaveBeenCalledWith(
+      'https://example.com/docs/config?lang=en',
+      'https://example.com/docs/install?lang=tr',
+    );
+  });
+
+  it('preserves target subdomain locale when relaying URL sync', async () => {
+    await startContentSync(24);
+    await saveUrlSyncEnabled(true);
+    setWindowUrl('https://tr.example.com/docs/install');
+    mocks.applyLocalePreservingSyncMock.mockReturnValue('https://tr.example.com/docs/install');
+
+    await invokeContentMessage('url:sync', {
+      url: 'https://en.example.com/docs/config',
+      sourceTabId: 99,
+    });
+
+    expect(mocks.applyLocalePreservingSyncMock).toHaveBeenCalledWith(
+      'https://en.example.com/docs/config',
+      'https://tr.example.com/docs/install',
+    );
   });
 
   it('when URL sync is disabled, url:sync receiver does not navigate', async () => {

@@ -159,11 +159,27 @@ describe('applyLocalePreservingSync', () => {
     expect(result).toBe('https://example.com/docs/install?page=config&lang=tr#section');
   });
 
+  it('preserves target query locale through the existing public API', () => {
+    const result = applyLocalePreservingSync(
+      'https://example.com/docs/config?lang=en',
+      'https://example.com/docs/install?lang=tr',
+    );
+    expect(result).toBe('https://example.com/docs/config?lang=tr');
+  });
+
   it('should preserve target subdomain locale through translated page sync', () => {
     const result = applyLocalePreservingSync(
       'https://en.example.com/docs/install',
       'https://tr.example.com/docs/current#section',
     );
     expect(result).toBe('https://tr.example.com/docs/install#section');
+  });
+
+  it('preserves target subdomain locale through the existing public API', () => {
+    const result = applyLocalePreservingSync(
+      'https://en.example.com/docs/config',
+      'https://tr.example.com/docs/install',
+    );
+    expect(result).toBe('https://tr.example.com/docs/config');
   });
 });
