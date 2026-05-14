@@ -96,11 +96,34 @@ function isNoiseQueryParam(key: string): boolean {
   );
 }
 
+function isTrackingQueryParam(key: string): boolean {
+  const normalizedKey = key.toLowerCase();
+  return normalizedKey.startsWith('utm_') || TRACKING_QUERY_KEYS.has(normalizedKey);
+}
+
 function getIdentityQueryParams(searchParams: URLSearchParams): Array<IdentityQueryParam> {
   const params: Array<IdentityQueryParam> = [];
 
   searchParams.forEach((value, key) => {
     if (!isNoiseQueryParam(key)) {
+      params.push({ key, value });
+    }
+  });
+
+  return params.sort((first, second) => {
+    const keyComparison = first.key.localeCompare(second.key);
+    if (keyComparison !== 0) {
+      return keyComparison;
+    }
+    return first.value.localeCompare(second.value);
+  });
+}
+
+function getNonTrackingQueryParams(searchParams: URLSearchParams): Array<IdentityQueryParam> {
+  const params: Array<IdentityQueryParam> = [];
+
+  searchParams.forEach((value, key) => {
+    if (!isTrackingQueryParam(key)) {
       params.push({ key, value });
     }
   });
@@ -224,11 +247,26 @@ function buildCanonicalKey(url: URL, locale?: LocaleDescriptor): string {
   return `${url.protocol}//${host}${pathname}${search}`;
 }
 
+function buildMetadataUrlKey(url: string): string | null {
+  const parsedUrl = parseHttpUrl(url);
+
+  if (!parsedUrl) {
+    return null;
+  }
+
+  const hostname = stripWww(parsedUrl.hostname);
+  const host = getHostWithPort(hostname, parsedUrl.port);
+  const query = stringifyQueryParams(getNonTrackingQueryParams(parsedUrl.searchParams));
+  const search = query ? `?${query}` : '';
+
+  return `${parsedUrl.protocol}//${host}${parsedUrl.pathname}${search}`;
+}
+
 function getAlternateKeys(metadata: TranslatedPageMetadata): Set<string> {
   const keys = new Set<string>();
 
   metadata.alternateUrls.forEach(({ href }) => {
-    const key = getAutoSyncPageKey(href);
+    const key = buildMetadataUrlKey(href);
     if (key) {
       keys.add(key);
     }
@@ -354,8 +392,8 @@ export function isTranslatedPageMetadataMatch(
   first: TranslatedPageMetadata,
   second: TranslatedPageMetadata,
 ): boolean {
-  const firstPageKey = getAutoSyncPageKey(first.url);
-  const secondPageKey = getAutoSyncPageKey(second.url);
+  const firstPageKey = buildMetadataUrlKey(first.url);
+  const secondPageKey = buildMetadataUrlKey(second.url);
   const firstAlternates = getAlternateKeys(first);
   const secondAlternates = getAlternateKeys(second);
 

@@ -92,6 +92,19 @@ describe('isTranslatedPageMetadataMatch', () => {
     expect(isTranslatedPageMetadataMatch(first, second)).toBe(false);
   });
 
+  it('returns false when alternates list a different locale than the compared page', () => {
+    const first: TranslatedPageMetadata = {
+      url: 'https://example.com/en/docs/install',
+      alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/docs/install' }],
+    };
+    const second: TranslatedPageMetadata = {
+      url: 'https://example.com/de/docs/install',
+      alternateUrls: [],
+    };
+
+    expect(isTranslatedPageMetadataMatch(first, second)).toBe(false);
+  });
+
   it('returns false for unrelated metadata', () => {
     const first: TranslatedPageMetadata = {
       url: 'https://example.com/en/docs/install',
