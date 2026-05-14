@@ -17,6 +17,7 @@ const {
   updateAutoSyncGroupMock,
   stopAutoSyncForGroupMock,
   broadcastAutoSyncGroupUpdateMock,
+  removeTabFromAutoSyncGroupMock,
   showSyncSuggestionMock,
   autoSyncStateMock,
   autoSyncRetryTimersMock,
@@ -39,6 +40,7 @@ const {
   updateAutoSyncGroupMock: vi.fn(),
   stopAutoSyncForGroupMock: vi.fn(),
   broadcastAutoSyncGroupUpdateMock: vi.fn(),
+  removeTabFromAutoSyncGroupMock: vi.fn(),
   showSyncSuggestionMock: vi.fn(),
   autoSyncStateMock: {
     enabled: false as boolean,
@@ -93,6 +95,7 @@ vi.mock('./auto-sync-groups', () => ({
   updateAutoSyncGroup: updateAutoSyncGroupMock,
   stopAutoSyncForGroup: stopAutoSyncForGroupMock,
   broadcastAutoSyncGroupUpdate: broadcastAutoSyncGroupUpdateMock,
+  removeTabFromAutoSyncGroup: removeTabFromAutoSyncGroupMock,
 }));
 
 vi.mock('./auto-sync-state', () => ({
@@ -160,6 +163,27 @@ describe('auto-sync-lifecycle', () => {
     showSyncSuggestionMock.mockResolvedValue(undefined);
     stopAutoSyncForGroupMock.mockResolvedValue(undefined);
     sendMessageMock.mockResolvedValue(undefined);
+    removeTabFromAutoSyncGroupMock.mockImplementation((normalizedUrl: string, tabId: number) => {
+      const group = autoSyncStateMock.groups.get(normalizedUrl);
+      if (!group?.tabIds.has(tabId)) return false;
+
+      group.tabIds.delete(tabId);
+      group.tabUrls?.delete(tabId);
+
+      if (group.tabUrls && group.tabUrls.size >= group.tabIds.size) {
+        const hasTranslatedMember = Array.from(group.tabUrls.values()).some((url) =>
+          /\/(?:en|tr)\//.test(new URL(url).pathname),
+        );
+        group.matchKind = hasTranslatedMember ? 'translated-page' : 'same-url';
+        group.matchConfidence = hasTranslatedMember ? 'high' : 'low';
+      }
+
+      if (group.tabIds.size === 0) {
+        autoSyncStateMock.groups.delete(normalizedUrl);
+      }
+
+      return true;
+    });
 
     updateAutoSyncGroupMock.mockImplementation(async (tabId: number, url: string) => {
       const existingGroup = autoSyncStateMock.groups.get(url) ?? createGroup([]);
@@ -354,6 +378,42 @@ describe('auto-sync-lifecycle', () => {
 
       expect(autoSyncStateMock.groups.get('https://group.example')?.tabIds).toEqual(
         new Set([31, 33]),
+      );
+      expect(removeTabFromAutoSyncGroupMock).toHaveBeenCalledWith('https://group.example', 32);
+    });
+
+    it('keeps metadata consistent when failed injection removes the only localized member', async () => {
+      autoSyncStateMock.groups.set('https://example.com/docs', {
+        ...createGroup([31, 32, 33]),
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+        tabUrls: new Map([
+          [31, 'https://example.com/docs'],
+          [32, 'https://example.com/en/docs'],
+          [33, 'https://example.com/docs'],
+        ]),
+      });
+      updateAutoSyncGroupMock.mockResolvedValue(undefined);
+      tabsQueryMock.mockResolvedValue([]);
+      executeScriptMock.mockImplementation(async ({ target }: { target: { tabId: number } }) => {
+        if (target.tabId === 32) throw new Error('inject failed');
+      });
+
+      const promise = initializeAutoSync(true);
+      await flushAllTimers();
+      await promise;
+
+      expect(removeTabFromAutoSyncGroupMock).toHaveBeenCalledWith('https://example.com/docs', 32);
+      expect(autoSyncStateMock.groups.get('https://example.com/docs')).toMatchObject({
+        tabIds: new Set([31, 33]),
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
+      expect(autoSyncStateMock.groups.get('https://example.com/docs')?.tabUrls).toEqual(
+        new Map([
+          [31, 'https://example.com/docs'],
+          [33, 'https://example.com/docs'],
+        ]),
       );
     });
 

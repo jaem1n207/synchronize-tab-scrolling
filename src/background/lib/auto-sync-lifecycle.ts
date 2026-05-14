@@ -15,6 +15,7 @@ import {
   updateAutoSyncGroup,
   stopAutoSyncForGroup,
   broadcastAutoSyncGroupUpdate,
+  removeTabFromAutoSyncGroup,
 } from './auto-sync-groups';
 import {
   autoSyncState,
@@ -125,7 +126,7 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
 
         for (const result of injectionResults) {
           if (result.status === 'fulfilled' && !result.value.success) {
-            group.tabIds.delete(result.value.tabId);
+            removeTabFromAutoSyncGroup(normalizedUrl, result.value.tabId);
             logger.info('[AUTO-SYNC] Removed tab from group due to injection failure', {
               tabId: result.value.tabId,
               normalizedUrl,
