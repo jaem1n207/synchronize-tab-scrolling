@@ -502,6 +502,24 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "동일한 번역 페이지의 탭 $COUNT$개를 발견했습니다. 동기화를 시작할까요?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "이 탭 $COUNT$개가 같은 페이지의 번역본일 수 있습니다. 동기화를 시작할까요?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "새 탭 \"$TITLE$\"이(가) 동일한 URL입니다. 동기화에 추가할까요?",
     "placeholders": {
