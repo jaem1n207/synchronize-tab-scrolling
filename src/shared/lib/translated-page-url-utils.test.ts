@@ -79,6 +79,19 @@ describe('isTranslatedPageMetadataMatch', () => {
     expect(isTranslatedPageMetadataMatch(first, second)).toBe(true);
   });
 
+  it('returns false when translated page URLs match but metadata has no alternates or canonicals', () => {
+    const first: TranslatedPageMetadata = {
+      url: 'https://example.com/en/docs/install',
+      alternateUrls: [],
+    };
+    const second: TranslatedPageMetadata = {
+      url: 'https://example.com/tr/docs/install',
+      alternateUrls: [],
+    };
+
+    expect(isTranslatedPageMetadataMatch(first, second)).toBe(false);
+  });
+
   it('returns false for unrelated metadata', () => {
     const first: TranslatedPageMetadata = {
       url: 'https://example.com/en/docs/install',

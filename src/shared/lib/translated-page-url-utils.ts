@@ -224,34 +224,6 @@ function buildCanonicalKey(url: URL, locale?: LocaleDescriptor): string {
   return `${url.protocol}//${host}${pathname}${search}`;
 }
 
-function getPageKeyCandidates(metadata: TranslatedPageMetadata): Set<string> {
-  const candidates = new Set<string>();
-  const pageKey = getAutoSyncPageKey(metadata.url);
-
-  if (pageKey) {
-    candidates.add(pageKey);
-  }
-
-  if (metadata.canonicalUrl) {
-    const canonicalKey = getAutoSyncPageKey(metadata.canonicalUrl);
-    if (canonicalKey) {
-      candidates.add(canonicalKey);
-    }
-  }
-
-  return candidates;
-}
-
-function hasSharedCandidate(first: Set<string>, second: Set<string>): boolean {
-  for (const candidate of first) {
-    if (second.has(candidate)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 function getAlternateKeys(metadata: TranslatedPageMetadata): Set<string> {
   const keys = new Set<string>();
 
@@ -382,19 +354,27 @@ export function isTranslatedPageMetadataMatch(
   first: TranslatedPageMetadata,
   second: TranslatedPageMetadata,
 ): boolean {
-  const firstCandidates = getPageKeyCandidates(first);
-  const secondCandidates = getPageKeyCandidates(second);
-
-  if (hasSharedCandidate(firstCandidates, secondCandidates)) {
-    return true;
-  }
-
+  const firstPageKey = getAutoSyncPageKey(first.url);
+  const secondPageKey = getAutoSyncPageKey(second.url);
   const firstAlternates = getAlternateKeys(first);
   const secondAlternates = getAlternateKeys(second);
 
-  return (
-    hasSharedCandidate(firstAlternates, secondCandidates) ||
-    hasSharedCandidate(secondAlternates, firstCandidates)
+  if (
+    (secondPageKey && firstAlternates.has(secondPageKey)) ||
+    (firstPageKey && secondAlternates.has(firstPageKey))
+  ) {
+    return true;
+  }
+
+  if (!first.canonicalUrl || !second.canonicalUrl) {
+    return false;
+  }
+
+  const firstCanonicalKey = getAutoSyncPageKey(first.canonicalUrl);
+  const secondCanonicalKey = getAutoSyncPageKey(second.canonicalUrl);
+
+  return Boolean(
+    firstCanonicalKey && secondCanonicalKey && firstCanonicalKey === secondCanonicalKey,
   );
 }
 
