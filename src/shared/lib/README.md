@@ -11,6 +11,7 @@ Pure utility functions and cross-cutting services used by background, content sc
 | `scroll-math.ts`               | —     | Scroll position calculations, ratio-based positioning     | Yes   |
 | `tab-similarity.ts`            | —     | Tab title/URL similarity scoring for matching             | Yes   |
 | `korean-search.ts`             | —     | Korean text search with Hangul decomposition (초성 검색)  | Yes   |
+| `korean-josa.ts`               | —     | Korean particle formatting for localized UI placeholders  | Yes   |
 | `performance-utils.ts`         | —     | Debounce, throttle, and performance measurement utilities | Yes   |
 | `locale-utils.ts`              | —     | Locale detection; delegates URL sync locale preservation  | Yes   |
 | `translated-page-url-utils.ts` | —     | Translated-page keys, metadata matching, locale URL sync  | Yes   |
