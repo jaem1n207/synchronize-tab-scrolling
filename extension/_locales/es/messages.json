@@ -502,8 +502,44 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "Se encontraron $COUNT$ pestañas de la misma página traducida. ¿Iniciar sincronización?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "Estas $COUNT$ pestañas pueden ser traducciones de la misma página. ¿Iniciar sincronización?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "Nueva pestaña \"$TITLE$\" tiene la misma URL. ¿Agregar a la sincronización?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabSameTranslatedPage": {
+    "message": "La nueva pestaña \"$TITLE$\" es la misma página traducida. ¿Agregar a la sincronización?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "La nueva pestaña \"$TITLE$\" puede ser una traducción de la página sincronizada. ¿Agregar a la sincronización?",
     "placeholders": {
       "title": {
         "content": "$1",

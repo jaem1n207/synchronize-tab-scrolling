@@ -335,11 +335,11 @@
     "message": "동기화를 시작하려면 2개 이상의 탭을 선택하세요"
   },
   "cannotRemoveTabDuringSync": {
-    "message": "동기화 중에는 $TITLE$을(를) 제거할 수 없습니다",
+    "message": "동기화 중에는 $TITLE$ 제거할 수 없습니다",
     "placeholders": {
       "title": {
         "content": "$1",
-        "example": "Google"
+        "example": "Google을"
       }
     }
   },
@@ -502,12 +502,48 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "동일한 번역 페이지의 탭 $COUNT$개를 발견했습니다. 동기화를 시작할까요?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "이 탭 $COUNT$개가 같은 페이지의 번역본일 수 있습니다. 동기화를 시작할까요?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
-    "message": "새 탭 \"$TITLE$\"이(가) 동일한 URL입니다. 동기화에 추가할까요?",
+    "message": "새 탭 $TITLE$ 동일한 URL입니다. 동기화에 추가할까요?",
     "placeholders": {
       "title": {
         "content": "$1",
-        "example": "Google Docs"
+        "example": "\"Google Docs\"가"
+      }
+    }
+  },
+  "newTabSameTranslatedPage": {
+    "message": "새 탭 $TITLE$ 동일한 번역 페이지입니다. 동기화에 추가할까요?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "\"Google Docs\"가"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "새 탭 $TITLE$ 동기화 중인 페이지의 번역본일 수 있습니다. 동기화에 추가할까요?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "\"Google Docs\"가"
       }
     }
   },

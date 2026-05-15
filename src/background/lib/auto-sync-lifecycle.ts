@@ -13,8 +13,10 @@ import {
 
 import {
   updateAutoSyncGroup,
+  refreshTranslatedPageCandidateGroups,
   stopAutoSyncForGroup,
   broadcastAutoSyncGroupUpdate,
+  removeTabFromAutoSyncGroup,
 } from './auto-sync-groups';
 import {
   autoSyncState,
@@ -91,6 +93,8 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
         tabCount: g.tabIds.size,
         tabIds: Array.from(g.tabIds),
         isActive: g.isActive,
+        matchKind: g.matchKind,
+        matchConfidence: g.matchConfidence,
       })),
     });
 
@@ -123,7 +127,7 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
 
         for (const result of injectionResults) {
           if (result.status === 'fulfilled' && !result.value.success) {
-            group.tabIds.delete(result.value.tabId);
+            removeTabFromAutoSyncGroup(normalizedUrl, result.value.tabId);
             logger.info('[AUTO-SYNC] Removed tab from group due to injection failure', {
               tabId: result.value.tabId,
               normalizedUrl,
@@ -141,6 +145,7 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100));
+    await refreshTranslatedPageCandidateGroups();
 
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
       if (group.tabIds.size >= 2 && !group.isActive) {
@@ -164,6 +169,8 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
         tabCount: g.tabIds.size,
         tabIds: Array.from(g.tabIds),
         isActive: g.isActive,
+        matchKind: g.matchKind,
+        matchConfidence: g.matchConfidence,
       })),
     });
   } catch (error) {

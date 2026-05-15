@@ -17,6 +17,11 @@ export {
   prefersReducedMotion,
 } from './animations';
 export { isFirefox } from './env';
+export {
+  formatTitleWithKoreanJosa,
+  isKoreanUiLanguage,
+  type KoreanJosaParticle,
+} from './korean-josa';
 export { matchesKoreanSearch } from './korean-search';
 export {
   applyLocalePreservingSync,
@@ -25,6 +30,7 @@ export {
 } from './locale-utils';
 export { ExtensionLogger } from './logger';
 export { throttleAndDebounce } from './performance-utils';
+export * from './translated-page-url-utils';
 export {
   calculateScrollRatio,
   clampScrollOffset,

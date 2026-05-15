@@ -202,6 +202,8 @@ describe('registerAutoSyncHandlers', () => {
       autoSyncState.groups.set('https://example.com/a', {
         tabIds: new Set([1, 2]),
         isActive: true,
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
       });
       autoSyncState.groups.set('https://example.com/b', { tabIds: new Set([3]), isActive: false });
 
@@ -212,8 +214,20 @@ describe('registerAutoSyncHandlers', () => {
         success: true,
         enabled: true,
         groups: [
-          { normalizedUrl: 'https://example.com/a', tabIds: [1, 2], isActive: true },
-          { normalizedUrl: 'https://example.com/b', tabIds: [3], isActive: false },
+          {
+            normalizedUrl: 'https://example.com/a',
+            tabIds: [1, 2],
+            isActive: true,
+            matchKind: 'translated-page',
+            matchConfidence: 'high',
+          },
+          {
+            normalizedUrl: 'https://example.com/b',
+            tabIds: [3],
+            isActive: false,
+            matchKind: undefined,
+            matchConfidence: undefined,
+          },
         ],
       });
     });

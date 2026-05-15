@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 
 import { Button } from '~/shared/components/ui/button';
 import { t } from '~/shared/i18n';
+import { formatTitleWithKoreanJosa } from '~/shared/lib';
 import {
   ANIMATION_DURATIONS,
   EASING_FUNCTIONS,
@@ -33,6 +34,30 @@ interface AddTabToastProps {
   onReject: (snooze: boolean) => void;
   onPermanentExclude?: () => void;
   className?: string;
+}
+
+function getSyncSuggestionTitleKey(suggestion: SyncSuggestionMessage): Parameters<typeof t>[0] {
+  if (suggestion.matchKind === 'possible-translation') {
+    return 'foundTabsMayBeTranslations';
+  }
+
+  if (suggestion.matchKind === 'translated-page') {
+    return 'foundTabsWithSameTranslatedPage';
+  }
+
+  return 'foundTabsWithSameUrl';
+}
+
+function getAddTabSuggestionTitleKey(suggestion: AddTabToSyncMessage): Parameters<typeof t>[0] {
+  if (suggestion.matchKind === 'possible-translation') {
+    return 'newTabMayBeTranslation';
+  }
+
+  if (suggestion.matchKind === 'translated-page') {
+    return 'newTabSameTranslatedPage';
+  }
+
+  return 'newTabSameUrl';
 }
 
 /**
@@ -125,7 +150,7 @@ export function SyncSuggestionToast({
             <div className="flex-1 min-w-0 pointer-events-none">
               {/* Line 1: Title (no truncation) */}
               <h4 className="font-medium text-sm text-foreground">
-                {t('foundTabsWithSameUrl', String(suggestion.tabCount))}
+                {t(getSyncSuggestionTitleKey(suggestion), String(suggestion.tabCount))}
               </h4>
               {/* Line 2: Tab titles (no truncation) */}
               <p className="mt-1 text-xs text-muted-foreground">
@@ -232,6 +257,10 @@ export function AddTabToSyncToast({
     };
   }, []);
 
+  const titleWithSubjectJosa = formatTitleWithKoreanJosa(suggestion.tabTitle, '이/가', {
+    quote: true,
+  });
+
   const handleAccept = React.useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -284,7 +313,7 @@ export function AddTabToSyncToast({
             <div className="flex-1 min-w-0 pointer-events-none">
               {/* Line 1: Title (no truncation) */}
               <h4 className="font-medium text-sm text-foreground">
-                {t('newTabSameUrl', suggestion.tabTitle)}
+                {t(getAddTabSuggestionTitleKey(suggestion), titleWithSubjectJosa)}
               </h4>
               {/* Line 2: Tab title (no truncation) */}
               <p className="mt-1 text-xs text-muted-foreground">{suggestion.tabTitle}</p>

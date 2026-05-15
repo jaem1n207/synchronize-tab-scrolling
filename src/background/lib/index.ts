@@ -23,6 +23,7 @@ export {
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
   updateAutoSyncGroup,
+  refreshTranslatedPageCandidateGroups,
   cancelAutoSyncRetry,
   stopAutoSyncForGroup,
   broadcastAutoSyncGroupUpdate,

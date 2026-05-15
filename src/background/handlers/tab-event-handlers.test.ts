@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { loadUrlSyncEnabled } from '~/shared/lib/storage';
 
 import {
   broadcastAutoSyncGroupUpdate,
+  getAutoSyncGroupKeyForTab,
+  refreshAutoSyncGroupMetadata,
   removeTabFromAllAutoSyncGroups,
   updateAutoSyncGroup,
 } from '../lib/auto-sync-groups';
@@ -18,7 +19,7 @@ import {
   manualSyncOverriddenTabs,
   pendingSuggestions,
 } from '../lib/auto-sync-state';
-import { showAddTabSuggestion } from '../lib/auto-sync-suggestions';
+import { showAddTabSuggestion, showSyncSuggestion } from '../lib/auto-sync-suggestions';
 import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
@@ -78,10 +79,6 @@ vi.mock('~/shared/lib/logger', () => ({
   })),
 }));
 
-vi.mock('~/shared/lib/auto-sync-url-utils', () => ({
-  normalizeUrlForAutoSync: vi.fn(),
-}));
-
 vi.mock('~/shared/lib/storage', () => ({
   loadUrlSyncEnabled: vi.fn(),
 }));
@@ -90,6 +87,8 @@ vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
   updateAutoSyncGroup: vi.fn(),
   broadcastAutoSyncGroupUpdate: vi.fn(),
+  refreshAutoSyncGroupMetadata: vi.fn(),
+  getAutoSyncGroupKeyForTab: vi.fn(),
 }));
 
 vi.mock('../lib/auto-sync-lifecycle', () => ({
@@ -99,7 +98,16 @@ vi.mock('../lib/auto-sync-lifecycle', () => ({
 vi.mock('../lib/auto-sync-state', () => ({
   autoSyncState: {
     enabled: false,
-    groups: new Map<string, { tabIds: Set<number>; isActive: boolean }>(),
+    groups: new Map<
+      string,
+      {
+        tabIds: Set<number>;
+        isActive: boolean;
+        matchKind?: 'same-url' | 'translated-page' | 'possible-translation';
+        matchConfidence?: 'high' | 'medium' | 'low';
+        tabUrls?: Map<number, string>;
+      }
+    >(),
     excludedUrls: [],
   },
   manualSyncOverriddenTabs: new Set<number>(),
@@ -181,15 +189,13 @@ describe('registerTabEventHandlers', () => {
     } as browser.Tabs.Tab);
     vi.mocked(browser.tabs.query).mockResolvedValue([]);
 
-    vi.mocked(normalizeUrlForAutoSync).mockImplementation((url: string) => {
-      if (!url) return null;
-      return url.split('?')[0].split('#')[0] ?? null;
-    });
     vi.mocked(loadUrlSyncEnabled).mockResolvedValue(true);
 
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(broadcastAutoSyncGroupUpdate).mockResolvedValue();
     vi.mocked(updateAutoSyncGroup).mockResolvedValue(null);
+    vi.mocked(refreshAutoSyncGroupMetadata).mockReturnValue(false);
+    vi.mocked(getAutoSyncGroupKeyForTab).mockReturnValue(null);
     vi.mocked(sendMessage).mockResolvedValue(undefined);
     vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 1 });
     vi.mocked(isContentScriptAlive).mockResolvedValue(true);
@@ -198,6 +204,7 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(persistSyncState).mockResolvedValue();
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     vi.mocked(showAddTabSuggestion).mockResolvedValue();
+    vi.mocked(showSyncSuggestion).mockResolvedValue();
     vi.mocked(toggleAutoSync).mockResolvedValue();
 
     vi.mocked(browser.tabs.onRemoved.addListener).mockImplementation((listener) => {
@@ -353,6 +360,50 @@ describe('registerTabEventHandlers', () => {
 
       expect(updateAutoSyncGroup).not.toHaveBeenCalled();
     });
+
+    it('uses translated canonical key for delayed suggestion lookup', async () => {
+      vi.useFakeTimers();
+      autoSyncState.enabled = true;
+      vi.mocked(updateAutoSyncGroup).mockResolvedValueOnce('https://example.com/docs/install');
+      autoSyncState.groups.set('https://example.com/docs/install', {
+        tabIds: new Set([7, 8]),
+        isActive: false,
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+
+      const promise = getListener('tabs.onCreated')({
+        id: 8,
+        url: 'https://example.com/tr/docs/install',
+      });
+      await vi.advanceTimersByTimeAsync(500);
+      await promise;
+
+      expect(showSyncSuggestion).toHaveBeenCalledWith('https://example.com/docs/install');
+    });
+
+    it('uses returned candidate group key for delayed suggestion lookup', async () => {
+      vi.useFakeTimers();
+      autoSyncState.enabled = true;
+      const groupKey = 'https://example.com/getting-started';
+      vi.mocked(updateAutoSyncGroup).mockResolvedValueOnce(groupKey);
+      autoSyncState.groups.set(groupKey, {
+        tabIds: new Set([7, 8]),
+        isActive: false,
+        matchKind: 'possible-translation',
+        matchConfidence: 'medium',
+      });
+
+      const promise = getListener('tabs.onCreated')({
+        id: 8,
+        url: 'https://example.com/tr/baslangic',
+      });
+      await vi.advanceTimersByTimeAsync(500);
+      await promise;
+
+      expect(showSyncSuggestion).toHaveBeenCalledWith(groupKey);
+      expect(showSyncSuggestion).not.toHaveBeenCalledWith('https://example.com/baslangic');
+    });
   });
 
   describe('tabs.onUpdated', () => {
@@ -406,7 +457,6 @@ describe('registerTabEventHandlers', () => {
     it('detects new tab with same URL as synced tab and shows add-tab suggestion', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [10];
-      vi.mocked(normalizeUrlForAutoSync).mockReturnValue('https://example.com/match');
       vi.mocked(browser.tabs.get).mockResolvedValue({
         id: 10,
         index: 0,
@@ -419,21 +469,159 @@ describe('registerTabEventHandlers', () => {
 
       await getListener('tabs.onUpdated')(
         20,
-        { url: 'https://example.com/match?x=1' },
-        { id: 20, url: 'https://example.com/match?x=1', title: 'Candidate tab' },
+        { url: 'https://example.com/match?utm_source=mail' },
+        { id: 20, url: 'https://example.com/match?utm_source=mail', title: 'Candidate tab' },
       );
 
       expect(showAddTabSuggestion).toHaveBeenCalledWith(
         20,
         'Candidate tab',
         'https://example.com/match',
+        'same-url',
+        'low',
+      );
+    });
+
+    it('detects translated page variant of active synced tab and shows add-tab suggestion', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [10];
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 10,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+        url: 'https://example.com/en/docs',
+      } as browser.Tabs.Tab);
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { url: 'https://example.com/tr/docs' },
+        { id: 20, url: 'https://example.com/tr/docs', title: 'Turkish docs' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledWith(
+        20,
+        'Turkish docs',
+        'https://example.com/docs',
+        'translated-page',
+        'high',
+      );
+    });
+
+    it('uses metadata alternates for medium-confidence translated slug active sync suggestions', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [10];
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 10,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+        url: 'https://example.com/en/getting-started',
+      } as browser.Tabs.Tab);
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_message, _payload, target) => {
+        const targetTabId = (target as { tabId?: number }).tabId;
+
+        if (targetTabId === 20) {
+          return {
+            success: true,
+            url: 'https://example.com/tr/baslangic',
+            alternateUrls: [{ hreflang: 'en', href: 'https://example.com/en/getting-started' }],
+          };
+        }
+
+        if (targetTabId === 10) {
+          return {
+            success: true,
+            url: 'https://example.com/en/getting-started',
+            alternateUrls: [{ hreflang: 'tr', href: 'https://example.com/tr/baslangic' }],
+          };
+        }
+
+        return { success: false, url: '', alternateUrls: [] };
+      });
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { url: 'https://example.com/tr/baslangic' },
+        { id: 20, url: 'https://example.com/tr/baslangic', title: 'Turkish getting started' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledWith(
+        20,
+        'Turkish getting started',
+        'https://example.com/getting-started',
+        'possible-translation',
+        'medium',
+      );
+    });
+
+    it('uses translated metadata when synced tab is localized and new tab is canonical', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [10];
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 10,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+        url: 'https://example.com/en/docs',
+      } as browser.Tabs.Tab);
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { url: 'https://example.com/docs' },
+        { id: 20, url: 'https://example.com/docs', title: 'Canonical docs' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledWith(
+        20,
+        'Canonical docs',
+        'https://example.com/docs',
+        'translated-page',
+        'high',
+      );
+    });
+
+    it('uses translated metadata when canonical synced tab is listed before localized synced tab', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [10, 11];
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
+        const url = tabId === 10 ? 'https://example.com/docs' : 'https://example.com/en/docs';
+
+        return {
+          id: tabId,
+          index: 0,
+          highlighted: false,
+          active: false,
+          pinned: false,
+          incognito: false,
+          url,
+        } as browser.Tabs.Tab;
+      });
+
+      await getListener('tabs.onUpdated')(
+        20,
+        { url: 'https://example.com/docs' },
+        { id: 20, url: 'https://example.com/docs', title: 'Canonical docs' },
+      );
+
+      expect(showAddTabSuggestion).toHaveBeenCalledWith(
+        20,
+        'Canonical docs',
+        'https://example.com/docs',
+        'translated-page',
+        'high',
       );
     });
 
     it('does not show add-tab suggestion twice for the same tab (deduplication)', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [10];
-      vi.mocked(normalizeUrlForAutoSync).mockReturnValue('https://example.com/match');
       vi.mocked(browser.tabs.get).mockResolvedValue({
         id: 10,
         index: 0,
@@ -446,8 +634,8 @@ describe('registerTabEventHandlers', () => {
 
       await getListener('tabs.onUpdated')(
         20,
-        { url: 'https://example.com/match?x=1' },
-        { id: 20, url: 'https://example.com/match?x=1', title: 'First event' },
+        { url: 'https://example.com/match?utm_source=mail' },
+        { id: 20, url: 'https://example.com/match?utm_source=mail', title: 'First event' },
       );
 
       expect(showAddTabSuggestion).toHaveBeenCalledTimes(1);
@@ -456,7 +644,7 @@ describe('registerTabEventHandlers', () => {
       await getListener('tabs.onUpdated')(
         20,
         { status: 'loading', url: undefined },
-        { id: 20, url: 'https://example.com/match?x=1', title: 'Second event' },
+        { id: 20, url: 'https://example.com/match?utm_source=mail', title: 'Second event' },
       );
 
       expect(showAddTabSuggestion).toHaveBeenCalledTimes(1);
@@ -468,7 +656,6 @@ describe('registerTabEventHandlers', () => {
       syncState.linkedTabs = [50, 51];
 
       const normalizedUrl = 'https://example.com/synced';
-      vi.mocked(normalizeUrlForAutoSync).mockReturnValue(normalizedUrl);
       autoSyncState.groups.set(normalizedUrl, {
         tabIds: new Set([50, 51]),
         isActive: false,
@@ -487,7 +674,6 @@ describe('registerTabEventHandlers', () => {
     it('updates auto-sync group on URL change when auto-sync is enabled', async () => {
       autoSyncState.enabled = true;
       syncState.isActive = false;
-      vi.mocked(normalizeUrlForAutoSync).mockReturnValue('https://example.com/group');
 
       await getListener('tabs.onUpdated')(
         11,
@@ -496,6 +682,120 @@ describe('registerTabEventHandlers', () => {
       );
 
       expect(updateAutoSyncGroup).toHaveBeenCalledWith(11, 'https://example.com/group?abc=1');
+    });
+
+    it('uses translated canonical key when checking existing auto-sync groups', async () => {
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set('https://example.com/docs/install', {
+        tabIds: new Set([11]),
+        isActive: false,
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+
+      await getListener('tabs.onUpdated')(
+        11,
+        { url: 'https://example.com/tr/docs/install' },
+        { id: 11, url: 'https://example.com/tr/docs/install', title: 'Group tab' },
+      );
+
+      expect(updateAutoSyncGroup).not.toHaveBeenCalled();
+    });
+
+    it('uses current medium-confidence group membership when checking existing auto-sync groups', async () => {
+      autoSyncState.enabled = true;
+      const groupKey = 'https://example.com/getting-started';
+      const tabUrl = 'https://example.com/tr/baslangic';
+      autoSyncState.groups.set(groupKey, {
+        tabIds: new Set([11, 12]),
+        isActive: false,
+        matchKind: 'possible-translation',
+        matchConfidence: 'medium',
+        tabUrls: new Map([
+          [11, tabUrl],
+          [12, 'https://example.com/en/getting-started'],
+        ]),
+      });
+      vi.mocked(getAutoSyncGroupKeyForTab).mockReturnValueOnce(groupKey);
+
+      await getListener('tabs.onUpdated')(
+        11,
+        { status: 'loading' },
+        { id: 11, url: tabUrl, title: 'Turkish getting started' },
+      );
+
+      expect(updateAutoSyncGroup).not.toHaveBeenCalled();
+      expect(refreshAutoSyncGroupMetadata).toHaveBeenCalledWith(groupKey, 11, tabUrl);
+      expect(showSyncSuggestion).toHaveBeenCalledWith(groupKey);
+      expect(showSyncSuggestion).not.toHaveBeenCalledWith('https://example.com/baslangic');
+    });
+
+    it('reprocesses singleton URL-derived groups on normal updates for candidate probing', async () => {
+      autoSyncState.enabled = true;
+      const tabUrl = 'https://example.com/tr/baslangic';
+      autoSyncState.groups.set('https://example.com/baslangic', {
+        tabIds: new Set([11]),
+        isActive: false,
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+        tabUrls: new Map([[11, tabUrl]]),
+      });
+      autoSyncState.groups.set('https://example.com/getting-started', {
+        tabIds: new Set([12]),
+        isActive: false,
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+        tabUrls: new Map([[12, 'https://example.com/en/getting-started']]),
+      });
+      vi.mocked(getAutoSyncGroupKeyForTab).mockReturnValueOnce('https://example.com/baslangic');
+
+      await getListener('tabs.onUpdated')(
+        11,
+        { status: 'loading' },
+        { id: 11, url: tabUrl, title: 'Turkish getting started' },
+      );
+
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(11, tabUrl);
+      expect(refreshAutoSyncGroupMetadata).not.toHaveBeenCalled();
+    });
+
+    it('refreshes metadata when same-key tab URL changes to a locale variant', async () => {
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set('https://example.com/docs', {
+        tabIds: new Set([11, 12]),
+        isActive: false,
+        matchKind: 'same-url',
+        matchConfidence: 'low',
+      });
+      vi.mocked(refreshAutoSyncGroupMetadata).mockImplementationOnce(
+        (normalizedUrl, tabId, url) => {
+          const group = autoSyncState.groups.get(normalizedUrl);
+          if (tabId === 11 && url === 'https://example.com/en/docs' && group) {
+            group.matchKind = 'translated-page';
+            group.matchConfidence = 'high';
+            return true;
+          }
+          return false;
+        },
+      );
+
+      await getListener('tabs.onUpdated')(
+        11,
+        { url: 'https://example.com/en/docs' },
+        { id: 11, url: 'https://example.com/en/docs', title: 'English docs' },
+      );
+
+      expect(updateAutoSyncGroup).not.toHaveBeenCalled();
+      expect(refreshAutoSyncGroupMetadata).toHaveBeenCalledWith(
+        'https://example.com/docs',
+        11,
+        'https://example.com/en/docs',
+      );
+      expect(autoSyncState.groups.get('https://example.com/docs')).toMatchObject({
+        matchKind: 'translated-page',
+        matchConfidence: 'high',
+      });
+      expect(broadcastAutoSyncGroupUpdate).toHaveBeenCalledTimes(1);
     });
   });
 

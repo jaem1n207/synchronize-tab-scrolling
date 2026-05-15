@@ -502,8 +502,44 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "Found $COUNT$ tabs for the same translated page. Start sync?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "These $COUNT$ tabs may be translations of the same page. Start sync?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "New tab \"$TITLE$\" has same URL. Add to sync?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabSameTranslatedPage": {
+    "message": "New tab \"$TITLE$\" is the same translated page. Add to sync?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "New tab \"$TITLE$\" may be a translation of the synced page. Add to sync?",
     "placeholders": {
       "title": {
         "content": "$1",

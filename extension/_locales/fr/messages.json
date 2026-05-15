@@ -502,8 +502,44 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "$COUNT$ onglets pour la même page traduite trouvés. Démarrer la synchronisation ?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "Ces $COUNT$ onglets peuvent être des traductions de la même page. Démarrer la synchronisation ?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "Nouvel onglet \"$TITLE$\" a la même URL. Ajouter à la synchronisation ?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabSameTranslatedPage": {
+    "message": "Le nouvel onglet \"$TITLE$\" correspond à la même page traduite. L'ajouter à la synchronisation ?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "Le nouvel onglet \"$TITLE$\" peut être une traduction de la page synchronisée. L'ajouter à la synchronisation ?",
     "placeholders": {
       "title": {
         "content": "$1",

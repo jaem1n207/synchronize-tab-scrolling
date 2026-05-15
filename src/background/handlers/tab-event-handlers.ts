@@ -1,14 +1,21 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadUrlSyncEnabled } from '~/shared/lib/storage';
+import {
+  buildTranslatedPageSignature,
+  isTranslatedPageMetadataMatch,
+  type TranslatedPageMetadata,
+  type TranslatedPageSignature,
+} from '~/shared/lib/translated-page-url-utils';
 
 import {
   removeTabFromAllAutoSyncGroups,
   updateAutoSyncGroup,
   broadcastAutoSyncGroupUpdate,
+  refreshAutoSyncGroupMetadata,
+  getAutoSyncGroupKeyForTab,
 } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
@@ -31,6 +38,130 @@ import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/tab-event-handlers' });
+const ACTIVE_SYNC_METADATA_TIMEOUT_MS = 500;
+const MAX_ACTIVE_SYNC_METADATA_PROBES = 10;
+
+interface ActiveSyncMetadataMatch {
+  normalizedUrl: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function getAlternateUrls(value: unknown): TranslatedPageMetadata['alternateUrls'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!isRecord(item)) {
+      return [];
+    }
+
+    const hreflang = getOptionalString(item.hreflang);
+    const href = getOptionalString(item.href);
+
+    if (!hreflang || !href) {
+      return [];
+    }
+
+    return [{ hreflang, href }];
+  });
+}
+
+function getMetadataUrlKey(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return null;
+    }
+
+    parsedUrl.hash = '';
+    return parsedUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+function isMetadataForRequestedUrl(
+  metadata: TranslatedPageMetadata,
+  requestedUrl: string,
+): boolean {
+  const metadataUrlKey = getMetadataUrlKey(metadata.url);
+  const requestedUrlKey = getMetadataUrlKey(requestedUrl);
+
+  return Boolean(metadataUrlKey && requestedUrlKey && metadataUrlKey === requestedUrlKey);
+}
+
+async function getActiveSyncTabMetadata(
+  tabId: number,
+  url: string,
+): Promise<TranslatedPageMetadata | null> {
+  try {
+    const response = await sendMessageWithTimeout(
+      'translated-page:get-metadata',
+      { tabId },
+      { context: 'content-script', tabId },
+      ACTIVE_SYNC_METADATA_TIMEOUT_MS,
+    );
+
+    if (!isRecord(response) || response.success !== true) {
+      return null;
+    }
+
+    const metadata: TranslatedPageMetadata = {
+      url: getOptionalString(response.url) ?? url,
+      title: getOptionalString(response.title),
+      canonicalUrl: getOptionalString(response.canonicalUrl),
+      alternateUrls: getAlternateUrls(response.alternateUrls),
+    };
+
+    return isMetadataForRequestedUrl(metadata, url) ? metadata : null;
+  } catch {
+    return null;
+  }
+}
+
+async function findActiveSyncMetadataMatch(
+  tabId: number,
+  url: string,
+): Promise<ActiveSyncMetadataMatch | null> {
+  const sourceMetadata = await getActiveSyncTabMetadata(tabId, url);
+  if (!sourceMetadata) {
+    return null;
+  }
+
+  const candidateMatches = await Promise.all(
+    syncState.linkedTabs
+      .filter((syncedTabId) => syncedTabId !== tabId)
+      .slice(0, MAX_ACTIVE_SYNC_METADATA_PROBES)
+      .map(async (syncedTabId): Promise<ActiveSyncMetadataMatch | null> => {
+        try {
+          const syncedTab = await browser.tabs.get(syncedTabId);
+          if (!syncedTab.url) {
+            return null;
+          }
+
+          const syncedMetadata = await getActiveSyncTabMetadata(syncedTabId, syncedTab.url);
+          if (!syncedMetadata || !isTranslatedPageMetadataMatch(sourceMetadata, syncedMetadata)) {
+            return null;
+          }
+
+          const syncedSignature = buildTranslatedPageSignature(syncedTab.url);
+          return syncedSignature ? { normalizedUrl: syncedSignature.canonicalKey } : null;
+        } catch {
+          return null;
+        }
+      }),
+  );
+
+  return candidateMatches.find((match) => match !== null) ?? null;
+}
 
 export function registerTabEventHandlers(): void {
   browser.tabs.onRemoved.addListener(async (tabId) => {
@@ -137,10 +268,10 @@ export function registerTabEventHandlers(): void {
       logger.debug(`New tab ${tab.id} created with URL, adding to auto-sync group (pending)`, {
         url: tab.url,
       });
-      await updateAutoSyncGroup(tab.id, tab.url, true, true);
+      const groupKey = await updateAutoSyncGroup(tab.id, tab.url, true, true);
 
       // ✅ FIX: Show suggestion after content script is ready (delayed)
-      const normalizedUrl = normalizeUrlForAutoSync(tab.url);
+      const normalizedUrl = groupKey;
       if (normalizedUrl) {
         const group = autoSyncState.groups.get(normalizedUrl);
         if (group && group.tabIds.size >= 2 && !group.isActive) {
@@ -177,50 +308,107 @@ export function registerTabEventHandlers(): void {
   browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.url || (changeInfo.status === 'loading' && tab.url)) {
       const url = changeInfo.url || tab.url || '';
-      const normalizedUrl = normalizeUrlForAutoSync(url);
+      const newTabSignature = buildTranslatedPageSignature(url);
+      const normalizedUrl = newTabSignature?.canonicalKey ?? null;
 
       if (normalizedUrl) {
         if (syncState.isActive && !syncState.linkedTabs.includes(tabId)) {
-          const syncedTabsWithSameUrl = await Promise.all(
+          const syncedTabSignaturesWithSameUrl = await Promise.all(
             syncState.linkedTabs.map(async (syncedTabId) => {
               try {
                 const syncedTab = await browser.tabs.get(syncedTabId);
-                const syncedNormalizedUrl = syncedTab.url
-                  ? normalizeUrlForAutoSync(syncedTab.url)
+                const syncedTabSignature = syncedTab.url
+                  ? buildTranslatedPageSignature(syncedTab.url)
                   : null;
-                return syncedNormalizedUrl === normalizedUrl;
+                return syncedTabSignature?.canonicalKey === normalizedUrl
+                  ? syncedTabSignature
+                  : null;
               } catch {
-                return false;
+                return null;
               }
             }),
           );
+          const matchingSyncedTabSignatures = syncedTabSignaturesWithSameUrl.filter(
+            (signature): signature is TranslatedPageSignature => signature !== null,
+          );
 
-          if (syncedTabsWithSameUrl.some((match) => match) && !addTabSuggestedTabs.has(tabId)) {
+          if (matchingSyncedTabSignatures.length > 0 && !addTabSuggestedTabs.has(tabId)) {
             addTabSuggestedTabs.add(tabId);
             logger.info('[AUTO-SYNC] Detected new tab with same URL as synced tab (immediate)', {
               tabId,
               normalizedUrl,
               trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
             });
-            await showAddTabSuggestion(tabId, tab.title || 'Untitled', normalizedUrl);
+            const isTranslatedPageMatch =
+              newTabSignature?.matchKind === 'translated-page' ||
+              matchingSyncedTabSignatures.some(
+                (signature) => signature.matchKind === 'translated-page',
+              );
+
+            await showAddTabSuggestion(
+              tabId,
+              tab.title || 'Untitled',
+              normalizedUrl,
+              isTranslatedPageMatch ? 'translated-page' : newTabSignature?.matchKind,
+              isTranslatedPageMatch ? 'high' : newTabSignature?.confidence,
+            );
+          } else if (!addTabSuggestedTabs.has(tabId)) {
+            const metadataMatch = await findActiveSyncMetadataMatch(tabId, url);
+            if (metadataMatch) {
+              addTabSuggestedTabs.add(tabId);
+              logger.info('[AUTO-SYNC] Detected translated metadata match for active sync tab', {
+                tabId,
+                normalizedUrl: metadataMatch.normalizedUrl,
+                trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
+              });
+
+              await showAddTabSuggestion(
+                tabId,
+                tab.title || 'Untitled',
+                metadataMatch.normalizedUrl,
+                'possible-translation',
+                'medium',
+              );
+            }
           }
         }
 
         if (autoSyncState.enabled) {
-          const existingGroup = autoSyncState.groups.get(normalizedUrl);
+          const currentGroupKey = getAutoSyncGroupKeyForTab(tabId);
+          const currentGroup = currentGroupKey
+            ? autoSyncState.groups.get(currentGroupKey)
+            : undefined;
+          const currentTabUrl = currentGroup?.tabUrls?.get(tabId);
+          const existingGroupKey =
+            currentGroup &&
+            currentGroupKey &&
+            (currentGroupKey === normalizedUrl || currentTabUrl === url)
+              ? currentGroupKey
+              : normalizedUrl;
+          const existingGroup = autoSyncState.groups.get(existingGroupKey);
+          const shouldProbeCandidates =
+            existingGroupKey === normalizedUrl &&
+            existingGroup?.tabIds.size === 1 &&
+            autoSyncState.groups.size > 1;
 
-          if (!existingGroup || !existingGroup.tabIds.has(tabId)) {
+          if (!existingGroup || !existingGroup.tabIds.has(tabId) || shouldProbeCandidates) {
             await updateAutoSyncGroup(tabId, url);
-          } else if (existingGroup && existingGroup.tabIds.has(tabId) && !existingGroup.isActive) {
+          } else if (existingGroup && existingGroup.tabIds.has(tabId)) {
+            const didRefreshMetadata = refreshAutoSyncGroupMetadata(existingGroupKey, tabId, url);
+            if (didRefreshMetadata) {
+              await broadcastAutoSyncGroupUpdate();
+            }
+
             if (
+              !existingGroup.isActive &&
               existingGroup.tabIds.size >= 2 &&
-              !pendingSuggestions.has(normalizedUrl) &&
-              !dismissedUrlGroups.has(normalizedUrl) &&
-              !isDomainPermanentlyExcluded(normalizedUrl) &&
-              !isDomainSnoozed(normalizedUrl) &&
+              !pendingSuggestions.has(existingGroupKey) &&
+              !dismissedUrlGroups.has(existingGroupKey) &&
+              !isDomainPermanentlyExcluded(existingGroupKey) &&
+              !isDomainSnoozed(existingGroupKey) &&
               !(syncState.isActive && syncState.linkedTabs.includes(tabId))
             ) {
-              await showSyncSuggestion(normalizedUrl);
+              await showSyncSuggestion(existingGroupKey);
             }
           }
         }

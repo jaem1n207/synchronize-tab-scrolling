@@ -502,8 +502,44 @@
       }
     }
   },
+  "foundTabsWithSameTranslatedPage": {
+    "message": "एक ही अनुवादित पेज के $COUNT$ टैब मिले। सिंक शुरू करें?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "foundTabsMayBeTranslations": {
+    "message": "ये $COUNT$ टैब एक ही पेज के अनुवाद हो सकते हैं। सिंक शुरू करें?",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
   "newTabSameUrl": {
     "message": "नया टैब \"$TITLE$\" समान URL है। सिंक में जोड़ें?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabSameTranslatedPage": {
+    "message": "नया टैब \"$TITLE$\" वही अनुवादित पेज है। सिंक में जोड़ें?",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "Google Docs"
+      }
+    }
+  },
+  "newTabMayBeTranslation": {
+    "message": "नया टैब \"$TITLE$\" सिंक किए गए पेज का अनुवाद हो सकता है। सिंक में जोड़ें?",
     "placeholders": {
       "title": {
         "content": "$1",

@@ -1,8 +1,13 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import { extractDomainFromUrl, normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
+import { extractDomainFromUrl } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
+import type {
+  AutoSyncSuggestionMatchKind,
+  TranslatedPageConfidence,
+} from '~/shared/lib/translated-page-url-utils';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import {
@@ -240,6 +245,8 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
             tabCount: tabIds.length,
             tabIds,
             tabTitles,
+            ...(group.matchKind && { matchKind: group.matchKind }),
+            ...(group.matchConfidence && { matchConfidence: group.matchConfidence }),
             ...(syncState.isActive &&
               syncState.linkedTabs.length > 0 && {
                 hasExistingSync: true,
@@ -337,6 +344,8 @@ export async function sendSuggestionToSingleTab(
         tabIds,
         tabTitles,
         tabCount: tabIds.length,
+        ...(group.matchKind && { matchKind: group.matchKind }),
+        ...(group.matchConfidence && { matchConfidence: group.matchConfidence }),
         ...(syncState.isActive &&
           syncState.linkedTabs.length > 0 && {
             hasExistingSync: true,
@@ -364,6 +373,8 @@ export async function showAddTabSuggestion(
   tabId: number,
   tabTitle: string,
   normalizedUrl: string,
+  matchKind?: AutoSyncSuggestionMatchKind,
+  matchConfidence?: TranslatedPageConfidence,
 ): Promise<void> {
   if (isDomainPermanentlyExcluded(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is permanently excluded', {
@@ -413,6 +424,8 @@ export async function showAddTabSuggestion(
             tabTitle,
             hasManualOffsets,
             normalizedUrl,
+            ...(matchKind && { matchKind }),
+            ...(matchConfidence && { matchConfidence }),
           },
           { context: 'content-script', tabId: targetTabId },
           2_000, // 2 second timeout
@@ -441,7 +454,7 @@ async function hasSyncedTabMatchingUrl(normalizedUrl: string): Promise<boolean> 
   const results = await Promise.allSettled(
     syncState.linkedTabs.map(async (tabId) => {
       const tab = await browser.tabs.get(tabId);
-      return tab.url ? normalizeUrlForAutoSync(tab.url) === normalizedUrl : false;
+      return tab.url ? getAutoSyncPageKey(tab.url) === normalizedUrl : false;
     }),
   );
   return results.some((r) => r.status === 'fulfilled' && r.value);

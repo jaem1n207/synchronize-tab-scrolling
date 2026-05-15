@@ -4,9 +4,7 @@
  * 각 탭의 언어 설정을 유지하면서 경로만 동기화하기 위한 기능 제공
  */
 
-import { ExtensionLogger } from './logger';
-
-const logger = new ExtensionLogger({ scope: 'locale-utils' });
+import { applyTranslatedPageLocaleSync } from './translated-page-url-utils';
 
 // 2글자 기본 로케일 코드 (ISO 639-1)
 // O(1) 조회를 위해 Set 사용
@@ -103,49 +101,17 @@ export function removeLocaleFromPath(pathname: string, locale: string): string {
 }
 
 /**
- * 경로에서 로케일의 위치(인덱스) 찾기
- *
- * @param pathname URL의 pathname
- * @param locale 찾을 로케일 코드
- * @returns 로케일의 세그먼트 인덱스 (0-based), 없으면 -1
- */
-function findLocalePosition(pathname: string, locale: string): number {
-  const segments = pathname.split('/').filter(Boolean);
-  const localeLower = locale.toLowerCase();
-
-  return segments.findIndex((segment) => segment.toLowerCase() === localeLower);
-}
-
-/**
- * 정규화된 경로에 로케일을 지정된 위치에 삽입
- *
- * @param normalizedPath 로케일이 제거된 경로
- * @param locale 삽입할 로케일 코드
- * @param position 삽입할 위치 (0-based), -1이면 첫 번째 위치
- * @returns 로케일이 삽입된 경로
- */
-function insertLocaleAtPosition(normalizedPath: string, locale: string, position: number): string {
-  const segments = normalizedPath.split('/').filter(Boolean);
-
-  // 위치가 유효하지 않거나 -1이면 첫 번째 위치에 삽입
-  const insertIndex = position >= 0 && position <= segments.length ? position : 0;
-
-  // 로케일을 지정된 위치에 삽입
-  segments.splice(insertIndex, 0, locale);
-
-  // 경로 재구성 (항상 /로 시작)
-  return '/' + segments.join('/');
-}
-
-/**
  * URL 동기화 시 대상 탭의 로케일을 보존하면서 경로 변경 적용
  *
  * 동작 방식:
  * 1. 소스와 대상 URL 모두 로케일 포함: 소스의 경로를 대상의 로케일로 변환
  * 2. 소스만 로케일 포함: 소스 URL 그대로 사용
- * 3. 대상만 로케일 포함 또는 둘 다 없음: 소스 경로 사용
+ * 3. 대상만 로케일 포함: 소스 경로를 대상의 로케일로 변환
+ * 4. 둘 다 없음: 소스 경로 사용
  *
- * 모든 경우에 대상의 쿼리 파라미터와 해시는 보존됨
+ * 대상에 로케일이 있거나 둘 다 로케일이 없으면 대상의 해시를 보존함
+ * 대상 쿼리는 경로/서브도메인 로케일에서는 보존되고, 쿼리 로케일에서는 소스 식별 쿼리와 대상 로케일 쿼리를 사용함
+ * 소스만 로케일을 포함하고 대상에 로케일이 없으면 소스 URL을 그대로 사용함
  *
  * @param sourceUrl 변경된 소스 탭의 URL
  * @param targetUrl 동기화 대상 탭의 현재 URL
@@ -176,43 +142,5 @@ function insertLocaleAtPosition(normalizedPath: string, locale: string, position
  * // → "https://example.com/docs/install?foo=bar"
  */
 export function applyLocalePreservingSync(sourceUrl: string, targetUrl: string): string {
-  try {
-    const source = new URL(sourceUrl);
-    const target = new URL(targetUrl);
-
-    // 소스와 대상 경로에서 로케일 추출
-    const sourceLocale = extractLocaleFromPath(source.pathname);
-    const targetLocale = extractLocaleFromPath(target.pathname);
-
-    let finalPathname: string;
-
-    if (sourceLocale && targetLocale) {
-      // 케이스 1: 둘 다 로케일 포함
-      // 소스 경로에서 로케일 제거하여 정규화된 경로 얻기
-      const normalizedPath = removeLocaleFromPath(source.pathname, sourceLocale);
-
-      // 소스에서 로케일의 위치 찾기
-      const localePosition = findLocalePosition(source.pathname, sourceLocale);
-
-      // 대상 로케일을 같은 위치에 삽입
-      finalPathname = insertLocaleAtPosition(normalizedPath, targetLocale, localePosition);
-    } else if (sourceLocale && !targetLocale) {
-      // 케이스 2: 소스만 로케일 포함
-      // 소스의 경로를 그대로 사용 (소스 로케일 유지)
-      finalPathname = source.pathname;
-    } else {
-      // 케이스 3: 대상만 로케일 포함 또는 둘 다 없음
-      // 소스 경로를 그대로 사용
-      finalPathname = source.pathname;
-    }
-
-    // 최종 URL 구성: 소스의 origin + 계산된 pathname + 대상의 query + 대상의 hash
-    const finalUrl = `${source.origin}${finalPathname}${target.search}${target.hash}`;
-
-    return finalUrl;
-  } catch (error) {
-    // URL 파싱 실패 시 소스 URL을 그대로 반환
-    logger.warn('Failed to apply locale-preserving sync, using source URL', { error });
-    return sourceUrl;
-  }
+  return applyTranslatedPageLocaleSync(sourceUrl, targetUrl);
 }
