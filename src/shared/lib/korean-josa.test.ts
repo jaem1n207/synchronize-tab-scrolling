@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import browser from 'webextension-polyfill';
 
 import {
   formatTitleWithKoreanJosa,
@@ -40,6 +41,11 @@ describe('formatTitleWithKoreanJosa', () => {
   it('adds object particle without quotes for popup aria labels', () => {
     expect(formatTitleWithKoreanJosa('칫솔', '을/를', { uiLanguage: 'ko' })).toBe('칫솔을');
     expect(formatTitleWithKoreanJosa('샴푸', '을/를', { uiLanguage: 'ko' })).toBe('샴푸를');
+  });
+
+  it('falls back to the browser UI language when uiLanguage is omitted', () => {
+    expect(formatTitleWithKoreanJosa('칫솔', '이/가', { quote: true })).toBe('"칫솔"이');
+    expect(browser.i18n.getUILanguage).toHaveBeenCalled();
   });
 
   it('returns the raw title for non-Korean UI languages', () => {
