@@ -469,8 +469,8 @@ describe('registerTabEventHandlers', () => {
 
       await getListener('tabs.onUpdated')(
         20,
-        { url: 'https://example.com/match?x=1' },
-        { id: 20, url: 'https://example.com/match?x=1', title: 'Candidate tab' },
+        { url: 'https://example.com/match?utm_source=mail' },
+        { id: 20, url: 'https://example.com/match?utm_source=mail', title: 'Candidate tab' },
       );
 
       expect(showAddTabSuggestion).toHaveBeenCalledWith(
@@ -634,8 +634,8 @@ describe('registerTabEventHandlers', () => {
 
       await getListener('tabs.onUpdated')(
         20,
-        { url: 'https://example.com/match?x=1' },
-        { id: 20, url: 'https://example.com/match?x=1', title: 'First event' },
+        { url: 'https://example.com/match?utm_source=mail' },
+        { id: 20, url: 'https://example.com/match?utm_source=mail', title: 'First event' },
       );
 
       expect(showAddTabSuggestion).toHaveBeenCalledTimes(1);
@@ -644,7 +644,7 @@ describe('registerTabEventHandlers', () => {
       await getListener('tabs.onUpdated')(
         20,
         { status: 'loading', url: undefined },
-        { id: 20, url: 'https://example.com/match?x=1', title: 'Second event' },
+        { id: 20, url: 'https://example.com/match?utm_source=mail', title: 'Second event' },
       );
 
       expect(showAddTabSuggestion).toHaveBeenCalledTimes(1);

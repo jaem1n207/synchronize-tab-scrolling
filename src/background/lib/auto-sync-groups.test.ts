@@ -1077,8 +1077,8 @@ describe('auto-sync-groups', () => {
     it('returns normalized URL on success', async () => {
       const result = await updateAutoSyncGroup(1, 'https://example.com/path?a=1');
 
-      expect(result).toBe('https://example.com/path');
-      expect(autoSyncState.groups.has('https://example.com/path')).toBe(true);
+      expect(result).toBe('https://example.com/path?a=1');
+      expect(autoSyncState.groups.has('https://example.com/path?a=1')).toBe(true);
     });
   });
 

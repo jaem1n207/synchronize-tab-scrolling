@@ -137,7 +137,6 @@ import {
 } from '~/background/lib/auto-sync-state';
 import { syncState } from '~/background/lib/sync-state';
 import { initScrollSync } from '~/contentScripts/scroll-sync';
-import { normalizeUrlForAutoSync } from '~/shared/lib/auto-sync-url-utils';
 import { calculateScrollRatio, clampScrollOffset } from '~/shared/lib/scroll-math';
 import {
   clearAllManualScrollOffsets,
@@ -148,6 +147,7 @@ import {
   saveManualScrollOffset,
   saveUrlSyncEnabled,
 } from '~/shared/lib/storage';
+import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 interface MockMutationObserverInstance {
@@ -416,8 +416,8 @@ describe('Scenario: sync suggestion toast triggering conditions', () => {
   it('when 2 tabs share same URL, toast is shown', async () => {
     autoSyncState.enabled = true;
 
-    await updateAutoSyncGroup(1, 'https://example.com/page?q=1');
-    await updateAutoSyncGroup(2, 'https://example.com/page?q=2');
+    await updateAutoSyncGroup(1, 'https://example.com/page?utm_source=first');
+    await updateAutoSyncGroup(2, 'https://example.com/page?utm_source=second');
 
     const toastCalls = getBackgroundCalls('sync-suggestion:show');
     expect(toastCalls.length).toBeGreaterThan(0);
@@ -433,7 +433,7 @@ describe('Scenario: sync suggestion toast triggering conditions', () => {
 
   it('when group is already active, no toast is shown', async () => {
     autoSyncState.enabled = true;
-    const normalizedUrl = normalizeUrlForAutoSync('https://example.com/already-active')!;
+    const normalizedUrl = getAutoSyncPageKey('https://example.com/already-active')!;
     autoSyncState.groups.set(normalizedUrl, createGroup([1], true));
 
     await updateAutoSyncGroup(2, 'https://example.com/already-active');
@@ -443,27 +443,27 @@ describe('Scenario: sync suggestion toast triggering conditions', () => {
 
   it('when URL was previously dismissed, no toast is shown', async () => {
     autoSyncState.enabled = true;
-    const rawUrl = 'https://example.com/dismissed?q=1';
-    const normalizedUrl = normalizeUrlForAutoSync(rawUrl)!;
+    const rawUrl = 'https://example.com/dismissed?utm_source=first';
+    const normalizedUrl = getAutoSyncPageKey(rawUrl)!;
 
     await updateAutoSyncGroup(1, rawUrl);
     dismissedUrlGroups.add(normalizedUrl);
 
-    await updateAutoSyncGroup(2, 'https://example.com/dismissed?q=2');
+    await updateAutoSyncGroup(2, 'https://example.com/dismissed?utm_source=second');
 
     expect(getBackgroundCalls('sync-suggestion:show')).toHaveLength(0);
   });
 
   it('when suggestion is already pending, sends to single new tab instead', async () => {
     autoSyncState.enabled = true;
-    const rawUrl = 'https://example.com/pending?q=1';
-    const normalizedUrl = normalizeUrlForAutoSync(rawUrl)!;
+    const rawUrl = 'https://example.com/pending?utm_source=first';
+    const normalizedUrl = getAutoSyncPageKey(rawUrl)!;
 
     await updateAutoSyncGroup(1, rawUrl);
     pendingSuggestions.add(normalizedUrl);
     mocks.sendMessageBackgroundMock.mockClear();
 
-    await updateAutoSyncGroup(2, 'https://example.com/pending?q=2');
+    await updateAutoSyncGroup(2, 'https://example.com/pending?utm_source=second');
 
     expect(mocks.sendMessageBackgroundMock).toHaveBeenCalledWith(
       'ping',
@@ -505,16 +505,16 @@ describe('Scenario: sync suggestion toast triggering conditions', () => {
 
   it('when 3rd tab joins existing pending suggestion, sends to single new tab', async () => {
     autoSyncState.enabled = true;
-    const rawUrl = 'https://example.com/third-tab?q=1';
-    const normalizedUrl = normalizeUrlForAutoSync(rawUrl)!;
+    const rawUrl = 'https://example.com/third-tab?utm_source=first';
+    const normalizedUrl = getAutoSyncPageKey(rawUrl)!;
 
     await updateAutoSyncGroup(1, rawUrl);
-    await updateAutoSyncGroup(2, 'https://example.com/third-tab?q=2');
+    await updateAutoSyncGroup(2, 'https://example.com/third-tab?utm_source=second');
 
     expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
 
     mocks.sendMessageBackgroundMock.mockClear();
-    await updateAutoSyncGroup(3, 'https://example.com/third-tab?q=3');
+    await updateAutoSyncGroup(3, 'https://example.com/third-tab?utm_source=third');
 
     expect(mocks.sendMessageBackgroundMock).toHaveBeenCalledWith(
       'sync-suggestion:show',
@@ -527,8 +527,8 @@ describe('Scenario: sync suggestion toast triggering conditions', () => {
 describe('Scenario: same-URL automatic sync detection', () => {
   it('initializeAutoSync scans tabs and groups by normalized URL', async () => {
     mocks.tabsQueryMock.mockResolvedValue([
-      { id: 1, url: 'https://example.com/page?a=1' },
-      { id: 2, url: 'https://example.com/page?a=2' },
+      { id: 1, url: 'https://example.com/page?utm_source=first' },
+      { id: 2, url: 'https://example.com/page?utm_source=second' },
       { id: 3, url: 'https://another.com/page' },
     ]);
 
@@ -538,10 +538,10 @@ describe('Scenario: same-URL automatic sync detection', () => {
     expect(autoSyncState.groups.get('https://another.com/page')?.tabIds).toEqual(new Set([3]));
   });
 
-  it('query string differences still produce same group', async () => {
+  it('tracking query string differences still produce same group', async () => {
     mocks.tabsQueryMock.mockResolvedValue([
-      { id: 10, url: 'https://example.com/page?q=1' },
-      { id: 11, url: 'https://example.com/page?q=2' },
+      { id: 10, url: 'https://example.com/page?utm_source=first' },
+      { id: 11, url: 'https://example.com/page?utm_source=second' },
     ]);
 
     await initializeAutoSync(true);
@@ -593,8 +593,8 @@ describe('Scenario: same-URL automatic sync detection', () => {
     autoSyncState.enabled = false;
     autoSyncState.groups.clear();
     mocks.tabsQueryMock.mockResolvedValue([
-      { id: 50, url: 'https://example.com/rebuild?q=1' },
-      { id: 51, url: 'https://example.com/rebuild?q=2' },
+      { id: 50, url: 'https://example.com/rebuild?utm_source=first' },
+      { id: 51, url: 'https://example.com/rebuild?utm_source=second' },
     ]);
 
     await toggleAutoSync(true);
