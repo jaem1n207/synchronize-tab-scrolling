@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '~/shared/components/ui/avat
 import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
 import { t } from '~/shared/i18n';
+import { formatTitleWithKoreanJosa } from '~/shared/lib';
 import {
   ANIMATION_DURATIONS,
   EASING_FUNCTIONS,
@@ -31,51 +32,55 @@ export function SelectedTabsChips({ tabs, isSyncActive, onRemoveTab }: SelectedT
       ) : (
         <div className="flex flex-wrap gap-2">
           <AnimatePresence mode="popLayout">
-            {tabs.map((tab) => (
-              <motion.div
-                key={tab.id}
-                layout
-                animate={motionVariants.scale.animate}
-                exit={motionVariants.scale.exit}
-                initial={motionVariants.scale.initial}
-                transition={getMotionTransition(
-                  ANIMATION_DURATIONS.fast,
-                  EASING_FUNCTIONS.easeOutCubic,
-                )}
-              >
-                <Badge
-                  className="flex items-center gap-1.5 pr-1 py-1 max-w-[200px]"
-                  variant="secondary"
+            {tabs.map((tab) => {
+              const titleWithObjectJosa = formatTitleWithKoreanJosa(tab.title, '을/를');
+
+              return (
+                <motion.div
+                  key={tab.id}
+                  layout
+                  animate={motionVariants.scale.animate}
+                  exit={motionVariants.scale.exit}
+                  initial={motionVariants.scale.initial}
+                  transition={getMotionTransition(
+                    ANIMATION_DURATIONS.fast,
+                    EASING_FUNCTIONS.easeOutCubic,
+                  )}
                 >
-                  <Avatar className="w-4 h-4 shrink-0">
-                    <AvatarImage alt="" src={tab.favIconUrl} />
-                    <AvatarFallback className="bg-muted text-[8px] text-muted-foreground">
-                      ?
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs truncate flex-1">{tab.title}</span>
-                  <Button
-                    aria-label={
-                      isSyncActive
-                        ? t('cannotRemoveTabDuringSync', [tab.title])
-                        : t('removeTab', [tab.title])
-                    }
-                    className="h-4 w-4 p-0 hover:bg-muted rounded-sm shrink-0"
-                    disabled={isSyncActive}
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      if (!isSyncActive) {
-                        e.stopPropagation();
-                        onRemoveTab(tab.id);
-                      }
-                    }}
+                  <Badge
+                    className="flex items-center gap-1.5 pr-1 py-1 max-w-[200px]"
+                    variant="secondary"
                   >
-                    <IconX aria-hidden="true" className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              </motion.div>
-            ))}
+                    <Avatar className="w-4 h-4 shrink-0">
+                      <AvatarImage alt="" src={tab.favIconUrl} />
+                      <AvatarFallback className="bg-muted text-[8px] text-muted-foreground">
+                        ?
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs truncate flex-1">{tab.title}</span>
+                    <Button
+                      aria-label={
+                        isSyncActive
+                          ? t('cannotRemoveTabDuringSync', [titleWithObjectJosa])
+                          : t('removeTab', [tab.title])
+                      }
+                      className="h-4 w-4 p-0 hover:bg-muted rounded-sm shrink-0"
+                      disabled={isSyncActive}
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => {
+                        if (!isSyncActive) {
+                          e.stopPropagation();
+                          onRemoveTab(tab.id);
+                        }
+                      }}
+                    >
+                      <IconX aria-hidden="true" className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
       )}

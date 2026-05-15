@@ -335,11 +335,11 @@
     "message": "동기화를 시작하려면 2개 이상의 탭을 선택하세요"
   },
   "cannotRemoveTabDuringSync": {
-    "message": "동기화 중에는 $TITLE$을(를) 제거할 수 없습니다",
+    "message": "동기화 중에는 $TITLE$ 제거할 수 없습니다",
     "placeholders": {
       "title": {
         "content": "$1",
-        "example": "Google"
+        "example": "Google을"
       }
     }
   },
