@@ -43,7 +43,13 @@ export function formatTitleWithKoreanJosa(
     return title;
   }
 
-  const titleText = options.quote ? `"${title}"` : title;
+  const titleWithParticle = josa(title, particle);
 
-  return josa(titleText, particle);
+  if (!options.quote) {
+    return titleWithParticle;
+  }
+
+  const selectedParticle = titleWithParticle.slice(title.length);
+
+  return `"${title}"${selectedParticle}`;
 }

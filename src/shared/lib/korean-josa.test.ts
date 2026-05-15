@@ -27,7 +27,7 @@ describe('isKoreanUiLanguage', () => {
 describe('formatTitleWithKoreanJosa', () => {
   it('adds subject particle after a Korean title with batchim', () => {
     expect(formatTitleWithKoreanJosa('칫솔', '이/가', { quote: true, uiLanguage: 'ko' })).toBe(
-      '"칫솔"가',
+      '"칫솔"이',
     );
   });
 
