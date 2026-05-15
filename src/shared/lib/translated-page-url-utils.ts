@@ -236,11 +236,6 @@ function buildCanonicalKey(url: URL, locale?: LocaleDescriptor): string {
   const hostname = getHostnameWithoutLocale(url.hostname, locale);
   const host = getHostWithPort(hostname, url.port);
   const pathname = removePathLocale(url.pathname, locale);
-
-  if (!locale) {
-    return `${url.protocol}//${host}${pathname}`;
-  }
-
   const identityQuery = stringifyQueryParams(getIdentityQueryParams(url.searchParams));
   const search = identityQuery ? `?${identityQuery}` : '';
 
@@ -306,6 +301,11 @@ function buildTargetQuerySearch(source: URL, targetLocale: LocaleDescriptor): st
   return queryString ? `?${queryString}` : '';
 }
 
+function buildPathOrSubdomainLocaleSearch(source: URL, target: URL): string {
+  const identityQuery = stringifyQueryParams(getIdentityQueryParams(source.searchParams));
+  return identityQuery ? `?${identityQuery}` : target.search;
+}
+
 function buildPathLocaleUrl(
   source: URL,
   sourceLocale: LocaleDescriptor | undefined,
@@ -315,15 +315,9 @@ function buildPathLocaleUrl(
   const sourcePathname = removePathLocale(source.pathname, sourceLocale);
   const pathname = insertPathLocale(sourcePathname, targetLocale);
   const hostname = getHostnameWithoutLocale(source.hostname, sourceLocale);
+  const search = buildPathOrSubdomainLocaleSearch(source, target);
 
-  return buildUrlFromParts(
-    source.protocol,
-    hostname,
-    source.port,
-    pathname,
-    target.search,
-    target.hash,
-  );
+  return buildUrlFromParts(source.protocol, hostname, source.port, pathname, search, target.hash);
 }
 
 function buildQueryLocaleUrl(
@@ -348,15 +342,9 @@ function buildSubdomainLocaleUrl(
   const pathname = removePathLocale(source.pathname, sourceLocale);
   const baseHostname = getHostnameWithoutLocale(source.hostname, sourceLocale);
   const hostname = `${targetLocale.value.toLowerCase()}.${baseHostname}`;
+  const search = buildPathOrSubdomainLocaleSearch(source, target);
 
-  return buildUrlFromParts(
-    source.protocol,
-    hostname,
-    source.port,
-    pathname,
-    target.search,
-    target.hash,
-  );
+  return buildUrlFromParts(source.protocol, hostname, source.port, pathname, search, target.hash);
 }
 
 export function buildTranslatedPageSignature(url: string): TranslatedPageSignature | null {

@@ -74,6 +74,15 @@ describe('buildTranslatedPageSignature', () => {
     );
   });
 
+  it('keeps different identity query values separate without locale carriers', () => {
+    expect(getAutoSyncPageKey('https://example.com/docs/install?page=setup')).toBe(
+      'https://example.com/docs/install?page=setup',
+    );
+    expect(getAutoSyncPageKey('https://example.com/docs/install?page=setup')).not.toBe(
+      getAutoSyncPageKey('https://example.com/docs/install?page=config'),
+    );
+  });
+
   it('builds the same canonical key for subdomain locale variants', () => {
     expect(getAutoSyncPageKey('https://en.example.com/docs/install')).toBe(
       'https://example.com/docs/install',
@@ -101,11 +110,13 @@ describe('buildTranslatedPageSignature', () => {
     ).toBe('https://example.com/docs/install');
   });
 
-  it('falls back to same-url keys without locale carriers', () => {
-    const signature = buildTranslatedPageSignature('https://example.com/docs/install?x=1#top');
+  it('falls back to same-url keys without locale carriers while preserving identity query', () => {
+    const signature = buildTranslatedPageSignature(
+      'https://example.com/docs/install?x=1&utm_source=mail#top',
+    );
 
     expect(signature).toEqual({
-      canonicalKey: 'https://example.com/docs/install',
+      canonicalKey: 'https://example.com/docs/install?x=1',
       confidence: 'low',
       matchKind: 'same-url',
     });
@@ -193,6 +204,15 @@ describe('applyTranslatedPageLocaleSync', () => {
     ).toBe('https://example.com/tr/docs/install#section');
   });
 
+  it('uses source identity query when preserving target path locale', () => {
+    expect(
+      applyTranslatedPageLocaleSync(
+        'https://example.com/en/docs?page=config&utm_source=mail',
+        'https://example.com/tr/docs?page=install#section',
+      ),
+    ).toBe('https://example.com/tr/docs?page=config#section');
+  });
+
   it('preserves target query locale', () => {
     expect(
       applyTranslatedPageLocaleSync(
@@ -238,13 +258,22 @@ describe('applyTranslatedPageLocaleSync', () => {
     ).toBe('https://tr.example.com/docs/install#section');
   });
 
+  it('uses source identity query when preserving target subdomain locale', () => {
+    expect(
+      applyTranslatedPageLocaleSync(
+        'https://en.example.com/docs?page=config&utm_source=mail',
+        'https://tr.example.com/docs?page=install#section',
+      ),
+    ).toBe('https://tr.example.com/docs?page=config#section');
+  });
+
   it('uses target carrier when source and target carriers differ', () => {
     expect(
       applyTranslatedPageLocaleSync(
         'https://example.com/docs/install?lang=en&page=setup',
         'https://example.com/tr/docs/current#target',
       ),
-    ).toBe('https://example.com/tr/docs/install#target');
+    ).toBe('https://example.com/tr/docs/install?page=setup#target');
   });
 
   it('falls back to source URL when parsing fails', () => {
