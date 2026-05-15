@@ -7,6 +7,7 @@ import {
   PANEL_ANIMATIONS,
   prefersReducedMotion,
   getTransitionStyle,
+  getMotionSpringTransition,
   getMotionTransition,
   motionVariants,
 } from './animations';
@@ -188,6 +189,49 @@ describe('animations', () => {
     it('respects reduced motion even with default arguments', () => {
       matchMediaSpy.mockReturnValue({ matches: true });
       const result = getMotionTransition();
+      expect(result).toEqual({ duration: 0 });
+    });
+  });
+
+  describe('getMotionSpringTransition', () => {
+    let matchMediaSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      matchMediaSpy = vi.fn();
+      Object.defineProperty(window, 'matchMedia', {
+        value: matchMediaSpy,
+        configurable: true,
+        writable: true,
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('returns a bounce-free spring transition with default duration', () => {
+      matchMediaSpy.mockReturnValue({ matches: false });
+      const result = getMotionSpringTransition();
+      expect(result).toEqual({
+        type: 'spring',
+        duration: ANIMATION_DURATIONS.slow,
+        bounce: 0,
+      });
+    });
+
+    it('returns a bounce-free spring transition with custom duration', () => {
+      matchMediaSpy.mockReturnValue({ matches: false });
+      const result = getMotionSpringTransition(0.2);
+      expect(result).toEqual({
+        type: 'spring',
+        duration: 0.2,
+        bounce: 0,
+      });
+    });
+
+    it('returns zero-duration transition when user prefers reduced motion', () => {
+      matchMediaSpy.mockReturnValue({ matches: true });
+      const result = getMotionSpringTransition();
       expect(result).toEqual({ duration: 0 });
     });
   });

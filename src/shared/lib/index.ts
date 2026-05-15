@@ -9,6 +9,7 @@ export {
   ANIMATION_DURATIONS,
   EASING_CSS,
   EASING_FUNCTIONS,
+  getMotionSpringTransition,
   getMotionTransition,
   getTransitionStyle,
   motionVariants,

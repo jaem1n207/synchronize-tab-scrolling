@@ -2,26 +2,78 @@ import * as React from 'react';
 
 import { type DialogProps } from '@radix-ui/react-dialog';
 import { Command as CommandPrimitive } from 'cmdk';
+import { LayoutGroup, motion } from 'motion/react';
 
 import { Dialog, DialogContent } from '~/shared/components/ui/dialog';
+import { getMotionSpringTransition } from '~/shared/lib/animations';
 import { cn } from '~/shared/lib/utils';
 
 import IconSearch from '~icons/lucide/search';
+
+const COMMAND_ITEM_INDICATOR_LAYOUT_ID = 'command-item-leading-indicator';
+
+interface CommandIndicatorContextValue {
+  activeItemId: string | null;
+  shouldAnimateActiveItem: boolean;
+  setPointerItemId: React.Dispatch<React.SetStateAction<string | null>>;
+  setPointerDisabledItemId: React.Dispatch<React.SetStateAction<string | null>>;
+  setSelectedItemId: React.Dispatch<React.SetStateAction<string | null>>;
+}
+
+const CommandIndicatorContext = React.createContext<CommandIndicatorContextValue | null>(null);
+
+function setRef<T>(ref: React.Ref<T> | undefined, value: T | null) {
+  if (typeof ref === 'function') {
+    ref(value);
+    return;
+  }
+
+  if (ref) {
+    ref.current = value;
+  }
+}
 
 export interface CommandProps extends React.ComponentPropsWithoutRef<typeof CommandPrimitive> {
   ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive>>;
 }
 
 function Command({ ref, className, ...props }: CommandProps) {
+  const [pointerItemId, setPointerItemId] = React.useState<string | null>(null);
+  const [pointerDisabledItemId, setPointerDisabledItemId] = React.useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = React.useState<string | null>(null);
+  const previousActiveItemId = React.useRef<string | null>(null);
+  const activeItemId = pointerDisabledItemId ? null : (pointerItemId ?? selectedItemId);
+  const shouldAnimateActiveItem =
+    previousActiveItemId.current !== null && previousActiveItemId.current !== activeItemId;
+  const layoutGroupId = React.useId();
+  const indicatorContext = React.useMemo(
+    () => ({
+      activeItemId,
+      shouldAnimateActiveItem,
+      setPointerItemId,
+      setPointerDisabledItemId,
+      setSelectedItemId,
+    }),
+    [activeItemId, shouldAnimateActiveItem],
+  );
+
+  React.useLayoutEffect(() => {
+    previousActiveItemId.current = activeItemId;
+  }, [activeItemId]);
+
   return (
-    <CommandPrimitive
-      ref={ref}
-      className={cn(
-        'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
-        className,
-      )}
-      {...props}
-    />
+    <CommandIndicatorContext.Provider value={indicatorContext}>
+      <LayoutGroup id={layoutGroupId}>
+        <CommandPrimitive
+          ref={ref}
+          className={cn(
+            'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
+            className,
+          )}
+          {...props}
+        />
+      </LayoutGroup>
+    </CommandIndicatorContext.Provider>
   );
 }
 Command.displayName = CommandPrimitive.displayName;
@@ -140,16 +192,146 @@ export interface CommandItemProps extends React.ComponentPropsWithoutRef<
   ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive.Item>>;
 }
 
-function CommandItem({ ref, className, ...props }: CommandItemProps) {
+function CommandItem({
+  ref,
+  className,
+  disabled,
+  onPointerEnter,
+  onPointerLeave,
+  ...props
+}: CommandItemProps) {
+  const indicatorContext = React.useContext(CommandIndicatorContext);
+  const itemId = React.useId();
+  const itemRef = React.useRef<React.ComponentRef<typeof CommandPrimitive.Item>>(null);
+  const setPointerItemId = indicatorContext?.setPointerItemId;
+  const setPointerDisabledItemId = indicatorContext?.setPointerDisabledItemId;
+  const setSelectedItemId = indicatorContext?.setSelectedItemId;
+
+  const setItemRef = React.useCallback(
+    (node: React.ComponentRef<typeof CommandPrimitive.Item> | null) => {
+      itemRef.current = node;
+      setRef(ref, node);
+    },
+    [ref],
+  );
+
+  const isItemDisabled = React.useCallback(() => {
+    return disabled === true || itemRef.current?.getAttribute('data-disabled') === 'true';
+  }, [disabled]);
+
+  const syncSelectedState = React.useCallback(() => {
+    if (!setPointerItemId || !setSelectedItemId) {
+      return;
+    }
+
+    if (isItemDisabled()) {
+      setPointerItemId((currentItemId) => (currentItemId === itemId ? null : currentItemId));
+      setSelectedItemId((currentItemId) => (currentItemId === itemId ? null : currentItemId));
+      return;
+    }
+
+    setPointerDisabledItemId?.((currentItemId) =>
+      currentItemId === itemId ? null : currentItemId,
+    );
+
+    const isSelected = itemRef.current?.getAttribute('data-selected') === 'true';
+
+    setSelectedItemId((currentItemId) => {
+      if (isSelected) {
+        return itemId;
+      }
+
+      return currentItemId === itemId ? null : currentItemId;
+    });
+  }, [isItemDisabled, itemId, setPointerDisabledItemId, setPointerItemId, setSelectedItemId]);
+
+  React.useEffect(() => {
+    const item = itemRef.current;
+
+    if (!item || !setPointerItemId || !setSelectedItemId) {
+      return;
+    }
+
+    syncSelectedState();
+
+    const observer = new MutationObserver(syncSelectedState);
+    observer.observe(item, {
+      attributeFilter: ['data-disabled', 'data-selected'],
+      attributes: true,
+    });
+
+    return () => {
+      observer.disconnect();
+      setPointerItemId((currentItemId) => (currentItemId === itemId ? null : currentItemId));
+      setPointerDisabledItemId?.((currentItemId) =>
+        currentItemId === itemId ? null : currentItemId,
+      );
+      setSelectedItemId((currentItemId) => (currentItemId === itemId ? null : currentItemId));
+    };
+  }, [itemId, setPointerDisabledItemId, setPointerItemId, setSelectedItemId, syncSelectedState]);
+
+  const handlePointerEnter = React.useCallback(
+    (event: React.PointerEvent<React.ComponentRef<typeof CommandPrimitive.Item>>) => {
+      onPointerEnter?.(event);
+
+      if (!event.defaultPrevented) {
+        if (isItemDisabled()) {
+          setPointerItemId?.((currentItemId) => (currentItemId === itemId ? null : currentItemId));
+          setPointerDisabledItemId?.(itemId);
+          return;
+        }
+
+        setPointerDisabledItemId?.(null);
+        setPointerItemId?.(itemId);
+      }
+    },
+    [isItemDisabled, itemId, onPointerEnter, setPointerDisabledItemId, setPointerItemId],
+  );
+
+  const handlePointerLeave = React.useCallback(
+    (event: React.PointerEvent<React.ComponentRef<typeof CommandPrimitive.Item>>) => {
+      onPointerLeave?.(event);
+
+      if (!event.defaultPrevented) {
+        setPointerItemId?.((currentItemId) => (currentItemId === itemId ? null : currentItemId));
+        setPointerDisabledItemId?.((currentItemId) =>
+          currentItemId === itemId ? null : currentItemId,
+        );
+      }
+    },
+    [itemId, onPointerLeave, setPointerDisabledItemId, setPointerItemId],
+  );
+
+  const isIndicatorActive = indicatorContext?.activeItemId === itemId && !isItemDisabled();
+  const indicatorMotionMode = indicatorContext?.shouldAnimateActiveItem ? 'animated' : 'instant';
+  const indicatorTransition =
+    indicatorMotionMode === 'animated' ? getMotionSpringTransition() : { duration: 0 };
+
   return (
     <CommandPrimitive.Item
-      ref={ref}
+      ref={setItemRef}
       className={cn(
-        "relative flex cursor-default gap-2 select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+        'relative flex cursor-default gap-2 select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled=true]:cursor-not-allowed data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
         className,
       )}
+      disabled={disabled}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       {...props}
-    />
+    >
+      {isIndicatorActive && (
+        <motion.span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-sm bg-foreground"
+          data-layout-id={COMMAND_ITEM_INDICATOR_LAYOUT_ID}
+          data-motion-mode={indicatorMotionMode}
+          data-slot="command-item-leading-indicator"
+          layoutId={COMMAND_ITEM_INDICATOR_LAYOUT_ID}
+          transition={indicatorTransition}
+        />
+      )}
+      {props.children}
+    </CommandPrimitive.Item>
   );
 }
 

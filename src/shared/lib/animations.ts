@@ -76,6 +76,15 @@ export const getMotionTransition = (
   return { duration, ease };
 };
 
+export const getMotionSpringTransition = (
+  duration: number = ANIMATION_DURATIONS.slow,
+): Transition => {
+  if (prefersReducedMotion()) {
+    return { duration: 0 };
+  }
+  return { type: 'spring', duration, bounce: 0 };
+};
+
 /**
  * Common motion animation variants
  */
