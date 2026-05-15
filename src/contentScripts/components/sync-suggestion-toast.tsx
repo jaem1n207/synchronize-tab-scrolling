@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 
 import { Button } from '~/shared/components/ui/button';
 import { t } from '~/shared/i18n';
+import { formatTitleWithKoreanJosa } from '~/shared/lib';
 import {
   ANIMATION_DURATIONS,
   EASING_FUNCTIONS,
@@ -256,6 +257,10 @@ export function AddTabToSyncToast({
     };
   }, []);
 
+  const titleWithSubjectJosa = formatTitleWithKoreanJosa(suggestion.tabTitle, '이/가', {
+    quote: true,
+  });
+
   const handleAccept = React.useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -308,7 +313,7 @@ export function AddTabToSyncToast({
             <div className="flex-1 min-w-0 pointer-events-none">
               {/* Line 1: Title (no truncation) */}
               <h4 className="font-medium text-sm text-foreground">
-                {t(getAddTabSuggestionTitleKey(suggestion), suggestion.tabTitle)}
+                {t(getAddTabSuggestionTitleKey(suggestion), titleWithSubjectJosa)}
               </h4>
               {/* Line 2: Tab title (no truncation) */}
               <p className="mt-1 text-xs text-muted-foreground">{suggestion.tabTitle}</p>

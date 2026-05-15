@@ -521,29 +521,29 @@
     }
   },
   "newTabSameUrl": {
-    "message": "새 탭 \"$TITLE$\"이(가) 동일한 URL입니다. 동기화에 추가할까요?",
+    "message": "새 탭 $TITLE$ 동일한 URL입니다. 동기화에 추가할까요?",
     "placeholders": {
       "title": {
         "content": "$1",
-        "example": "Google Docs"
+        "example": "\"Google Docs\"가"
       }
     }
   },
   "newTabSameTranslatedPage": {
-    "message": "새 탭 \"$TITLE$\"이(가) 동일한 번역 페이지입니다. 동기화에 추가할까요?",
+    "message": "새 탭 $TITLE$ 동일한 번역 페이지입니다. 동기화에 추가할까요?",
     "placeholders": {
       "title": {
         "content": "$1",
-        "example": "Google Docs"
+        "example": "\"Google Docs\"가"
       }
     }
   },
   "newTabMayBeTranslation": {
-    "message": "새 탭 \"$TITLE$\"이(가) 동기화 중인 페이지의 번역본일 수 있습니다. 동기화에 추가할까요?",
+    "message": "새 탭 $TITLE$ 동기화 중인 페이지의 번역본일 수 있습니다. 동기화에 추가할까요?",
     "placeholders": {
       "title": {
         "content": "$1",
-        "example": "Google Docs"
+        "example": "\"Google Docs\"가"
       }
     }
   },
