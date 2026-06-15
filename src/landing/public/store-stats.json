@@ -1,8 +1,8 @@
 {
-  "updatedAt": "2026-06-08T07:33:31.038Z",
+  "updatedAt": "2026-06-15T07:48:58.766Z",
   "chrome": {
     "ratingValue": 4.2,
-    "ratingCount": 13,
+    "ratingCount": 14,
     "version": "2.10.0",
     "users": "2,000"
   },
@@ -10,6 +10,6 @@
     "ratingValue": 5,
     "ratingCount": 2,
     "version": "2.10.0",
-    "users": "47"
+    "users": "51"
   }
 }
