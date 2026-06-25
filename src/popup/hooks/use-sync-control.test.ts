@@ -209,6 +209,39 @@ describe('useSyncControl local file failures', () => {
     unmount();
   });
 
+  it('keeps the generic retry action when only a non-file tab fails in a mixed selection', async () => {
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        return { success: true, isActive: false };
+      }
+
+      return {
+        success: false,
+        connectedTabs: [1],
+        connectionResults: {
+          1: { success: true },
+          2: { success: false, error: 'Could not establish connection' },
+        },
+        error: 'HTTPS tab failed',
+      };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one.md', url: 'file:///Users/me/one.md', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await act(async () => {
+      result.current.handleStart();
+    });
+
+    await waitFor(() => expect(result.current.error?.message).toBe('HTTPS tab failed'));
+    expect(result.current.error?.action?.label).toBe('retry');
+    expect(getFileSchemeAccessInfo).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
   it('keeps the generic retry action when local file access is already allowed', async () => {
     vi.mocked(getFileSchemeAccessInfo).mockResolvedValue({
       canCheck: true,

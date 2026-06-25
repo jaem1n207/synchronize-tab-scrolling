@@ -19,9 +19,20 @@ const INITIAL_SYNC_STATUS: SyncStatus = {
   connectionStatuses: {},
 };
 
-function hasSelectedFileTab(selectedTabIds: Array<number>, tabs: Array<TabInfo>): boolean {
+type StartConnectionResults = Record<number, { success: boolean; error?: string }>;
+
+function hasFailedSelectedFileTab(
+  selectedTabIds: Array<number>,
+  tabs: Array<TabInfo>,
+  connectionResults: StartConnectionResults,
+): boolean {
   const selectedTabIdSet = new Set(selectedTabIds);
-  return tabs.some((tab) => selectedTabIdSet.has(tab.id) && isFileUrl(tab.url));
+  return tabs.some(
+    (tab) =>
+      selectedTabIdSet.has(tab.id) &&
+      isFileUrl(tab.url) &&
+      connectionResults[tab.id]?.success === false,
+  );
 }
 
 interface UseSyncControlParams {
@@ -124,8 +135,10 @@ export function useSyncControl({
     async (isRetry = false) => {
       setError(null);
 
-      const showFileAccessGuidance = async (): Promise<boolean> => {
-        if (!hasSelectedFileTab(selectedTabIds, tabs)) {
+      const showFileAccessGuidance = async (
+        connectionResults: StartConnectionResults,
+      ): Promise<boolean> => {
+        if (!hasFailedSelectedFileTab(selectedTabIds, tabs, connectionResults)) {
           return false;
         }
 
@@ -196,12 +209,12 @@ export function useSyncControl({
         )) as {
           success: boolean;
           connectedTabs: Array<number>;
-          connectionResults: Record<number, { success: boolean; error?: string }>;
+          connectionResults: StartConnectionResults;
           error?: string;
         };
 
         if (!response.success) {
-          if (await showFileAccessGuidance()) {
+          if (await showFileAccessGuidance(response.connectionResults || {})) {
             return;
           }
 
@@ -239,6 +252,10 @@ export function useSyncControl({
         const attemptedCount = selectedTabIds.length;
 
         if (connectedCount < attemptedCount) {
+          if (await showFileAccessGuidance(response.connectionResults || {})) {
+            return;
+          }
+
           const failedCount = attemptedCount - connectedCount;
           setError({
             message: t('connectedToTabs', [
@@ -258,9 +275,6 @@ export function useSyncControl({
         }
       } catch (err) {
         logger.error('Failed to start sync:', err);
-        if (await showFileAccessGuidance()) {
-          return;
-        }
 
         setError({
           message: t('failedToStartSync', [err instanceof Error ? err.message : String(err)]),
