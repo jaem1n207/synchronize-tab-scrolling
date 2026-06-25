@@ -6,6 +6,9 @@ import { isDev, isFirefox, port, r } from '../scripts/utils';
 import type PkgType from '../package.json';
 import type { Manifest } from 'webextension-polyfill';
 
+const FILE_URL_MATCH_PATTERN = 'file:///*';
+const WEB_URL_MATCH_PATTERN = '<all_urls>';
+
 export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
   const pkg = (await fs.readJSON(r('package.json'))) as typeof PkgType;
   const pkgName = pkg.displayName || pkg.name;
@@ -40,17 +43,17 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
       512: 'icons/logo-512.png',
     },
     permissions: ['tabs', 'storage', 'scripting'],
-    host_permissions: ['*://*/*'],
+    host_permissions: ['*://*/*', FILE_URL_MATCH_PATTERN],
     content_scripts: [
       {
-        matches: ['<all_urls>'],
+        matches: [WEB_URL_MATCH_PATTERN, FILE_URL_MATCH_PATTERN],
         js: ['dist/contentScripts/index.global.js'],
       },
     ],
     web_accessible_resources: [
       {
         resources: ['dist/contentScripts/synchronize-tab-scrolling.css'],
-        matches: ['<all_urls>'],
+        matches: [WEB_URL_MATCH_PATTERN, FILE_URL_MATCH_PATTERN],
       },
     ],
     content_security_policy: {
