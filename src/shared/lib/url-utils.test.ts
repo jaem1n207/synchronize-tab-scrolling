@@ -212,6 +212,12 @@ describe('isForbiddenUrl', () => {
       expect(isForbiddenUrl('file:///Users/test/DOCUMENT.PDF')).toBe(true);
     });
 
+    it('should still forbid local Word document files', () => {
+      expect(isForbiddenUrl('file:///Users/test/report.doc')).toBe(true);
+      expect(isForbiddenUrl('file:///Users/test/report.docx')).toBe(true);
+      expect(isForbiddenUrl('file:///Users/test/REPORT.DOCX')).toBe(true);
+    });
+
     it('should still forbid unstable special protocols', () => {
       expect(isForbiddenUrl('data:text/html,<h1>Test</h1>')).toBe(true);
       expect(isForbiddenUrl('blob:https://example.com/abc123')).toBe(true);

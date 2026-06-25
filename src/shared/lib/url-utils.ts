@@ -165,6 +165,22 @@ export function isPdfUrl(url: string | null | undefined): boolean {
   return parsedUrl ? parsedUrl.pathname.toLowerCase().endsWith('.pdf') : false;
 }
 
+function isUnsupportedLocalDocumentUrl(url: string | null | undefined): boolean {
+  const parsedUrl = parseUrl(url);
+  if (!parsedUrl) return false;
+
+  const pathname = parsedUrl.pathname.toLowerCase();
+  if (pathname.endsWith('.pdf')) {
+    return true;
+  }
+
+  if (parsedUrl.protocol !== FILE_PROTOCOL) {
+    return false;
+  }
+
+  return pathname.endsWith('.doc') || pathname.endsWith('.docx');
+}
+
 export function isUnsupportedSpecialScheme(url: string | null | undefined): boolean {
   const parsedUrl = parseUrl(url);
   return parsedUrl ? UNSUPPORTED_SPECIAL_PROTOCOLS.includes(parsedUrl.protocol) : false;
@@ -218,7 +234,7 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
   try {
     const urlObj = new URL(normalizedUrl);
 
-    if (isPdfUrl(normalizedUrl)) {
+    if (isUnsupportedLocalDocumentUrl(normalizedUrl)) {
       return true;
     }
 
