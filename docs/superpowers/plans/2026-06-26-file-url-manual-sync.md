@@ -1561,7 +1561,7 @@ Expected: PASS.
 Then inspect generated manifest:
 
 ```bash
-rg -n "file:///\\*" extension/manifest.json
+rg -nF 'file:///*' extension/manifest.json
 ```
 
 Expected output includes `file:///*` in `host_permissions`, `content_scripts.matches`, and `web_accessible_resources.matches`.

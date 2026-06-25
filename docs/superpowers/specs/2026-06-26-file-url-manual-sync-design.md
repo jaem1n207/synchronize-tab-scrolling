@@ -127,8 +127,9 @@ export function isUnsupportedSpecialScheme(url: string | null | undefined): bool
 - direct PDF URLs and known PDF viewer paths
 - auth/login/search/special-domain patterns already blocked today
 
-`file://` pages should be eligible unless they are direct PDFs. This intentionally includes
-browser-rendered text-like local files such as Markdown, JSON, text, CSV, and logs.
+`file://` pages should be eligible unless they are direct PDFs or local Word documents
+(`.doc`/`.docx`). This intentionally includes browser-rendered text-like local files such as
+Markdown, JSON, text, CSV, and logs.
 
 ### File Access State
 
@@ -238,6 +239,8 @@ Unit tests:
 - `isForbiddenUrl('file:///Users/me/export.json')` returns `false`.
 - `isForbiddenUrl('file:///Users/me/log.txt')` returns `false`.
 - `isForbiddenUrl('file:///Users/me/report.pdf')` remains `true`.
+- `isForbiddenUrl('file:///Users/me/report.doc')` remains `true`.
+- `isForbiddenUrl('file:///Users/me/report.docx')` remains `true`.
 - `data:`, `blob:`, `view-source:`, `chrome://`, `edge://`, and `about:` remain blocked.
 - File access helper returns the correct settings URL for Chrome and Edge.
 - Popup tab discovery marks file tabs eligible when file access is allowed.
