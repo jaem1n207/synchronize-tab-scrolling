@@ -73,6 +73,7 @@ const BROWSER_RESTRICTED_PATTERNS = {
 const FILE_PROTOCOL = 'file:';
 
 const UNSUPPORTED_SPECIAL_PROTOCOLS = [
+  'about:',
   'ftp:',
   'javascript:',
   'vbscript:',

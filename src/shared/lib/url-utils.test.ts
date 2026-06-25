@@ -199,6 +199,11 @@ describe('isForbiddenUrl', () => {
       expect(isForbiddenUrl('blob:https://example.com/abc123')).toBe(true);
     });
 
+    it('should forbid about: protocol (Chrome)', () => {
+      expect(isForbiddenUrl('about:blank')).toBe(true);
+      expect(isForbiddenUrl('about:home')).toBe(true);
+    });
+
     it('should allow browser-readable file:// URLs', () => {
       expect(isForbiddenUrl('file:///Users/test/document.html')).toBe(false);
       expect(isForbiddenUrl('file:///Users/test/notes.md')).toBe(false);
