@@ -68,6 +68,7 @@ If implementation reveals fewer changed files than expected, keep tests paired w
 ### Task 1: URL Eligibility And Manifest Foundation
 
 **Files:**
+
 - Modify: `src/shared/lib/url-utils.ts`
 - Modify: `src/shared/lib/url-utils.test.ts`
 - Modify: `src/manifest.ts`
@@ -197,40 +198,40 @@ export function isUnsupportedSpecialScheme(url: string | null | undefined): bool
 Inside `isForbiddenUrl()`, replace the common restricted pattern check:
 
 ```typescript
-  // 공통 제한 패턴 확인
-  if (COMMON_RESTRICTED_PATTERNS.some((pattern) => normalizedUrl.startsWith(pattern))) {
-    return true;
-  }
+// 공통 제한 패턴 확인
+if (COMMON_RESTRICTED_PATTERNS.some((pattern) => normalizedUrl.startsWith(pattern))) {
+  return true;
+}
 ```
 
 with:
 
 ```typescript
-  // 공통 제한 프로토콜 확인
-  if (isUnsupportedSpecialScheme(normalizedUrl)) {
-    return true;
-  }
+// 공통 제한 프로토콜 확인
+if (isUnsupportedSpecialScheme(normalizedUrl)) {
+  return true;
+}
 ```
 
 Inside the `try` block, immediately after `const urlObj = new URL(normalizedUrl);`, add:
 
 ```typescript
-    if (isPdfUrl(normalizedUrl)) {
-      return true;
-    }
+if (isPdfUrl(normalizedUrl)) {
+  return true;
+}
 
-    if (urlObj.protocol === FILE_PROTOCOL) {
-      return false;
-    }
+if (urlObj.protocol === FILE_PROTOCOL) {
+  return false;
+}
 ```
 
 Then remove the later direct PDF check block:
 
 ```typescript
-    // PDF 파일 직접 접근 확인
-    if (urlObj.pathname.endsWith('.pdf')) {
-      return true;
-    }
+// PDF 파일 직접 접근 확인
+if (urlObj.pathname.endsWith('.pdf')) {
+  return true;
+}
 ```
 
 - [ ] **Step 4: Update generated manifest source**
@@ -320,6 +321,7 @@ git commit -m "feat: allow manual sync on local file URLs"
 ### Task 2: File Scheme Access Helper
 
 **Files:**
+
 - Create: `src/shared/lib/file-scheme-access.ts`
 - Create: `src/shared/lib/file-scheme-access.test.ts`
 
@@ -365,8 +367,7 @@ describe('getFileSchemeSettingsUrl', () => {
 describe('getFileSchemeAccessInfo', () => {
   beforeEach(() => {
     Object.defineProperty(navigator, 'userAgent', {
-      value:
-        'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      value: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       configurable: true,
     });
   });
@@ -531,6 +532,7 @@ git commit -m "feat: detect local file access state"
 ### Task 3: Popup Discovery And Actionable Unavailable Rows
 
 **Files:**
+
 - Modify: `src/popup/types.ts`
 - Modify: `src/popup/hooks/use-tab-discovery.ts`
 - Create: `src/popup/hooks/use-tab-discovery.test.ts`
@@ -808,7 +810,10 @@ Expected: FAIL because `use-tab-discovery.ts` does not read file scheme access i
 In `src/popup/hooks/use-tab-discovery.ts`, add imports:
 
 ```typescript
-import { getFileSchemeAccessInfo, type FileSchemeAccessInfo } from '~/shared/lib/file-scheme-access';
+import {
+  getFileSchemeAccessInfo,
+  type FileSchemeAccessInfo,
+} from '~/shared/lib/file-scheme-access';
 import { isFileUrl, isForbiddenUrl } from '~/shared/lib/url-utils';
 ```
 
@@ -879,10 +884,10 @@ function toBrowserTab(
 In `queryBrowserTabs`, before mapping tabs, load file scheme access:
 
 ```typescript
-    const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
-    const tabInfos = browserTabs
-      .map((tab) => toBrowserTab(tab, fileSchemeAccessInfo))
-      .filter((tab): tab is TabInfo => tab !== null);
+const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
+const tabInfos = browserTabs
+  .map((tab) => toBrowserTab(tab, fileSchemeAccessInfo))
+  .filter((tab): tab is TabInfo => tab !== null);
 ```
 
 - [ ] **Step 5: Run hook tests**
@@ -1024,19 +1029,19 @@ import browser from 'webextension-polyfill';
 Add a callback inside `TabCommandPalette`:
 
 ```typescript
-  const handleUnavailableAction = useCallback((url: string) => {
-    browser.tabs.create({ url }).catch(() => {});
-  }, []);
+const handleUnavailableAction = useCallback((url: string) => {
+  browser.tabs.create({ url }).catch(() => {});
+}, []);
 ```
 
 In the eligible tab row, after the URL `<span>`, render the privacy note:
 
 ```tsx
-                            {tab.localFilePrivacyNote && (
-                              <span className="text-xs text-muted-foreground/80">
-                                {tab.localFilePrivacyNote}
-                              </span>
-                            )}
+{
+  tab.localFilePrivacyNote && (
+    <span className="text-xs text-muted-foreground/80">{tab.localFilePrivacyNote}</span>
+  );
+}
 ```
 
 In the unavailable tab row, remove `disabled` from `CommandItem` when there is an action:
@@ -1055,31 +1060,33 @@ In the unavailable tab row, remove `disabled` from `CommandItem` when there is a
 Inside the unavailable row text block, after the URL `<span>`, render the privacy note:
 
 ```tsx
-                                {tab.localFilePrivacyNote && (
-                                  <span className="text-xs text-muted-foreground/80">
-                                    {tab.localFilePrivacyNote}
-                                  </span>
-                                )}
+{
+  tab.localFilePrivacyNote && (
+    <span className="text-xs text-muted-foreground/80">{tab.localFilePrivacyNote}</span>
+  );
+}
 ```
 
 Before the alert icon, render the action:
 
 ```tsx
-                              {unavailableAction && (
-                                <Button
-                                  aria-label={unavailableAction.label}
-                                  className="shrink-0 h-7 px-2 text-xs"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    handleUnavailableAction(unavailableAction.url);
-                                  }}
-                                >
-                                  {unavailableAction.label}
-                                </Button>
-                              )}
+{
+  unavailableAction && (
+    <Button
+      aria-label={unavailableAction.label}
+      className="shrink-0 h-7 px-2 text-xs"
+      size="sm"
+      variant="outline"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleUnavailableAction(unavailableAction.url);
+      }}
+    >
+      {unavailableAction.label}
+    </Button>
+  );
+}
 ```
 
 Before returning the unavailable row JSX, assign the action:
@@ -1118,6 +1125,7 @@ git commit -m "feat: guide users to enable local file access"
 ### Task 4: Sync Start Failure Copy And I18n
 
 **Files:**
+
 - Modify: `src/popup/hooks/use-sync-control.ts`
 - Create: `src/popup/hooks/use-sync-control.test.ts`
 - Modify locale files listed in the File Map
@@ -1440,24 +1448,24 @@ function hasSelectedFileTab(selectedTabIds: Array<number>, tabs: Array<TabInfo>)
 Inside `handleStartWithRetry`, in the `if (!response.success)` block before generic `setError`, add:
 
 ```typescript
-          if (hasSelectedFileTab(selectedTabIds, tabs)) {
-            const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
-            setError({
-              message: t('fileAccessConnectionFailed'),
-              severity: 'error',
-              timestamp: Date.now(),
-              action: {
-                label: t('openExtensionSettings'),
-                handler: () => {
-                  browser.tabs.create({ url: fileSchemeAccessInfo.settingsUrl }).catch((error) => {
-                    logger.warn('Failed to open extension settings:', error);
-                  });
-                },
-              },
-            });
+if (hasSelectedFileTab(selectedTabIds, tabs)) {
+  const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
+  setError({
+    message: t('fileAccessConnectionFailed'),
+    severity: 'error',
+    timestamp: Date.now(),
+    action: {
+      label: t('openExtensionSettings'),
+      handler: () => {
+        browser.tabs.create({ url: fileSchemeAccessInfo.settingsUrl }).catch((error) => {
+          logger.warn('Failed to open extension settings:', error);
+        });
+      },
+    },
+  });
 
-            return;
-          }
+  return;
+}
 ```
 
 Add `tabs` to the `useCallback` dependency list:
@@ -1469,23 +1477,23 @@ Add `tabs` to the `useCallback` dependency list:
 In the outer `catch (err)` block, before the generic `setError`, add the same file-tab branch:
 
 ```typescript
-        if (hasSelectedFileTab(selectedTabIds, tabs)) {
-          const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
-          setError({
-            message: t('fileAccessConnectionFailed'),
-            severity: 'error',
-            timestamp: Date.now(),
-            action: {
-              label: t('openExtensionSettings'),
-              handler: () => {
-                browser.tabs.create({ url: fileSchemeAccessInfo.settingsUrl }).catch((error) => {
-                  logger.warn('Failed to open extension settings:', error);
-                });
-              },
-            },
-          });
-          return;
-        }
+if (hasSelectedFileTab(selectedTabIds, tabs)) {
+  const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
+  setError({
+    message: t('fileAccessConnectionFailed'),
+    severity: 'error',
+    timestamp: Date.now(),
+    action: {
+      label: t('openExtensionSettings'),
+      handler: () => {
+        browser.tabs.create({ url: fileSchemeAccessInfo.settingsUrl }).catch((error) => {
+          logger.warn('Failed to open extension settings:', error);
+        });
+      },
+    },
+  });
+  return;
+}
 ```
 
 - [ ] **Step 6: Run i18n and sync-control tests**
@@ -1513,6 +1521,7 @@ git commit -m "feat: explain local file access failures"
 ### Task 5: Full Verification And Manual QA
 
 **Files:**
+
 - No planned source edits unless verification finds a bug.
 
 - [ ] **Step 1: Run focused unit tests**
