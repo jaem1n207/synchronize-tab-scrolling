@@ -1,6 +1,12 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
-import { detectBrowserType, isForbiddenUrl } from './url-utils';
+import {
+  detectBrowserType,
+  isFileUrl,
+  isForbiddenUrl,
+  isPdfUrl,
+  isUnsupportedSpecialScheme,
+} from './url-utils';
 
 describe('detectBrowserType', () => {
   const originalUserAgent = navigator.userAgent;
@@ -64,6 +70,27 @@ describe('detectBrowserType', () => {
       configurable: true,
     });
     expect(detectBrowserType()).toBe('edge');
+  });
+});
+
+describe('file and special scheme helpers', () => {
+  it('detects file URLs', () => {
+    expect(isFileUrl('file:///Users/test/report.html')).toBe(true);
+    expect(isFileUrl('https://example.com/report.html')).toBe(false);
+    expect(isFileUrl(null)).toBe(false);
+  });
+
+  it('detects PDF URLs case-insensitively', () => {
+    expect(isPdfUrl('file:///Users/test/report.pdf')).toBe(true);
+    expect(isPdfUrl('https://example.com/report.PDF')).toBe(true);
+    expect(isPdfUrl('file:///Users/test/report.html')).toBe(false);
+  });
+
+  it('detects unsupported special schemes', () => {
+    expect(isUnsupportedSpecialScheme('data:text/plain,hello')).toBe(true);
+    expect(isUnsupportedSpecialScheme('blob:https://example.com/id')).toBe(true);
+    expect(isUnsupportedSpecialScheme('view-source:https://example.com')).toBe(true);
+    expect(isUnsupportedSpecialScheme('file:///Users/test/report.html')).toBe(false);
   });
 });
 
@@ -172,8 +199,24 @@ describe('isForbiddenUrl', () => {
       expect(isForbiddenUrl('blob:https://example.com/abc123')).toBe(true);
     });
 
-    it('should forbid file:// protocol', () => {
-      expect(isForbiddenUrl('file:///Users/test/document.html')).toBe(true);
+    it('should allow browser-readable file:// URLs', () => {
+      expect(isForbiddenUrl('file:///Users/test/document.html')).toBe(false);
+      expect(isForbiddenUrl('file:///Users/test/notes.md')).toBe(false);
+      expect(isForbiddenUrl('file:///Users/test/export.json')).toBe(false);
+      expect(isForbiddenUrl('file:///Users/test/log.txt')).toBe(false);
+      expect(isForbiddenUrl('file:///Users/test/table.csv')).toBe(false);
+    });
+
+    it('should still forbid local PDF files', () => {
+      expect(isForbiddenUrl('file:///Users/test/document.pdf')).toBe(true);
+      expect(isForbiddenUrl('file:///Users/test/DOCUMENT.PDF')).toBe(true);
+    });
+
+    it('should still forbid unstable special protocols', () => {
+      expect(isForbiddenUrl('data:text/html,<h1>Test</h1>')).toBe(true);
+      expect(isForbiddenUrl('blob:https://example.com/abc123')).toBe(true);
+      expect(isForbiddenUrl('view-source:https://example.com')).toBe(true);
+      expect(isForbiddenUrl('javascript:alert("test")')).toBe(true);
     });
 
     it('should forbid javascript: protocol', () => {
