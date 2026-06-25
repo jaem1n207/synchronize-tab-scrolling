@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "Spezielle Protokollseiten können nicht synchronisiert werden"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "Der Zugriff auf lokale Dateien ist deaktiviert"
+  },
+  "openExtensionSettings": {
+    "message": "Erweiterungseinstellungen öffnen"
+  },
+  "localFilePrivacyNote": {
+    "message": "Die Synchronisierung verwendet nur die Scrollposition. Dateiinhalte werden nicht hochgeladen."
+  },
+  "fileAccessConnectionFailed": {
+    "message": "Es konnte keine Verbindung zu einem lokalen Datei-Tab hergestellt werden. Aktivieren Sie für diese Erweiterung \"Zugriff auf Datei-URLs zulassen\" und öffnen Sie das Popup erneut."
+  },
   "ineligibleSecurityRestriction": {
     "message": "Diese Seite kann aufgrund von Sicherheitsbeschränkungen nicht synchronisiert werden"
   },

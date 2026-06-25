@@ -4,8 +4,10 @@ import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
 
 import { t } from '~/shared/i18n';
+import { getFileSchemeAccessInfo } from '~/shared/lib/file-scheme-access';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadSelectedTabIds } from '~/shared/lib/storage';
+import { isFileUrl } from '~/shared/lib/url-utils';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 
@@ -16,6 +18,11 @@ const INITIAL_SYNC_STATUS: SyncStatus = {
   connectedTabs: [],
   connectionStatuses: {},
 };
+
+function hasSelectedFileTab(selectedTabIds: Array<number>, tabs: Array<TabInfo>): boolean {
+  const selectedTabIdSet = new Set(selectedTabIds);
+  return tabs.some((tab) => selectedTabIdSet.has(tab.id) && isFileUrl(tab.url));
+}
 
 interface UseSyncControlParams {
   selectedTabIds: Array<number>;
@@ -117,6 +124,29 @@ export function useSyncControl({
     async (isRetry = false) => {
       setError(null);
 
+      const showFileAccessGuidance = async (): Promise<boolean> => {
+        if (!hasSelectedFileTab(selectedTabIds, tabs)) {
+          return false;
+        }
+
+        const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
+        setError({
+          message: t('fileAccessConnectionFailed'),
+          severity: 'error',
+          timestamp: Date.now(),
+          action: {
+            label: t('openExtensionSettings'),
+            handler: () => {
+              browser.tabs.create({ url: fileSchemeAccessInfo.settingsUrl }).catch((error) => {
+                logger.warn('Failed to open extension settings:', error);
+              });
+            },
+          },
+        });
+
+        return true;
+      };
+
       if (selectedTabIds.length < 2) {
         setError({
           message: t('errorMinTabsRequired'),
@@ -167,6 +197,10 @@ export function useSyncControl({
         };
 
         if (!response.success) {
+          if (await showFileAccessGuidance()) {
+            return;
+          }
+
           const failedTabs = Object.entries(response.connectionResults || {})
             .filter(([, result]) => !result.success)
             .map(([tabId, result]) => `Tab ${tabId}: ${result.error || 'Unknown error'}`);
@@ -220,6 +254,10 @@ export function useSyncControl({
         }
       } catch (err) {
         logger.error('Failed to start sync:', err);
+        if (await showFileAccessGuidance()) {
+          return;
+        }
+
         setError({
           message: t('failedToStartSync', [err instanceof Error ? err.message : String(err)]),
           severity: 'error',
@@ -231,7 +269,7 @@ export function useSyncControl({
         });
       }
     },
-    [selectedTabIds],
+    [selectedTabIds, tabs],
   );
 
   const handleStart = useCallback(() => {

@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "Les pages de protocole spécial ne peuvent pas être synchronisées"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "L'accès aux fichiers locaux est désactivé"
+  },
+  "openExtensionSettings": {
+    "message": "Ouvrir les paramètres de l'extension"
+  },
+  "localFilePrivacyNote": {
+    "message": "La synchronisation utilise uniquement la position de défilement. Le contenu des fichiers n'est pas téléversé."
+  },
+  "fileAccessConnectionFailed": {
+    "message": "Impossible de se connecter à un onglet de fichier local. Activez \"Autoriser l'accès aux URL de fichier\" pour cette extension, puis rouvrez la fenêtre contextuelle."
+  },
   "ineligibleSecurityRestriction": {
     "message": "Cette page ne peut pas être synchronisée en raison de restrictions de sécurité"
   },

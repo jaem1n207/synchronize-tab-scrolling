@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "無法同步特殊協定頁面"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "本機檔案存取已關閉"
+  },
+  "openExtensionSettings": {
+    "message": "開啟擴充功能設定"
+  },
+  "localFilePrivacyNote": {
+    "message": "同步只使用捲動位置。不會上傳檔案內容。"
+  },
+  "fileAccessConnectionFailed": {
+    "message": "無法連線到本機檔案分頁。請為此擴充功能開啟「允許存取檔案網址」，然後重新開啟彈出視窗。"
+  },
   "ineligibleSecurityRestriction": {
     "message": "由於安全限制，無法同步此頁面"
   },
