@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useImperativeHandle } from 'react';
 
+import browser from 'webextension-polyfill';
+
 import { Badge } from '~/shared/components/ui/badge';
 import { Button } from '~/shared/components/ui/button';
 import { Checkbox } from '~/shared/components/ui/checkbox';
@@ -20,6 +22,7 @@ import {
 } from '~/shared/components/ui/tooltip';
 import { t } from '~/shared/i18n';
 import { matchesKoreanSearch } from '~/shared/lib/korean-search';
+import { ExtensionLogger } from '~/shared/lib/logger';
 import { sortTabsWithDomainGrouping } from '~/shared/lib/tab-similarity';
 import { cn } from '~/shared/lib/utils';
 
@@ -28,6 +31,8 @@ import type { TabInfo } from '../types';
 import IconAlertCircle from '~icons/lucide/alert-circle';
 import IconCheck from '~icons/lucide/check';
 import IconFilter from '~icons/lucide/filter';
+
+const logger = new ExtensionLogger({ scope: 'popup' });
 
 export interface TabCommandPaletteHandle {
   focus: () => void;
@@ -90,6 +95,12 @@ export function TabCommandPalette({
     },
     [handleToggle],
   );
+
+  const handleUnavailableAction = useCallback((url: string) => {
+    browser.tabs.create({ url }).catch((error) => {
+      void logger.warn('Failed to open extension settings:', error);
+    });
+  }, []);
 
   // Separate eligible and ineligible tabs, then sort with domain-based grouping
   const { eligibleTabs, ineligibleTabs } = useMemo(() => {
@@ -278,6 +289,11 @@ export function TabCommandPalette({
                             >
                               {tab.url}
                             </span>
+                            {tab.localFilePrivacyNote && (
+                              <span className="text-xs text-muted-foreground/80 leading-snug">
+                                {tab.localFilePrivacyNote}
+                              </span>
+                            )}
                           </div>
 
                           {isSelected && (
@@ -303,6 +319,7 @@ export function TabCommandPalette({
                     )
                     .map((tab) => {
                       const isCurrentTab = currentTabId === tab.id;
+                      const unavailableAction = tab.unavailableAction;
 
                       return (
                         <Tooltip key={tab.id}>
@@ -350,7 +367,28 @@ export function TabCommandPalette({
                                 >
                                   {tab.url}
                                 </span>
+                                {tab.localFilePrivacyNote && (
+                                  <span className="text-xs text-muted-foreground/80 leading-snug">
+                                    {tab.localFilePrivacyNote}
+                                  </span>
+                                )}
                               </div>
+
+                              {unavailableAction && (
+                                <Button
+                                  aria-label={unavailableAction.label}
+                                  className="shrink-0 h-7 px-2 text-xs"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    handleUnavailableAction(unavailableAction.url);
+                                  }}
+                                >
+                                  {unavailableAction.label}
+                                </Button>
+                              )}
 
                               <IconAlertCircle
                                 aria-hidden="true"
