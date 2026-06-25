@@ -130,6 +130,10 @@ export function useSyncControl({
         }
 
         const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
+        if (!fileSchemeAccessInfo.canCheck || fileSchemeAccessInfo.allowed) {
+          return false;
+        }
+
         setError({
           message: t('fileAccessConnectionFailed'),
           severity: 'error',

@@ -208,4 +208,29 @@ describe('useSyncControl local file failures', () => {
 
     unmount();
   });
+
+  it('keeps the generic retry action when local file access is already allowed', async () => {
+    vi.mocked(getFileSchemeAccessInfo).mockResolvedValue({
+      canCheck: true,
+      allowed: true,
+      settingsUrl: 'chrome://extensions/?id=test-id',
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one.md', url: 'file:///Users/me/one.md', eligible: true },
+      { id: 2, title: 'two.md', url: 'file:///Users/me/two.md', eligible: true },
+    ]);
+
+    await act(async () => {
+      result.current.handleStart();
+    });
+
+    await waitFor(() =>
+      expect(result.current.error?.message).toBe('Failed to connect to at least 2 tabs'),
+    );
+    expect(result.current.error?.action?.label).toBe('retry');
+    expect(browser.tabs.create).not.toHaveBeenCalled();
+
+    unmount();
+  });
 });
