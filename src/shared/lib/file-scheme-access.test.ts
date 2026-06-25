@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getFileSchemeAccessInfo,
@@ -33,11 +33,22 @@ describe('getFileSchemeSettingsUrl', () => {
 });
 
 describe('getFileSchemeAccessInfo', () => {
+  const originalUserAgentDescriptor = Object.getOwnPropertyDescriptor(navigator, 'userAgent');
+
   beforeEach(() => {
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       configurable: true,
     });
+  });
+
+  afterEach(() => {
+    if (originalUserAgentDescriptor) {
+      Object.defineProperty(navigator, 'userAgent', originalUserAgentDescriptor);
+      return;
+    }
+
+    Reflect.deleteProperty(navigator, 'userAgent');
   });
 
   it('returns allowed=true when Chrome reports file scheme access enabled', async () => {

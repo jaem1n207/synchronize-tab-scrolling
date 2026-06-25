@@ -1,5 +1,6 @@
 import browser from 'webextension-polyfill';
 
+import { ExtensionLogger } from './logger';
 import { detectBrowserType } from './url-utils';
 
 export interface FileSchemeAccessInfo {
@@ -16,6 +17,8 @@ export interface FileSchemeAccessRoot {
     };
   };
 }
+
+const logger = new ExtensionLogger({ scope: 'file-scheme-access' });
 
 export function getFileSchemeSettingsUrl(
   browserType: ReturnType<typeof detectBrowserType>,
@@ -48,7 +51,8 @@ export async function getFileSchemeAccessInfo(
       allowed: await isAllowedFileSchemeAccess(),
       settingsUrl,
     };
-  } catch {
+  } catch (error) {
+    void logger.warn('Failed to check file scheme access:', error);
     return {
       canCheck: false,
       allowed: false,
