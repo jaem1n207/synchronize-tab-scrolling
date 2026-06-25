@@ -209,6 +209,37 @@ describe('useTabDiscovery file URLs', () => {
     unmount();
   });
 
+  it('keeps browser-readable local files eligible when access state cannot be checked', async () => {
+    getFileSchemeAccessInfoMock.mockResolvedValue({
+      allowed: false,
+      canCheck: false,
+      settingsUrl: 'chrome://extensions/?id=test-id',
+    });
+    mockTabQueries([
+      makeTab({
+        active: true,
+        id: 4,
+        title: 'report.csv',
+        url: 'file:///Users/me/report.csv',
+      }),
+    ]);
+
+    const { result, unmount } = renderUseTabDiscovery();
+
+    await waitFor(() => expect(result.current.tabs).toHaveLength(1));
+
+    expect(result.current.tabs[0]).toEqual(
+      expect.objectContaining({
+        eligible: true,
+        ineligibleReason: undefined,
+        localFilePrivacyNote: 'localFilePrivacyNote',
+        unavailableAction: undefined,
+      }),
+    );
+
+    unmount();
+  });
+
   it('keeps local PDFs unavailable with the special protocol reason', async () => {
     mockTabQueries([
       makeTab({

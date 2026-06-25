@@ -101,14 +101,15 @@ export function useTabDiscovery({
   const [tabDiscoveryError, setTabDiscoveryError] = useState<ErrorState | null>(null);
 
   const queryBrowserTabs = useCallback(async (): Promise<Array<TabInfo>> => {
-    const browserTabs = await browser.tabs.query({ currentWindow: true });
-
-    const [currentTab] = await browser.tabs.query({ active: true, currentWindow: true });
+    const [browserTabs, [currentTab], fileSchemeAccessInfo] = await Promise.all([
+      browser.tabs.query({ currentWindow: true }),
+      browser.tabs.query({ active: true, currentWindow: true }),
+      getFileSchemeAccessInfo(),
+    ]);
     if (currentTab?.id) {
       setCurrentTabId(currentTab.id);
     }
 
-    const fileSchemeAccessInfo = await getFileSchemeAccessInfo();
     const tabInfos = browserTabs
       .map((tab) => toBrowserTab(tab, fileSchemeAccessInfo))
       .filter((tab): tab is TabInfo => tab !== null);
