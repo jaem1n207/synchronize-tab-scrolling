@@ -18,7 +18,7 @@ Common rules:
 - Use a consistent label taxonomy: `area:*`, `type:*`, `scope:*`, and `status:*`.
 - Add `actions/labeler` for PR triage based on file paths and branch names.
 - Run label/comment workflows with `pull_request_target` only when they do not checkout or execute untrusted PR code.
-- Apply stale handling conservatively, starting with issues and avoiding automatic PR closure unless explicitly enabled later.
+- Apply stale handling conservatively, starting with issues and avoiding PR mutation unless explicitly enabled later.
 - Use `peter-evans/create-or-update-comment` only when a stable marker prevents duplicate bot comments.
 - Prefer repository-native validation scripts over broad Super-Linter defaults.
 - Preserve existing release/deploy workflows unless the repository-specific section explicitly says otherwise.
@@ -73,7 +73,7 @@ Add Labeler:
 Add conservative Stale:
 
 - Issue-only stale behavior with exemptions for `security`, `pinned`, `in-progress`, `needs-decision`, `store-review`, and browser compatibility issues.
-- Do not auto-close PRs.
+- Do not mutate or auto-close PRs.
 
 Optional PR checklist comment:
 

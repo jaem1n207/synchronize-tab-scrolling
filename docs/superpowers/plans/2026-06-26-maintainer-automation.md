@@ -19,7 +19,7 @@ Create or modify these files inside `/Users/jaemin/programming/projects/active/s
 - Create: `.github/labeler.yml`
   - Responsibility: Define file and branch matching rules for extension, landing, i18n, release-risk, docs, e2e, and CI labels.
 - Create: `.github/workflows/stale.yml`
-  - Responsibility: Mark inactive issues stale without closing issues or PRs automatically.
+  - Responsibility: Mark inactive issues stale without closing issues or mutating PRs automatically.
 - Preserve: `.github/workflows/release.yml`
   - Responsibility: Existing semantic-release and store publishing flow; do not modify.
 - Preserve: `.github/workflows/deploy-landing.yml`
@@ -263,7 +263,6 @@ on:
 
 permissions:
   issues: write
-  pull-requests: write
 
 jobs:
   stale:
@@ -274,22 +273,20 @@ jobs:
         uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         with:
           stale-issue-label: 'status:stale'
-          stale-pr-label: 'status:stale'
           days-before-issue-stale: 90
           days-before-issue-close: -1
           days-before-pr-stale: -1
           days-before-pr-close: -1
+          remove-pr-stale-when-updated: false
           stale-issue-message: >-
             This issue has had no activity for 90 days, so it is marked as stale.
             Comment or remove `status:stale` if it is still relevant.
           exempt-issue-labels: >-
             security,pinned,in-progress,needs-decision,store-review,browser-compatibility
-          exempt-pr-labels: >-
-            security,pinned,in-progress,needs-decision,store-review,browser-compatibility
           operations-per-run: 50
 ```
 
-Expected: The workflow marks inactive issues stale after 90 days, never closes issues, and never marks or closes PRs automatically.
+Expected: The workflow marks inactive issues stale after 90 days, never closes issues, and never marks, closes, or removes stale labels from PRs.
 
 - [ ] **Step 2: Validate stale workflow syntax**
 
@@ -326,6 +323,6 @@ Expected: One commit contains only the stale workflow.
 
 - [ ] Release, landing deploy, store stats, and semantic-release files remain unchanged.
 - [ ] Labeler uses `pull_request_target` without checkout or code execution.
-- [ ] Stale marks issues only and never auto-closes issues or PRs.
+- [ ] Stale marks issues only and never auto-closes issues or mutates PRs.
 - [ ] Release Drafter and PR checklist comments are not included in this first implementation.
 - [ ] All third-party actions are pinned to full commit SHA.
