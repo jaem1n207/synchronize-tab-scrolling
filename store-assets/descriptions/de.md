@@ -16,6 +16,7 @@ Funktionen
 • Echtzeit-Scroll-Synchronisierung über beliebig viele Tabs
 • Befehlspalette mit Suche — Tabs nach Titel oder URL finden, nach Domain filtern
 • Manuelle Positionsanpassung — Option (Mac) oder Alt (Windows) gedrückt halten, um einzelne Tabs unabhängig auszurichten
+• Manuelle Synchronisierung für browserlesbare lokale Dateien wie HTML-Berichte, Markdown, JSON, Text, CSV und Logs
 • Automatische Synchronisierungsvorschläge bei erkannten doppelten URLs
 • URL-Navigations-Synchronisierung — ein Klick auf einen Link in einem Tab navigiert alle verknüpften Tabs mit
 • Domain-Ausschluss — Vorschläge für bestimmte Websites dauerhaft blockieren
@@ -40,8 +41,9 @@ Aufgrund von Browser-Sicherheitsrichtlinien funktioniert die Synchronisierung au
 • Browser-interne Seiten (chrome://, edge://, about:)
 • Erweiterungs-Stores und Suchergebnisseiten
 • PDF-Dateien und PDF-Viewer
+• Lokale Word-Dokumente (.doc, .docx)
 • Login- und Authentifizierungsseiten
-• Spezielle URLs (file://, view-source:, data:)
+• Spezielle URLs (view-source:, data:, blob:)
 
 Eingeschränkte Tabs werden in der Auswahlliste deaktiviert angezeigt, mit einem Tooltip zur Erklärung.
 

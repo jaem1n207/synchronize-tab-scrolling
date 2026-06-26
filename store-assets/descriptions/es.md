@@ -16,6 +16,7 @@ Funciones principales
 • Sincronización de scroll en tiempo real entre cualquier número de pestañas
 • Paleta de comandos con búsqueda — encuentra pestañas por título o URL, filtra por dominio
 • Ajuste manual de posición — mantén pulsado Option (Mac) o Alt (Windows) para afinar la alineación de cada pestaña individualmente
+• Sincronización manual de archivos locales legibles por el navegador, como informes HTML, Markdown, JSON, texto, CSV y logs
 • Sugerencias de sincronización automática cuando se detectan URLs duplicadas
 • Sincronización de navegación por URL — haz clic en un enlace en una pestaña y todas las pestañas vinculadas lo siguen
 • Exclusión de dominios — bloquea permanentemente las sugerencias para sitios específicos
@@ -40,8 +41,9 @@ Debido a las restricciones de seguridad del navegador, el scroll sincronizado no
 • Páginas internas del navegador (chrome://, edge://, about:)
 • Tiendas de extensiones y páginas de resultados de buscadores
 • Archivos PDF y visores de PDF
+• Documentos locales de Word (.doc, .docx)
 • Páginas de inicio de sesión y autenticación
-• URLs especiales (file://, view-source:, data:)
+• URLs especiales (view-source:, data:, blob:)
 
 Las pestañas restringidas aparecen desactivadas en la lista de selección con una descripción emergente que explica la limitación.
 
