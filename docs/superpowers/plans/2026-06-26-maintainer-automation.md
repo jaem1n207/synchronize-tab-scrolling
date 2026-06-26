@@ -53,6 +53,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 jobs:
@@ -66,7 +67,7 @@ jobs:
           sync-labels: true
 ```
 
-Expected: The workflow never checks out code and cannot execute pull request changes.
+Expected: The workflow never checks out code and cannot execute pull request changes. `issues: write` allows `actions/labeler` to create missing configured labels on first run.
 
 - [ ] **Step 2: Add the labeler config**
 
