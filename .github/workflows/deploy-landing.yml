@@ -40,14 +40,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
-
       - name: Update sitemap lastmod and JSON-LD dateModified
         run: |
           CONTENT_DATE=$(git log -1 --format=%cd --date=short -- src/landing/ src/shared/)
@@ -67,18 +59,14 @@ jobs:
       - name: Move index.html to artifact root
         run: cp dist-landing/landing/index.html dist-landing/index.html
 
-      - name: Install Playwright system dependencies
-        timeout-minutes: 5
-        run: pnpm exec playwright install-deps chromium-headless-shell
-
-      - name: Install Playwright browsers
-        timeout-minutes: 15
-        run: pnpm exec playwright install --only-shell chromium
+      - name: Verify system Chrome
+        run: google-chrome --version
 
       - name: Prerender landing page for SEO
         run: pnpm prerender:landing
         env:
           LANDING_BASE: /synchronize-tab-scrolling/
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
 
       - uses: actions/upload-pages-artifact@v4
         with:
