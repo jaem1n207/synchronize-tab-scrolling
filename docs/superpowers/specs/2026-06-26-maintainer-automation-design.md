@@ -73,6 +73,7 @@ Add Labeler:
 Add conservative Stale:
 
 - Issue-only stale behavior with exemptions for `security`, `pinned`, `in-progress`, `needs-decision`, `store-review`, and browser compatibility issues.
+- Ensure the remote `status:stale` label exists because `actions/stale` does not create missing labels.
 - Do not mutate or auto-close PRs.
 
 Optional PR checklist comment:
