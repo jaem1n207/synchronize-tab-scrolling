@@ -158,10 +158,9 @@ Create `/Users/jaemin/programming/projects/active/synchronize-tab-scrolling/.git
   - changed-files:
       - any-glob-to-any-file:
           - 'src/shared/lib/platform*'
-          - 'src/**/browser**'
-          - 'src/**/firefox**'
-          - 'src/**/chrome**'
-          - 'src/**/edge**'
+          - 'src/landing/lib/detect-browser*'
+          - 'src/landing/hooks/use-platform*'
+          - 'scripts/publish-edge.mjs'
 
 'area:release-risk':
   - changed-files:
