@@ -203,7 +203,7 @@ Create `/Users/jaemin/programming/projects/active/synchronize-tab-scrolling/.git
   - head-branch:
       - '^ci[/-]'
 
-'status:needs-review':
+'target:main':
   - base-branch:
       - '^main$'
 ```
