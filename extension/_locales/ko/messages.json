@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "특수 프로토콜 페이지는 동기화할 수 없습니다"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "로컬 파일 접근이 꺼져 있습니다"
+  },
+  "openExtensionSettings": {
+    "message": "확장 프로그램 설정 열기"
+  },
+  "localFilePrivacyNote": {
+    "message": "스크롤 위치만 동기화합니다. 파일 내용은 업로드되지 않습니다."
+  },
+  "fileAccessConnectionFailed": {
+    "message": "로컬 파일 탭에 연결할 수 없습니다. 이 확장 프로그램의 \"파일 URL에 대한 액세스 허용\"을 켠 다음 팝업을 다시 여세요."
+  },
   "ineligibleSecurityRestriction": {
     "message": "이 페이지는 보안 제한으로 인해 동기화할 수 없습니다"
   },

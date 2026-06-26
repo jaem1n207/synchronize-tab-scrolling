@@ -67,6 +67,10 @@
 
 탭을 두 개 이상 열어 주세요.
 
+**로컬 파일:** `file://`로 열린 브라우저에서 읽을 수 있는 로컬 파일은 수동 동기화할 수 있어요.
+예를 들어 HTML 보고서, Markdown, JSON, 텍스트, CSV, 로그 파일을 지원합니다. Chromium 계열
+브라우저에서 팝업이 요청하면 이 확장 프로그램의 **"파일 URL에 대한 액세스 허용"** 설정을 켜 주세요.
+
 ### 3단계: 동기화 시작
 
 1. 브라우저 도구 모음에서 확장 프로그램 아이콘을 클릭해 주세요
@@ -99,8 +103,9 @@
 - 일부 웹 앱 (Figma, JIRA, Microsoft Office Online, Notion 등)
 - 검색 엔진 결과 페이지 (Google 검색, 네이버, Bing, DuckDuckGo 등)
 - PDF 파일 및 PDF 뷰어
+- 로컬 Word 문서 (`file://` `.doc` / `.docx`)
 - 로그인/인증 페이지
-- 특수 URL (`view-source:`, `data:`, `file://`)
+- 특수 URL (`view-source:`, `data:`, `blob:`)
 
 이런 탭은 선택 목록에서 비활성화돼요.
 

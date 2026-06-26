@@ -7,7 +7,8 @@ Pure utility functions and cross-cutting services used by background, content sc
 | Module                         | Lines | Responsibility                                            | Tests |
 | ------------------------------ | ----- | --------------------------------------------------------- | ----- |
 | `auto-sync-url-utils.ts`       | —     | URL normalization and exclusion for auto-sync grouping    | Yes   |
-| `url-utils.ts`                 | —     | Forbidden URL detection, URL validation                   | Yes   |
+| `url-utils.ts`                 | 306   | URL eligibility, local-file/PDF/special-scheme detection  | Yes   |
+| `file-scheme-access.ts`        | 62    | Chromium file URL access probing and settings URLs        | Yes   |
 | `scroll-math.ts`               | —     | Scroll position calculations, ratio-based positioning     | Yes   |
 | `tab-similarity.ts`            | —     | Tab title/URL similarity scoring for matching             | Yes   |
 | `korean-search.ts`             | —     | Korean text search with Hangul decomposition (초성 검색)  | Yes   |
@@ -22,6 +23,11 @@ Pure utility functions and cross-cutting services used by background, content sc
 | `platform.ts`                  | —     | OS detection for platform-specific keybindings            | Yes   |
 | `utils.ts`                     | —     | General-purpose utilities (cn, clsx wrappers)             | Yes   |
 | `index.ts`                     | —     | Barrel file re-exporting all modules                      | —     |
+
+`url-utils.ts` allows browser-readable `file://` pages for manual sync while keeping PDFs, local
+Word documents, browser internal pages, and unstable special schemes blocked. `file-scheme-access.ts`
+wraps Chromium's `chrome.extension.isAllowedFileSchemeAccess()` API and returns the browser-specific
+extension settings URL used by the popup.
 
 `locale-utils.ts` keeps the legacy locale API, but URL sync locale preservation delegates to
 `translated-page-url-utils.ts` so path, query, and subdomain locale carriers use one implementation.
@@ -43,3 +49,4 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 - **Type safety**: Strict TypeScript with no `any` or type assertions
 - **Independence**: Each module can be tested in isolation without mocking
 - **Cross-platform**: Works in background (service worker), content script, and popup contexts
+- **Privacy**: Local-file helpers inspect URL metadata and browser capability only, never file contents

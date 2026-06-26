@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "Special protocol pages cannot be synchronized"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "Local file access is off"
+  },
+  "openExtensionSettings": {
+    "message": "Open extension settings"
+  },
+  "localFilePrivacyNote": {
+    "message": "Sync uses scroll position only. File contents are not uploaded."
+  },
+  "fileAccessConnectionFailed": {
+    "message": "Could not connect to a local file tab. Turn on \"Allow access to file URLs\" for this extension, then reopen the popup."
+  },
   "ineligibleSecurityRestriction": {
     "message": "This page cannot be synchronized due to security restrictions"
   },

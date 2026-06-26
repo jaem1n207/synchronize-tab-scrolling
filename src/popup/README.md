@@ -20,6 +20,7 @@ This directory contains the UI components for the scroll synchronization control
 3. **TabSelectionList** (`components/TabSelectionList.tsx`)
    - Displays eligible tabs with titles and favicons
    - Shows ineligible tabs with explanation tooltips
+   - Shows local-file privacy notes and Chromium file-access settings actions when needed
    - Visual feedback for selection state (checkmarks)
    - Full keyboard navigation support
 
@@ -88,6 +89,7 @@ All animations follow PRD specifications:
 See `types.ts` for core type definitions:
 
 - `TabInfo`: Tab metadata and eligibility
+- `UnavailableTabAction`: Actionable CTA metadata for unavailable rows
 - `SyncStatus`: Synchronization state
 - `ConnectionStatus`: Per-tab connection states
 - `PanelPosition`: Panel positioning data

@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "विशेष प्रोटोकॉल पेज सिंक्रनाइज़ नहीं किए जा सकते"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "लोकल फ़ाइल एक्सेस बंद है"
+  },
+  "openExtensionSettings": {
+    "message": "एक्सटेंशन सेटिंग खोलें"
+  },
+  "localFilePrivacyNote": {
+    "message": "सिंक केवल स्क्रोल स्थिति का उपयोग करता है। फ़ाइल सामग्री अपलोड नहीं की जाती।"
+  },
+  "fileAccessConnectionFailed": {
+    "message": "लोकल फ़ाइल टैब से कनेक्ट नहीं हो सका। इस एक्सटेंशन के लिए फ़ाइल URL तक पहुंच की अनुमति चालू करें, फिर पॉपअप दोबारा खोलें।"
+  },
   "ineligibleSecurityRestriction": {
     "message": "सुरक्षा प्रतिबंधों के कारण यह पेज सिंक्रनाइज़ नहीं किया जा सकता"
   },

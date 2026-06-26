@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "特殊プロトコルページは同期できません"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "ローカル ファイルへのアクセスがオフです"
+  },
+  "openExtensionSettings": {
+    "message": "拡張機能の設定を開く"
+  },
+  "localFilePrivacyNote": {
+    "message": "スクロール位置のみを同期します。ファイル内容はアップロードされません。"
+  },
+  "fileAccessConnectionFailed": {
+    "message": "ローカル ファイルのタブに接続できませんでした。この拡張機能の「ファイルの URL へのアクセスを許可する」をオンにしてから、ポップアップを開き直してください。"
+  },
   "ineligibleSecurityRestriction": {
     "message": "セキュリティ制限によりこのページは同期できません"
   },

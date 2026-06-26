@@ -50,6 +50,10 @@ pnpm dev-firefox  # Firefox
 3. Click "Load unpacked"
 4. Select the `extension` folder
 
+To test manual local-file sync in Chromium browsers, open the extension details page and enable
+**"Allow access to file URLs"**. The popup links directly to `chrome://extensions/?id=<runtime.id>`
+or `edge://extensions/?id=<runtime.id>` when this setting is off.
+
 **Firefox:**
 
 1. Navigate to `about:debugging#/runtime/this-firefox`
@@ -296,6 +300,23 @@ sequenceDiagram
 
 ---
 
+### Manual QA: Local File Sync
+
+Use this checklist when touching manifest permissions, URL eligibility, tab discovery, or sync-start
+error handling:
+
+1. Build the extension with `pnpm build`.
+2. Verify `extension/manifest.json` contains `file:///*` in `host_permissions`,
+   `content_scripts.matches`, and `web_accessible_resources.matches`.
+3. Load the unpacked extension in Chrome, Edge, Brave, or Arc.
+4. With file URL access off, open local `.html`, `.md`, `.json`, `.txt`, `.csv`, or `.log` files and
+   confirm the popup shows them as unavailable with a settings action.
+5. Enable **"Allow access to file URLs"**, reopen the popup, select at least two local file tabs, and
+   confirm manual scroll sync works.
+6. Confirm local `.pdf`, `.doc`, and `.docx` tabs remain unavailable.
+
+Auto-sync suggestions intentionally do not group `file://` pages.
+
 ## Code Conventions
 
 ### File Naming
@@ -428,6 +449,11 @@ pnpm dev-firefox  # Firefox
 2. "개발자 모드" 활성화
 3. "압축해제된 확장 프로그램을 로드합니다" 클릭
 4. `extension` 폴더 선택
+
+Chromium 브라우저에서 로컬 파일 수동 동기화를 테스트할 때는 확장 프로그램 상세 페이지에서
+**"파일 URL에 대한 액세스 허용"**을 켜 주세요. 이 설정이 꺼져 있으면 팝업이
+`chrome://extensions/?id=<runtime.id>` 또는 `edge://extensions/?id=<runtime.id>`로 이동하는
+버튼을 표시합니다.
 
 **Firefox:**
 

@@ -16,6 +16,7 @@
 • किसी भी संख्या में tabs के बीच real-time scroll synchronization
 • Command palette के साथ search — title या URL से tabs ढूँढें, domain के अनुसार filter करें
 • Manual position adjustment — किसी एक tab की alignment ठीक करने के लिए Mac पर Option या Windows पर Alt दबाए रखें
+• HTML reports, Markdown, JSON, text, CSV और logs जैसे browser-readable local files के लिए manual sync
 • Duplicate URLs मिलने पर smart auto-sync सुझाव
 • URL navigation sync — एक tab में link click करें और सभी linked tabs उसे follow करें
 • Domain exclusion — किसी खास site के लिए सुझाव हमेशा के लिए बंद करें
@@ -40,8 +41,9 @@ Browser की security restrictions की वजह से कुछ pages प
 • Browser के internal pages (chrome://, edge://, about:)
 • Extension stores और search engine result pages
 • PDF files और viewers
+• Local Word documents (.doc, .docx)
 • Login और authentication pages
-• Special URLs (file://, view-source:, data:)
+• Special URLs (view-source:, data:, blob:)
 
 Restricted tabs, selection list में disabled दिखते हैं और एक tooltip उस सीमा की जानकारी देता है।
 

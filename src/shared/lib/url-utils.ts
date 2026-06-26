@@ -70,14 +70,19 @@ const BROWSER_RESTRICTED_PATTERNS = {
   ],
 } as const;
 
-// 공통 제한 패턴
-const COMMON_RESTRICTED_PATTERNS = [
-  'file://',
-  'ftp://',
+const FILE_PROTOCOL = 'file:';
+
+const UNSUPPORTED_SPECIAL_PROTOCOLS = [
+  'about:',
+  'ftp:',
   'javascript:',
   'vbscript:',
-  'ws://',
-  'wss://',
+  'ws:',
+  'wss:',
+  'data:',
+  'blob:',
+  'filesystem:',
+  'view-source:',
 ];
 
 // 특수 도메인 패턴 (콘텐츠 스크립트 주입이 제한되거나 작동하지 않는 도메인)
@@ -140,6 +145,49 @@ const AUTH_PATH_PATTERNS = [
 ];
 
 /**
+ * URL 파싱
+ */
+function parseUrl(url: string | null | undefined): URL | null {
+  if (!url) return null;
+
+  try {
+    return new URL(url);
+  } catch {
+    return null;
+  }
+}
+
+export function isFileUrl(url: string | null | undefined): boolean {
+  return parseUrl(url)?.protocol === FILE_PROTOCOL;
+}
+
+export function isPdfUrl(url: string | null | undefined): boolean {
+  const parsedUrl = parseUrl(url);
+  return parsedUrl ? parsedUrl.pathname.toLowerCase().endsWith('.pdf') : false;
+}
+
+function isUnsupportedLocalDocumentUrl(url: string | null | undefined): boolean {
+  const parsedUrl = parseUrl(url);
+  if (!parsedUrl) return false;
+
+  const pathname = parsedUrl.pathname.toLowerCase();
+  if (pathname.endsWith('.pdf')) {
+    return true;
+  }
+
+  if (parsedUrl.protocol !== FILE_PROTOCOL) {
+    return false;
+  }
+
+  return pathname.endsWith('.doc') || pathname.endsWith('.docx');
+}
+
+export function isUnsupportedSpecialScheme(url: string | null | undefined): boolean {
+  const parsedUrl = parseUrl(url);
+  return parsedUrl ? UNSUPPORTED_SPECIAL_PROTOCOLS.includes(parsedUrl.protocol) : false;
+}
+
+/**
  * 브라우저 타입 감지
  */
 export function detectBrowserType(): 'chrome' | 'firefox' | 'edge' | 'unknown' {
@@ -170,8 +218,8 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
     return true;
   }
 
-  // 공통 제한 패턴 확인
-  if (COMMON_RESTRICTED_PATTERNS.some((pattern) => normalizedUrl.startsWith(pattern))) {
+  // 공통 제한 프로토콜 확인
+  if (isUnsupportedSpecialScheme(normalizedUrl)) {
     return true;
   }
 
@@ -186,6 +234,14 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
   // 특수 도메인 및 경로 패턴 확인
   try {
     const urlObj = new URL(normalizedUrl);
+
+    if (isUnsupportedLocalDocumentUrl(normalizedUrl)) {
+      return true;
+    }
+
+    if (urlObj.protocol === FILE_PROTOCOL) {
+      return false;
+    }
 
     // 특수 도메인 확인
     if (SPECIAL_DOMAINS.includes(urlObj.hostname)) {
@@ -219,11 +275,6 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
 
     // PDF 뷰어 경로 확인
     if (PDF_VIEWER_PATH_PATTERNS.some((pattern) => urlObj.pathname.startsWith(pattern))) {
-      return true;
-    }
-
-    // PDF 파일 직접 접근 확인
-    if (urlObj.pathname.endsWith('.pdf')) {
       return true;
     }
 

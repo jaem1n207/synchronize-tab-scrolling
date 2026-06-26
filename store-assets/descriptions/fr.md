@@ -16,6 +16,7 @@ Fonctionnalités principales
 • Défilement synchronisé en temps réel sur autant d'onglets que vous voulez
 • Palette de commandes avec recherche — trouvez des onglets par titre ou URL, filtrez par domaine
 • Ajustement manuel de position — maintenez Option (Mac) ou Alt (Windows) pour affiner l'alignement de chaque onglet individuellement
+• Synchronisation manuelle des fichiers locaux lisibles par le navigateur, comme les rapports HTML, Markdown, JSON, texte, CSV et logs
 • Suggestions de synchronisation automatique quand des URLs en double sont détectées
 • Sync de navigation — cliquez sur un lien dans un onglet et tous les onglets liés suivent
 • Exclusion de domaine — bloquez définitivement les suggestions pour certains sites
@@ -40,8 +41,9 @@ En raison des restrictions de sécurité du navigateur, la synchronisation de d�
 • Pages internes du navigateur (chrome://, edge://, about:)
 • Boutiques d'extensions et pages de résultats de moteurs de recherche
 • Fichiers PDF et visionneuses PDF
+• Documents Word locaux (.doc, .docx)
 • Pages de connexion et d'authentification
-• URLs spéciales (file://, view-source:, data:)
+• URLs spéciales (view-source:, data:, blob:)
 
 Les onglets restreints apparaissent désactivés dans la liste de sélection, avec une info-bulle expliquant la limitation.
 

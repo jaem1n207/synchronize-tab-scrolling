@@ -1,3 +1,8 @@
+export interface UnavailableTabAction {
+  label: string;
+  url: string;
+}
+
 export interface TabInfo {
   id: number;
   title: string;
@@ -5,6 +10,8 @@ export interface TabInfo {
   favIconUrl?: string;
   eligible: boolean;
   ineligibleReason?: string;
+  unavailableAction?: UnavailableTabAction;
+  localFilePrivacyNote?: string;
   lastAccessed?: number; // Timestamp when tab was last accessed
 }
 

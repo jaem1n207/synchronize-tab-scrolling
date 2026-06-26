@@ -9,7 +9,7 @@ src/
 ├── background/          # Service worker (MV3). State, message relay, auto-sync
 ├── contentScripts/      # Page injection. Scroll sync engine, Shadow DOM UI
 ├── popup/               # Extension popup. Tab selection, sync control
-├── shared/              # Cross-cutting. 13 utils, 4 hooks, shadcn UI, types, i18n
+├── shared/              # Cross-cutting. 14 utils, 4 hooks, shadcn UI, types, i18n
 ├── landing/             # Marketing site. SEPARATE build/CI/deploy pipeline
 └── manifest.ts          # Dynamic manifest (Firefox vs Chromium)
 scripts/                 # Build: prepare, prerender, manifest, i18n validate, store stats
@@ -129,6 +129,7 @@ pnpm start:firefox      # Launch in Firefox
 | Scroll sync engine          | `docs/guides/scroll-sync-pipeline.md`              |
 | Critical pitfalls (9)       | `docs/guides/known-pitfalls.md`                    |
 | Domain exclusion            | `docs/guides/domain-exclusion.md`                  |
+| Local file manual sync      | `docs/guides/local-file-sync.md`                   |
 | Sync suggestion replacement | `docs/guides/sync-suggestion-replacement.md`       |
 | Landing FOUC prevention     | `docs/guides/landing-fouc-and-flash-prevention.md` |
 | Store deployment            | `docs/guides/store-deployment.md`                  |
@@ -143,7 +144,7 @@ Each module has detailed architecture docs. See subdirectory AGENTS.md for backg
 - `src/contentScripts/README.md` + `AGENTS.md` — Scroll sync engine, Shadow DOM, timing
 - `src/landing/AGENTS.md` — Separate build/CI, i18n, theme, prerender
 - `src/popup/README.md` — Popup architecture, hooks, components
-- `src/shared/lib/README.md` — 13 utility modules
+- `src/shared/lib/README.md` — 14 utility modules
 - `src/shared/hooks/README.md` — 4 shared hooks
 - `src/shared/types/README.md` — Message, sync-state, auto-sync-state types
 

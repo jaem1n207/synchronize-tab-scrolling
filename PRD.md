@@ -115,9 +115,11 @@ Users can effortlessly synchronize scrolling across 2+ tabs with 99% accuracy, r
    - Firefox-specific optimizations where needed
 
 5. **Security Compliance**
-   - Proper handling of restricted URLs (view-source:, extension://, data:, chrome://)
+   - Proper handling of restricted URLs (view-source:, extension://, data:, blob:, about:, chrome://)
    - Web store page restrictions (Chrome Web Store, Edge Add-ons, Firefox Add-ons)
    - Google services restrictions (Drive, Gmail, Docs, Sheets)
+   - Manual sync support for browser-readable `file://` documents, with local PDF and Word document exclusions
+   - Actionable Chrome/Edge guidance when per-extension file URL access is disabled
    - Content Security Policy compliance
 
 ### P1 (Should Have) - Enhanced Synchronization
@@ -254,11 +256,11 @@ Users can effortlessly synchronize scrolling across 2+ tabs with 99% accuracy, r
 
 ### Security & Privacy Requirements
 
-- **Minimal Permissions**: Request only necessary permissions (tabs, storage, activeTab)
+- **Minimal Permissions**: Request only necessary permissions (`tabs`, `storage`, `scripting`, and host access for web/local-file pages)
 - **No Data Collection**: No user data transmitted outside browser
 - **Content Script Isolation**: Shadow DOM for style isolation
 - **CSP Compliance**: All resources loaded via HTTPS
-- **Permission Model**: Clear explanation of why each permission is needed
+- **Permission Model**: Clear explanation of why each permission is needed, including the optional Chromium file URL access toggle
 
 ### Accessibility Requirements
 
@@ -341,6 +343,8 @@ As a researcher, I want to see which tabs can be synchronized so that I can sele
 
 - Given I have multiple tabs open, when I open the extension popup, then I see a list of all eligible tabs with clear titles and favicons
 - Given I have restricted tabs open (view-source:, chrome://, extension://), when I view the tab list, then these tabs are marked as ineligible with explanation tooltips
+- Given I have browser-readable local files open with `file://`, when file URL access is allowed, then these tabs are eligible for manual sync
+- Given Chromium file URL access is disabled, when I view local file tabs, then they are marked unavailable with a settings action
 - Given I have Google Drive or Gmail tabs open, when I view the tab list, then these are marked as ineligible due to security restrictions
 - Given tab eligibility changes, when a tab becomes restricted or unrestricted, then the list updates in real-time
 
@@ -471,6 +475,7 @@ As a user attempting to sync restricted tabs, I want to understand why certain t
 **Acceptance Criteria**:
 
 - Given I try to select a restricted tab (chrome://, view-source:), when I click on it, then I see a tooltip explaining why it cannot be synchronized
+- Given I try to sync local PDFs or local Word documents, when I view the tab list, then they remain unavailable with a special-protocol explanation
 - Given I have web store pages open, when I view the tab list, then these tabs are clearly marked as ineligible with security explanations
 - Given I only have ineligible tabs available, when I open the extension, then I see helpful guidance about opening compatible websites
 - Given restrictions prevent functionality, when I encounter limitations, then I receive constructive suggestions for alternative workflows

@@ -67,6 +67,10 @@ Click one of the browser badges above to install from your browser's extension s
 
 Open two or more tabs with the content you want to compare.
 
+**Local files:** Browser-readable local files opened with `file://` can be synced manually, such
+as generated HTML reports, Markdown, JSON, text, CSV, and log files. In Chromium browsers, enable
+**"Allow access to file URLs"** for this extension if the popup asks you to.
+
 ### Step 3: Start syncing
 
 1. Click the extension icon in your browser toolbar
@@ -99,8 +103,9 @@ Due to browser security restrictions, the extension cannot sync these pages:
 - Some web apps (Figma, JIRA, Microsoft Office Online, Notion, etc.)
 - Search engine results (Google Search, Naver, Bing, DuckDuckGo, etc.)
 - PDF files and PDF viewers
+- Local Word documents (`file://` `.doc` / `.docx`)
 - Login/authentication pages
-- Special URLs (`view-source:`, `data:`, `file://`)
+- Special URLs (`view-source:`, `data:`, `blob:`)
 
 These tabs will appear disabled in the selection list.
 

@@ -131,6 +131,18 @@
   "ineligibleSpecialProtocol": {
     "message": "无法同步特殊协议页面"
   },
+  "ineligibleFileAccessDisabled": {
+    "message": "本地文件访问已关闭"
+  },
+  "openExtensionSettings": {
+    "message": "打开扩展程序设置"
+  },
+  "localFilePrivacyNote": {
+    "message": "同步仅使用滚动位置。不会上传文件内容。"
+  },
+  "fileAccessConnectionFailed": {
+    "message": "无法连接到本地文件标签页。请为此扩展程序开启“允许访问文件网址”，然后重新打开弹出窗口。"
+  },
   "ineligibleSecurityRestriction": {
     "message": "由于安全限制，无法同步此页面"
   },
