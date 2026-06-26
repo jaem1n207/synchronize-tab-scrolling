@@ -1,3 +1,29 @@
+# [2.11.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.10.0...v2.11.0) (2026-06-26)
+
+
+### Bug Fixes
+
+* avoid misleading local file access guidance ([ea5f85f](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/ea5f85f71e4f5f88095a5064a4ccc0718c2f9e02))
+* block about URLs across browsers ([d8878d1](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/d8878d10e12390f3166a1c35feb87c9e5722bf9c))
+* block local Word documents from sync ([3345763](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/3345763ea7b5ddb83225dc452251514d32780442))
+* **i18n:** align local file access messages ([c591a15](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/c591a156f744afe1c980d438710e1499b99e8bca))
+* log file access probe failures ([eed12c8](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/eed12c8984718022aa7cc1d35a1c4a4a8d1a2ab2))
+* scope file access guidance to failed file tabs ([0707622](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/0707622d46047d0364c9b7d4fdadabda33cbb43e))
+
+
+### Features
+
+* allow manual sync on local file URLs ([b37161d](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b37161da5b40a3bf0a75b0afe022963515dde648))
+* allow manual sync on local file URLs ([de288a8](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/de288a81c8aaaa81d9130b997de94c1537f8d388))
+* detect local file access state ([a0965dd](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/a0965dd1ae3a584069e8ab360c5f28904c7341de))
+* explain local file access failures ([49fe3df](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/49fe3df7a310f8912bcea58147f53e4479c31730))
+* guide users to enable local file access ([9e9c76d](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/9e9c76dffb2ab8453af0e18614ae4d80228d817e))
+
+
+### Performance Improvements
+
+* parallelize tab discovery file access checks ([175d89b](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/175d89bc3c9c2eaa0cd3900b5b7f4e150ab58357))
+
 # [2.10.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.9.1...v2.10.0) (2026-05-15)
 
 
