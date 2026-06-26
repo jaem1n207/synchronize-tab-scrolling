@@ -182,8 +182,9 @@ tooltip because keyboard and touch users need a reliable path to the same fix.
 Manual sync should keep using the existing background and content script message path.
 
 If a selected file tab fails to connect despite being marked eligible, prefer a file-access-specific
-error if any selected tab uses `file://`. This handles races where the user disables file access
-after popup discovery or where the browser refuses injection for a local file.
+error only when `connectionResults` show that a selected `file://` tab actually failed. This handles
+races where the user disables file access after popup discovery or where the browser refuses
+injection for a local file, without hiding unrelated HTTPS-tab failures in mixed selections.
 
 Do not add async work to `handleScrollCore()` or the scroll event path.
 

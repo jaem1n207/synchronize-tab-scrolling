@@ -155,6 +155,7 @@ In `src/shared/lib/url-utils.ts`, replace the `COMMON_RESTRICTED_PATTERNS` const
 const FILE_PROTOCOL = 'file:';
 
 const UNSUPPORTED_SPECIAL_PROTOCOLS = [
+  'about:',
   'ftp:',
   'javascript:',
   'vbscript:',
@@ -449,6 +450,7 @@ Create `src/shared/lib/file-scheme-access.ts`:
 ```typescript
 import browser from 'webextension-polyfill';
 
+import { ExtensionLogger } from './logger';
 import { detectBrowserType } from './url-utils';
 
 type BrowserType = ReturnType<typeof detectBrowserType>;
@@ -466,6 +468,8 @@ export interface FileSchemeAccessRoot {
     };
   };
 }
+
+const logger = new ExtensionLogger({ scope: 'file-scheme-access' });
 
 export function getFileSchemeSettingsUrl(
   browserType: BrowserType,
@@ -498,7 +502,8 @@ export async function getFileSchemeAccessInfo(
       allowed: await isAllowedFileSchemeAccess(),
       settingsUrl,
     };
-  } catch {
+  } catch (error) {
+    void logger.warn('Failed to check file scheme access:', error);
     return {
       canCheck: false,
       allowed: false,
@@ -1198,10 +1203,12 @@ Add equivalent keys to every locale in `src/shared/i18n/_locales`:
 "ineligibleFileAccessDisabled": { "message": "लोकल फ़ाइल एक्सेस बंद है" },
 "openExtensionSettings": { "message": "एक्सटेंशन सेटिंग खोलें" },
 "localFilePrivacyNote": { "message": "सिंक केवल स्क्रोल स्थिति का उपयोग करता है। फ़ाइल सामग्री अपलोड नहीं की जाती।" },
-"fileAccessConnectionFailed": { "message": "लोकल फ़ाइल टैब से कनेक्ट नहीं हो सका। इस एक्सटेंशन के लिए \"Allow access to file URLs\" चालू करें, फिर पॉपअप दोबारा खोलें।" }
+"fileAccessConnectionFailed": { "message": "लोकल फ़ाइल टैब से कनेक्ट नहीं हो सका। इस एक्सटेंशन के लिए फ़ाइल URL तक पहुंच की अनुमति चालू करें, फिर पॉपअप दोबारा खोलें।" }
 ```
 
-Copy the same keys into matching `extension/_locales` files. For `extension/_locales/zh/messages.json`, use the `zh_CN` strings.
+Copy the same keys into matching supported `extension/_locales` files. Do not add new generic `zh`
+keys unless `src/shared/i18n/_locales/zh` is also introduced; the supported Chinese locales are
+`zh_CN` and `zh_TW`.
 
 - [ ] **Step 2: Run i18n validation**
 
