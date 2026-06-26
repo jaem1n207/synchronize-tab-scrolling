@@ -7,6 +7,7 @@ import { chromium, type Browser } from '@playwright/test';
 
 const DIST_DIR = join(process.cwd(), 'dist-landing');
 const LANDING_BASE = process.env.LANDING_BASE ?? '/';
+const CHROMIUM_CHANNEL = process.env.PLAYWRIGHT_CHROMIUM_CHANNEL;
 
 const MIME_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -65,7 +66,13 @@ async function prerender() {
 
   let browser: Browser | undefined;
   try {
-    browser = await chromium.launch();
+    browser = await chromium.launch(
+      CHROMIUM_CHANNEL
+        ? {
+            channel: CHROMIUM_CHANNEL,
+          }
+        : undefined,
+    );
     const page = await browser.newPage();
 
     page.on('pageerror', (err) => console.error(`[browser] error: ${err.message}`));
