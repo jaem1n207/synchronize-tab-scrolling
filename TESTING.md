@@ -53,6 +53,15 @@
 - ✅ 딜레이 < 100ms
 - ✅ Stop Sync 버튼으로 동기화 중지 가능
 
+### 로컬 파일 수동 동기화
+
+- ✅ `file://` HTML, Markdown, JSON, 텍스트, CSV, 로그 파일이 수동 선택 가능
+- ✅ Chrome/Edge/Brave에서 파일 URL 접근이 꺼져 있으면 팝업에 설정 버튼 표시
+- ✅ 설정 버튼이 `chrome://extensions/?id=<extension-id>` 또는 `edge://extensions/?id=<extension-id>`로 이동
+- ✅ 파일 URL 접근을 켠 뒤 팝업을 다시 열면 로컬 파일 탭 선택 가능
+- ✅ `file://` PDF와 Word 문서(`.doc`, `.docx`)는 계속 비활성화
+- ✅ `data:`, `blob:`, `view-source:`, `about:` 같은 특수 URL은 계속 비활성화
+
 ## 디버깅
 
 ### 백그라운드 콘솔 로그 확인
