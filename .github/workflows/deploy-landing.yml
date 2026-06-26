@@ -22,11 +22,12 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -58,8 +59,13 @@ jobs:
       - name: Move index.html to artifact root
         run: cp dist-landing/landing/index.html dist-landing/index.html
 
+      - name: Install Playwright system dependencies
+        timeout-minutes: 5
+        run: pnpm exec playwright install-deps chromium-headless-shell
+
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        timeout-minutes: 5
+        run: pnpm exec playwright install --only-shell chromium
 
       - name: Prerender landing page for SEO
         run: pnpm prerender:landing
