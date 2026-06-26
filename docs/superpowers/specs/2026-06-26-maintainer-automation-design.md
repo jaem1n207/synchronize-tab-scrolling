@@ -47,7 +47,7 @@ The latest tags below were verified from live GitHub tag refs on 2026-06-26 KST.
 
 ## Error Handling
 
-- Labeler failures caused by fork permissions should be handled by the label-only `pull_request_target` design, not by widening token permissions beyond `pull-requests: write` and `contents: read`.
+- Labeler failures caused by fork permissions should be handled by the label-only `pull_request_target` design with no checkout or shell execution. Include `issues: write` only so `actions/labeler` can create missing configured labels on first run.
 - Stale automation must exempt `security`, `pinned`, `in-progress`, `needs-decision`, and release-critical work.
 - Comment automation must update an existing bot comment by marker; duplicate comments are considered a design failure.
 - If a workflow begins producing noisy labels or stale events, the rollback is to disable the single new workflow file rather than touching build or release jobs.
