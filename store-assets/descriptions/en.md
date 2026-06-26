@@ -16,6 +16,7 @@ Key Features
 • Real-time scroll synchronization across any number of tabs
 • Command palette with search — find tabs by title or URL, filter by domain
 • Manual position adjustment — hold Option (Mac) or Alt (Windows) to fine-tune individual tab alignment
+• Manual sync for browser-readable local files such as HTML reports, Markdown, JSON, text, CSV, and logs
 • Smart auto-sync suggestions when duplicate URLs are detected
 • URL navigation sync — click a link in one tab and all linked tabs follow
 • Domain exclusion — permanently block suggestions for specific sites
@@ -40,8 +41,9 @@ Due to browser security restrictions, scroll sync does not work on certain pages
 • Browser internal pages (chrome://, edge://, about:)
 • Extension stores and search engine result pages
 • PDF files and viewers
+• Local Word documents (.doc, .docx)
 • Login and authentication pages
-• Special URLs (file://, view-source:, data:)
+• Special URLs (view-source:, data:, blob:)
 
 Restricted tabs appear disabled in the selection list with a tooltip explaining the limitation.
 
