@@ -1,0 +1,133 @@
+'area:ci':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+
+'area:docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'README.md'
+          - 'README-ko_kr.md'
+          - 'AGENTS.md'
+
+'area:extension':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/background/**'
+          - 'src/contentScripts/**'
+          - 'src/popup/**'
+          - 'src/shared/**'
+          - 'src/manifest.ts'
+          - 'extension/**'
+          - 'vite.config.background.mts'
+          - 'vite.config.content.mts'
+          - 'vite.config.ts'
+
+'area:landing':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/landing/**'
+          - 'vite.config.landing.mts'
+          - 'scripts/prerender-landing.ts'
+          - 'scripts/fetch-store-stats.ts'
+          - 'e2e/landing/**'
+
+'area:i18n':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**/i18n/**'
+          - 'src/**/translations/**'
+          - 'src/**/locales/**'
+          - 'src/landing/lib/translations/**'
+          - 'scripts/validate-i18n.ts'
+
+'area:e2e':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'e2e/**'
+          - 'playwright.config*.ts'
+
+'area:release':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'release.config.js'
+          - 'scripts/publish-edge.mjs'
+          - 'docs/guides/store-deployment.md'
+          - '.github/workflows/release.yml'
+
+'area:package':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'pnpm-lock.yaml'
+          - 'pnpm-workspace.yaml'
+          - 'tsconfig.json'
+
+'area:store-stats':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/landing/public/store-stats.json'
+          - 'scripts/fetch-store-stats.ts'
+          - '.github/workflows/update-store-stats.yml'
+
+'area:security':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/**/permissions**'
+          - 'src/**/excluded**'
+          - 'src/manifest.ts'
+
+'area:browser-compat':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/shared/lib/platform*'
+          - 'src/**/browser**'
+          - 'src/**/firefox**'
+          - 'src/**/chrome**'
+          - 'src/**/edge**'
+
+'area:release-risk':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'release.config.js'
+          - '.github/workflows/release.yml'
+          - 'scripts/publish-edge.mjs'
+          - 'package.json'
+          - 'pnpm-lock.yaml'
+          - 'src/manifest.ts'
+
+'area:landing-release-risk':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/landing/**'
+          - 'vite.config.landing.mts'
+          - '.github/workflows/deploy-landing.yml'
+
+'area:design-spec':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/superpowers/specs/**'
+          - 'docs/superpowers/plans/**'
+
+'type:feature':
+  - head-branch:
+      - '^feat[/-]'
+      - '^feature[/-]'
+
+'type:fix':
+  - head-branch:
+      - '^fix[/-]'
+      - '^hotfix[/-]'
+
+'type:docs':
+  - head-branch:
+      - '^docs[/-]'
+
+'type:ci':
+  - head-branch:
+      - '^ci[/-]'
+
+'target:main':
+  - base-branch:
+      - '^main$'
