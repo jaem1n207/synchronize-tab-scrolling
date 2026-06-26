@@ -259,7 +259,7 @@ Users can effortlessly synchronize scrolling across 2+ tabs with 99% accuracy, r
 - **Minimal Permissions**: Request only necessary permissions (`tabs`, `storage`, `scripting`, and host access for web/local-file pages)
 - **No Data Collection**: No user data transmitted outside browser
 - **Content Script Isolation**: Shadow DOM for style isolation
-- **CSP Compliance**: All resources loaded via HTTPS
+- **CSP Compliance**: Network resources load over HTTPS, packaged web-accessible assets load from the extension origin, and authorized injection targets may include `http(s)://` and `file://` pages without treating local file pages as HTTPS contexts
 - **Permission Model**: Clear explanation of why each permission is needed, including the optional Chromium file URL access toggle
 
 ### Accessibility Requirements
