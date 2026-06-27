@@ -25,7 +25,11 @@ import {
   type ManualScrollOffset,
 } from '~/shared/lib/storage';
 import { resolveUrlSyncTarget } from '~/shared/lib/translated-page-url-utils';
-import type { UrlSyncNotice } from '~/shared/types/url-sync';
+import type {
+  UrlSyncMode,
+  UrlSyncNotice,
+  UrlSyncPanelNoticeEventDetail,
+} from '~/shared/types/url-sync';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
 import {
@@ -335,12 +339,23 @@ async function broadcastUrlChange(url: string) {
   });
 }
 
-function emitUrlSyncNotice(notice: UrlSyncNotice) {
+function emitUrlSyncNotice(detail: UrlSyncPanelNoticeEventDetail) {
   window.dispatchEvent(
     new CustomEvent('scroll-sync-url-sync-notice', {
-      detail: notice,
+      detail,
     }),
   );
+}
+
+function createUrlSyncNoticeDetail(
+  notice: UrlSyncNotice,
+  mode?: UrlSyncMode,
+): UrlSyncPanelNoticeEventDetail {
+  if (mode) {
+    return { mode, notice };
+  }
+
+  return { notice };
 }
 
 function navigateToUrl(url: string) {
@@ -944,7 +959,7 @@ export function initScrollSync() {
 
     const modeRepairResult = await repairUrlSyncMode();
     if (modeRepairResult.notice) {
-      emitUrlSyncNotice(modeRepairResult.notice);
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(modeRepairResult.notice, modeRepairResult.mode));
       sendMessage(
         'sync:url-mode-changed',
         {
@@ -964,7 +979,7 @@ export function initScrollSync() {
     );
 
     if (resolution.status === 'blocked') {
-      emitUrlSyncNotice(resolution.notice);
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(resolution.notice));
       logger.warn('URL sync navigation blocked', {
         reason: resolution.reason,
         sourceUrl: payload.url,
@@ -974,7 +989,7 @@ export function initScrollSync() {
     }
 
     if (resolution.notice) {
-      emitUrlSyncNotice(resolution.notice);
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(resolution.notice));
     }
 
     if (resolution.url === window.location.href) {

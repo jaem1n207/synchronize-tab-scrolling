@@ -146,6 +146,7 @@ import {
 } from '~/shared/lib/storage';
 import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
+import type { UrlSyncPanelNoticeEventDetail } from '~/shared/types/url-sync';
 
 interface MockMutationObserverInstance {
   observe: ReturnType<typeof vi.fn>;
@@ -220,9 +221,11 @@ function getBackgroundCalls(messageId: string) {
 }
 
 function collectUrlSyncNotices() {
-  const notices: Array<unknown> = [];
+  const notices: Array<UrlSyncPanelNoticeEventDetail> = [];
   const listener = (event: Event) => {
-    notices.push((event as CustomEvent).detail);
+    if (event instanceof CustomEvent) {
+      notices.push(event.detail);
+    }
   };
 
   window.addEventListener('scroll-sync-url-sync-notice', listener);
@@ -406,7 +409,10 @@ describe('Scenario: URL sync toggle behavior', () => {
       });
 
       expect(await loadUrlSyncMode()).toBe('follow-changed-tab');
-      expect(notices).toContainEqual(resetNotice);
+      expect(notices).toContainEqual({
+        mode: 'follow-changed-tab',
+        notice: resetNotice,
+      });
       expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
         'sync:url-mode-changed',
         {
@@ -737,8 +743,10 @@ describe('Scenario: manual offset reset when URL changes', () => {
       });
 
       expect(notices).toContainEqual({
-        key: 'urlSyncKeepWebsiteBlockedNotice',
-        severity: 'warning',
+        notice: {
+          key: 'urlSyncKeepWebsiteBlockedNotice',
+          severity: 'warning',
+        },
       });
       expect(window.location.href).toBe('https://staging.example.com/ko/home');
       await expect(getManualScrollOffset(204)).resolves.toEqual({ ratio: 0.3, pixels: 90 });

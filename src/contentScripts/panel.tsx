@@ -19,6 +19,7 @@ import type {
 } from '~/shared/types/messages';
 import {
   DEFAULT_URL_SYNC_MODE,
+  isUrlSyncPanelNoticeEventDetail,
   type UrlSyncMode,
   type UrlSyncNotice,
 } from '~/shared/types/url-sync';
@@ -27,14 +28,14 @@ import { SyncControlPanel } from './components';
 import { SyncSuggestionToast, AddTabToSyncToast } from './components/sync-suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'panel' });
+const URL_SYNC_SAVE_FAILED_NOTICE: UrlSyncNotice = {
+  key: 'urlSyncSettingSaveFailedNotice',
+  severity: 'error',
+};
 
 // Custom event type for connection status
 interface ConnectionStatusEvent extends CustomEvent {
   detail: { isConnected: boolean; tabId: number };
-}
-
-interface UrlSyncNoticeEvent extends CustomEvent {
-  detail: UrlSyncNotice;
 }
 
 function PanelApp() {
@@ -82,22 +83,44 @@ function PanelApp() {
 
     loadUrlSyncPreferences();
 
-    const unsubscribeEnabled = onMessage('sync:url-enabled-changed', ({ data }) => {
-      const { enabled } = data as { enabled: boolean };
+    const unsubscribeEnabled = onMessage('sync:url-enabled-changed', async ({ data }) => {
+      const { enabled } = data;
+      const saved = await saveUrlSyncEnabled(enabled);
+      if (!saved) {
+        setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+        return;
+      }
+
       setUrlSyncEnabled(enabled);
-      saveUrlSyncEnabled(enabled);
+      setUrlSyncNotice(null);
     });
 
-    const unsubscribeMode = onMessage('sync:url-mode-changed', ({ data }) => {
+    const unsubscribeMode = onMessage('sync:url-mode-changed', async ({ data }) => {
       const { mode, notice } = data;
+      const saved = await saveUrlSyncMode(mode);
+      if (!saved) {
+        setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+        return;
+      }
+
       setUrlSyncMode(mode);
       setUrlSyncNotice(notice ?? null);
-      saveUrlSyncMode(mode);
     });
 
     const handleUrlSyncNotice = (event: Event) => {
-      const customEvent = event as UrlSyncNoticeEvent;
-      setUrlSyncNotice(customEvent.detail);
+      if (!(event instanceof CustomEvent)) {
+        return;
+      }
+
+      const detail = event.detail;
+      if (!isUrlSyncPanelNoticeEventDetail(detail)) {
+        return;
+      }
+
+      if (detail.mode) {
+        setUrlSyncMode(detail.mode);
+      }
+      setUrlSyncNotice(detail.notice);
     };
 
     window.addEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
@@ -151,9 +174,14 @@ function PanelApp() {
   }, []);
 
   const handleUrlSyncEnabledChange = useCallback(async (enabled: boolean) => {
-    setUrlSyncEnabled(enabled);
-    await saveUrlSyncEnabled(enabled);
+    const saved = await saveUrlSyncEnabled(enabled);
+    if (!saved) {
+      setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+      return;
+    }
 
+    setUrlSyncEnabled(enabled);
+    setUrlSyncNotice(null);
     // Broadcast to other synced tabs via background
     try {
       await sendMessage('sync:url-enabled-changed', { enabled }, 'background');
@@ -163,10 +191,14 @@ function PanelApp() {
   }, []);
 
   const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
+    const saved = await saveUrlSyncMode(mode);
+    if (!saved) {
+      setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+      return;
+    }
+
     setUrlSyncMode(mode);
     setUrlSyncNotice(null);
-    await saveUrlSyncMode(mode);
-
     try {
       await sendMessage('sync:url-mode-changed', { mode }, 'background');
     } catch (error) {
