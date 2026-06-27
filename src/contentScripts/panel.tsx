@@ -74,8 +74,13 @@ function PanelApp() {
         }
 
         setUrlSyncEnabled(enabled);
-        setUrlSyncMode(modeRepairResult.mode);
-        setUrlSyncNotice(modeRepairResult.notice ?? null);
+        if (modeRepairResult.status === 'success') {
+          setUrlSyncMode(modeRepairResult.mode);
+          setUrlSyncNotice(modeRepairResult.notice ?? null);
+          return;
+        }
+
+        setUrlSyncNotice(modeRepairResult.notice);
       } catch (error) {
         await logger.error('Failed to load URL sync preferences', error);
       }

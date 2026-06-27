@@ -958,6 +958,15 @@ export function initScrollSync() {
     }
 
     const modeRepairResult = await repairUrlSyncMode();
+    if (modeRepairResult.status === 'failed') {
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(modeRepairResult.notice));
+      logger.warn('URL sync navigation skipped because mode settings could not be repaired', {
+        reason: modeRepairResult.reason,
+        sourceTabId: payload.sourceTabId,
+      });
+      return;
+    }
+
     if (modeRepairResult.notice) {
       emitUrlSyncNotice(createUrlSyncNoticeDetail(modeRepairResult.notice, modeRepairResult.mode));
       sendMessage(
@@ -982,8 +991,8 @@ export function initScrollSync() {
       emitUrlSyncNotice(createUrlSyncNoticeDetail(resolution.notice));
       logger.warn('URL sync navigation blocked', {
         reason: resolution.reason,
-        sourceUrl: payload.url,
-        targetUrl: window.location.href,
+        sourceTabId: payload.sourceTabId,
+        mode: modeRepairResult.mode,
       });
       return;
     }
@@ -994,13 +1003,13 @@ export function initScrollSync() {
 
     if (resolution.url === window.location.href) {
       logger.debug('URL sync resolved to current URL; skipping navigation', {
-        url: resolution.url,
+        sourceTabId: payload.sourceTabId,
+        mode: modeRepairResult.mode,
       });
       return;
     }
 
     logger.info('Navigating to synced URL', {
-      url: resolution.url,
       sourceTabId: payload.sourceTabId,
       mode: modeRepairResult.mode,
     });
