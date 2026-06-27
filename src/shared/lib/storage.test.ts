@@ -505,6 +505,7 @@ describe('repairUrlSyncMode', () => {
     storageGetMock.mockResolvedValue({});
 
     await expect(repairUrlSyncMode()).resolves.toEqual({
+      status: 'success',
       mode: 'follow-changed-tab',
       repaired: false,
     });
@@ -516,6 +517,7 @@ describe('repairUrlSyncMode', () => {
     storageSetMock.mockResolvedValue(undefined);
 
     await expect(repairUrlSyncMode()).resolves.toEqual({
+      status: 'success',
       mode: 'follow-changed-tab',
       repaired: true,
       notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
@@ -523,27 +525,29 @@ describe('repairUrlSyncMode', () => {
     expect(storageSetMock).toHaveBeenCalledWith({ urlSyncMode: 'follow-changed-tab' });
   });
 
-  it('returns reset notice without repaired flag when reading mode fails', async () => {
+  it('returns a read failure result when reading mode fails', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);
 
     await expect(repairUrlSyncMode()).resolves.toEqual({
-      mode: 'follow-changed-tab',
+      status: 'failed',
+      reason: 'read-failed',
       repaired: false,
-      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+      notice: { key: 'urlSyncSettingReadFailedNotice', severity: 'error' },
     });
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to repair URL sync mode:', error);
   });
 
-  it('returns reset notice without repaired flag when repairing invalid mode fails', async () => {
+  it('returns a write failure result when repairing invalid mode fails', async () => {
     const error = new Error('set failed');
     storageGetMock.mockResolvedValue({ urlSyncMode: 'unexpected-mode' });
     storageSetMock.mockRejectedValue(error);
 
     await expect(repairUrlSyncMode()).resolves.toEqual({
-      mode: 'follow-changed-tab',
+      status: 'failed',
+      reason: 'write-failed',
       repaired: false,
-      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+      notice: { key: 'urlSyncSettingSaveFailedNotice', severity: 'error' },
     });
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to repair URL sync mode:', error);
   });

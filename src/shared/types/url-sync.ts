@@ -6,7 +6,8 @@ export type UrlSyncNoticeKey =
   | 'urlSyncModeResetNotice'
   | 'urlSyncKeepWebsiteBlockedNotice'
   | 'urlSyncLanguagePreservationNotice'
-  | 'urlSyncSettingSaveFailedNotice';
+  | 'urlSyncSettingSaveFailedNotice'
+  | 'urlSyncSettingReadFailedNotice';
 
 export type UrlSyncNoticeSeverity = 'info' | 'warning' | 'error';
 
@@ -51,7 +52,8 @@ function isUrlSyncNoticeKey(value: unknown): value is UrlSyncNoticeKey {
     value === 'urlSyncModeResetNotice' ||
     value === 'urlSyncKeepWebsiteBlockedNotice' ||
     value === 'urlSyncLanguagePreservationNotice' ||
-    value === 'urlSyncSettingSaveFailedNotice'
+    value === 'urlSyncSettingSaveFailedNotice' ||
+    value === 'urlSyncSettingReadFailedNotice'
   );
 }
 

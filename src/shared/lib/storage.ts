@@ -246,11 +246,23 @@ export async function loadUrlSyncEnabled(): Promise<boolean> {
   }
 }
 
-export interface UrlSyncModeRepairResult {
+export interface UrlSyncModeRepairSuccessResult {
+  status: 'success';
   mode: UrlSyncMode;
   repaired: boolean;
   notice?: UrlSyncNotice;
 }
+
+export interface UrlSyncModeRepairFailureResult {
+  status: 'failed';
+  reason: 'read-failed' | 'write-failed';
+  repaired: false;
+  notice: UrlSyncNotice;
+}
+
+export type UrlSyncModeRepairResult =
+  | UrlSyncModeRepairSuccessResult
+  | UrlSyncModeRepairFailureResult;
 
 export async function saveUrlSyncMode(mode: UrlSyncMode): Promise<boolean> {
   try {
@@ -281,11 +293,11 @@ export async function repairUrlSyncMode(): Promise<UrlSyncModeRepairResult> {
     const storedMode = result[STORAGE_KEYS.URL_SYNC_MODE];
 
     if (storedMode === undefined) {
-      return { mode: DEFAULT_URL_SYNC_MODE, repaired: false };
+      return { status: 'success', mode: DEFAULT_URL_SYNC_MODE, repaired: false };
     }
 
     if (isUrlSyncMode(storedMode)) {
-      return { mode: storedMode, repaired: false };
+      return { status: 'success', mode: storedMode, repaired: false };
     }
 
     try {
@@ -295,13 +307,15 @@ export async function repairUrlSyncMode(): Promise<UrlSyncModeRepairResult> {
     } catch (error) {
       await logger.error('Failed to repair URL sync mode:', error);
       return {
-        mode: DEFAULT_URL_SYNC_MODE,
+        status: 'failed',
+        reason: 'write-failed',
         repaired: false,
-        notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+        notice: { key: 'urlSyncSettingSaveFailedNotice', severity: 'error' },
       };
     }
 
     return {
+      status: 'success',
       mode: DEFAULT_URL_SYNC_MODE,
       repaired: true,
       notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
@@ -309,9 +323,10 @@ export async function repairUrlSyncMode(): Promise<UrlSyncModeRepairResult> {
   } catch (error) {
     await logger.error('Failed to repair URL sync mode:', error);
     return {
-      mode: DEFAULT_URL_SYNC_MODE,
+      status: 'failed',
+      reason: 'read-failed',
       repaired: false,
-      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+      notice: { key: 'urlSyncSettingReadFailedNotice', severity: 'error' },
     };
   }
 }
