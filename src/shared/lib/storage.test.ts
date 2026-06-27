@@ -441,6 +441,15 @@ describe('loadUrlSyncEnabled', () => {
     await expect(loadUrlSyncEnabled()).resolves.toBe(true);
   });
 
+  it.each(['false', null, 0, {}])(
+    'returns true when stored value is invalid: %s',
+    async (storedValue) => {
+      storageGetMock.mockResolvedValue({ urlSyncEnabled: storedValue });
+
+      await expect(loadUrlSyncEnabled()).resolves.toBe(true);
+    },
+  );
+
   it('returns true and logs error when load fails', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);

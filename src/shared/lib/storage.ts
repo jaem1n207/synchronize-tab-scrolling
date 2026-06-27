@@ -238,9 +238,8 @@ export async function saveUrlSyncEnabled(enabled: boolean): Promise<boolean> {
 export async function loadUrlSyncEnabled(): Promise<boolean> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.URL_SYNC_ENABLED);
-    return result[STORAGE_KEYS.URL_SYNC_ENABLED] !== undefined
-      ? (result[STORAGE_KEYS.URL_SYNC_ENABLED] as boolean)
-      : true; // Default to enabled
+    const storedEnabled = result[STORAGE_KEYS.URL_SYNC_ENABLED];
+    return typeof storedEnabled === 'boolean' ? storedEnabled : true;
   } catch (error) {
     await logger.error('Failed to load URL sync enabled state:', error);
     return true;
