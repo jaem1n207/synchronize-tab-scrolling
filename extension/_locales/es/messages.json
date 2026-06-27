@@ -281,6 +281,33 @@
   "urlSyncNavigation": {
     "message": "Sincronización URL"
   },
+  "urlSyncModeDescription": {
+    "message": "Elige cómo las pestañas vinculadas siguen los cambios de página."
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "Seguir la pestaña cambiada"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "Las demás pestañas se mueven al sitio web que cambiaste."
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "Mantener el sitio de cada pestaña"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "Las demás pestañas permanecen en su propio sitio web y abren la página correspondiente."
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "Los idiomas se mantienen cuando es posible."
+  },
+  "urlSyncModeResetNotice": {
+    "message": "El modo URL Sync se restableció porque no se pudo leer la configuración guardada."
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "No se pudo mantener esta pestaña en su sitio web actual para este cambio de página. No se sincronizó ninguna navegación."
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "No se pudo conservar el idioma para este cambio de página."
+  },
   "syncedTabs": {
     "message": "Pestanas Sincronizadas"
   },

@@ -281,6 +281,33 @@
   "urlSyncNavigation": {
     "message": "URL-Synchronisierung"
   },
+  "urlSyncModeDescription": {
+    "message": "Wählen Sie, wie verknüpfte Tabs Seitenänderungen folgen."
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "Geändertem Tab folgen"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "Andere Tabs wechseln zu der Website, die Sie geändert haben."
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "Website jedes Tabs beibehalten"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "Andere Tabs bleiben auf ihrer eigenen Website und öffnen die passende Seite."
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "Sprachen werden nach Möglichkeit beibehalten."
+  },
+  "urlSyncModeResetNotice": {
+    "message": "Der URL-Sync-Modus wurde zurückgesetzt, weil die gespeicherte Einstellung nicht gelesen werden konnte."
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "Dieser Tab konnte für diese Seitenänderung nicht auf seiner aktuellen Website bleiben. Es wurde keine Navigation synchronisiert."
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "Die Sprache konnte für diese Seitenänderung nicht beibehalten werden."
+  },
   "syncedTabs": {
     "message": "Synchronisierte Tabs"
   },

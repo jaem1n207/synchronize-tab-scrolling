@@ -18,9 +18,16 @@ vi.mock('~/shared/i18n', () => ({
       urlSyncModeLanguageHelper: 'Languages are kept when possible.',
       urlSyncModeResetNotice:
         'URL Sync mode was reset because the saved setting could not be read.',
+      urlSyncKeepWebsiteBlockedNotice:
+        'Could not keep this tab on its current website for that page change. No navigation was synced.',
+      urlSyncLanguagePreservationNotice: 'Language could not be preserved for this page change.',
     };
 
-    return messages[key] ?? key;
+    if (!(key in messages)) {
+      throw new Error(`Missing test translation for ${key}`);
+    }
+
+    return messages[key];
   },
 }));
 
@@ -35,13 +42,10 @@ describe('UrlSyncSettings', () => {
       />,
     );
 
-    expect(screen.getByText('URL Sync')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'URL Sync' })).toBeInTheDocument();
     expect(screen.getByText("Keep each tab's website")).toBeInTheDocument();
     expect(screen.getByText('Languages are kept when possible.')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toBeChecked();
   });
 
   it('keeps the URL Sync enabled switch', async () => {
@@ -92,6 +96,48 @@ describe('UrlSyncSettings', () => {
     await user.click(screen.getByRole('radio', { name: /Keep each tab's website/i }));
 
     expect(onModeChange).toHaveBeenCalledWith('keep-each-tabs-website');
+  });
+
+  it('ignores rapid duplicate mode selections while the callback is pending', async () => {
+    const onModeChange = vi.fn(() => new Promise<void>(() => {}));
+    const user = userEvent.setup();
+
+    render(
+      <UrlSyncSettings
+        enabled={true}
+        mode="follow-changed-tab"
+        onEnabledChange={vi.fn()}
+        onModeChange={onModeChange}
+      />,
+    );
+
+    const keepWebsiteRadio = screen.getByRole('radio', { name: /Keep each tab's website/i });
+
+    await user.click(keepWebsiteRadio);
+    await user.click(keepWebsiteRadio);
+
+    expect(onModeChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles rejected mode callbacks without creating another pending lock', async () => {
+    const onModeChange = vi.fn().mockRejectedValue(new Error('mode save failed'));
+    const user = userEvent.setup();
+
+    render(
+      <UrlSyncSettings
+        enabled={true}
+        mode="follow-changed-tab"
+        onEnabledChange={vi.fn()}
+        onModeChange={onModeChange}
+      />,
+    );
+
+    const keepWebsiteRadio = screen.getByRole('radio', { name: /Keep each tab's website/i });
+
+    await user.click(keepWebsiteRadio);
+    await user.click(keepWebsiteRadio);
+
+    expect(onModeChange).toHaveBeenCalledTimes(2);
   });
 
   it('does not call onModeChange when selecting the active mode', async () => {

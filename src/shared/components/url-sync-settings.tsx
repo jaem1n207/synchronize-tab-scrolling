@@ -1,6 +1,5 @@
 import * as React from 'react';
 
-import { Button } from '~/shared/components/ui/button';
 import { Switch } from '~/shared/components/ui/switch';
 import { t } from '~/shared/i18n';
 import { cn } from '~/shared/lib/utils';
@@ -57,6 +56,46 @@ export function UrlSyncSettings({
   const headingId = React.useId();
   const descriptionId = React.useId();
   const helperId = React.useId();
+  const radioGroupName = React.useId();
+  const pendingEnabledRef = React.useRef(false);
+  const pendingModeRef = React.useRef<UrlSyncMode | null>(null);
+  const [, setPendingUpdateId] = React.useState(0);
+
+  const rerenderPendingState = () => {
+    setPendingUpdateId((value) => value + 1);
+  };
+
+  const handleEnabledChange = (checked: boolean) => {
+    if (pendingEnabledRef.current || checked === enabled) {
+      return;
+    }
+
+    pendingEnabledRef.current = true;
+    rerenderPendingState();
+
+    Promise.resolve(onEnabledChange(checked))
+      .catch(() => {})
+      .finally(() => {
+        pendingEnabledRef.current = false;
+        rerenderPendingState();
+      });
+  };
+
+  const handleModeChange = (nextMode: UrlSyncMode) => {
+    if (!enabled || nextMode === mode || pendingModeRef.current !== null) {
+      return;
+    }
+
+    pendingModeRef.current = nextMode;
+    rerenderPendingState();
+
+    Promise.resolve(onModeChange(nextMode))
+      .catch(() => {})
+      .finally(() => {
+        pendingModeRef.current = null;
+        rerenderPendingState();
+      });
+  };
 
   return (
     <section
@@ -76,49 +115,51 @@ export function UrlSyncSettings({
         <Switch
           aria-label={t('urlSyncNavigation')}
           checked={enabled}
-          onCheckedChange={(checked) => {
-            void onEnabledChange(checked);
-          }}
+          disabled={pendingEnabledRef.current}
+          onCheckedChange={handleEnabledChange}
         />
       </div>
 
-      <div
-        aria-describedby={helperId}
-        aria-disabled={!enabled}
-        aria-label={t('urlSyncNavigation')}
-        className="grid grid-cols-1 gap-1.5"
-        role="radiogroup"
-      >
+      <fieldset aria-describedby={helperId} className="grid grid-cols-1 gap-1.5">
+        <legend className="sr-only">{t('urlSyncNavigation')}</legend>
         {URL_SYNC_MODE_OPTIONS.map((option) => {
           const selected = option.mode === mode;
+          const optionId = `${radioGroupName}-${option.mode}`;
+          const modeChangePending = pendingModeRef.current !== null;
 
           return (
-            <Button
-              key={option.mode}
-              aria-checked={selected}
-              className={cn(
-                'h-auto justify-start rounded-md px-3 py-2 text-left',
-                'whitespace-normal leading-snug',
-                selected && 'border-primary bg-primary/10 text-primary',
-              )}
-              disabled={!enabled}
-              role="radio"
-              type="button"
-              variant={selected ? 'outline' : 'ghost'}
-              onClick={() => {
-                if (option.mode !== mode) {
-                  void onModeChange(option.mode);
-                }
-              }}
-            >
-              <span className="flex min-w-0 flex-col gap-0.5">
+            <div key={option.mode} className="relative">
+              <input
+                checked={selected}
+                className="peer sr-only"
+                disabled={!enabled || modeChangePending}
+                id={optionId}
+                name={radioGroupName}
+                type="radio"
+                value={option.mode}
+                onChange={() => {
+                  handleModeChange(option.mode);
+                }}
+              />
+              <label
+                className={cn(
+                  'flex min-w-0 cursor-pointer flex-col gap-0.5 rounded-md px-3 py-2 text-left',
+                  'border border-transparent whitespace-normal leading-snug transition-colors',
+                  'peer-focus-visible:outline-none peer-focus-visible:ring-2',
+                  'peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2',
+                  'peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
+                  selected && 'border-primary bg-primary/10 text-primary',
+                  !selected && enabled && 'hover:bg-accent hover:text-accent-foreground',
+                )}
+                htmlFor={optionId}
+              >
                 <span className="text-sm font-medium">{t(option.labelKey)}</span>
                 <span className="text-xs text-muted-foreground">{t(option.descriptionKey)}</span>
-              </span>
-            </Button>
+              </label>
+            </div>
           );
         })}
-      </div>
+      </fieldset>
 
       <p className="text-xs text-muted-foreground" id={helperId}>
         {t('urlSyncModeLanguageHelper')}

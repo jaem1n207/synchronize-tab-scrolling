@@ -269,6 +269,33 @@
   "urlSyncNavigation": {
     "message": "URL同步"
   },
+  "urlSyncModeDescription": {
+    "message": "选择关联标签页如何跟随页面变化。"
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "跟随已更改的标签页"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "其他标签页会跳转到你更改的那个网站。"
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "保留每个标签页的网站"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "其他标签页会留在各自的网站，并打开对应页面。"
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "会尽可能保留语言设置。"
+  },
+  "urlSyncModeResetNotice": {
+    "message": "由于无法读取已保存的设置，URL Sync 模式已重置。"
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "这次页面变化无法让该标签页保留在当前网站，因此未同步导航。"
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "这次页面变化无法保留语言设置。"
+  },
   "syncedTabs": {
     "message": "已同步的标签页"
   },

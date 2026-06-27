@@ -281,6 +281,33 @@
   "urlSyncNavigation": {
     "message": "URL Sync"
   },
+  "urlSyncModeDescription": {
+    "message": "Choose how linked tabs follow page changes."
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "Follow changed tab"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "Other tabs move to the website you changed."
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "Keep each tab's website"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "Other tabs stay on their own website and open the matching page."
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "Languages are kept when possible."
+  },
+  "urlSyncModeResetNotice": {
+    "message": "URL Sync mode was reset because the saved setting could not be read."
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "Could not keep this tab on its current website for that page change. No navigation was synced."
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "Language could not be preserved for this page change."
+  },
   "syncedTabs": {
     "message": "Synced Tabs"
   },
