@@ -53,6 +53,8 @@ export {
   loadSelectedTabIds,
   loadSyncMode,
   loadUrlSyncEnabled,
+  loadUrlSyncMode,
+  repairUrlSyncMode,
   saveAutoSyncEnabled,
   saveAutoSyncExcludedUrls,
   saveExcludedDomains,
@@ -61,6 +63,7 @@ export {
   saveSelectedTabIds,
   saveSyncMode,
   saveUrlSyncEnabled,
+  saveUrlSyncMode,
 } from './storage';
 export {
   calculateTabSimilarity,
