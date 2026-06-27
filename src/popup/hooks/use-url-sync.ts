@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
 import { sendMessage } from 'webext-bridge/popup';
+import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {
@@ -11,6 +12,7 @@ import {
 } from '~/shared/lib/storage';
 import {
   DEFAULT_URL_SYNC_MODE,
+  isUrlSyncMode,
   type UrlSyncMode,
   type UrlSyncNotice,
 } from '~/shared/types/url-sync';
@@ -19,6 +21,10 @@ const logger = new ExtensionLogger({ scope: 'popup' });
 const URL_SYNC_SAVE_FAILED_NOTICE: UrlSyncNotice = {
   key: 'urlSyncSettingSaveFailedNotice',
   severity: 'error',
+};
+const URL_SYNC_MODE_RESET_NOTICE: UrlSyncNotice = {
+  key: 'urlSyncModeResetNotice',
+  severity: 'warning',
 };
 
 interface UseUrlSyncReturn {
@@ -59,8 +65,49 @@ export function useUrlSync(): UseUrlSyncReturn {
 
     loadUrlSyncPreferences();
 
+    const clearSaveFailedNotice = () => {
+      setUrlSyncNotice((current) =>
+        current?.key === 'urlSyncSettingSaveFailedNotice' ? null : current,
+      );
+    };
+
+    const handleStorageChange = (
+      changes: Record<string, browser.Storage.StorageChange>,
+      areaName: string,
+    ) => {
+      if (areaName !== 'local') {
+        return;
+      }
+
+      const enabledChange = changes.urlSyncEnabled;
+      if (enabledChange && typeof enabledChange.newValue === 'boolean') {
+        setUrlSyncEnabled(enabledChange.newValue);
+        clearSaveFailedNotice();
+      }
+
+      const modeChange = changes.urlSyncMode;
+      if (!modeChange) {
+        return;
+      }
+
+      if (isUrlSyncMode(modeChange.newValue)) {
+        setUrlSyncMode(modeChange.newValue);
+        clearSaveFailedNotice();
+        return;
+      }
+
+      setUrlSyncMode(DEFAULT_URL_SYNC_MODE);
+      setUrlSyncNotice(URL_SYNC_MODE_RESET_NOTICE);
+      repairUrlSyncMode().catch((error) => {
+        logger.warn('[useUrlSync] Failed to repair invalid external URL sync mode:', error);
+      });
+    };
+
+    browser.storage.onChanged.addListener(handleStorageChange);
+
     return () => {
       isMounted = false;
+      browser.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
 
