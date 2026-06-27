@@ -63,6 +63,20 @@ interface RenderHookResult<T> {
   unmount: () => void;
 }
 
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+
+  return { promise, resolve };
+}
+
 function renderHook<T>(hook: () => T): RenderHookResult<T> {
   const container = document.createElement('div');
   const root = createRoot(container);
@@ -125,6 +139,7 @@ describe('useUrlSync', () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.mocked(loadUrlSyncEnabled).mockResolvedValue(true);
     vi.mocked(repairUrlSyncMode).mockResolvedValue({
+      status: 'success',
       mode: 'follow-changed-tab',
       repaired: false,
     });
@@ -236,8 +251,41 @@ describe('useUrlSync', () => {
     unmount();
   });
 
+  it('uses defaults when URL sync storage keys are removed', async () => {
+    const { result, unmount } = renderHook(() => useUrlSync());
+    await waitFor(() => expect(result.current.urlSyncMode).toBe('follow-changed-tab'));
+
+    act(() => {
+      triggerStorageChange({
+        urlSyncEnabled: { oldValue: true, newValue: false },
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'keep-each-tabs-website',
+        },
+      });
+    });
+
+    expect(result.current.urlSyncEnabled).toBe(false);
+    expect(result.current.urlSyncMode).toBe('keep-each-tabs-website');
+
+    act(() => {
+      triggerStorageChange({
+        urlSyncEnabled: { oldValue: false, newValue: undefined },
+        urlSyncMode: { oldValue: 'keep-each-tabs-website', newValue: undefined },
+      });
+    });
+
+    expect(result.current.urlSyncEnabled).toBe(true);
+    expect(result.current.urlSyncMode).toBe('follow-changed-tab');
+    expect(result.current.urlSyncNotice).toBeNull();
+    expect(repairUrlSyncMode).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
+
   it('resets mode and repairs storage when an external mode change is invalid', async () => {
     vi.mocked(repairUrlSyncMode).mockResolvedValue({
+      status: 'success',
       mode: 'follow-changed-tab',
       repaired: true,
       notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
@@ -245,22 +293,80 @@ describe('useUrlSync', () => {
     const { result, unmount } = renderHook(() => useUrlSync());
     await waitFor(() => expect(result.current.urlSyncMode).toBe('follow-changed-tab'));
 
-    act(() => {
+    await act(async () => {
       triggerStorageChange({
         urlSyncMode: {
           oldValue: 'follow-changed-tab',
           newValue: 'unexpected-mode',
         },
       });
+      await Promise.resolve();
     });
 
-    expect(result.current.urlSyncMode).toBe('follow-changed-tab');
-    expect(result.current.urlSyncNotice).toEqual({
-      key: 'urlSyncModeResetNotice',
-      severity: 'warning',
+    await waitFor(() => {
+      expect(result.current.urlSyncMode).toBe('follow-changed-tab');
+      expect(result.current.urlSyncNotice).toEqual({
+        key: 'urlSyncModeResetNotice',
+        severity: 'warning',
+      });
     });
     expect(repairUrlSyncMode).toHaveBeenCalledTimes(2);
     expect(sendMessage).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it('does not overwrite newer storage state when the initial load resolves late', async () => {
+    const enabledLoad = createDeferred<boolean>();
+    const modeLoad = createDeferred<Awaited<ReturnType<typeof repairUrlSyncMode>>>();
+    vi.mocked(loadUrlSyncEnabled).mockReturnValueOnce(enabledLoad.promise);
+    vi.mocked(repairUrlSyncMode).mockReturnValueOnce(modeLoad.promise);
+
+    const { result, unmount } = renderHook(() => useUrlSync());
+
+    act(() => {
+      triggerStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'keep-each-tabs-website',
+        },
+      });
+    });
+
+    expect(result.current.urlSyncMode).toBe('keep-each-tabs-website');
+
+    await act(async () => {
+      enabledLoad.resolve(true);
+      modeLoad.resolve({
+        status: 'success',
+        mode: 'follow-changed-tab',
+        repaired: false,
+      });
+      await Promise.resolve();
+    });
+
+    expect(result.current.urlSyncMode).toBe('keep-each-tabs-website');
+
+    unmount();
+  });
+
+  it('shows a read failure notice without changing mode when initial mode repair fails', async () => {
+    vi.mocked(repairUrlSyncMode).mockResolvedValueOnce({
+      status: 'failed',
+      reason: 'read-failed',
+      repaired: false,
+      notice: { key: 'urlSyncSettingReadFailedNotice', severity: 'error' },
+    });
+
+    const { result, unmount } = renderHook(() => useUrlSync());
+
+    await waitFor(() => {
+      expect(result.current.urlSyncNotice).toEqual({
+        key: 'urlSyncSettingReadFailedNotice',
+        severity: 'error',
+      });
+    });
+    expect(result.current.urlSyncMode).toBe('follow-changed-tab');
 
     unmount();
   });
