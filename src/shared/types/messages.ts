@@ -9,6 +9,8 @@ import type {
   TranslatedPageMetadata,
 } from '~/shared/lib/translated-page-url-utils';
 
+import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
+
 /**
  * Scroll sync mode types
  * - ratio: Proportional positioning based on document height ratios (P0)
@@ -147,6 +149,14 @@ export interface PanelPositionMessage {
  */
 export interface UrlSyncEnabledChangedMessage {
   enabled: boolean;
+}
+
+/**
+ * Message to synchronize URL sync mode across tabs
+ */
+export interface UrlSyncModeChangedMessage {
+  mode: UrlSyncMode;
+  notice?: UrlSyncNotice;
 }
 
 /**
@@ -304,6 +314,7 @@ export interface ProtocolMap {
   'element:match': ElementMatchMessage;
   'panel:position': PanelPositionMessage;
   'sync:url-enabled-changed': UrlSyncEnabledChangedMessage;
+  'sync:url-mode-changed': UrlSyncModeChangedMessage;
   'auto-sync:status-changed': AutoSyncStatusChangedMessage;
   'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
   'auto-sync:get-status': AutoSyncStatusResponse;

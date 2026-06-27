@@ -1,4 +1,5 @@
 export type { AutoSyncGroup, AutoSyncState } from './auto-sync-state';
+export * from './url-sync';
 export type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
@@ -32,5 +33,6 @@ export type {
   TranslatedPageMetadataResponseMessage,
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
+  UrlSyncModeChangedMessage,
 } from './messages';
 export type { SyncState } from './sync-state';
