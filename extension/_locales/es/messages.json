@@ -300,7 +300,7 @@
     "message": "Los idiomas se mantienen cuando es posible."
   },
   "urlSyncModeResetNotice": {
-    "message": "El modo URL Sync se restableció porque no se pudo leer la configuración guardada."
+    "message": "El modo URL Sync se restableció porque la configuración guardada no era válida."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "No se pudo mantener esta pestaña en su sitio web actual para este cambio de página. No se sincronizó ninguna navegación."
@@ -672,5 +672,8 @@
   },
   "urlSyncSettingSaveFailedNotice": {
     "message": "No se pudo guardar la configuración de URL Sync. Se sigue usando la configuración anterior."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "No se pudo leer la configuración de URL Sync. No se sincronizó la navegación de URL. Revisa los permisos de la extensión o inténtalo de nuevo."
   }
 }

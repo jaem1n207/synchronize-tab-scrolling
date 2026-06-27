@@ -300,7 +300,7 @@
     "message": "Languages are kept when possible."
   },
   "urlSyncModeResetNotice": {
-    "message": "URL Sync mode was reset because the saved setting could not be read."
+    "message": "URL Sync mode was reset because the saved setting was not valid."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Could not keep this tab on its current website for that page change. No navigation was synced."
@@ -672,5 +672,8 @@
   },
   "urlSyncSettingSaveFailedNotice": {
     "message": "Could not save the URL Sync setting. The previous setting is still being used."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "Could not read the URL Sync setting. URL navigation was not synced. Check extension permissions or try again."
   }
 }

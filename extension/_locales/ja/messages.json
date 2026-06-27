@@ -300,7 +300,7 @@
     "message": "可能な場合は言語設定を維持します。"
   },
   "urlSyncModeResetNotice": {
-    "message": "保存された設定を読み取れなかったため、URL Sync モードをリセットしました。"
+    "message": "保存された設定が有効ではなかったため、URL Sync モードをリセットしました。"
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "このページ変更では現在のウェブサイトを維持できなかったため、URL 移動は同期されませんでした。"
@@ -672,5 +672,8 @@
   },
   "urlSyncSettingSaveFailedNotice": {
     "message": "URL Sync 設定を保存できませんでした。以前の設定を引き続き使用しています。"
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "URL Sync 設定を読み取れなかったため、URL 移動は同期されませんでした。拡張機能の権限を確認するか、もう一度お試しください。"
   }
 }

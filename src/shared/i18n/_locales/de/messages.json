@@ -300,7 +300,7 @@
     "message": "Sprachen werden nach Möglichkeit beibehalten."
   },
   "urlSyncModeResetNotice": {
-    "message": "Der URL-Sync-Modus wurde zurückgesetzt, weil die gespeicherte Einstellung nicht gelesen werden konnte."
+    "message": "Der URL-Sync-Modus wurde zurückgesetzt, weil die gespeicherte Einstellung ungültig war."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Dieser Tab konnte für diese Seitenänderung nicht auf seiner aktuellen Website bleiben. Es wurde keine Navigation synchronisiert."
@@ -672,5 +672,8 @@
   },
   "urlSyncSettingSaveFailedNotice": {
     "message": "Die URL-Sync-Einstellung konnte nicht gespeichert werden. Die vorherige Einstellung wird weiterhin verwendet."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "Die URL-Sync-Einstellung konnte nicht gelesen werden. Die URL-Navigation wurde nicht synchronisiert. Prüfen Sie die Erweiterungsberechtigungen oder versuchen Sie es erneut."
   }
 }

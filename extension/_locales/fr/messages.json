@@ -300,7 +300,7 @@
     "message": "Les langues sont conservées lorsque c'est possible."
   },
   "urlSyncModeResetNotice": {
-    "message": "Le mode URL Sync a été réinitialisé, car le réglage enregistré n'a pas pu être lu."
+    "message": "Le mode URL Sync a été réinitialisé, car le réglage enregistré n'était pas valide."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Impossible de garder cet onglet sur son site actuel pour ce changement de page. Aucune navigation n'a été synchronisée."
@@ -672,5 +672,8 @@
   },
   "urlSyncSettingSaveFailedNotice": {
     "message": "Impossible d'enregistrer le paramètre URL Sync. Le paramètre précédent est toujours utilisé."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "Impossible de lire le réglage URL Sync. La navigation URL n'a pas été synchronisée. Vérifiez les autorisations de l'extension ou réessayez."
   }
 }
