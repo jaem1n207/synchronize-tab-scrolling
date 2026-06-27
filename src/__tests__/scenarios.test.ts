@@ -219,6 +219,22 @@ function getBackgroundCalls(messageId: string) {
   return mocks.sendMessageBackgroundMock.mock.calls.filter((call) => call[0] === messageId);
 }
 
+function collectUrlSyncNotices() {
+  const notices: Array<unknown> = [];
+  const listener = (event: Event) => {
+    notices.push((event as CustomEvent).detail);
+  };
+
+  window.addEventListener('scroll-sync-url-sync-notice', listener);
+
+  return {
+    notices,
+    cleanup: () => {
+      window.removeEventListener('scroll-sync-url-sync-notice', listener);
+    },
+  };
+}
+
 function setWindowUrl(url: string): void {
   jsdom.reconfigure({ url });
 }
@@ -380,14 +396,29 @@ describe('Scenario: URL sync toggle behavior', () => {
     await saveUrlSyncEnabled(true);
     mocks.storageData.set('urlSyncMode', 'unexpected-mode');
     setWindowUrl('https://staging.example.com/ko/home#intro');
+    const resetNotice = { key: 'urlSyncModeResetNotice', severity: 'warning' };
+    const { notices, cleanup } = collectUrlSyncNotices();
 
-    await invokeContentMessage('url:sync', {
-      url: 'https://example.com/en/about',
-      sourceTabId: 99,
-    });
+    try {
+      await invokeContentMessage('url:sync', {
+        url: 'https://example.com/en/about',
+        sourceTabId: 99,
+      });
 
-    expect(await loadUrlSyncMode()).toBe('follow-changed-tab');
-    expect(window.location.href).toBe('https://example.com/ko/about#intro');
+      expect(await loadUrlSyncMode()).toBe('follow-changed-tab');
+      expect(notices).toContainEqual(resetNotice);
+      expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+        'sync:url-mode-changed',
+        {
+          mode: 'follow-changed-tab',
+          notice: resetNotice,
+        },
+        'background',
+      );
+      expect(window.location.href).toBe('https://example.com/ko/about#intro');
+    } finally {
+      cleanup();
+    }
   });
 
   it('when URL sync is disabled, url:sync receiver does not navigate', async () => {
@@ -697,14 +728,23 @@ describe('Scenario: manual offset reset when URL changes', () => {
     await saveUrlSyncMode('keep-each-tabs-website');
     await saveManualScrollOffset(204, 0.3, 90);
     setWindowUrl('https://staging.example.com/ko/home');
+    const { notices, cleanup } = collectUrlSyncNotices();
 
-    await invokeContentMessage('url:sync', {
-      url: 'not-a-url',
-      sourceTabId: 999,
-    });
+    try {
+      await invokeContentMessage('url:sync', {
+        url: 'not-a-url',
+        sourceTabId: 999,
+      });
 
-    expect(window.location.href).toBe('https://staging.example.com/ko/home');
-    await expect(getManualScrollOffset(204)).resolves.toEqual({ ratio: 0.3, pixels: 90 });
+      expect(notices).toContainEqual({
+        key: 'urlSyncKeepWebsiteBlockedNotice',
+        severity: 'warning',
+      });
+      expect(window.location.href).toBe('https://staging.example.com/ko/home');
+      await expect(getManualScrollOffset(204)).resolves.toEqual({ ratio: 0.3, pixels: 90 });
+    } finally {
+      cleanup();
+    }
   });
 
   it('same-url resolution does not clear target offset', async () => {
