@@ -83,7 +83,12 @@ export function UrlSyncSettings({
   };
 
   const handleModeChange = (nextMode: UrlSyncMode) => {
-    if (!enabled || nextMode === mode || pendingModeRef.current !== null) {
+    if (
+      !enabled ||
+      nextMode === mode ||
+      pendingEnabledRef.current ||
+      pendingModeRef.current !== null
+    ) {
       return;
     }
 
@@ -127,6 +132,7 @@ export function UrlSyncSettings({
         {URL_SYNC_MODE_OPTIONS.map((option) => {
           const selected = option.mode === mode;
           const optionId = `${radioGroupName}-${option.mode}`;
+          const enabledChangePending = pendingEnabledRef.current;
           const modeChangePending = pendingModeRef.current !== null;
 
           return (
@@ -134,7 +140,7 @@ export function UrlSyncSettings({
               <input
                 checked={selected}
                 className="peer sr-only"
-                disabled={!enabled || modeChangePending}
+                disabled={!enabled || enabledChangePending || modeChangePending}
                 id={optionId}
                 name={radioGroupName}
                 type="radio"

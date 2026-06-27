@@ -16,13 +16,14 @@ vi.mock('~/shared/i18n', () => ({
       urlSyncModeKeepEachTabsWebsiteDescription:
         'Other tabs stay on their own website and open the matching page.',
       urlSyncModeLanguageHelper: 'Languages are kept when possible.',
-      urlSyncModeResetNotice:
-        'URL Sync mode was reset because the saved setting could not be read.',
+      urlSyncModeResetNotice: 'URL Sync mode was reset because the saved setting was not valid.',
       urlSyncKeepWebsiteBlockedNotice:
         'Could not keep this tab on its current website for that page change. No navigation was synced.',
       urlSyncLanguagePreservationNotice: 'Language could not be preserved for this page change.',
       urlSyncSettingSaveFailedNotice:
         'Could not save the URL Sync setting. The previous setting is still being used.',
+      urlSyncSettingReadFailedNotice:
+        'Could not read the URL Sync setting. URL navigation was not synced.',
     };
 
     if (!(key in messages)) {
@@ -106,6 +107,32 @@ describe('UrlSyncSettings', () => {
 
     expect(screen.getByRole('radio', { name: /Follow changed tab/i })).toBeDisabled();
     expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toBeDisabled();
+  });
+
+  it('blocks mode changes while the enabled switch callback is pending', async () => {
+    const onEnabledChange = vi.fn(() => new Promise<void>(() => {}));
+    const onModeChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <UrlSyncSettings
+        enabled={true}
+        mode="follow-changed-tab"
+        onEnabledChange={onEnabledChange}
+        onModeChange={onModeChange}
+      />,
+    );
+
+    const enabledSwitch = screen.getByRole('switch', { name: 'URL Sync' });
+    const keepWebsiteRadio = screen.getByRole('radio', { name: /Keep each tab's website/i });
+
+    await user.click(enabledSwitch);
+
+    expect(keepWebsiteRadio).toBeDisabled();
+
+    await user.click(keepWebsiteRadio);
+
+    expect(onModeChange).not.toHaveBeenCalled();
   });
 
   it('calls onModeChange when selecting a different mode', async () => {
@@ -244,7 +271,7 @@ describe('UrlSyncSettings', () => {
     const notice = screen.getByRole('status');
 
     expect(notice).toHaveTextContent(
-      'URL Sync mode was reset because the saved setting could not be read.',
+      'URL Sync mode was reset because the saved setting was not valid.',
     );
     expect(notice.className).toContain('border-yellow-200');
     expect(notice.className).toContain('bg-yellow-50');
