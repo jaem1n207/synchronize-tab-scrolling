@@ -8,6 +8,7 @@ import type {
   StartSyncMessage,
   StopSyncMessage,
   UrlSyncEnabledChangedMessage,
+  UrlSyncModeChangedMessage,
   UrlSyncMessage,
 } from '~/shared/types/messages';
 
@@ -559,6 +560,51 @@ describe('registerScrollSyncHandlers', () => {
       expect(sendMessage).toHaveBeenCalledWith('sync:url-enabled-changed', payload, {
         context: 'content-script',
         tabId: 73,
+      });
+    });
+  });
+
+  describe('sync:url-mode-changed', () => {
+    it('relays URL sync mode changes to linked tabs except sender.tabId', async () => {
+      const handler = getHandler<UrlSyncModeChangedMessage>('sync:url-mode-changed');
+      syncState.linkedTabs = [81, 82, 83];
+      const payload: UrlSyncModeChangedMessage = {
+        mode: 'keep-each-tabs-website',
+      };
+
+      const result = await handler({ data: payload, sender: { tabId: 81 } });
+
+      expect(result).toEqual({ success: true });
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+        context: 'content-script',
+        tabId: 82,
+      });
+      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+        context: 'content-script',
+        tabId: 83,
+      });
+    });
+
+    it('relays popup mode changes to all linked tabs when sender has no tabId', async () => {
+      const handler = getHandler<UrlSyncModeChangedMessage>('sync:url-mode-changed');
+      syncState.linkedTabs = [91, 92];
+      const payload: UrlSyncModeChangedMessage = {
+        mode: 'follow-changed-tab',
+        notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+      };
+
+      const result = await handler({ data: payload, sender: {} });
+
+      expect(result).toEqual({ success: true });
+      expect(sendMessage).toHaveBeenCalledTimes(2);
+      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+        context: 'content-script',
+        tabId: 91,
+      });
+      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+        context: 'content-script',
+        tabId: 92,
       });
     });
   });
