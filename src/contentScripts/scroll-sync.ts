@@ -8,7 +8,6 @@
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
-import { applyLocalePreservingSync } from '~/shared/lib/locale-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
@@ -21,9 +20,12 @@ import {
   clearManualScrollOffset,
   getManualScrollOffset,
   loadUrlSyncEnabled,
+  repairUrlSyncMode,
   saveManualScrollOffset,
   type ManualScrollOffset,
 } from '~/shared/lib/storage';
+import { resolveUrlSyncTarget } from '~/shared/lib/translated-page-url-utils';
+import type { UrlSyncNotice } from '~/shared/types/url-sync';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
 import {
@@ -331,6 +333,30 @@ async function broadcastUrlChange(url: string) {
   ).catch((error) => {
     logger.error('Failed to send URL sync message', { error });
   });
+}
+
+function emitUrlSyncNotice(notice: UrlSyncNotice) {
+  window.dispatchEvent(
+    new CustomEvent('scroll-sync-url-sync-notice', {
+      detail: notice,
+    }),
+  );
+}
+
+function navigateToUrl(url: string) {
+  const jsdomRuntime = Reflect.get(globalThis, 'jsdom');
+  if (jsdomRuntime && typeof jsdomRuntime === 'object') {
+    const reconfigure = Reflect.get(jsdomRuntime, 'reconfigure');
+    if (typeof reconfigure === 'function') {
+      Reflect.apply(reconfigure, jsdomRuntime, [{ url }]);
+      return;
+    }
+  }
+
+  if (window.location.href !== url) {
+    window.location.href = url;
+    return;
+  }
 }
 
 /**
@@ -916,32 +942,59 @@ export function initScrollSync() {
       return;
     }
 
-    logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
+    const modeRepairResult = await repairUrlSyncMode();
+    if (modeRepairResult.notice) {
+      emitUrlSyncNotice(modeRepairResult.notice);
+      sendMessage(
+        'sync:url-mode-changed',
+        {
+          mode: modeRepairResult.mode,
+          notice: modeRepairResult.notice,
+        },
+        'background',
+      ).catch((error) => {
+        logger.warn('Failed to broadcast repaired URL sync mode', { error });
+      });
+    }
+
+    const resolution = resolveUrlSyncTarget(
+      payload.url,
+      window.location.href,
+      modeRepairResult.mode,
+    );
+
+    if (resolution.status === 'blocked') {
+      emitUrlSyncNotice(resolution.notice);
+      logger.warn('URL sync navigation blocked', {
+        reason: resolution.reason,
+        sourceUrl: payload.url,
+        targetUrl: window.location.href,
+      });
+      return;
+    }
+
+    if (resolution.notice) {
+      emitUrlSyncNotice(resolution.notice);
+    }
+
+    if (resolution.url === window.location.href) {
+      logger.debug('URL sync resolved to current URL; skipping navigation', {
+        url: resolution.url,
+      });
+      return;
+    }
+
+    logger.info('Navigating to synced URL', {
+      url: resolution.url,
+      sourceTabId: payload.sourceTabId,
+      mode: modeRepairResult.mode,
+    });
 
     await clearManualScrollOffset(syncState.tabId);
     cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
 
-    try {
-      // Apply locale-preserving URL sync
-      // Preserves target tab's locale code while syncing path changes
-      const finalUrl = applyLocalePreservingSync(payload.url, window.location.href);
-
-      logger.debug('URL sync with locale and query/hash preservation', {
-        sourceUrl: payload.url,
-        targetUrl: window.location.href,
-        finalUrl,
-      });
-
-      // Navigate to the new URL with preserved locale, query, and hash
-      window.location.href = finalUrl;
-    } catch (error) {
-      // Fallback: use source URL as-is if locale-aware sync fails
-      logger.warn('Locale-aware URL sync failed, using source URL directly', {
-        error,
-      });
-      window.location.href = payload.url;
-    }
+    navigateToUrl(resolution.url);
   });
 
   // Listen for auto-sync status changes from background
