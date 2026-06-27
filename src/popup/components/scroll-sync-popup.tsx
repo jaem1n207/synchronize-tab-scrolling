@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 
+import { UrlSyncSettings } from '~/shared/components/url-sync-settings';
 import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
 import { saveSelectedTabIds } from '~/shared/lib/storage';
 
@@ -36,7 +37,13 @@ export function ScrollSyncPopup() {
   } = usePopupState();
 
   const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
-  const { urlSyncEnabled, handleUrlSyncChange } = useUrlSync();
+  const {
+    urlSyncEnabled,
+    urlSyncMode,
+    urlSyncNotice,
+    handleUrlSyncChange,
+    handleUrlSyncModeChange,
+  } = useUrlSync();
   const { excludedDomains, addDomain, removeDomain, previewDomain } = useDomainExclusions();
   const [excludedDomainsOpen, setExcludedDomainsOpen] = useState(false);
 
@@ -168,6 +175,14 @@ export function ScrollSyncPopup() {
           onRemoveTab={handleToggleTab}
         />
 
+        <UrlSyncSettings
+          enabled={urlSyncEnabled}
+          mode={urlSyncMode}
+          notice={urlSyncNotice}
+          onEnabledChange={handleUrlSyncChange}
+          onModeChange={handleUrlSyncModeChange}
+        />
+
         <section aria-labelledby="tab-selection-heading" className="flex-1 flex flex-col min-h-0">
           <TabCommandPalette
             ref={searchInputRef}
@@ -201,7 +216,6 @@ export function ScrollSyncPopup() {
             sameDomainFilter={sameDomainFilter}
             selectedCount={selectedTabIds.length}
             sortBy={sortBy}
-            urlSyncEnabled={urlSyncEnabled}
             onAutoSyncChange={handleAutoSyncChange}
             onOpenChange={setActionsMenuOpen}
             onOpenExcludedDomains={handleOpenExcludedDomains}
@@ -210,7 +224,6 @@ export function ScrollSyncPopup() {
             onStartSync={handleStart}
             onStopSync={handleStop}
             onToggleAllTabs={handleToggleAllTabs}
-            onUrlSyncChange={handleUrlSyncChange}
           />
         </div>
       </div>
