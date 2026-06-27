@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { UrlSyncSettings } from './url-sync-settings';
@@ -64,6 +64,32 @@ describe('UrlSyncSettings', () => {
     await user.click(screen.getByRole('switch', { name: 'URL Sync' }));
 
     expect(onEnabledChange).toHaveBeenCalledWith(false);
+  });
+
+  it('unlocks the URL Sync switch after onEnabledChange throws synchronously', async () => {
+    const onEnabledChange = vi.fn(() => {
+      throw new Error('toggle save failed');
+    });
+    const user = userEvent.setup();
+
+    render(
+      <UrlSyncSettings
+        enabled={true}
+        mode="follow-changed-tab"
+        onEnabledChange={onEnabledChange}
+        onModeChange={vi.fn()}
+      />,
+    );
+
+    const enabledSwitch = screen.getByRole('switch', { name: 'URL Sync' });
+
+    await user.click(enabledSwitch);
+    await waitFor(() => {
+      expect(enabledSwitch).not.toBeDisabled();
+    });
+    await user.click(enabledSwitch);
+
+    expect(onEnabledChange).toHaveBeenCalledTimes(2);
   });
 
   it('disables mode buttons when URL Sync is off', () => {
@@ -135,6 +161,32 @@ describe('UrlSyncSettings', () => {
     const keepWebsiteRadio = screen.getByRole('radio', { name: /Keep each tab's website/i });
 
     await user.click(keepWebsiteRadio);
+    await user.click(keepWebsiteRadio);
+
+    expect(onModeChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('unlocks mode selection after onModeChange throws synchronously', async () => {
+    const onModeChange = vi.fn(() => {
+      throw new Error('mode save failed');
+    });
+    const user = userEvent.setup();
+
+    render(
+      <UrlSyncSettings
+        enabled={true}
+        mode="follow-changed-tab"
+        onEnabledChange={vi.fn()}
+        onModeChange={onModeChange}
+      />,
+    );
+
+    const keepWebsiteRadio = screen.getByRole('radio', { name: /Keep each tab's website/i });
+
+    await user.click(keepWebsiteRadio);
+    await waitFor(() => {
+      expect(keepWebsiteRadio).not.toBeDisabled();
+    });
     await user.click(keepWebsiteRadio);
 
     expect(onModeChange).toHaveBeenCalledTimes(2);

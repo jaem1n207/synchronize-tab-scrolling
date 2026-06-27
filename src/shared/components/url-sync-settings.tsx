@@ -73,7 +73,8 @@ export function UrlSyncSettings({
     pendingEnabledRef.current = true;
     rerenderPendingState();
 
-    Promise.resolve(onEnabledChange(checked))
+    Promise.resolve()
+      .then(() => onEnabledChange(checked))
       .catch(() => {})
       .finally(() => {
         pendingEnabledRef.current = false;
@@ -89,7 +90,8 @@ export function UrlSyncSettings({
     pendingModeRef.current = nextMode;
     rerenderPendingState();
 
-    Promise.resolve(onModeChange(nextMode))
+    Promise.resolve()
+      .then(() => onModeChange(nextMode))
       .catch(() => {})
       .finally(() => {
         pendingModeRef.current = null;
