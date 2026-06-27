@@ -58,6 +58,7 @@
 ## Task 1: Add URL Sync Mode Types
 
 **Files:**
+
 - Create: `src/shared/types/url-sync.ts`
 - Modify: `src/shared/types/messages.ts`
 - Modify: `shim.d.ts`
@@ -171,6 +172,7 @@ git commit -m "feat: add URL sync mode types"
 ## Task 2: Add Pure URL Sync Resolution
 
 **Files:**
+
 - Modify: `src/shared/lib/translated-page-url-utils.test.ts`
 - Modify: `src/shared/lib/translated-page-url-utils.ts`
 
@@ -312,7 +314,14 @@ function buildPathLocaleUrlForTargetWebsite(
   const pathname = insertPathLocale(sourcePathname, targetLocale);
   const search = buildPathOrSubdomainLocaleSearch(source, target);
 
-  return buildUrlFromParts(target.protocol, target.hostname, target.port, pathname, search, target.hash);
+  return buildUrlFromParts(
+    target.protocol,
+    target.hostname,
+    target.port,
+    pathname,
+    search,
+    target.hash,
+  );
 }
 
 function buildQueryLocaleUrlForTargetWebsite(
@@ -324,7 +333,14 @@ function buildQueryLocaleUrlForTargetWebsite(
   const pathname = removePathLocale(source.pathname, sourceLocale);
   const search = buildTargetQuerySearch(source, targetLocale);
 
-  return buildUrlFromParts(target.protocol, target.hostname, target.port, pathname, search, target.hash);
+  return buildUrlFromParts(
+    target.protocol,
+    target.hostname,
+    target.port,
+    pathname,
+    search,
+    target.hash,
+  );
 }
 
 function buildSubdomainLocaleUrlForTargetWebsite(
@@ -336,7 +352,14 @@ function buildSubdomainLocaleUrlForTargetWebsite(
   const pathname = removePathLocale(source.pathname, sourceLocale);
   const search = buildPathOrSubdomainLocaleSearch(source, target);
 
-  return buildUrlFromParts(target.protocol, target.hostname, target.port, pathname, search, target.hash);
+  return buildUrlFromParts(
+    target.protocol,
+    target.hostname,
+    target.port,
+    pathname,
+    search,
+    target.hash,
+  );
 }
 
 function buildTargetWebsiteUrl(
@@ -432,6 +455,7 @@ git commit -m "feat: resolve URL sync modes"
 ## Task 3: Persist URL Sync Mode
 
 **Files:**
+
 - Modify: `src/shared/lib/storage.test.ts`
 - Modify: `src/shared/lib/storage.ts`
 - Modify: `src/shared/lib/index.ts`
@@ -637,6 +661,7 @@ git commit -m "feat: persist URL sync mode"
 ## Task 4: Relay URL Sync Mode Changes
 
 **Files:**
+
 - Modify: `src/background/handlers/scroll-sync-handlers.test.ts`
 - Modify: `src/background/handlers/scroll-sync-handlers.ts`
 
@@ -651,50 +676,50 @@ In `src/background/handlers/scroll-sync-handlers.test.ts`, add the type import:
 Add this block after the `sync:url-enabled-changed` tests:
 
 ```typescript
-  describe('sync:url-mode-changed', () => {
-    it('relays URL sync mode changes to linked tabs except sender.tabId', async () => {
-      const handler = getHandler<UrlSyncModeChangedMessage>('sync:url-mode-changed');
-      syncState.linkedTabs = [81, 82, 83];
-      const payload: UrlSyncModeChangedMessage = {
-        mode: 'keep-each-tabs-website',
-      };
+describe('sync:url-mode-changed', () => {
+  it('relays URL sync mode changes to linked tabs except sender.tabId', async () => {
+    const handler = getHandler<UrlSyncModeChangedMessage>('sync:url-mode-changed');
+    syncState.linkedTabs = [81, 82, 83];
+    const payload: UrlSyncModeChangedMessage = {
+      mode: 'keep-each-tabs-website',
+    };
 
-      const result = await handler({ data: payload, sender: { tabId: 81 } });
+    const result = await handler({ data: payload, sender: { tabId: 81 } });
 
-      expect(result).toEqual({ success: true });
-      expect(sendMessage).toHaveBeenCalledTimes(2);
-      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
-        context: 'content-script',
-        tabId: 82,
-      });
-      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
-        context: 'content-script',
-        tabId: 83,
-      });
+    expect(result).toEqual({ success: true });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+      context: 'content-script',
+      tabId: 82,
     });
-
-    it('relays popup mode changes to all linked tabs when sender has no tabId', async () => {
-      const handler = getHandler<UrlSyncModeChangedMessage>('sync:url-mode-changed');
-      syncState.linkedTabs = [91, 92];
-      const payload: UrlSyncModeChangedMessage = {
-        mode: 'follow-changed-tab',
-        notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
-      };
-
-      const result = await handler({ data: payload, sender: {} });
-
-      expect(result).toEqual({ success: true });
-      expect(sendMessage).toHaveBeenCalledTimes(2);
-      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
-        context: 'content-script',
-        tabId: 91,
-      });
-      expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
-        context: 'content-script',
-        tabId: 92,
-      });
+    expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+      context: 'content-script',
+      tabId: 83,
     });
   });
+
+  it('relays popup mode changes to all linked tabs when sender has no tabId', async () => {
+    const handler = getHandler<UrlSyncModeChangedMessage>('sync:url-mode-changed');
+    syncState.linkedTabs = [91, 92];
+    const payload: UrlSyncModeChangedMessage = {
+      mode: 'follow-changed-tab',
+      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+    };
+
+    const result = await handler({ data: payload, sender: {} });
+
+    expect(result).toEqual({ success: true });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+      context: 'content-script',
+      tabId: 91,
+    });
+    expect(sendMessage).toHaveBeenCalledWith('sync:url-mode-changed', payload, {
+      context: 'content-script',
+      tabId: 92,
+    });
+  });
+});
 ```
 
 - [ ] **Step 2: Run focused tests to verify failure**
@@ -712,28 +737,28 @@ Expected: FAIL with no handler for `sync:url-mode-changed`.
 In `src/background/handlers/scroll-sync-handlers.ts`, add after the `sync:url-enabled-changed` handler:
 
 ```typescript
-  onMessage('sync:url-mode-changed', async ({ data, sender }) => {
-    const payload = data;
-    const sourceTabId = sender.tabId;
-    logger.info('Relaying URL sync mode change', { mode: payload.mode, sourceTabId });
+onMessage('sync:url-mode-changed', async ({ data, sender }) => {
+  const payload = data;
+  const sourceTabId = sender.tabId;
+  logger.info('Relaying URL sync mode change', { mode: payload.mode, sourceTabId });
 
-    const targetTabIds =
-      sourceTabId === undefined
-        ? syncState.linkedTabs
-        : syncState.linkedTabs.filter((tabId) => tabId !== sourceTabId);
+  const targetTabIds =
+    sourceTabId === undefined
+      ? syncState.linkedTabs
+      : syncState.linkedTabs.filter((tabId) => tabId !== sourceTabId);
 
-    const promises = targetTabIds.map((tabId) =>
-      sendMessage('sync:url-mode-changed', payload, {
-        context: 'content-script',
-        tabId,
-      }).catch((error) => {
-        logger.debug(`Failed to relay URL sync mode to tab ${tabId}`, { error });
-      }),
-    );
+  const promises = targetTabIds.map((tabId) =>
+    sendMessage('sync:url-mode-changed', payload, {
+      context: 'content-script',
+      tabId,
+    }).catch((error) => {
+      logger.debug(`Failed to relay URL sync mode to tab ${tabId}`, { error });
+    }),
+  );
 
-    await Promise.all(promises);
-    return { success: true };
-  });
+  await Promise.all(promises);
+  return { success: true };
+});
 ```
 
 - [ ] **Step 4: Run focused tests to verify pass**
@@ -756,6 +781,7 @@ git commit -m "feat: relay URL sync mode changes"
 ## Task 5: Apply URL Sync Mode in Content Script Runtime
 
 **Files:**
+
 - Modify: `src/__tests__/scenarios.test.ts`
 - Modify: `src/contentScripts/scroll-sync.ts`
 
@@ -775,73 +801,73 @@ Add imports:
 Add tests to `describe('Scenario: URL sync toggle behavior', ...)`:
 
 ```typescript
-  it('default URL sync mode is follow-changed-tab', async () => {
-    await expect(loadUrlSyncMode()).resolves.toBe('follow-changed-tab');
+it('default URL sync mode is follow-changed-tab', async () => {
+  await expect(loadUrlSyncMode()).resolves.toBe('follow-changed-tab');
+});
+
+it('keep-each-tabs-website keeps target website when receiving url:sync', async () => {
+  await startContentSync(25);
+  await saveUrlSyncEnabled(true);
+  await saveUrlSyncMode('keep-each-tabs-website');
+  setWindowUrl('https://staging.example.com/ko/home#intro');
+
+  await invokeContentMessage('url:sync', {
+    url: 'https://example.com/en/about?tab=pricing',
+    sourceTabId: 99,
   });
 
-  it('keep-each-tabs-website keeps target website when receiving url:sync', async () => {
-    await startContentSync(25);
-    await saveUrlSyncEnabled(true);
-    await saveUrlSyncMode('keep-each-tabs-website');
-    setWindowUrl('https://staging.example.com/ko/home#intro');
+  expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
+});
 
-    await invokeContentMessage('url:sync', {
-      url: 'https://example.com/en/about?tab=pricing',
-      sourceTabId: 99,
-    });
+it('invalid stored URL sync mode is repaired before navigation', async () => {
+  await startContentSync(26);
+  await saveUrlSyncEnabled(true);
+  mocks.storageData.set('urlSyncMode', 'unexpected-mode');
+  setWindowUrl('https://staging.example.com/ko/home#intro');
 
-    expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
+  await invokeContentMessage('url:sync', {
+    url: 'https://example.com/en/about',
+    sourceTabId: 99,
   });
 
-  it('invalid stored URL sync mode is repaired before navigation', async () => {
-    await startContentSync(26);
-    await saveUrlSyncEnabled(true);
-    mocks.storageData.set('urlSyncMode', 'unexpected-mode');
-    setWindowUrl('https://staging.example.com/ko/home#intro');
-
-    await invokeContentMessage('url:sync', {
-      url: 'https://example.com/en/about',
-      sourceTabId: 99,
-    });
-
-    expect(await loadUrlSyncMode()).toBe('follow-changed-tab');
-    expect(window.location.href).toBe('https://example.com/ko/about#intro');
-  });
+  expect(await loadUrlSyncMode()).toBe('follow-changed-tab');
+  expect(window.location.href).toBe('https://example.com/ko/about#intro');
+});
 ```
 
 Add tests to `describe('Scenario: manual offset reset when URL changes', ...)`:
 
 ```typescript
-  it('blocked keep-each-tabs-website navigation does not clear target offset', async () => {
-    await startContentSync(204);
-    await saveUrlSyncEnabled(true);
-    await saveUrlSyncMode('keep-each-tabs-website');
-    await saveManualScrollOffset(204, 0.3, 90);
-    setWindowUrl('https://staging.example.com/ko/home');
+it('blocked keep-each-tabs-website navigation does not clear target offset', async () => {
+  await startContentSync(204);
+  await saveUrlSyncEnabled(true);
+  await saveUrlSyncMode('keep-each-tabs-website');
+  await saveManualScrollOffset(204, 0.3, 90);
+  setWindowUrl('https://staging.example.com/ko/home');
 
-    await invokeContentMessage('url:sync', {
-      url: 'not-a-url',
-      sourceTabId: 999,
-    });
-
-    expect(window.location.href).toBe('https://staging.example.com/ko/home');
-    await expect(getManualScrollOffset(204)).resolves.toEqual({ ratio: 0.3, pixels: 90 });
+  await invokeContentMessage('url:sync', {
+    url: 'not-a-url',
+    sourceTabId: 999,
   });
 
-  it('same-url resolution does not clear target offset', async () => {
-    await startContentSync(205);
-    await saveUrlSyncEnabled(true);
-    await saveUrlSyncMode('keep-each-tabs-website');
-    await saveManualScrollOffset(205, -0.1, -30);
-    setWindowUrl('https://staging.example.com/ko/about');
+  expect(window.location.href).toBe('https://staging.example.com/ko/home');
+  await expect(getManualScrollOffset(204)).resolves.toEqual({ ratio: 0.3, pixels: 90 });
+});
 
-    await invokeContentMessage('url:sync', {
-      url: 'https://example.com/en/about',
-      sourceTabId: 999,
-    });
+it('same-url resolution does not clear target offset', async () => {
+  await startContentSync(205);
+  await saveUrlSyncEnabled(true);
+  await saveUrlSyncMode('keep-each-tabs-website');
+  await saveManualScrollOffset(205, -0.1, -30);
+  setWindowUrl('https://staging.example.com/ko/about');
 
-    await expect(getManualScrollOffset(205)).resolves.toEqual({ ratio: -0.1, pixels: -30 });
+  await invokeContentMessage('url:sync', {
+    url: 'https://example.com/en/about',
+    sourceTabId: 999,
   });
+
+  await expect(getManualScrollOffset(205)).resolves.toEqual({ ratio: -0.1, pixels: -30 });
+});
 ```
 
 - [ ] **Step 3: Run scenario tests to verify failure**
@@ -884,59 +910,55 @@ function emitUrlSyncNotice(notice: UrlSyncNotice) {
 Replace the `url:sync` handler body after the enabled check with:
 
 ```typescript
-    const modeRepairResult = await repairUrlSyncMode();
-    if (modeRepairResult.notice) {
-      emitUrlSyncNotice(modeRepairResult.notice);
-      sendMessage(
-        'sync:url-mode-changed',
-        {
-          mode: modeRepairResult.mode,
-          notice: modeRepairResult.notice,
-        },
-        'background',
-      ).catch((error) => {
-        logger.warn('Failed to broadcast repaired URL sync mode', { error });
-      });
-    }
-
-    const resolution = resolveUrlSyncTarget(
-      payload.url,
-      window.location.href,
-      modeRepairResult.mode,
-    );
-
-    if (resolution.status === 'blocked') {
-      emitUrlSyncNotice(resolution.notice);
-      logger.warn('URL sync navigation blocked', {
-        reason: resolution.reason,
-        sourceUrl: payload.url,
-        targetUrl: window.location.href,
-      });
-      return;
-    }
-
-    if (resolution.notice) {
-      emitUrlSyncNotice(resolution.notice);
-    }
-
-    if (resolution.url === window.location.href) {
-      logger.debug('URL sync resolved to current URL; skipping navigation', {
-        url: resolution.url,
-      });
-      return;
-    }
-
-    logger.info('Navigating to synced URL', {
-      url: resolution.url,
-      sourceTabId: payload.sourceTabId,
+const modeRepairResult = await repairUrlSyncMode();
+if (modeRepairResult.notice) {
+  emitUrlSyncNotice(modeRepairResult.notice);
+  sendMessage(
+    'sync:url-mode-changed',
+    {
       mode: modeRepairResult.mode,
-    });
+      notice: modeRepairResult.notice,
+    },
+    'background',
+  ).catch((error) => {
+    logger.warn('Failed to broadcast repaired URL sync mode', { error });
+  });
+}
 
-    await clearManualScrollOffset(syncState.tabId);
-    cachedManualOffset = { ratio: 0, pixels: 0 };
-    logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
+const resolution = resolveUrlSyncTarget(payload.url, window.location.href, modeRepairResult.mode);
 
-    window.location.href = resolution.url;
+if (resolution.status === 'blocked') {
+  emitUrlSyncNotice(resolution.notice);
+  logger.warn('URL sync navigation blocked', {
+    reason: resolution.reason,
+    sourceUrl: payload.url,
+    targetUrl: window.location.href,
+  });
+  return;
+}
+
+if (resolution.notice) {
+  emitUrlSyncNotice(resolution.notice);
+}
+
+if (resolution.url === window.location.href) {
+  logger.debug('URL sync resolved to current URL; skipping navigation', {
+    url: resolution.url,
+  });
+  return;
+}
+
+logger.info('Navigating to synced URL', {
+  url: resolution.url,
+  sourceTabId: payload.sourceTabId,
+  mode: modeRepairResult.mode,
+});
+
+await clearManualScrollOffset(syncState.tabId);
+cachedManualOffset = { ratio: 0, pixels: 0 };
+logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
+
+window.location.href = resolution.url;
 ```
 
 Remove the old `try/catch` fallback to `payload.url` from this handler. The selected mode must not silently become another mode.
@@ -961,6 +983,7 @@ git commit -m "feat: apply URL sync mode in content scripts"
 ## Task 6: Build Shared URL Sync Settings UI
 
 **Files:**
+
 - Create: `src/shared/components/url-sync-settings.tsx`
 - Create: `src/shared/components/url-sync-settings.test.tsx`
 
@@ -1211,6 +1234,7 @@ git commit -m "feat: add URL sync settings control"
 ## Task 7: Wire Popup and Content Panel UI
 
 **Files:**
+
 - Modify: `src/popup/hooks/use-url-sync.ts`
 - Modify: `src/popup/components/scroll-sync-popup.tsx`
 - Modify: `src/popup/components/actions-menu.tsx`
@@ -1251,38 +1275,38 @@ import {
 Add state and loading effect:
 
 ```typescript
-  const [urlSyncMode, setUrlSyncMode] = useState<UrlSyncMode>(DEFAULT_URL_SYNC_MODE);
-  const [urlSyncNotice, setUrlSyncNotice] = useState<UrlSyncNotice | null>(null);
+const [urlSyncMode, setUrlSyncMode] = useState<UrlSyncMode>(DEFAULT_URL_SYNC_MODE);
+const [urlSyncNotice, setUrlSyncNotice] = useState<UrlSyncNotice | null>(null);
 
-  useEffect(() => {
-    repairUrlSyncMode()
-      .then((result) => {
-        setUrlSyncMode(result.mode);
-        if (result.notice) {
-          setUrlSyncNotice(result.notice);
-        }
-      })
-      .catch(() => {
-        setUrlSyncMode(DEFAULT_URL_SYNC_MODE);
-      });
-  }, []);
+useEffect(() => {
+  repairUrlSyncMode()
+    .then((result) => {
+      setUrlSyncMode(result.mode);
+      if (result.notice) {
+        setUrlSyncNotice(result.notice);
+      }
+    })
+    .catch(() => {
+      setUrlSyncMode(DEFAULT_URL_SYNC_MODE);
+    });
+}, []);
 ```
 
 Add handler:
 
 ```typescript
-  const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
-    setUrlSyncMode(mode);
-    setUrlSyncNotice(null);
-    await saveUrlSyncMode(mode);
-    sendMessage('sync:url-mode-changed', { mode }, 'background').catch((err) => {
-      logger.warn('[useUrlSync] Failed to notify background of URL sync mode change:', err);
-    });
-  }, []);
+const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
+  setUrlSyncMode(mode);
+  setUrlSyncNotice(null);
+  await saveUrlSyncMode(mode);
+  sendMessage('sync:url-mode-changed', { mode }, 'background').catch((err) => {
+    logger.warn('[useUrlSync] Failed to notify background of URL sync mode change:', err);
+  });
+}, []);
 
-  const dismissUrlSyncNotice = useCallback(() => {
-    setUrlSyncNotice(null);
-  }, []);
+const dismissUrlSyncNotice = useCallback(() => {
+  setUrlSyncNotice(null);
+}, []);
 ```
 
 Return the new values:
@@ -1305,25 +1329,20 @@ import { UrlSyncSettings } from '~/shared/components/url-sync-settings';
 Update hook destructuring:
 
 ```typescript
-  const {
-    urlSyncEnabled,
-    urlSyncMode,
-    urlSyncNotice,
-    handleUrlSyncChange,
-    handleUrlSyncModeChange,
-  } = useUrlSync();
+const { urlSyncEnabled, urlSyncMode, urlSyncNotice, handleUrlSyncChange, handleUrlSyncModeChange } =
+  useUrlSync();
 ```
 
 Add this block above the footer control row:
 
 ```tsx
-        <UrlSyncSettings
-          enabled={urlSyncEnabled}
-          mode={urlSyncMode}
-          notice={urlSyncNotice}
-          onEnabledChange={handleUrlSyncChange}
-          onModeChange={handleUrlSyncModeChange}
-        />
+<UrlSyncSettings
+  enabled={urlSyncEnabled}
+  mode={urlSyncMode}
+  notice={urlSyncNotice}
+  onEnabledChange={handleUrlSyncChange}
+  onModeChange={handleUrlSyncModeChange}
+/>
 ```
 
 Pass no URL Sync props into `ActionsMenu` after removing its duplicate command.
@@ -1373,75 +1392,75 @@ import {
 Add state:
 
 ```typescript
-  const [urlSyncMode, setUrlSyncMode] = useState<UrlSyncMode>(DEFAULT_URL_SYNC_MODE);
-  const [urlSyncNotice, setUrlSyncNotice] = useState<UrlSyncNotice | null>(null);
+const [urlSyncMode, setUrlSyncMode] = useState<UrlSyncMode>(DEFAULT_URL_SYNC_MODE);
+const [urlSyncNotice, setUrlSyncNotice] = useState<UrlSyncNotice | null>(null);
 ```
 
 Add mode loading in the existing URL Sync effect:
 
 ```typescript
-    repairUrlSyncMode()
-      .then((result) => {
-        setUrlSyncMode(result.mode);
-        if (result.notice) {
-          setUrlSyncNotice(result.notice);
-        }
-      })
-      .catch(() => {
-        setUrlSyncMode(DEFAULT_URL_SYNC_MODE);
-      });
+repairUrlSyncMode()
+  .then((result) => {
+    setUrlSyncMode(result.mode);
+    if (result.notice) {
+      setUrlSyncNotice(result.notice);
+    }
+  })
+  .catch(() => {
+    setUrlSyncMode(DEFAULT_URL_SYNC_MODE);
+  });
 ```
 
 Add message listener:
 
 ```typescript
-    const unsubscribeMode = onMessage('sync:url-mode-changed', ({ data }) => {
-      setUrlSyncMode(data.mode);
-      saveUrlSyncMode(data.mode);
-      setUrlSyncNotice(data.notice ?? null);
-    });
+const unsubscribeMode = onMessage('sync:url-mode-changed', ({ data }) => {
+  setUrlSyncMode(data.mode);
+  saveUrlSyncMode(data.mode);
+  setUrlSyncNotice(data.notice ?? null);
+});
 ```
 
 Add custom event listener:
 
 ```typescript
-    const handleUrlSyncNotice = (event: Event) => {
-      const customEvent = event as CustomEvent<UrlSyncNotice>;
-      setUrlSyncNotice(customEvent.detail);
-    };
+const handleUrlSyncNotice = (event: Event) => {
+  const customEvent = event as CustomEvent<UrlSyncNotice>;
+  setUrlSyncNotice(customEvent.detail);
+};
 
-    window.addEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
+window.addEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
 ```
 
 Update cleanup:
 
 ```typescript
-      unsubscribeMode();
-      window.removeEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
+unsubscribeMode();
+window.removeEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
 ```
 
 Add handler:
 
 ```typescript
-  const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
-    setUrlSyncMode(mode);
-    setUrlSyncNotice(null);
-    await saveUrlSyncMode(mode);
+const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
+  setUrlSyncMode(mode);
+  setUrlSyncNotice(null);
+  await saveUrlSyncMode(mode);
 
-    try {
-      await sendMessage('sync:url-mode-changed', { mode }, 'background');
-    } catch (error) {
-      await logger.error('Failed to broadcast URL sync mode change', error);
-    }
-  }, []);
+  try {
+    await sendMessage('sync:url-mode-changed', { mode }, 'background');
+  } catch (error) {
+    await logger.error('Failed to broadcast URL sync mode change', error);
+  }
+}, []);
 ```
 
 Pass new props to `SyncControlPanel`:
 
 ```tsx
-        urlSyncMode={urlSyncMode}
-        urlSyncNotice={urlSyncNotice}
-        onModeChange={handleUrlSyncModeChange}
+urlSyncMode = { urlSyncMode };
+urlSyncNotice = { urlSyncNotice };
+onModeChange = { handleUrlSyncModeChange };
 ```
 
 - [ ] **Step 5: Render compact settings in content panel**
@@ -1464,14 +1483,14 @@ Update props:
 Replace the existing URL Sync toggle block with:
 
 ```tsx
-                <UrlSyncSettings
-                  compact
-                  enabled={urlSyncEnabled}
-                  mode={urlSyncMode}
-                  notice={urlSyncNotice}
-                  onEnabledChange={onToggle}
-                  onModeChange={onModeChange}
-                />
+<UrlSyncSettings
+  compact
+  enabled={urlSyncEnabled}
+  mode={urlSyncMode}
+  notice={urlSyncNotice}
+  onEnabledChange={onToggle}
+  onModeChange={onModeChange}
+/>
 ```
 
 - [ ] **Step 6: Run focused UI tests**
@@ -1494,6 +1513,7 @@ git commit -m "feat: show URL sync mode controls"
 ## Task 8: Add i18n Copy
 
 **Files:**
+
 - Modify: `src/shared/i18n/_locales/*/messages.json`
 - Modify: `extension/_locales/*/messages.json`
 
@@ -1811,6 +1831,7 @@ git commit -m "feat(i18n): add URL sync mode copy"
 ## Task 9: Final Verification
 
 **Files:**
+
 - No new files.
 
 - [ ] **Step 1: Run focused tests**
