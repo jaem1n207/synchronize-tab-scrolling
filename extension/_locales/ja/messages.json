@@ -669,5 +669,8 @@
   },
   "confirmRemoveDomain": {
     "message": "Enterで削除"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "URL Sync 設定を保存できませんでした。以前の設定を引き続き使用しています。"
   }
 }

@@ -669,5 +669,8 @@
   },
   "confirmRemoveDomain": {
     "message": "हटाने के लिए Enter दबाएं"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "URL Sync सेटिंग सहेजी नहीं जा सकी। पिछली सेटिंग अभी भी उपयोग की जा रही है।"
   }
 }

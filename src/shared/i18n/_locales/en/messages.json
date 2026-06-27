@@ -669,5 +669,8 @@
   },
   "confirmRemoveDomain": {
     "message": "Press Enter to remove"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "Could not save the URL Sync setting. The previous setting is still being used."
   }
 }

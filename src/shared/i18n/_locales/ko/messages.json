@@ -669,5 +669,8 @@
   },
   "confirmRemoveDomain": {
     "message": "Enter를 눌러 제거"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "URL Sync 설정을 저장할 수 없습니다. 이전 설정을 계속 사용합니다."
   }
 }

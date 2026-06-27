@@ -669,5 +669,8 @@
   },
   "confirmRemoveDomain": {
     "message": "Entrée pour supprimer"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "Impossible d'enregistrer le paramètre URL Sync. Le paramètre précédent est toujours utilisé."
   }
 }

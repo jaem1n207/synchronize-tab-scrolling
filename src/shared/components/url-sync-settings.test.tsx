@@ -21,6 +21,8 @@ vi.mock('~/shared/i18n', () => ({
       urlSyncKeepWebsiteBlockedNotice:
         'Could not keep this tab on its current website for that page change. No navigation was synced.',
       urlSyncLanguagePreservationNotice: 'Language could not be preserved for this page change.',
+      urlSyncSettingSaveFailedNotice:
+        'Could not save the URL Sync setting. The previous setting is still being used.',
     };
 
     if (!(key in messages)) {

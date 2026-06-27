@@ -669,5 +669,8 @@
   },
   "confirmRemoveDomain": {
     "message": "按 Enter 刪除"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "無法儲存 URL Sync 設定。仍在使用先前的設定。"
   }
 }

@@ -669,5 +669,8 @@
   },
   "confirmRemoveDomain": {
     "message": "Enter para eliminar"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "No se pudo guardar la configuración de URL Sync. Se sigue usando la configuración anterior."
   }
 }
