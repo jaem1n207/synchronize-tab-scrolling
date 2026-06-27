@@ -219,13 +219,15 @@ export async function clearAllManualScrollOffsets(): Promise<void> {
  * Save URL sync enabled state
  * @param enabled - Whether URL synchronization is enabled
  */
-export async function saveUrlSyncEnabled(enabled: boolean): Promise<void> {
+export async function saveUrlSyncEnabled(enabled: boolean): Promise<boolean> {
   try {
     await browser.storage.local.set({
       [STORAGE_KEYS.URL_SYNC_ENABLED]: enabled,
     });
+    return true;
   } catch (error) {
     await logger.error('Failed to save URL sync enabled state:', error);
+    return false;
   }
 }
 
@@ -251,13 +253,15 @@ export interface UrlSyncModeRepairResult {
   notice?: UrlSyncNotice;
 }
 
-export async function saveUrlSyncMode(mode: UrlSyncMode): Promise<void> {
+export async function saveUrlSyncMode(mode: UrlSyncMode): Promise<boolean> {
   try {
     await browser.storage.local.set({
       [STORAGE_KEYS.URL_SYNC_MODE]: mode,
     });
+    return true;
   } catch (error) {
     await logger.error('Failed to save URL sync mode:', error);
+    return false;
   }
 }
 

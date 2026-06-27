@@ -406,7 +406,7 @@ describe('saveUrlSyncEnabled', () => {
   it('saves URL sync enabled state', async () => {
     storageSetMock.mockResolvedValue(undefined);
 
-    await saveUrlSyncEnabled(false);
+    await expect(saveUrlSyncEnabled(false)).resolves.toBe(true);
 
     expect(storageSetMock).toHaveBeenCalledWith({ urlSyncEnabled: false });
   });
@@ -415,7 +415,7 @@ describe('saveUrlSyncEnabled', () => {
     const error = new Error('set failed');
     storageSetMock.mockRejectedValue(error);
 
-    await saveUrlSyncEnabled(true);
+    await expect(saveUrlSyncEnabled(true)).resolves.toBe(false);
 
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to save URL sync enabled state:', error);
   });
@@ -454,7 +454,7 @@ describe('saveUrlSyncMode', () => {
   it('saves URL sync mode', async () => {
     storageSetMock.mockResolvedValue(undefined);
 
-    await saveUrlSyncMode('keep-each-tabs-website');
+    await expect(saveUrlSyncMode('keep-each-tabs-website')).resolves.toBe(true);
 
     expect(storageSetMock).toHaveBeenCalledWith({ urlSyncMode: 'keep-each-tabs-website' });
   });
@@ -463,7 +463,7 @@ describe('saveUrlSyncMode', () => {
     const error = new Error('set failed');
     storageSetMock.mockRejectedValue(error);
 
-    await saveUrlSyncMode('follow-changed-tab');
+    await expect(saveUrlSyncMode('follow-changed-tab')).resolves.toBe(false);
 
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to save URL sync mode:', error);
   });
