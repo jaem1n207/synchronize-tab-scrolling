@@ -285,9 +285,18 @@ export async function repairUrlSyncMode(): Promise<UrlSyncModeRepairResult> {
       return { mode: storedMode, repaired: false };
     }
 
-    await browser.storage.local.set({
-      [STORAGE_KEYS.URL_SYNC_MODE]: DEFAULT_URL_SYNC_MODE,
-    });
+    try {
+      await browser.storage.local.set({
+        [STORAGE_KEYS.URL_SYNC_MODE]: DEFAULT_URL_SYNC_MODE,
+      });
+    } catch (error) {
+      await logger.error('Failed to repair URL sync mode:', error);
+      return {
+        mode: DEFAULT_URL_SYNC_MODE,
+        repaired: false,
+        notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+      };
+    }
 
     return {
       mode: DEFAULT_URL_SYNC_MODE,
@@ -298,7 +307,7 @@ export async function repairUrlSyncMode(): Promise<UrlSyncModeRepairResult> {
     await logger.error('Failed to repair URL sync mode:', error);
     return {
       mode: DEFAULT_URL_SYNC_MODE,
-      repaired: true,
+      repaired: false,
       notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
     };
   }

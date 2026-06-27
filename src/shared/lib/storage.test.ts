@@ -513,6 +513,31 @@ describe('repairUrlSyncMode', () => {
     });
     expect(storageSetMock).toHaveBeenCalledWith({ urlSyncMode: 'follow-changed-tab' });
   });
+
+  it('returns reset notice without repaired flag when reading mode fails', async () => {
+    const error = new Error('get failed');
+    storageGetMock.mockRejectedValue(error);
+
+    await expect(repairUrlSyncMode()).resolves.toEqual({
+      mode: 'follow-changed-tab',
+      repaired: false,
+      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+    });
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to repair URL sync mode:', error);
+  });
+
+  it('returns reset notice without repaired flag when repairing invalid mode fails', async () => {
+    const error = new Error('set failed');
+    storageGetMock.mockResolvedValue({ urlSyncMode: 'unexpected-mode' });
+    storageSetMock.mockRejectedValue(error);
+
+    await expect(repairUrlSyncMode()).resolves.toEqual({
+      mode: 'follow-changed-tab',
+      repaired: false,
+      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+    });
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to repair URL sync mode:', error);
+  });
 });
 
 describe('saveAutoSyncEnabled', () => {
