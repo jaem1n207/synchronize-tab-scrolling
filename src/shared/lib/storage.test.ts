@@ -13,6 +13,8 @@ import {
   loadSelectedTabIds,
   loadSyncMode,
   loadUrlSyncEnabled,
+  loadUrlSyncMode,
+  repairUrlSyncMode,
   saveAutoSyncEnabled,
   saveAutoSyncExcludedUrls,
   saveExcludedDomains,
@@ -21,6 +23,7 @@ import {
   saveSelectedTabIds,
   saveSyncMode,
   saveUrlSyncEnabled,
+  saveUrlSyncMode,
 } from './storage';
 
 const { storageGetMock, storageSetMock, storageClearMock, loggerErrorMock, extensionLoggerMock } =
@@ -403,7 +406,7 @@ describe('saveUrlSyncEnabled', () => {
   it('saves URL sync enabled state', async () => {
     storageSetMock.mockResolvedValue(undefined);
 
-    await saveUrlSyncEnabled(false);
+    await expect(saveUrlSyncEnabled(false)).resolves.toBe(true);
 
     expect(storageSetMock).toHaveBeenCalledWith({ urlSyncEnabled: false });
   });
@@ -412,7 +415,7 @@ describe('saveUrlSyncEnabled', () => {
     const error = new Error('set failed');
     storageSetMock.mockRejectedValue(error);
 
-    await saveUrlSyncEnabled(true);
+    await expect(saveUrlSyncEnabled(true)).resolves.toBe(false);
 
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to save URL sync enabled state:', error);
   });
@@ -438,12 +441,115 @@ describe('loadUrlSyncEnabled', () => {
     await expect(loadUrlSyncEnabled()).resolves.toBe(true);
   });
 
+  it.each(['false', null, 0, {}])(
+    'returns true when stored value is invalid: %s',
+    async (storedValue) => {
+      storageGetMock.mockResolvedValue({ urlSyncEnabled: storedValue });
+
+      await expect(loadUrlSyncEnabled()).resolves.toBe(true);
+    },
+  );
+
   it('returns true and logs error when load fails', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);
 
     await expect(loadUrlSyncEnabled()).resolves.toBe(true);
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to load URL sync enabled state:', error);
+  });
+});
+
+describe('saveUrlSyncMode', () => {
+  it('saves URL sync mode', async () => {
+    storageSetMock.mockResolvedValue(undefined);
+
+    await expect(saveUrlSyncMode('keep-each-tabs-website')).resolves.toBe(true);
+
+    expect(storageSetMock).toHaveBeenCalledWith({ urlSyncMode: 'keep-each-tabs-website' });
+  });
+
+  it('logs an error when save fails', async () => {
+    const error = new Error('set failed');
+    storageSetMock.mockRejectedValue(error);
+
+    await expect(saveUrlSyncMode('follow-changed-tab')).resolves.toBe(false);
+
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to save URL sync mode:', error);
+  });
+});
+
+describe('loadUrlSyncMode', () => {
+  it('returns follow-changed-tab by default when key is missing', async () => {
+    storageGetMock.mockResolvedValue({});
+
+    await expect(loadUrlSyncMode()).resolves.toBe('follow-changed-tab');
+    expect(storageGetMock).toHaveBeenCalledWith('urlSyncMode');
+  });
+
+  it('returns stored keep-each-tabs-website mode', async () => {
+    storageGetMock.mockResolvedValue({ urlSyncMode: 'keep-each-tabs-website' });
+
+    await expect(loadUrlSyncMode()).resolves.toBe('keep-each-tabs-website');
+  });
+
+  it('returns follow-changed-tab for invalid stored values', async () => {
+    storageGetMock.mockResolvedValue({ urlSyncMode: 'unexpected-mode' });
+
+    await expect(loadUrlSyncMode()).resolves.toBe('follow-changed-tab');
+    expect(storageSetMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('repairUrlSyncMode', () => {
+  it('does not show a notice for missing mode', async () => {
+    storageGetMock.mockResolvedValue({});
+
+    await expect(repairUrlSyncMode()).resolves.toEqual({
+      status: 'success',
+      mode: 'follow-changed-tab',
+      repaired: false,
+    });
+    expect(storageSetMock).not.toHaveBeenCalled();
+  });
+
+  it('repairs invalid mode and returns reset notice', async () => {
+    storageGetMock.mockResolvedValue({ urlSyncMode: 'unexpected-mode' });
+    storageSetMock.mockResolvedValue(undefined);
+
+    await expect(repairUrlSyncMode()).resolves.toEqual({
+      status: 'success',
+      mode: 'follow-changed-tab',
+      repaired: true,
+      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+    });
+    expect(storageSetMock).toHaveBeenCalledWith({ urlSyncMode: 'follow-changed-tab' });
+  });
+
+  it('returns a read failure result when reading mode fails', async () => {
+    const error = new Error('get failed');
+    storageGetMock.mockRejectedValue(error);
+
+    await expect(repairUrlSyncMode()).resolves.toEqual({
+      status: 'failed',
+      reason: 'read-failed',
+      repaired: false,
+      notice: { key: 'urlSyncSettingReadFailedNotice', severity: 'error' },
+    });
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to repair URL sync mode:', error);
+  });
+
+  it('returns a write failure result when repairing invalid mode fails', async () => {
+    const error = new Error('set failed');
+    storageGetMock.mockResolvedValue({ urlSyncMode: 'unexpected-mode' });
+    storageSetMock.mockRejectedValue(error);
+
+    await expect(repairUrlSyncMode()).resolves.toEqual({
+      status: 'failed',
+      reason: 'write-failed',
+      repaired: false,
+      notice: { key: 'urlSyncSettingSaveFailedNotice', severity: 'error' },
+    });
+    expect(loggerErrorMock).toHaveBeenCalledWith('Failed to repair URL sync mode:', error);
   });
 });
 

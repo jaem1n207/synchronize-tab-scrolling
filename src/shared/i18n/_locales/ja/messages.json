@@ -281,6 +281,33 @@
   "urlSyncNavigation": {
     "message": "URL同期"
   },
+  "urlSyncModeDescription": {
+    "message": "リンクしたタブがページ変更にどう追従するかを選択します。"
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "変更したタブに従う"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "他のタブも変更したタブのウェブサイトへ移動します。"
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "各タブのウェブサイトを維持"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "他のタブはそれぞれのウェブサイトに残り、対応するページを開きます。"
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "可能な場合は言語設定を維持します。"
+  },
+  "urlSyncModeResetNotice": {
+    "message": "保存された設定が有効ではなかったため、URL Sync モードをリセットしました。"
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "このページ変更では現在のウェブサイトを維持できなかったため、URL 移動は同期されませんでした。"
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "このページ変更では言語設定を維持できませんでした。"
+  },
   "syncedTabs": {
     "message": "同期済みタブ"
   },
@@ -642,5 +669,11 @@
   },
   "confirmRemoveDomain": {
     "message": "Enterで削除"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "URL Sync 設定を保存できませんでした。以前の設定を引き続き使用しています。"
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "URL Sync 設定を読み取れなかったため、URL 移動は同期されませんでした。拡張機能の権限を確認するか、もう一度お試しください。"
   }
 }

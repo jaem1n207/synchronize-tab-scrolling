@@ -1,3 +1,5 @@
+import type { UrlSyncMode, UrlSyncResolutionResult } from '~/shared/types/url-sync';
+
 export type LocaleSource = 'path' | 'query' | 'subdomain';
 export type TranslatedPageConfidence = 'high' | 'medium' | 'low';
 export type AutoSyncSuggestionMatchKind = 'same-url' | 'translated-page' | 'possible-translation';
@@ -347,6 +349,92 @@ function buildSubdomainLocaleUrl(
   return buildUrlFromParts(source.protocol, hostname, source.port, pathname, search, target.hash);
 }
 
+function buildPathLocaleUrlForTargetWebsite(
+  source: URL,
+  sourceLocale: LocaleDescriptor | undefined,
+  target: URL,
+  targetLocale: LocaleDescriptor,
+): string {
+  const sourcePathname = removePathLocale(source.pathname, sourceLocale);
+  const pathname = insertPathLocale(sourcePathname, targetLocale);
+  const search = buildPathOrSubdomainLocaleSearch(source, target);
+
+  return buildUrlFromParts(
+    target.protocol,
+    target.hostname,
+    target.port,
+    pathname,
+    search,
+    target.hash,
+  );
+}
+
+function buildQueryLocaleUrlForTargetWebsite(
+  source: URL,
+  sourceLocale: LocaleDescriptor | undefined,
+  target: URL,
+  targetLocale: LocaleDescriptor,
+): string {
+  const pathname = removePathLocale(source.pathname, sourceLocale);
+  const search = buildTargetQuerySearch(source, targetLocale);
+
+  return buildUrlFromParts(
+    target.protocol,
+    target.hostname,
+    target.port,
+    pathname,
+    search,
+    target.hash,
+  );
+}
+
+function buildSubdomainLocaleUrlForTargetWebsite(
+  source: URL,
+  sourceLocale: LocaleDescriptor | undefined,
+  target: URL,
+): string {
+  const pathname = removePathLocale(source.pathname, sourceLocale);
+  const search = buildPathOrSubdomainLocaleSearch(source, target);
+
+  return buildUrlFromParts(
+    target.protocol,
+    target.hostname,
+    target.port,
+    pathname,
+    search,
+    target.hash,
+  );
+}
+
+function buildTargetWebsiteUrl(
+  source: URL,
+  sourceLocale: LocaleDescriptor | undefined,
+  target: URL,
+  targetLocale: LocaleDescriptor | undefined,
+): string {
+  if (!targetLocale) {
+    const search = buildPathOrSubdomainLocaleSearch(source, target);
+    return buildUrlFromParts(
+      target.protocol,
+      target.hostname,
+      target.port,
+      source.pathname,
+      search,
+      target.hash,
+    );
+  }
+
+  if (targetLocale.source === 'path') {
+    return buildPathLocaleUrlForTargetWebsite(source, sourceLocale, target, targetLocale);
+  }
+
+  if (targetLocale.source === 'query') {
+    return buildQueryLocaleUrlForTargetWebsite(source, sourceLocale, target, targetLocale);
+  }
+
+  return buildSubdomainLocaleUrlForTargetWebsite(source, sourceLocale, target);
+}
+
 export function buildTranslatedPageSignature(url: string): TranslatedPageSignature | null {
   const parsedUrl = parseHttpUrl(url);
 
@@ -439,4 +527,43 @@ export function applyTranslatedPageLocaleSync(sourceUrl: string, targetUrl: stri
   }
 
   return buildSubdomainLocaleUrl(source, sourceLocale, target, targetLocale);
+}
+
+export function resolveUrlSyncTarget(
+  sourceUrl: string,
+  targetUrl: string,
+  mode: UrlSyncMode,
+): UrlSyncResolutionResult {
+  if (mode === 'follow-changed-tab') {
+    return {
+      status: 'navigate',
+      url: applyTranslatedPageLocaleSync(sourceUrl, targetUrl),
+    };
+  }
+
+  const source = parseHttpUrl(sourceUrl);
+  if (!source) {
+    return {
+      status: 'blocked',
+      reason: 'invalid-source-url',
+      notice: { key: 'urlSyncKeepWebsiteBlockedNotice', severity: 'warning' },
+    };
+  }
+
+  const target = parseHttpUrl(targetUrl);
+  if (!target) {
+    return {
+      status: 'blocked',
+      reason: 'invalid-target-url',
+      notice: { key: 'urlSyncKeepWebsiteBlockedNotice', severity: 'warning' },
+    };
+  }
+
+  const sourceLocale = getLocaleDescriptor(source);
+  const targetLocale = getLocaleDescriptor(target);
+
+  return {
+    status: 'navigate',
+    url: buildTargetWebsiteUrl(source, sourceLocale, target, targetLocale),
+  };
 }

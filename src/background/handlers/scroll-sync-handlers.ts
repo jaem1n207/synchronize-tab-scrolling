@@ -298,4 +298,27 @@ export function registerScrollSyncHandlers(): void {
     await Promise.all(promises);
     return { success: true };
   });
+
+  onMessage('sync:url-mode-changed', async ({ data, sender }) => {
+    const payload = data;
+    const sourceTabId = sender.tabId;
+    logger.info('Relaying URL sync mode change', { mode: payload.mode, sourceTabId });
+
+    const targetTabIds =
+      sourceTabId === undefined
+        ? syncState.linkedTabs
+        : syncState.linkedTabs.filter((tabId) => tabId !== sourceTabId);
+
+    const promises = targetTabIds.map((tabId) =>
+      sendMessage('sync:url-mode-changed', payload, {
+        context: 'content-script',
+        tabId,
+      }).catch((error) => {
+        logger.debug(`Failed to relay URL sync mode to tab ${tabId}`, { error });
+      }),
+    );
+
+    await Promise.all(promises);
+    return { success: true };
+  });
 }

@@ -6,6 +6,12 @@
 import browser from 'webextension-polyfill';
 
 import type { SyncMode } from '~/shared/types/messages';
+import {
+  DEFAULT_URL_SYNC_MODE,
+  isUrlSyncMode,
+  type UrlSyncMode,
+  type UrlSyncNotice,
+} from '~/shared/types/url-sync';
 
 import { ExtensionLogger } from './logger';
 
@@ -20,6 +26,7 @@ const STORAGE_KEYS = {
   SELECTED_TAB_IDS: 'selectedTabIds',
   MANUAL_SCROLL_OFFSETS: 'manualScrollOffsets',
   URL_SYNC_ENABLED: 'urlSyncEnabled',
+  URL_SYNC_MODE: 'urlSyncMode',
   AUTO_SYNC_ENABLED: 'autoSyncEnabled',
   AUTO_SYNC_EXCLUDED_URLS: 'autoSyncExcludedUrls',
   AUTO_SYNC_EXCLUDED_DOMAINS: 'autoSyncExcludedDomains',
@@ -212,13 +219,15 @@ export async function clearAllManualScrollOffsets(): Promise<void> {
  * Save URL sync enabled state
  * @param enabled - Whether URL synchronization is enabled
  */
-export async function saveUrlSyncEnabled(enabled: boolean): Promise<void> {
+export async function saveUrlSyncEnabled(enabled: boolean): Promise<boolean> {
   try {
     await browser.storage.local.set({
       [STORAGE_KEYS.URL_SYNC_ENABLED]: enabled,
     });
+    return true;
   } catch (error) {
     await logger.error('Failed to save URL sync enabled state:', error);
+    return false;
   }
 }
 
@@ -229,12 +238,96 @@ export async function saveUrlSyncEnabled(enabled: boolean): Promise<void> {
 export async function loadUrlSyncEnabled(): Promise<boolean> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.URL_SYNC_ENABLED);
-    return result[STORAGE_KEYS.URL_SYNC_ENABLED] !== undefined
-      ? (result[STORAGE_KEYS.URL_SYNC_ENABLED] as boolean)
-      : true; // Default to enabled
+    const storedEnabled = result[STORAGE_KEYS.URL_SYNC_ENABLED];
+    return typeof storedEnabled === 'boolean' ? storedEnabled : true;
   } catch (error) {
     await logger.error('Failed to load URL sync enabled state:', error);
     return true;
+  }
+}
+
+export interface UrlSyncModeRepairSuccessResult {
+  status: 'success';
+  mode: UrlSyncMode;
+  repaired: boolean;
+  notice?: UrlSyncNotice;
+}
+
+export interface UrlSyncModeRepairFailureResult {
+  status: 'failed';
+  reason: 'read-failed' | 'write-failed';
+  repaired: false;
+  notice: UrlSyncNotice;
+}
+
+export type UrlSyncModeRepairResult =
+  | UrlSyncModeRepairSuccessResult
+  | UrlSyncModeRepairFailureResult;
+
+export async function saveUrlSyncMode(mode: UrlSyncMode): Promise<boolean> {
+  try {
+    await browser.storage.local.set({
+      [STORAGE_KEYS.URL_SYNC_MODE]: mode,
+    });
+    return true;
+  } catch (error) {
+    await logger.error('Failed to save URL sync mode:', error);
+    return false;
+  }
+}
+
+export async function loadUrlSyncMode(): Promise<UrlSyncMode> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.URL_SYNC_MODE);
+    const storedMode = result[STORAGE_KEYS.URL_SYNC_MODE];
+    return isUrlSyncMode(storedMode) ? storedMode : DEFAULT_URL_SYNC_MODE;
+  } catch (error) {
+    await logger.error('Failed to load URL sync mode:', error);
+    return DEFAULT_URL_SYNC_MODE;
+  }
+}
+
+export async function repairUrlSyncMode(): Promise<UrlSyncModeRepairResult> {
+  try {
+    const result = await browser.storage.local.get(STORAGE_KEYS.URL_SYNC_MODE);
+    const storedMode = result[STORAGE_KEYS.URL_SYNC_MODE];
+
+    if (storedMode === undefined) {
+      return { status: 'success', mode: DEFAULT_URL_SYNC_MODE, repaired: false };
+    }
+
+    if (isUrlSyncMode(storedMode)) {
+      return { status: 'success', mode: storedMode, repaired: false };
+    }
+
+    try {
+      await browser.storage.local.set({
+        [STORAGE_KEYS.URL_SYNC_MODE]: DEFAULT_URL_SYNC_MODE,
+      });
+    } catch (error) {
+      await logger.error('Failed to repair URL sync mode:', error);
+      return {
+        status: 'failed',
+        reason: 'write-failed',
+        repaired: false,
+        notice: { key: 'urlSyncSettingSaveFailedNotice', severity: 'error' },
+      };
+    }
+
+    return {
+      status: 'success',
+      mode: DEFAULT_URL_SYNC_MODE,
+      repaired: true,
+      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+    };
+  } catch (error) {
+    await logger.error('Failed to repair URL sync mode:', error);
+    return {
+      status: 'failed',
+      reason: 'read-failed',
+      repaired: false,
+      notice: { key: 'urlSyncSettingReadFailedNotice', severity: 'error' },
+    };
   }
 }
 

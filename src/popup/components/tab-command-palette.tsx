@@ -146,7 +146,7 @@ export function TabCommandPalette({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex flex-col gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
         {!isSyncActive && (
           <div
             aria-live="polite"
@@ -170,7 +170,7 @@ export function TabCommandPalette({
 
         <Command
           aria-labelledby="tab-selection-heading"
-          className="rounded-lg border shadow-sm"
+          className="min-h-0 flex-1 rounded-lg border shadow-sm"
           shouldFilter={false}
         >
           <CommandInput
@@ -180,8 +180,8 @@ export function TabCommandPalette({
             value={searchQuery}
             onValueChange={setSearchQuery}
           />
-          <CommandList asChild>
-            <ScrollArea className="max-h-[300px]">
+          <CommandList asChild className="max-h-none min-h-0 flex-1">
+            <ScrollArea className="min-h-0 flex-1">
               <CommandEmpty>
                 {sameDomainFilter &&
                 !searchQuery &&

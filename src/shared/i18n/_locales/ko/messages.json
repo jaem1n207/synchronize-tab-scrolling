@@ -281,6 +281,33 @@
   "urlSyncNavigation": {
     "message": "URL 동기화 여부"
   },
+  "urlSyncModeDescription": {
+    "message": "연결된 탭이 페이지 변경을 따라가는 방식을 선택하세요."
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "변경한 탭 따라가기"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "다른 탭도 변경한 탭의 웹사이트로 이동합니다."
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "각 탭의 웹사이트 유지"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "다른 탭은 자기 웹사이트에 남아 같은 페이지를 엽니다."
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "가능한 경우 언어 설정은 유지됩니다."
+  },
+  "urlSyncModeResetNotice": {
+    "message": "저장된 설정이 올바르지 않아 URL Sync 모드가 초기화되었습니다."
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "이 페이지 변경에서는 현재 웹사이트를 유지할 수 없어 URL 이동을 동기화하지 않았습니다."
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "이 페이지 변경에서는 언어 설정을 유지할 수 없었습니다."
+  },
   "syncedTabs": {
     "message": "동기화된 탭"
   },
@@ -642,5 +669,11 @@
   },
   "confirmRemoveDomain": {
     "message": "Enter를 눌러 제거"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "URL Sync 설정을 저장할 수 없습니다. 이전 설정을 계속 사용합니다."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "URL Sync 설정을 읽을 수 없어 URL 이동을 동기화하지 않았습니다. 확장 프로그램 권한을 확인하거나 다시 시도하세요."
   }
 }

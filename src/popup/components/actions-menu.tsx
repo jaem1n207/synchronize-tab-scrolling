@@ -21,7 +21,6 @@ import type { SortOption } from '../types/filters';
 import IconArrowUpDown from '~icons/lucide/arrow-up-down';
 import IconCheck from '~icons/lucide/check';
 import IconFilter from '~icons/lucide/filter';
-import IconGlobe from '~icons/lucide/globe';
 import IconLink2 from '~icons/lucide/link-2';
 import IconPause from '~icons/lucide/pause';
 import IconPlay from '~icons/lucide/play';
@@ -43,8 +42,6 @@ interface ActionsMenuProps {
   autoSyncEnabled: boolean;
   autoSyncTabCount?: number;
   onAutoSyncChange: (enabled: boolean) => void;
-  urlSyncEnabled: boolean;
-  onUrlSyncChange: (enabled: boolean) => void;
   onOpenExcludedDomains: () => void;
   excludedDomainsCount: number;
 }
@@ -64,8 +61,6 @@ export function ActionsMenu({
   autoSyncEnabled,
   autoSyncTabCount,
   onAutoSyncChange,
-  urlSyncEnabled,
-  onUrlSyncChange,
   onOpenExcludedDomains,
   excludedDomainsCount,
 }: ActionsMenuProps) {
@@ -217,17 +212,6 @@ export function ActionsMenu({
                         )}
                       </div>
                       {autoSyncEnabled && <IconCheck aria-hidden="true" className="w-4 h-4" />}
-                    </CommandItem>
-                    <CommandItem
-                      onSelect={() => {
-                        onUrlSyncChange(!urlSyncEnabled);
-                      }}
-                    >
-                      <div className="flex items-center gap-2 flex-1">
-                        <IconGlobe aria-hidden="true" className="w-4 h-4" />
-                        <span>{t('urlSyncNavigation')}</span>
-                      </div>
-                      {urlSyncEnabled && <IconCheck aria-hidden="true" className="w-4 h-4" />}
                     </CommandItem>
                     <CommandItem
                       onSelect={() => {

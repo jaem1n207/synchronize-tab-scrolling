@@ -281,6 +281,33 @@
   "urlSyncNavigation": {
     "message": "URL सिंक"
   },
+  "urlSyncModeDescription": {
+    "message": "चुनें कि जुड़े हुए टैब पेज बदलावों का पालन कैसे करें।"
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "बदले हुए टैब का पालन करें"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "दूसरे टैब उस वेबसाइट पर चले जाते हैं जिसे आपने बदला है।"
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "हर टैब की वेबसाइट बनाए रखें"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "दूसरे टैब अपनी वेबसाइट पर रहते हैं और मिलती-जुलती पेज खोलते हैं।"
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "जहां संभव हो, भाषा सेटिंग बनाए रखी जाती है।"
+  },
+  "urlSyncModeResetNotice": {
+    "message": "सहेजी गई सेटिंग मान्य नहीं थी, इसलिए URL Sync मोड रीसेट किया गया।"
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "इस पेज बदलाव के लिए यह टैब अपनी मौजूदा वेबसाइट पर नहीं रह सका। कोई नेविगेशन सिंक नहीं किया गया।"
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "इस पेज बदलाव के लिए भाषा सेटिंग बनाए नहीं रखी जा सकी।"
+  },
   "syncedTabs": {
     "message": "सिंक किए गए टैब"
   },
@@ -642,5 +669,11 @@
   },
   "confirmRemoveDomain": {
     "message": "हटाने के लिए Enter दबाएं"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "URL Sync सेटिंग सहेजी नहीं जा सकी। पिछली सेटिंग अभी भी उपयोग की जा रही है।"
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "URL Sync सेटिंग पढ़ी नहीं जा सकी। URL नेविगेशन सिंक नहीं किया गया। एक्सटेंशन अनुमतियां जांचें या फिर कोशिश करें।"
   }
 }
