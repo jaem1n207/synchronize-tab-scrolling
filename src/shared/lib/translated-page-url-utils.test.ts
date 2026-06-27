@@ -324,6 +324,19 @@ describe('resolveUrlSyncTarget', () => {
     });
   });
 
+  it('uses the target website without adding a locale when the target has no locale marker', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://example.com/en/about?tab=pricing&utm_source=mail#plans',
+        'https://staging.example.com/home?view=compact#intro',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://staging.example.com/en/about?tab=pricing#intro',
+    });
+  });
+
   it('preserves target query locale in keep-each-tabs-website mode', () => {
     expect(
       resolveUrlSyncTarget(
