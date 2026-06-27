@@ -5,6 +5,7 @@ import {
   buildTranslatedPageSignature,
   getAutoSyncPageKey,
   isTranslatedPageMetadataMatch,
+  resolveUrlSyncTarget,
   type TranslatedPageMetadata,
 } from './translated-page-url-utils';
 
@@ -280,5 +281,100 @@ describe('applyTranslatedPageLocaleSync', () => {
     expect(applyTranslatedPageLocaleSync('not-a-url', 'https://example.com/tr/docs')).toBe(
       'not-a-url',
     );
+  });
+});
+
+describe('resolveUrlSyncTarget', () => {
+  it('keeps existing behavior for follow-changed-tab mode', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://example.com/en/about?tab=pricing#plans',
+        'https://staging.example.com/ko/home?view=compact#intro',
+        'follow-changed-tab',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://example.com/ko/about?tab=pricing#intro',
+    });
+  });
+
+  it('keeps target website for keep-each-tabs-website mode', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://example.com/en/about?tab=pricing#plans',
+        'https://staging.example.com/ko/home?view=compact#intro',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://staging.example.com/ko/about?tab=pricing#intro',
+    });
+  });
+
+  it('preserves target port in keep-each-tabs-website mode', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://example.com/en/about',
+        'http://localhost:5173/ko/home',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'http://localhost:5173/ko/about',
+    });
+  });
+
+  it('preserves target query locale in keep-each-tabs-website mode', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://example.com/docs/about?page=pricing&lang=en&utm_source=mail',
+        'https://staging.example.com/docs/home?lang=ko#intro',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://staging.example.com/docs/about?page=pricing&lang=ko#intro',
+    });
+  });
+
+  it('preserves target subdomain locale in keep-each-tabs-website mode', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://en.example.com/docs/about?page=pricing',
+        'https://ko.staging.example.com/docs/home#intro',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://ko.staging.example.com/docs/about?page=pricing#intro',
+    });
+  });
+
+  it('blocks keep-each-tabs-website when the source URL is invalid', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'not-a-url',
+        'https://staging.example.com/ko/home',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'invalid-source-url',
+      notice: { key: 'urlSyncKeepWebsiteBlockedNotice', severity: 'warning' },
+    });
+  });
+
+  it('blocks keep-each-tabs-website when the target URL is invalid', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://example.com/en/about',
+        'chrome://extensions',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'invalid-target-url',
+      notice: { key: 'urlSyncKeepWebsiteBlockedNotice', severity: 'warning' },
+    });
   });
 });
