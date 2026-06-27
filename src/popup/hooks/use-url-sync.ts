@@ -16,6 +16,10 @@ import {
 } from '~/shared/types/url-sync';
 
 const logger = new ExtensionLogger({ scope: 'popup' });
+const URL_SYNC_SAVE_FAILED_NOTICE: UrlSyncNotice = {
+  key: 'urlSyncSettingSaveFailedNotice',
+  severity: 'error',
+};
 
 interface UseUrlSyncReturn {
   urlSyncEnabled: boolean;
@@ -61,19 +65,28 @@ export function useUrlSync(): UseUrlSyncReturn {
   }, []);
 
   const handleUrlSyncChange = useCallback(async (enabled: boolean) => {
+    const saved = await saveUrlSyncEnabled(enabled);
+    if (!saved) {
+      setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+      return;
+    }
+
     setUrlSyncEnabled(enabled);
-    await saveUrlSyncEnabled(enabled);
+    setUrlSyncNotice(null);
     sendMessage('sync:url-enabled-changed', { enabled }, 'background').catch((err) => {
       logger.warn('[useUrlSync] Failed to notify background of URL sync change:', err);
     });
   }, []);
 
   const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
+    const saved = await saveUrlSyncMode(mode);
+    if (!saved) {
+      setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+      return;
+    }
+
     setUrlSyncMode(mode);
     setUrlSyncNotice(null);
-
-    await saveUrlSyncMode(mode);
-
     sendMessage('sync:url-mode-changed', { mode }, 'background').catch((err) => {
       logger.warn('[useUrlSync] Failed to notify background of URL sync mode change:', err);
     });
