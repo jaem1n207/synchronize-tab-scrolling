@@ -5,13 +5,23 @@ import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { loadUrlSyncEnabled, saveUrlSyncEnabled } from '~/shared/lib/storage';
+import {
+  loadUrlSyncEnabled,
+  repairUrlSyncMode,
+  saveUrlSyncEnabled,
+  saveUrlSyncMode,
+} from '~/shared/lib/storage';
 import type {
   SyncSuggestionMessage,
   AddTabToSyncMessage,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
 } from '~/shared/types/messages';
+import {
+  DEFAULT_URL_SYNC_MODE,
+  type UrlSyncMode,
+  type UrlSyncNotice,
+} from '~/shared/types/url-sync';
 
 import { SyncControlPanel } from './components';
 import { SyncSuggestionToast, AddTabToSyncToast } from './components/sync-suggestion-toast';
@@ -23,8 +33,14 @@ interface ConnectionStatusEvent extends CustomEvent {
   detail: { isConnected: boolean; tabId: number };
 }
 
+interface UrlSyncNoticeEvent extends CustomEvent {
+  detail: UrlSyncNotice;
+}
+
 function PanelApp() {
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
+  const [urlSyncMode, setUrlSyncMode] = useState<UrlSyncMode>(DEFAULT_URL_SYNC_MODE);
+  const [urlSyncNotice, setUrlSyncNotice] = useState<UrlSyncNotice | null>(null);
   const [syncSuggestion, setSyncSuggestion] = useState<SyncSuggestionMessage | null>(null);
   const [addTabSuggestion, setAddTabSuggestion] = useState<AddTabToSyncMessage | null>(null);
   const [isConnectionHealthy, setIsConnectionHealthy] = useState(true);
@@ -43,18 +59,54 @@ function PanelApp() {
   }, []);
 
   useEffect(() => {
-    // Load URL sync state
-    loadUrlSyncEnabled().then(setUrlSyncEnabled).catch(console.error);
+    let isMounted = true;
 
-    // Listen for state changes from other synced tabs
-    const unsubscribe = onMessage('sync:url-enabled-changed', ({ data }) => {
+    const loadUrlSyncPreferences = async () => {
+      try {
+        const [enabled, modeRepairResult] = await Promise.all([
+          loadUrlSyncEnabled(),
+          repairUrlSyncMode(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setUrlSyncEnabled(enabled);
+        setUrlSyncMode(modeRepairResult.mode);
+        setUrlSyncNotice(modeRepairResult.notice ?? null);
+      } catch (error) {
+        await logger.error('Failed to load URL sync preferences', error);
+      }
+    };
+
+    loadUrlSyncPreferences();
+
+    const unsubscribeEnabled = onMessage('sync:url-enabled-changed', ({ data }) => {
       const { enabled } = data as { enabled: boolean };
       setUrlSyncEnabled(enabled);
       saveUrlSyncEnabled(enabled);
     });
 
+    const unsubscribeMode = onMessage('sync:url-mode-changed', ({ data }) => {
+      const { mode, notice } = data;
+      setUrlSyncMode(mode);
+      setUrlSyncNotice(notice ?? null);
+      saveUrlSyncMode(mode);
+    });
+
+    const handleUrlSyncNotice = (event: Event) => {
+      const customEvent = event as UrlSyncNoticeEvent;
+      setUrlSyncNotice(customEvent.detail);
+    };
+
+    window.addEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
+
     return () => {
-      unsubscribe();
+      isMounted = false;
+      unsubscribeEnabled();
+      unsubscribeMode();
+      window.removeEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
     };
   }, []);
 
@@ -98,18 +150,29 @@ function PanelApp() {
     };
   }, []);
 
-  const handleToggleUrlSync = useCallback(async () => {
-    const newValue = !urlSyncEnabled;
-    setUrlSyncEnabled(newValue);
-    saveUrlSyncEnabled(newValue);
+  const handleUrlSyncEnabledChange = useCallback(async (enabled: boolean) => {
+    setUrlSyncEnabled(enabled);
+    await saveUrlSyncEnabled(enabled);
 
     // Broadcast to other synced tabs via background
     try {
-      await sendMessage('sync:url-enabled-changed', { enabled: newValue }, 'background');
+      await sendMessage('sync:url-enabled-changed', { enabled }, 'background');
     } catch (error) {
       await logger.error('Failed to broadcast URL sync enabled change', error);
     }
-  }, [urlSyncEnabled]);
+  }, []);
+
+  const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
+    setUrlSyncMode(mode);
+    setUrlSyncNotice(null);
+    await saveUrlSyncMode(mode);
+
+    try {
+      await sendMessage('sync:url-mode-changed', { mode }, 'background');
+    } catch (error) {
+      await logger.error('Failed to broadcast URL sync mode change', error);
+    }
+  }, []);
 
   // Handle sync suggestion accept
   const handleSyncSuggestionAccept = useCallback(async () => {
@@ -207,8 +270,11 @@ function PanelApp() {
       <SyncControlPanel
         isConnectionHealthy={isConnectionHealthy}
         urlSyncEnabled={urlSyncEnabled}
+        urlSyncMode={urlSyncMode}
+        urlSyncNotice={urlSyncNotice}
         onReconnect={handleManualReconnect}
-        onToggle={handleToggleUrlSync}
+        onUrlSyncEnabledChange={handleUrlSyncEnabledChange}
+        onUrlSyncModeChange={handleUrlSyncModeChange}
       />
 
       {/* Sync suggestion toast */}
