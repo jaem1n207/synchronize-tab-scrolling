@@ -1010,7 +1010,7 @@ vi.mock('~/shared/i18n', () => ({
       urlSyncModeKeepEachTabsWebsiteDescription:
         'Other tabs stay on their own website and open the matching page.',
       urlSyncModeLanguageHelper: 'Languages are kept when possible.',
-      urlSyncModeResetNotice: 'URL Sync mode was reset because the saved setting could not be read.',
+      urlSyncModeResetNotice: 'URL Sync mode was reset because the saved setting was not valid.',
     };
     return messages[key] ?? key;
   },
@@ -1080,7 +1080,7 @@ describe('UrlSyncSettings', () => {
     );
 
     expect(
-      screen.getByText('URL Sync mode was reset because the saved setting could not be read.'),
+      screen.getByText('URL Sync mode was reset because the saved setting was not valid.'),
     ).toBeInTheDocument();
   });
 });
@@ -1541,7 +1541,7 @@ Add these keys after `urlSyncNavigation` in `src/shared/i18n/_locales/en/message
     "message": "Languages are kept when possible."
   },
   "urlSyncModeResetNotice": {
-    "message": "URL Sync mode was reset because the saved setting could not be read."
+    "message": "URL Sync mode was reset because the saved setting was not valid."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Could not keep this tab on its current website for that page change. No navigation was synced."
@@ -1575,7 +1575,7 @@ Add these keys to `src/shared/i18n/_locales/ko/messages.json` and `extension/_lo
     "message": "가능한 경우 언어 설정은 유지됩니다."
   },
   "urlSyncModeResetNotice": {
-    "message": "저장된 설정을 읽을 수 없어 URL Sync 모드가 초기화되었습니다."
+    "message": "저장된 설정이 올바르지 않아 URL Sync 모드가 초기화되었습니다."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "이 페이지 변경에서는 현재 웹사이트를 유지할 수 없어 URL 이동을 동기화하지 않았습니다."
@@ -1609,7 +1609,7 @@ Add these exact Japanese keys to `src/shared/i18n/_locales/ja/messages.json` and
     "message": "可能な場合は言語設定を維持します。"
   },
   "urlSyncModeResetNotice": {
-    "message": "保存された設定を読み取れなかったため、URL Sync モードをリセットしました。"
+    "message": "保存された設定が有効ではなかったため、URL Sync モードをリセットしました。"
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "このページ変更では現在のウェブサイトを維持できなかったため、URL 移動は同期されませんでした。"
@@ -1641,7 +1641,7 @@ Add these exact French keys to `src/shared/i18n/_locales/fr/messages.json` and `
     "message": "Les langues sont conservées lorsque c'est possible."
   },
   "urlSyncModeResetNotice": {
-    "message": "Le mode URL Sync a été réinitialisé, car le réglage enregistré n'a pas pu être lu."
+    "message": "Le mode URL Sync a été réinitialisé, car le réglage enregistré n'était pas valide."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Impossible de garder cet onglet sur son site actuel pour ce changement de page. Aucune navigation n'a été synchronisée."
@@ -1673,7 +1673,7 @@ Add these exact Spanish keys to `src/shared/i18n/_locales/es/messages.json` and 
     "message": "Los idiomas se mantienen cuando es posible."
   },
   "urlSyncModeResetNotice": {
-    "message": "El modo URL Sync se restableció porque no se pudo leer la configuración guardada."
+    "message": "El modo URL Sync se restableció porque la configuración guardada no era válida."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "No se pudo mantener esta pestaña en su sitio web actual para este cambio de página. No se sincronizó ninguna navegación."
@@ -1705,7 +1705,7 @@ Add these exact German keys to `src/shared/i18n/_locales/de/messages.json` and `
     "message": "Sprachen werden nach Möglichkeit beibehalten."
   },
   "urlSyncModeResetNotice": {
-    "message": "Der URL-Sync-Modus wurde zurückgesetzt, weil die gespeicherte Einstellung nicht gelesen werden konnte."
+    "message": "Der URL-Sync-Modus wurde zurückgesetzt, weil die gespeicherte Einstellung ungültig war."
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Dieser Tab konnte für diese Seitenänderung nicht auf seiner aktuellen Website bleiben. Es wurde keine Navigation synchronisiert."
@@ -1737,7 +1737,7 @@ Add these exact Simplified Chinese keys to `src/shared/i18n/_locales/zh_CN/messa
     "message": "会尽可能保留语言设置。"
   },
   "urlSyncModeResetNotice": {
-    "message": "由于无法读取已保存的设置，URL Sync 模式已重置。"
+    "message": "由于保存的设置无效，URL Sync 模式已重置。"
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "这次页面变化无法让该标签页保留在当前网站，因此未同步导航。"
@@ -1769,7 +1769,7 @@ Add these exact Traditional Chinese keys to `src/shared/i18n/_locales/zh_TW/mess
     "message": "會盡可能保留語言設定。"
   },
   "urlSyncModeResetNotice": {
-    "message": "因為無法讀取已儲存的設定，URL Sync 模式已重設。"
+    "message": "因為已儲存的設定無效，URL Sync 模式已重設。"
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "這次頁面變更無法讓此分頁保留在目前網站，因此未同步導覽。"
@@ -1801,7 +1801,7 @@ Add these exact Hindi keys to `src/shared/i18n/_locales/hi/messages.json` and `e
     "message": "जहां संभव हो, भाषा सेटिंग बनाए रखी जाती है।"
   },
   "urlSyncModeResetNotice": {
-    "message": "सहेजी गई सेटिंग पढ़ी नहीं जा सकी, इसलिए URL Sync मोड रीसेट किया गया।"
+    "message": "सहेजी गई सेटिंग मान्य नहीं थी, इसलिए URL Sync मोड रीसेट किया गया।"
   },
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "इस पेज बदलाव के लिए यह टैब अपनी मौजूदा वेबसाइट पर नहीं रह सका। कोई नेविगेशन सिंक नहीं किया गया।"
@@ -1810,6 +1810,14 @@ Add these exact Hindi keys to `src/shared/i18n/_locales/hi/messages.json` and `e
     "message": "इस पेज बदलाव के लिए भाषा सेटिंग बनाए नहीं रखी जा सकी।"
   },
 ```
+
+- [ ] **Step 3.5: Add failure notice keys for every locale**
+
+Add these keys to both `src/shared/i18n/_locales/*/messages.json` and
+`extension/_locales/*/messages.json` for every supported locale:
+
+- `urlSyncSettingSaveFailedNotice`: shown when URL Sync mode or enabled-state persistence fails.
+- `urlSyncSettingReadFailedNotice`: shown when the saved URL Sync mode cannot be read, so navigation is not synced instead of silently falling back to another mode.
 
 - [ ] **Step 4: Run i18n validation**
 

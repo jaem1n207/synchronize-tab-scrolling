@@ -240,7 +240,7 @@ If the stored `urlSyncMode` is unknown or unreadable:
 - Show an actionable message:
 
 ```text
-URL Sync mode was reset because the saved setting could not be read.
+URL Sync mode was reset because the saved setting was not valid.
 ```
 
 ### Keep Each Tab's Website Calculation Failure
@@ -321,7 +321,7 @@ Other tabs move to the website you changed.
 Keep each tab's website
 Other tabs stay on their own website and open the matching page.
 Languages are kept when possible.
-URL Sync mode was reset because the saved setting could not be read.
+URL Sync mode was reset because the saved setting was not valid.
 Could not keep this tab on its current website for that page change. No navigation was synced.
 Language could not be preserved for this page change.
 ```
@@ -391,7 +391,7 @@ interface UrlSyncNavigationResult {
 
 interface UrlSyncBlockedResult {
   status: 'blocked';
-  reason: 'invalid-source-url' | 'invalid-target-url' | 'unsafe-target-website';
+  reason: 'invalid-source-url' | 'invalid-target-url';
   message: string;
 }
 
