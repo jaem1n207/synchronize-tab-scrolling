@@ -80,6 +80,10 @@ the job and decide inside the job whether extension checks are necessary.
 ## Change Detection
 
 Inside `extension-pr-checks`, compute whether the pull request touches extension-impacting files.
+Use the checked-out base branch ref and `HEAD` merge-base as the diff boundary instead of directly
+diffing against event SHA fields. Pull request merge refs can be checked out without every event SHA
+being reachable in the local object database, so the workflow should resolve `origin/<base branch>`
+and then diff from `git merge-base origin/<base branch> HEAD`.
 
 Extension-impacting paths:
 

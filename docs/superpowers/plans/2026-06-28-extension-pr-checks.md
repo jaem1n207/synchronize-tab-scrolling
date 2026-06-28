@@ -1017,7 +1017,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          base_ref="origin/${{ github.base_ref }}"
+
+          if ! git rev-parse --verify --quiet "$base_ref" >/dev/null; then
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          fi
+
+          base_commit="$(git merge-base "$base_ref" HEAD)"
+          changed_files="$(git diff --name-only "$base_commit" HEAD)"
 
           echo "Changed files:"
           if [ -n "$changed_files" ]; then
