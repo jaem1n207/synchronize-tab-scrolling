@@ -33,6 +33,11 @@ import type {
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
 import {
+  applyInstantProgrammaticScroll,
+  createLatestProgrammaticScrollScheduler,
+  type ProgrammaticScrollTarget,
+} from './lib/instant-programmatic-scroll';
+import {
   createInitialSyncState,
   createInitialWheelModeState,
   createInitialConnectionState,
@@ -61,6 +66,45 @@ const connectionState = createInitialConnectionState();
 const urlMonitorState = createInitialUrlMonitorState();
 
 let cachedManualOffset: ManualScrollOffset = { ratio: 0, pixels: 0 };
+
+const programmaticScrollScheduler = createLatestProgrammaticScrollScheduler({
+  requestFrame: (callback) => window.requestAnimationFrame(callback),
+  cancelFrame: (frameId) => window.cancelAnimationFrame(frameId),
+  apply: applyScheduledProgrammaticScroll,
+});
+
+function applyScheduledProgrammaticScroll(target: ProgrammaticScrollTarget): void {
+  if (!syncState.isActive || syncState.isManualScrollEnabled) {
+    return;
+  }
+
+  if (!Number.isFinite(target.top)) {
+    logger.debug('Skipping scheduled scroll sync with non-finite target', {
+      sourceTabId: target.sourceTabId,
+      mode: target.mode,
+      applied: false,
+    });
+    return;
+  }
+
+  syncState.lastSyncedRatio = target.sourceRatio;
+  syncState.lastProgrammaticScrollTime = Date.now();
+  const applied = applyInstantProgrammaticScroll(target.top);
+
+  logger.debug('Applied scheduled scroll sync', {
+    sourceTabId: target.sourceTabId,
+    mode: target.mode,
+    applied,
+  });
+}
+
+function scheduleProgrammaticScroll(target: ProgrammaticScrollTarget): void {
+  programmaticScrollScheduler.schedule(target);
+}
+
+function cancelPendingProgrammaticScroll(): void {
+  programmaticScrollScheduler.cancel();
+}
 
 /**
  * Get current scroll information
@@ -167,6 +211,7 @@ async function handleWheel(event: WheelEvent) {
 
   // Enter wheel manual mode: modifier key pressed + not already in any manual mode
   if (isModifierPressed && !wheelState.isActive && !syncState.isManualScrollEnabled) {
+    cancelPendingProgrammaticScroll();
     wheelState.isActive = true;
     wheelState.baselineSnapshot = syncState.lastSyncedRatio;
     syncState.isManualScrollEnabled = true; // Prevent scroll:sync from overwriting position
@@ -661,6 +706,8 @@ export function initScrollSync() {
     if (syncState.isActive) {
       logger.info('Sync already active, cleaning up old state before re-initializing');
 
+      cancelPendingProgrammaticScroll();
+
       // Remove old scroll listener
       window.removeEventListener('scroll', handleScroll);
 
@@ -690,6 +737,8 @@ export function initScrollSync() {
     }
 
     // Reset all state variables
+    cancelPendingProgrammaticScroll();
+
     syncState.isActive = true;
     syncState.isAutoSync = payload.isAutoSync ?? false;
     syncState.mode = payload.mode;
@@ -722,17 +771,22 @@ export function initScrollSync() {
     // Start URL monitoring (P1)
     startUrlMonitoring();
 
-    initKeyboardHandler(syncState.tabId, () => ({
-      currentScrollTop: window.scrollY,
-      lastSyncedRatio: syncState.lastSyncedRatio,
-      setManualModeActive: (active: boolean) => {
-        syncState.isManualScrollEnabled = active;
-        logger.debug('Manual mode flag set synchronously via callback', { active });
-      },
-      updateOffsetCache: (ratio: number, pixels: number) => {
-        cachedManualOffset = { ratio, pixels };
-      },
-    }));
+    initKeyboardHandler(syncState.tabId, () => {
+      // This callback exposes manual baselines, so discard pending receiver targets first.
+      cancelPendingProgrammaticScroll();
+
+      return {
+        currentScrollTop: window.scrollY,
+        lastSyncedRatio: syncState.lastSyncedRatio,
+        setManualModeActive: (active: boolean) => {
+          syncState.isManualScrollEnabled = active;
+          logger.debug('Manual mode flag set synchronously via callback', { active });
+        },
+        updateOffsetCache: (ratio: number, pixels: number) => {
+          cachedManualOffset = { ratio, pixels };
+        },
+      };
+    });
     logger.debug('Keyboard handler initialized');
 
     // Show draggable control panel
@@ -767,6 +821,8 @@ export function initScrollSync() {
     }
     // Note: Manual stop (without isAutoSync flag) now works for both sync types
     // This allows users to stop sync from popup even when auto-sync is active
+
+    cancelPendingProgrammaticScroll();
 
     syncState.isActive = false;
     syncState.isAutoSync = false;
@@ -843,10 +899,6 @@ export function initScrollSync() {
     // Apply offset ratio to source ratio to get target ratio for this tab
     const targetRatio = sourceRatio + offsetData.ratio;
 
-    // Update lastSyncedRatio to the SOURCE ratio (pure baseline without offsets)
-    // This ensures manual offset calculations always use a consistent baseline
-    syncState.lastSyncedRatio = sourceRatio;
-
     // Convert target ratio to pixel position for this document
     const targetScrollTop = targetRatio * myMaxScroll;
 
@@ -860,8 +912,7 @@ export function initScrollSync() {
       clampedScrollTop,
     });
 
-    // Mark as programmatic scroll to prevent infinite loops
-    syncState.lastProgrammaticScrollTime = Date.now();
+    let nextScrollTop = clampedScrollTop;
 
     if (payload.mode === 'element') {
       // Element-based sync (P1) - not commonly used with manual offsets
@@ -869,29 +920,17 @@ export function initScrollSync() {
       if (nearest) {
         const elements = findSemanticElements();
         if (nearest.index < elements.length) {
-          window.scrollTo({
-            top: elements[nearest.index].scrollTop,
-            behavior: 'auto',
-          });
-        } else {
-          window.scrollTo({
-            top: clampedScrollTop,
-            behavior: 'auto',
-          });
+          nextScrollTop = elements[nearest.index].scrollTop;
         }
-      } else {
-        window.scrollTo({
-          top: clampedScrollTop,
-          behavior: 'auto',
-        });
       }
-    } else {
-      // Ratio-based sync (P0) with ratio offset
-      window.scrollTo({
-        top: clampedScrollTop,
-        behavior: 'auto',
-      });
     }
+
+    scheduleProgrammaticScroll({
+      top: nextScrollTop,
+      sourceRatio,
+      mode: payload.mode,
+      sourceTabId: payload.sourceTabId,
+    });
   });
 
   // Listen for manual scroll toggle (P1)
@@ -906,6 +945,7 @@ export function initScrollSync() {
 
     // Snapshot baseline ratio when ENTERING manual mode
     if (payload.enabled) {
+      cancelPendingProgrammaticScroll();
       syncState.lastSyncedRatioSnapshot = syncState.lastSyncedRatio;
       logger.debug('Manual mode activated, snapshotted baseline', {
         lastSyncedRatio: syncState.lastSyncedRatio,

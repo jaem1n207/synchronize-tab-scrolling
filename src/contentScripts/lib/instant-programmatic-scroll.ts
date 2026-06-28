@@ -82,6 +82,7 @@ export function applyInstantProgrammaticScroll(
 
 export interface ProgrammaticScrollTarget {
   top: number;
+  sourceRatio: number;
   mode: SyncMode;
   sourceTabId: number;
 }

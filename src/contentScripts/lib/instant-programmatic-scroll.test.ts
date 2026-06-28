@@ -228,16 +228,21 @@ describe('createLatestProgrammaticScrollScheduler', () => {
       apply,
     });
 
-    scheduler.schedule({ top: 100, mode: 'ratio', sourceTabId: 1 });
-    scheduler.schedule({ top: 200, mode: 'ratio', sourceTabId: 1 });
-    scheduler.schedule({ top: 300, mode: 'ratio', sourceTabId: 1 });
+    scheduler.schedule({ top: 100, sourceRatio: 0.1, mode: 'ratio', sourceTabId: 1 });
+    scheduler.schedule({ top: 200, sourceRatio: 0.2, mode: 'ratio', sourceTabId: 1 });
+    scheduler.schedule({ top: 300, sourceRatio: 0.3, mode: 'ratio', sourceTabId: 1 });
 
     expect(frameHarness.requestFrame).toHaveBeenCalledTimes(1);
 
     frameHarness.flushNextFrame();
 
     expect(apply).toHaveBeenCalledTimes(1);
-    expect(apply).toHaveBeenCalledWith({ top: 300, mode: 'ratio', sourceTabId: 1 });
+    expect(apply).toHaveBeenCalledWith({
+      top: 300,
+      sourceRatio: 0.3,
+      mode: 'ratio',
+      sourceTabId: 1,
+    });
   });
 
   it('schedules a new frame after the pending frame has flushed', () => {
@@ -249,14 +254,24 @@ describe('createLatestProgrammaticScrollScheduler', () => {
       apply,
     });
 
-    scheduler.schedule({ top: 100, mode: 'ratio', sourceTabId: 1 });
+    scheduler.schedule({ top: 100, sourceRatio: 0.1, mode: 'ratio', sourceTabId: 1 });
     frameHarness.flushNextFrame();
-    scheduler.schedule({ top: 400, mode: 'element', sourceTabId: 2 });
+    scheduler.schedule({ top: 400, sourceRatio: 0.4, mode: 'element', sourceTabId: 2 });
     frameHarness.flushNextFrame();
 
     expect(frameHarness.requestFrame).toHaveBeenCalledTimes(2);
-    expect(apply).toHaveBeenNthCalledWith(1, { top: 100, mode: 'ratio', sourceTabId: 1 });
-    expect(apply).toHaveBeenNthCalledWith(2, { top: 400, mode: 'element', sourceTabId: 2 });
+    expect(apply).toHaveBeenNthCalledWith(1, {
+      top: 100,
+      sourceRatio: 0.1,
+      mode: 'ratio',
+      sourceTabId: 1,
+    });
+    expect(apply).toHaveBeenNthCalledWith(2, {
+      top: 400,
+      sourceRatio: 0.4,
+      mode: 'element',
+      sourceTabId: 2,
+    });
   });
 
   it('cancels the pending frame and clears the latest target', () => {
@@ -268,7 +283,7 @@ describe('createLatestProgrammaticScrollScheduler', () => {
       apply,
     });
 
-    scheduler.schedule({ top: 100, mode: 'ratio', sourceTabId: 1 });
+    scheduler.schedule({ top: 100, sourceRatio: 0.1, mode: 'ratio', sourceTabId: 1 });
     scheduler.cancel();
     frameHarness.flushNextFrame();
 
