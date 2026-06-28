@@ -69,6 +69,20 @@
 갱신합니다. 따라서 manual baseline은 아직 적용되지 않은 pending target의 미래
 source ratio를 snapshot하지 않습니다.
 
+### Pending receiver target 취소 지점
+
+수신 탭에 예약된 프로그램 스크롤 target은 실제로 적용되기 전까지 "미래 상태"입니다.
+아래 전환점에서는 pending target을 취소해 오래된 target이 새 상태 위에 적용되거나 manual
+baseline을 오염시키지 않도록 합니다.
+
+| 전환점                         | 이유                                                            |
+| ------------------------------ | --------------------------------------------------------------- |
+| 새 `scroll:start` 초기화 전    | 이전 sync session의 target이 새 session에 적용되는 것 방지      |
+| `scroll:stop` 처리             | 동기화 종료 후 예약된 프로그램 스크롤 적용 방지                 |
+| Option/Alt manual baseline 전  | 아직 적용되지 않은 미래 위치를 manual offset 기준으로 저장 방지 |
+| Wheel 기반 manual mode 진입 전 | unfocused tab 수동 조정에서도 같은 baseline 오염 방지           |
+| `scroll:manual` 활성화 처리 전 | background-origin manual 전환과 local manual 전환의 기준 통일   |
+
 ## 핵심 타이밍 상수
 
 | 상수                               | 값       | 위치                   | 역할                                    |
