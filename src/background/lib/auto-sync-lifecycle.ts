@@ -66,9 +66,9 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
 
     logger.info('[AUTO-SYNC] State loaded', {
       enabled: autoSyncState.enabled,
-      excludedUrls: autoSyncState.excludedUrls,
-      excludedDomains: storedExcludedDomains,
-      activeSnoozeDomains: Object.keys(activeSnoozes),
+      excludedUrlCount: autoSyncState.excludedUrls.length,
+      excludedDomainCount: storedExcludedDomains.length,
+      activeSnoozeCount: Object.keys(activeSnoozes).length,
     });
 
     if (!autoSyncState.enabled) {
@@ -81,20 +81,18 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
 
     for (const tab of tabs) {
       if (tab.id && tab.url) {
-        logger.info('[AUTO-SYNC] Processing tab', { tabId: tab.id, url: tab.url });
+        logger.info('[AUTO-SYNC] Processing tab', { tabId: tab.id });
         await updateAutoSyncGroup(tab.id, tab.url, true, true);
       }
     }
 
     logger.info('[AUTO-SYNC] Tab scanning complete, checking for eligible groups', {
       groupCount: autoSyncState.groups.size,
-      groups: Array.from(autoSyncState.groups.entries()).map(([url, g]) => ({
-        url,
-        tabCount: g.tabIds.size,
-        tabIds: Array.from(g.tabIds),
-        isActive: g.isActive,
-        matchKind: g.matchKind,
-        matchConfidence: g.matchConfidence,
+      groups: Array.from(autoSyncState.groups.values()).map((group) => ({
+        tabCount: group.tabIds.size,
+        isActive: group.isActive,
+        matchKind: group.matchKind,
+        matchConfidence: group.matchConfidence,
       })),
     });
 
@@ -105,7 +103,7 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
       if (group.tabIds.size >= 2) {
         const tabIds = Array.from(group.tabIds);
         logger.info('[AUTO-SYNC] Injecting content scripts for group', {
-          normalizedUrl,
+          groupTabCount: tabIds.length,
           tabIds,
         });
 
@@ -130,16 +128,14 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
             removeTabFromAutoSyncGroup(normalizedUrl, result.value.tabId);
             logger.info('[AUTO-SYNC] Removed tab from group due to injection failure', {
               tabId: result.value.tabId,
-              normalizedUrl,
+              remainingGroupCount: autoSyncState.groups.size,
             });
           }
         }
 
         if (group.tabIds.size < 2) {
           autoSyncState.groups.delete(normalizedUrl);
-          logger.info('[AUTO-SYNC] Deleted group due to insufficient tabs after injection', {
-            normalizedUrl,
-          });
+          logger.info('[AUTO-SYNC] Deleted group due to insufficient tabs after injection');
         }
       }
     }
@@ -150,8 +146,8 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
       if (group.tabIds.size >= 2 && !group.isActive) {
         logger.info('[AUTO-SYNC] Scheduling suggestion for group during init', {
-          normalizedUrl,
           tabIds: Array.from(group.tabIds),
+          groupTabCount: group.tabIds.size,
         });
         if (!pendingSuggestions.has(normalizedUrl) && !dismissedUrlGroups.has(normalizedUrl)) {
           await showSyncSuggestion(normalizedUrl);
@@ -164,13 +160,11 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
 
     logger.info('[AUTO-SYNC] Initialization complete', {
       groupCount: autoSyncState.groups.size,
-      groups: Array.from(autoSyncState.groups.entries()).map(([url, g]) => ({
-        url,
-        tabCount: g.tabIds.size,
-        tabIds: Array.from(g.tabIds),
-        isActive: g.isActive,
-        matchKind: g.matchKind,
-        matchConfidence: g.matchConfidence,
+      groups: Array.from(autoSyncState.groups.values()).map((group) => ({
+        tabCount: group.tabIds.size,
+        isActive: group.isActive,
+        matchKind: group.matchKind,
+        matchConfidence: group.matchConfidence,
       })),
     });
   } catch (error) {

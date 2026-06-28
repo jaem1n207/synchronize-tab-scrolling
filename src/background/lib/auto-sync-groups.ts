@@ -497,8 +497,9 @@ async function refreshTranslatedPageCandidateGroupsFromSnapshots(
     didMergeCandidate = true;
     logger.info('[AUTO-SYNC] Refreshed translated page candidate group', {
       tabId: sourceSnapshot.tabId,
-      sourceGroupKey: sourceSnapshot.groupKey,
-      targetGroupKey: candidate.normalizedUrl,
+      sourceGroupTabCount: 1,
+      targetGroupTabCount:
+        autoSyncState.groups.get(candidate.normalizedUrl)?.tabIds.size ?? undefined,
       matchKind: candidate.matchKind,
       matchConfidence: candidate.matchConfidence,
     });
@@ -520,11 +521,11 @@ export function removeTabFromAutoSyncGroup(normalizedUrl: string, tabId: number)
 
   group.tabIds.delete(tabId);
   group.tabUrls?.delete(tabId);
-  logger.debug(`Removed tab ${tabId} from auto-sync group`, { normalizedUrl });
+  logger.debug(`Removed tab ${tabId} from auto-sync group`, { tabId, remainingTabCount: group.tabIds.size });
 
   if (group.tabIds.size === 0) {
     autoSyncState.groups.delete(normalizedUrl);
-    logger.debug(`Removed empty auto-sync group`, { normalizedUrl });
+    logger.debug('Removed empty auto-sync group');
   } else {
     recomputeAutoSyncGroupMetadata(group);
   }
@@ -553,7 +554,7 @@ export async function stopAutoSyncForGroup(normalizedUrl: string): Promise<void>
   if (!group) return;
 
   const tabIds = Array.from(group.tabIds);
-  logger.info(`Stopping auto-sync for group`, { normalizedUrl, tabIds });
+  logger.info('Stopping auto-sync for group', { tabCount: tabIds.length, tabIds });
 
   const promises = tabIds.map(async (tabId) => {
     try {
@@ -667,7 +668,7 @@ export async function updateAutoSyncGroup(
   if (candidateApplyResolution.status === 'source-stale') {
     logger.info('[AUTO-SYNC] Tab URL changed before translated candidate apply', {
       tabId,
-      normalizedUrl: preparation.lookup.context.normalizedUrl,
+      skipStartSync: preparation.lookup.context.skipStartSync,
     });
     return null;
   }
@@ -675,8 +676,7 @@ export async function updateAutoSyncGroup(
   if (candidate && !candidateApplyResolution.state) {
     logger.info('[AUTO-SYNC] Translated page candidate became stale before apply', {
       tabId,
-      normalizedUrl: preparation.lookup.context.normalizedUrl,
-      candidateUrl: candidate.normalizedUrl,
+      hadCandidate: true,
     });
   }
 
@@ -697,7 +697,6 @@ async function prepareUpdateAutoSyncGroup(
 ): Promise<UpdateAutoSyncGroupPreparation> {
   logger.info('[AUTO-SYNC] updateAutoSyncGroupInternal called', {
     tabId,
-    url,
     skipStartSync,
     skipBroadcast,
   });
@@ -725,19 +724,19 @@ async function prepareUpdateAutoSyncGroup(
   };
 
   if (isForbiddenUrl(url)) {
-    logger.debug(`[AUTO-SYNC] URL is forbidden, skipping auto-sync`, { url, tabId });
+    logger.debug('[AUTO-SYNC] URL is forbidden, skipping auto-sync', { tabId });
     await removeTabFromAllAutoSyncGroups(tabId);
     return { status: 'complete', result: null };
   }
 
   if (isLocalDevelopmentServer(url)) {
-    logger.debug(`[AUTO-SYNC] URL is local dev server, skipping auto-sync`, { url, tabId });
+    logger.debug('[AUTO-SYNC] URL is local dev server, skipping auto-sync', { tabId });
     await removeTabFromAllAutoSyncGroups(tabId);
     return { status: 'complete', result: null };
   }
 
   if (isUrlExcluded(url, autoSyncState.excludedUrls)) {
-    logger.debug(`[AUTO-SYNC] URL excluded from auto-sync`, { url, tabId });
+    logger.debug('[AUTO-SYNC] URL excluded from auto-sync', { tabId });
     await removeTabFromAllAutoSyncGroups(tabId);
     return { status: 'complete', result: null };
   }
@@ -859,8 +858,7 @@ async function applyUpdateAutoSyncGroup(
   }
 
   if (isForbiddenUrl(context.url)) {
-    logger.debug(`[AUTO-SYNC] URL is forbidden before apply, skipping auto-sync`, {
-      url: context.url,
+    logger.debug('[AUTO-SYNC] URL is forbidden before apply, skipping auto-sync', {
       tabId: context.tabId,
     });
     await removeTabFromAllAutoSyncGroups(context.tabId);
@@ -868,8 +866,7 @@ async function applyUpdateAutoSyncGroup(
   }
 
   if (isLocalDevelopmentServer(context.url)) {
-    logger.debug(`[AUTO-SYNC] URL is local dev server before apply, skipping auto-sync`, {
-      url: context.url,
+    logger.debug('[AUTO-SYNC] URL is local dev server before apply, skipping auto-sync', {
       tabId: context.tabId,
     });
     await removeTabFromAllAutoSyncGroups(context.tabId);
@@ -877,8 +874,7 @@ async function applyUpdateAutoSyncGroup(
   }
 
   if (isUrlExcluded(context.url, autoSyncState.excludedUrls)) {
-    logger.debug(`[AUTO-SYNC] URL excluded from auto-sync before apply`, {
-      url: context.url,
+    logger.debug('[AUTO-SYNC] URL excluded from auto-sync before apply', {
       tabId: context.tabId,
     });
     await removeTabFromAllAutoSyncGroups(context.tabId);
@@ -918,12 +914,14 @@ async function applyUpdateAutoSyncGroup(
       tabUrls: new Map(),
     };
     autoSyncState.groups.set(groupKey, group);
-    logger.info('[AUTO-SYNC] Created new group', { normalizedUrl: groupKey });
+    logger.info('[AUTO-SYNC] Created new group', {
+      tabId: context.tabId,
+      groupCount: autoSyncState.groups.size,
+    });
   }
 
   if (group.tabIds.size >= MAX_AUTO_SYNC_GROUP_SIZE && !group.tabIds.has(context.tabId)) {
     logger.warn('[AUTO-SYNC] Group size limit reached, tab not added', {
-      normalizedUrl: groupKey,
       currentSize: group.tabIds.size,
       maxSize: MAX_AUTO_SYNC_GROUP_SIZE,
       tabId: context.tabId,
@@ -943,7 +941,6 @@ async function applyUpdateAutoSyncGroup(
 
   logger.info('[AUTO-SYNC] Tab added to group', {
     tabId: context.tabId,
-    normalizedUrl: groupKey,
     groupSize: group.tabIds.size,
     groupTabIds: Array.from(group.tabIds),
     isNewGroup,
@@ -967,12 +964,12 @@ async function applyUpdateAutoSyncGroup(
     if (pendingSuggestions.has(groupKey)) {
       logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab (from updateAutoSyncGroup)', {
         tabId: context.tabId,
-        normalizedUrl: groupKey,
+        groupTabCount: group.tabIds.size,
       });
       await sendSuggestionToSingleTab(context.tabId, groupKey, group);
     } else {
       logger.info('[AUTO-SYNC] Showing suggestion for group', {
-        normalizedUrl: groupKey,
+        groupTabCount: group.tabIds.size,
         tabIds: Array.from(group.tabIds),
       });
       await showSyncSuggestion(groupKey);
