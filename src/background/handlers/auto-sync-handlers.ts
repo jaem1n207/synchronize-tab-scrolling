@@ -10,7 +10,7 @@ import {
 } from '~/shared/lib/storage';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
-import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
+import { removeTabFromAllAutoSyncGroups, updateAutoSyncGroup } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
@@ -27,6 +27,64 @@ import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-handlers' });
+
+async function stopManualSyncAndReturnTabsToAutoSync(tabIds: Array<number>): Promise<void> {
+  await Promise.allSettled(
+    tabIds.map((tabId) =>
+      sendMessageWithTimeout(
+        'scroll:stop',
+        { tabIds },
+        { context: 'content-script', tabId },
+        1_000,
+      ),
+    ),
+  );
+
+  if (autoSyncState.enabled) {
+    for (const tabId of tabIds) {
+      manualSyncOverriddenTabs.delete(tabId);
+
+      try {
+        const tab = await browser.tabs.get(tabId);
+        if (tab.url) {
+          await updateAutoSyncGroup(tabId, tab.url);
+        }
+      } catch {
+        // Tab may have been closed.
+      }
+    }
+  } else {
+    for (const tabId of tabIds) {
+      manualSyncOverriddenTabs.delete(tabId);
+    }
+  }
+
+  stopKeepAlive();
+  addTabSuggestedTabs.clear();
+
+  syncState.isActive = false;
+  syncState.linkedTabs = [];
+  syncState.connectionStatuses = {};
+  syncState.mode = undefined;
+
+  await persistSyncState();
+}
+
+async function rollbackFailedSuggestionStart(connectedTabIds: Array<number>): Promise<void> {
+  await Promise.allSettled(
+    connectedTabIds.map((tabId) =>
+      sendMessageWithTimeout('scroll:stop', {}, { context: 'content-script', tabId }, 1_000),
+    ),
+  );
+
+  syncState.isActive = false;
+  syncState.linkedTabs = [];
+  syncState.connectionStatuses = {};
+  syncState.mode = undefined;
+
+  await persistSyncState();
+  await broadcastSyncStatus();
+}
 
 export function registerAutoSyncHandlers(): void {
   onMessage('auto-sync:status-changed', async ({ data }) => {
@@ -154,40 +212,13 @@ export function registerAutoSyncHandlers(): void {
               { previousLinkedTabs: syncState.linkedTabs, newTabIds: tabIds },
             );
 
-            await Promise.allSettled(
-              previousLinkedTabs.map((tabId) =>
-                sendMessageWithTimeout(
-                  'scroll:stop',
-                  { tabIds: previousLinkedTabs },
-                  { context: 'content-script', tabId },
-                  1_000,
-                ),
-              ),
-            );
-
-            for (const oldTabId of previousLinkedTabs) {
-              manualSyncOverriddenTabs.delete(oldTabId);
-            }
-
-            stopKeepAlive();
-            addTabSuggestedTabs.clear();
-
-            syncState.isActive = false;
-            syncState.linkedTabs = [];
-            syncState.connectionStatuses = {};
-            syncState.mode = undefined;
+            await stopManualSyncAndReturnTabsToAutoSync(previousLinkedTabs);
           }
 
           logger.info('[AUTO-SYNC] Starting manual sync from suggestion acceptance', {
             tabCount: tabIds.length,
             tabIds,
           });
-
-          for (const tabId of tabIds) {
-            manualSyncOverriddenTabs.add(tabId);
-          }
-
-          autoSyncState.groups.delete(normalizedUrl);
 
           // ✅ FIX: Set syncState BEFORE starting connections to prevent race condition
           syncState.isActive = true;
@@ -231,14 +262,17 @@ export function registerAutoSyncHandlers(): void {
           const connectedTabIds = successfulConnections.map(([tabId]) => Number(tabId));
 
           if (connectedTabIds.length >= 2) {
+            for (const tabId of connectedTabIds) {
+              manualSyncOverriddenTabs.add(tabId);
+            }
+
+            autoSyncState.groups.delete(normalizedUrl);
             syncState.linkedTabs = connectedTabIds;
             await persistSyncState();
             await broadcastSyncStatus();
             logger.info('[AUTO-SYNC] Manual sync started from suggestion', { connectedTabIds });
           } else {
-            syncState.isActive = false;
-            syncState.linkedTabs = [];
-            syncState.connectionStatuses = {};
+            await rollbackFailedSuggestionStart(connectedTabIds);
             logger.warn('[AUTO-SYNC] Failed to start sync - not enough tabs connected', {
               attemptedTabCount: tabIds.length,
               connectedTabCount: connectedTabIds.length,
@@ -309,6 +343,10 @@ export function registerAutoSyncHandlers(): void {
 
       if (accepted && syncState.isActive) {
         try {
+          if (syncState.linkedTabs.includes(tabId)) {
+            return { success: true };
+          }
+
           const tab = await browser.tabs.get(tabId);
           if (!tab) {
             return { success: false, error: 'Tab no longer exists' };
@@ -318,7 +356,7 @@ export function registerAutoSyncHandlers(): void {
 
           await removeTabFromAllAutoSyncGroups(tabId);
 
-          const newTabIds = [...syncState.linkedTabs, tabId];
+          const newTabIds = [...new Set([...syncState.linkedTabs, tabId])];
 
           const promises = newTabIds.map(async (candidateTabId) => {
             try {
