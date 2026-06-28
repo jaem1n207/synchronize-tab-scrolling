@@ -1,0 +1,134 @@
+name: Extension PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  extension-pr-checks:
+    name: extension-pr-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect extension-impacting changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" HEAD)"
+
+          echo "Changed files:"
+          if [ -n "$changed_files" ]; then
+            echo "$changed_files" | sed 's/^/- /'
+          else
+            echo "- none"
+          fi
+
+          extension_changed=false
+
+          while IFS= read -r file; do
+            case "$file" in
+              .github/workflows/extension-pr-checks.yml | \
+              e2e/** | \
+              extension/_locales/** | \
+              package.json | \
+              pnpm-lock.yaml | \
+              playwright.config*.ts | \
+              scripts/** | \
+              src/background/** | \
+              src/contentScripts/** | \
+              src/manifest.ts | \
+              src/popup/** | \
+              src/shared/** | \
+              tsconfig*.json | \
+              uno.config.ts | \
+              vite.config*)
+                extension_changed=true
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          echo "extension_changed=$extension_changed" >> "$GITHUB_OUTPUT"
+
+      - name: No extension-impacting changes
+        if: steps.changes.outputs.extension_changed != 'true'
+        run: echo "No extension-impacting changes detected."
+
+      - uses: pnpm/action-setup@v5
+        if: steps.changes.outputs.extension_changed == 'true'
+
+      - uses: actions/setup-node@v6
+        if: steps.changes.outputs.extension_changed == 'true'
+        with:
+          node-version: 'lts/*'
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Test privacy-safe logging validator
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm privacy:logging:test
+
+      - name: Validate privacy-safe logging
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm privacy:logging
+
+      - name: Validate i18n
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm i18n:validate
+
+      - name: Typecheck
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm typecheck
+
+      - name: Lint
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm lint:check
+
+      - name: Unit tests
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm test -- --run
+
+      - name: Build Chromium extension
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm build
+
+      - name: Preserve Chromium extension build for E2E
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: |
+          rm -rf test-results/chromium-extension
+          mkdir -p test-results/chromium-extension
+          cp -R extension/. test-results/chromium-extension/
+
+      - name: Build Firefox extension
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm build-firefox
+
+      - name: Install Playwright Chromium
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: URL Sync extension smoke tests
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm test:e2e:extension
+        env:
+          EXTENSION_E2E_DIR: test-results/chromium-extension
+
+      - name: Upload extension Playwright report
+        if: failure() && steps.changes.outputs.extension_changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-playwright-report
+          path: playwright-report-extension/
+          retention-days: 7
