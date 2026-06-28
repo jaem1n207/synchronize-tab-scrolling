@@ -81,6 +81,11 @@ as generated HTML reports, Markdown, JSON, text, CSV, and log files. In Chromium
 
 Scroll in any synced tab. All linked tabs follow automatically.
 
+Pages such as MDN can define CSS smooth scrolling for in-page navigation. Synchronize Tab Scrolling
+bypasses that animation only for extension-driven sync updates, so linked tabs jump to the latest
+matching position instead of slowly replaying old scroll targets. Normal page scrolling and anchor
+navigation stay untouched.
+
 ### Tip: Manual Position Adjustment
 
 When comparing documents like originals and translations, content lengths often differ due to language characteristics—some languages express the same idea more concisely or verbosely. As you scroll, the reading positions may gradually drift apart.
@@ -125,6 +130,8 @@ These tabs will appear disabled in the selection list.
 ### Real-time Scroll Sync
 
 When you scroll in one tab, all linked tabs move to the same relative position instantly.
+This remains true on pages that use CSS `scroll-behavior: smooth`; extension-driven sync updates are
+applied immediately without disabling the page's own smooth scrolling behavior.
 
 ```mermaid
 flowchart LR
