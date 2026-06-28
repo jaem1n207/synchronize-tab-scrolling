@@ -3,7 +3,10 @@ import type { SyncMode } from '~/shared/types/messages';
 interface ScrollBehaviorSnapshot {
   element: HTMLElement;
   scrollBehavior: string;
+  priority: string;
 }
+
+const SCROLL_BEHAVIOR_PROPERTY = 'scroll-behavior';
 
 function isHTMLElement(element: Element | null, documentRef: Document): element is HTMLElement {
   const HTMLElementConstructor = documentRef.defaultView?.HTMLElement;
@@ -26,14 +29,16 @@ function collectScrollBehaviorSnapshots(
   const snapshots: Array<ScrollBehaviorSnapshot> = [
     {
       element: scrollRoot,
-      scrollBehavior: scrollRoot.style.scrollBehavior,
+      scrollBehavior: scrollRoot.style.getPropertyValue(SCROLL_BEHAVIOR_PROPERTY),
+      priority: scrollRoot.style.getPropertyPriority(SCROLL_BEHAVIOR_PROPERTY),
     },
   ];
 
   if (documentRef.body && documentRef.body !== scrollRoot) {
     snapshots.push({
       element: documentRef.body,
-      scrollBehavior: documentRef.body.style.scrollBehavior,
+      scrollBehavior: documentRef.body.style.getPropertyValue(SCROLL_BEHAVIOR_PROPERTY),
+      priority: documentRef.body.style.getPropertyPriority(SCROLL_BEHAVIOR_PROPERTY),
     });
   }
 
@@ -42,13 +47,18 @@ function collectScrollBehaviorSnapshots(
 
 function forceAutoScrollBehavior(snapshots: ReadonlyArray<ScrollBehaviorSnapshot>): void {
   snapshots.forEach(({ element }) => {
-    element.style.scrollBehavior = 'auto';
+    element.style.setProperty(SCROLL_BEHAVIOR_PROPERTY, 'auto', 'important');
   });
 }
 
 function restoreScrollBehavior(snapshots: ReadonlyArray<ScrollBehaviorSnapshot>): void {
-  snapshots.forEach(({ element, scrollBehavior }) => {
-    element.style.scrollBehavior = scrollBehavior;
+  snapshots.forEach(({ element, scrollBehavior, priority }) => {
+    if (!scrollBehavior) {
+      element.style.removeProperty(SCROLL_BEHAVIOR_PROPERTY);
+      return;
+    }
+
+    element.style.setProperty(SCROLL_BEHAVIOR_PROPERTY, scrollBehavior, priority);
   });
 }
 

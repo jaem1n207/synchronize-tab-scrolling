@@ -67,6 +67,9 @@ describe('applyInstantProgrammaticScroll', () => {
     const restoreScrollTop = installScrollTopObserver(document.documentElement, (value) => {
       scrollTopAssignments.push(value);
       expect(document.documentElement.style.scrollBehavior).toBe('auto');
+      expect(document.documentElement.style.getPropertyPriority('scroll-behavior')).toBe(
+        'important',
+      );
     });
 
     try {
@@ -76,6 +79,33 @@ describe('applyInstantProgrammaticScroll', () => {
       expect(scrollTopAssignments).toEqual([420]);
       expect(document.documentElement.scrollTop).toBe(420);
       expect(document.documentElement.style.scrollBehavior).toBe('smooth');
+      expect(document.documentElement.style.getPropertyPriority('scroll-behavior')).toBe('');
+    } finally {
+      restoreScrollTop();
+    }
+  });
+
+  it('preserves existing scroll behavior priority after applying the scroll', () => {
+    document.documentElement.style.setProperty('scroll-behavior', 'smooth', 'important');
+    const scrollTopAssignments: Array<number> = [];
+    const restoreScrollTop = installScrollTopObserver(document.documentElement, (value) => {
+      scrollTopAssignments.push(value);
+      expect(document.documentElement.style.scrollBehavior).toBe('auto');
+      expect(document.documentElement.style.getPropertyPriority('scroll-behavior')).toBe(
+        'important',
+      );
+    });
+
+    try {
+      const applied = applyInstantProgrammaticScroll(180);
+
+      expect(applied).toBe(true);
+      expect(scrollTopAssignments).toEqual([180]);
+      expect(document.documentElement.scrollTop).toBe(180);
+      expect(document.documentElement.style.scrollBehavior).toBe('smooth');
+      expect(document.documentElement.style.getPropertyPriority('scroll-behavior')).toBe(
+        'important',
+      );
     } finally {
       restoreScrollTop();
     }
@@ -87,6 +117,9 @@ describe('applyInstantProgrammaticScroll', () => {
     const restoreScrollTop = installScrollTopObserver(document.documentElement, (value) => {
       scrollTopAssignments.push(value);
       expect(document.documentElement.style.scrollBehavior).toBe('auto');
+      expect(document.documentElement.style.getPropertyPriority('scroll-behavior')).toBe(
+        'important',
+      );
     });
 
     try {
@@ -109,6 +142,10 @@ describe('applyInstantProgrammaticScroll', () => {
       scrollTopAssignments.push(value);
       expect(document.documentElement.style.scrollBehavior).toBe('auto');
       expect(document.body.style.scrollBehavior).toBe('auto');
+      expect(document.documentElement.style.getPropertyPriority('scroll-behavior')).toBe(
+        'important',
+      );
+      expect(document.body.style.getPropertyPriority('scroll-behavior')).toBe('important');
     });
 
     try {
