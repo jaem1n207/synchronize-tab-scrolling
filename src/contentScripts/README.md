@@ -7,12 +7,14 @@ Injected into web pages to handle scroll synchronization on the page side. Commu
 ```
 contentScripts/
 ├── index.ts                 # Entry point — bootstraps scroll sync and UI rendering
-├── scroll-sync.ts           # Core scroll synchronization logic (~977 lines)
+├── scroll-sync.ts           # Core scroll synchronization logic (~1114 lines)
 ├── keyboard-handler.ts      # Option/Alt key detection for manual scroll adjustment
 ├── panel.tsx                # React root for SyncControlPanel (Shadow DOM mount)
 ├── suggestion-toast.tsx     # React root for SyncSuggestionToast (Shadow DOM mount)
 ├── lib/                     # Content script utilities
-│   └── scroll-sync-state.ts # Scroll sync state object and pure state transitions
+│   ├── instant-programmatic-scroll.ts # Instant receiver-side scroll apply + scheduler
+│   ├── scroll-sync-state.ts           # Scroll sync state object and timing constants
+│   └── translated-page-metadata.ts    # Canonical/alternate metadata extraction
 ├── components/              # React UI components (see components/README.md)
 └── hooks/                   # Custom hooks extracted from components
 ```
@@ -23,8 +25,20 @@ contentScripts/
 2. **Initialization**: `scroll-sync.ts` sets up scroll event listeners and message handlers
 3. **Scroll Capture**: When user scrolls, captures position (scrollTop, scrollHeight, clientHeight)
 4. **Position Relay**: Sends scroll data to background via `webext-bridge`
-5. **Position Apply**: Receives scroll data from other tabs and applies proportional positioning
+5. **Position Apply**: Receives scroll data from other tabs, keeps only the latest pending target per
+   animation frame, and applies proportional positioning instantly
 6. **UI Rendering**: Mounts React components inside Shadow DOM for sync controls and toast notifications
+
+## Receiver-Side Scroll Application
+
+`scroll-sync.ts` does not directly call `window.scrollTo()` for incoming sync targets. It schedules
+targets through `LatestProgrammaticScrollScheduler`, which applies only the newest target in the
+next animation frame. The actual DOM update goes through `applyInstantProgrammaticScroll()` so pages
+with CSS `scroll-behavior: smooth` cannot animate extension-driven sync updates.
+
+The instant helper temporarily sets inline `scrollBehavior: auto` on the current scroll root and
+`document.body` when they are distinct, writes `scrollTop`, then restores the previous inline
+values. This keeps normal page anchor navigation and user-initiated smooth scrolling intact.
 
 ## Shadow DOM Isolation
 
@@ -37,6 +51,8 @@ All UI components render inside a Shadow DOM to prevent style conflicts with the
 ## Manual Scroll Adjustment
 
 Users hold **Option** (Mac) / **Alt** (Windows) while scrolling to adjust individual tab positions without affecting sync. This is handled by `keyboard-handler.ts` which tracks modifier key state.
+Pending receiver targets are cancelled before capturing a manual baseline so an unapplied future
+target cannot pollute the saved offset.
 
 ## Key Message Handlers (in scroll-sync.ts)
 
