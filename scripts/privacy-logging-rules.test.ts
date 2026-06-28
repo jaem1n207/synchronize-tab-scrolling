@@ -25,6 +25,14 @@ describe('privacy logging rules', () => {
     ).toEqual([]);
   });
 
+  it('allows non-browser url and title properties', () => {
+    expect(
+      messagesFor(`
+        logger.info('Workflow state', { workflowTitle: workflow.title, apiUrl: api.url });
+      `),
+    ).toEqual([]);
+  });
+
   it('rejects raw URL metadata keys', () => {
     expect(
       messagesFor(`

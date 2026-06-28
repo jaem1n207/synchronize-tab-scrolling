@@ -25,16 +25,6 @@ const DISALLOWED_LOG_NAMES = new Set([
   'url',
 ]);
 
-const SENSITIVE_ROOT_IDENTIFIERS = new Set([
-  'data',
-  'metadata',
-  'payload',
-  'response',
-  'sender',
-  'syncState',
-  'tab',
-]);
-
 export interface PrivacyLoggingViolation {
   filePath: string;
   line: number;
@@ -230,14 +220,16 @@ function findSensitiveRootName(expression: ts.PropertyAccessExpression): string 
     return null;
   }
 
-  const [rootName] = names;
-  const lastName = names[names.length - 1];
+  if (matchesPropertyAccessPath(names, ['payload', 'url'])) {
+    return names[0];
+  }
 
-  if (
-    SENSITIVE_ROOT_IDENTIFIERS.has(rootName) &&
-    (DISALLOWED_LOG_NAMES.has(lastName) || lastName === 'href')
-  ) {
-    return rootName;
+  if (matchesPropertyAccessPath(names, ['tab', 'url'])) {
+    return names[0];
+  }
+
+  if (matchesPropertyAccessPath(names, ['tab', 'title'])) {
+    return names[0];
   }
 
   return null;
@@ -250,17 +242,27 @@ function findDirectBrowserDataName(expression: ts.PropertyAccessExpression): str
     return null;
   }
 
-  const lastName = names[names.length - 1];
-
-  if (lastName === 'url' || lastName === 'title') {
-    return lastName;
+  if (matchesPropertyAccessPath(names, ['document', 'title'])) {
+    return names[names.length - 1];
   }
 
-  if (lastName === 'href' && names.includes('location')) {
-    return lastName;
+  if (matchesPropertyAccessPath(names, ['location', 'href'])) {
+    return names[names.length - 1];
+  }
+
+  if (matchesPropertyAccessPath(names, ['window', 'location', 'href'])) {
+    return names[names.length - 1];
   }
 
   return null;
+}
+
+function matchesPropertyAccessPath(names: Array<string>, expectedPath: Array<string>): boolean {
+  if (names.length !== expectedPath.length) {
+    return false;
+  }
+
+  return expectedPath.every((part, index) => names[index] === part);
 }
 
 function getPropertyAccessNames(expression: ts.PropertyAccessExpression): Array<string> | null {
