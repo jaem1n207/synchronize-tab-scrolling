@@ -32,7 +32,7 @@ interface UseUrlSyncReturn {
   urlSyncMode: UrlSyncMode;
   urlSyncNotice: UrlSyncNotice | null;
   handleUrlSyncChange: (enabled: boolean) => Promise<void>;
-  handleUrlSyncModeChange: (mode: UrlSyncMode) => Promise<void>;
+  handleUrlSyncModeChange: (mode: UrlSyncMode) => Promise<boolean>;
   dismissUrlSyncNotice: () => void;
 }
 
@@ -197,7 +197,7 @@ export function useUrlSync(): UseUrlSyncReturn {
       if (!saved) {
         advanceStateVersion(['notice']);
         setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
-        return;
+        return false;
       }
 
       advanceStateVersion(['mode', 'notice']);
@@ -206,6 +206,7 @@ export function useUrlSync(): UseUrlSyncReturn {
       sendMessage('sync:url-mode-changed', { mode }, 'background').catch((err) => {
         logger.warn('[useUrlSync] Failed to notify background of URL sync mode change:', err);
       });
+      return true;
     },
     [advanceStateVersion],
   );

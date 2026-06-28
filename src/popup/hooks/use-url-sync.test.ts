@@ -186,15 +186,38 @@ describe('useUrlSync', () => {
     unmount();
   });
 
+  it('commits mode changes only after persistence succeeds', async () => {
+    const { result, unmount } = renderHook(() => useUrlSync());
+    await waitFor(() => expect(result.current.urlSyncMode).toBe('follow-changed-tab'));
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.handleUrlSyncModeChange('keep-each-tabs-website');
+    });
+
+    expect(saved).toBe(true);
+    expect(saveUrlSyncMode).toHaveBeenCalledWith('keep-each-tabs-website');
+    expect(result.current.urlSyncMode).toBe('keep-each-tabs-website');
+    expect(sendMessage).toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      { mode: 'keep-each-tabs-website' },
+      'background',
+    );
+
+    unmount();
+  });
+
   it('keeps mode state and skips broadcast when persistence fails', async () => {
     vi.mocked(saveUrlSyncMode).mockResolvedValue(false);
     const { result, unmount } = renderHook(() => useUrlSync());
     await waitFor(() => expect(result.current.urlSyncMode).toBe('follow-changed-tab'));
 
+    let saved: boolean | undefined;
     await act(async () => {
-      await result.current.handleUrlSyncModeChange('keep-each-tabs-website');
+      saved = await result.current.handleUrlSyncModeChange('keep-each-tabs-website');
     });
 
+    expect(saved).toBe(false);
     expect(result.current.urlSyncMode).toBe('follow-changed-tab');
     expect(result.current.urlSyncNotice).toEqual({
       key: 'urlSyncSettingSaveFailedNotice',

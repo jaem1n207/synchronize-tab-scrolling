@@ -199,7 +199,7 @@ function PanelApp() {
     const saved = await saveUrlSyncMode(mode);
     if (!saved) {
       setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
-      return;
+      return false;
     }
 
     setUrlSyncMode(mode);
@@ -209,6 +209,7 @@ function PanelApp() {
     } catch (error) {
       await logger.error('Failed to broadcast URL sync mode change', error);
     }
+    return true;
   }, []);
 
   // Handle sync suggestion accept

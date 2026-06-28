@@ -32,7 +32,7 @@ interface SyncControlPanelProps {
   urlSyncMode: UrlSyncMode;
   urlSyncNotice: UrlSyncNotice | null;
   onUrlSyncEnabledChange: (enabled: boolean) => void | Promise<void>;
-  onUrlSyncModeChange: (mode: UrlSyncMode) => void | Promise<void>;
+  onUrlSyncModeChange: (mode: UrlSyncMode) => boolean | void | Promise<boolean | void>;
   isConnectionHealthy?: boolean;
   onReconnect?: () => void;
   className?: string;
