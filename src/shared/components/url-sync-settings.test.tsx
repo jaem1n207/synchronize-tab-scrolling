@@ -9,6 +9,10 @@ vi.mock('~/shared/i18n', () => ({
   t: (key: string) => {
     const messages: Record<string, string> = {
       urlSyncNavigation: 'URL Sync',
+      urlSyncStateOn: 'On',
+      urlSyncStateOff: 'Off',
+      urlSyncExpandSettings: 'Expand URL Sync settings',
+      urlSyncCollapseSettings: 'Collapse URL Sync settings',
       urlSyncModeDescription: 'Choose how linked tabs follow page changes.',
       urlSyncModeFollowChangedTab: 'Follow changed tab',
       urlSyncModeFollowChangedTabDescription: 'Other tabs move to the website you changed.',
@@ -239,6 +243,133 @@ describe('UrlSyncSettings', () => {
     expect(onModeChange).not.toHaveBeenCalled();
   });
 
+  describe('inline-collapsible variant', () => {
+    it('renders collapsed with status, active mode, and helper copy visible', () => {
+      render(
+        <UrlSyncSettings
+          enabled={true}
+          mode="keep-each-tabs-website"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={vi.fn()}
+        />,
+      );
+
+      const settings = screen.getByRole('region', { name: 'URL Sync' });
+      const disclosure = screen.getByRole('button', { name: 'Expand URL Sync settings' });
+
+      expect(settings).toHaveAttribute('data-variant', 'inline-collapsible');
+      expect(settings).toHaveTextContent('On');
+      expect(settings).toHaveTextContent("Keep each tab's website");
+      expect(settings).toHaveTextContent('Languages are kept when possible.');
+      expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+      expect(disclosure).toHaveAccessibleDescription(/On.*Keep each tab's website/);
+      expect(
+        screen.queryByText('Other tabs stay on their own website and open the matching page.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('expands inline and exposes both mode descriptions', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <UrlSyncSettings
+          enabled={true}
+          mode="follow-changed-tab"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={vi.fn()}
+        />,
+      );
+
+      const disclosure = screen.getByRole('button', { name: 'Expand URL Sync settings' });
+
+      await user.click(disclosure);
+
+      expect(screen.getByRole('button', { name: 'Collapse URL Sync settings' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+      expect(screen.getByText('Other tabs move to the website you changed.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Other tabs stay on their own website and open the matching page.'),
+      ).toBeInTheDocument();
+    });
+
+    it('collapses after a successful mode change', async () => {
+      const onModeChange = vi.fn().mockResolvedValue(undefined);
+      const user = userEvent.setup();
+
+      render(
+        <UrlSyncSettings
+          enabled={true}
+          mode="follow-changed-tab"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={onModeChange}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+      await user.click(screen.getByRole('radio', { name: /Keep each tab's website/i }));
+
+      expect(onModeChange).toHaveBeenCalledWith('keep-each-tabs-website');
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Expand URL Sync settings' })).toHaveAttribute(
+          'aria-expanded',
+          'false',
+        );
+      });
+    });
+
+    it('keeps the editor open after a failed mode change', async () => {
+      const onModeChange = vi.fn().mockRejectedValue(new Error('mode save failed'));
+      const user = userEvent.setup();
+
+      render(
+        <UrlSyncSettings
+          enabled={true}
+          mode="follow-changed-tab"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={onModeChange}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+      await user.click(screen.getByRole('radio', { name: /Keep each tab's website/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Collapse URL Sync settings' })).toHaveAttribute(
+          'aria-expanded',
+          'true',
+        );
+      });
+    });
+
+    it('keeps the active mode visible but disables mode choices when URL Sync is off', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <UrlSyncSettings
+          enabled={false}
+          mode="keep-each-tabs-website"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText('Off')).toBeInTheDocument();
+      expect(screen.getByText("Keep each tab's website")).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+
+      expect(screen.getByRole('radio', { name: /Follow changed tab/i })).toBeDisabled();
+      expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toBeDisabled();
+    });
+  });
+
   it('renders compact mode without the popup frame', () => {
     render(
       <UrlSyncSettings
@@ -252,7 +383,7 @@ describe('UrlSyncSettings', () => {
 
     const settings = screen.getByRole('region', { name: 'URL Sync' });
 
-    expect(settings).toHaveAttribute('data-compact', 'true');
+    expect(settings).toHaveAttribute('data-variant', 'panel-compact');
     expect(settings.className).not.toContain('border');
     expect(settings.className).not.toContain('bg-card');
   });
