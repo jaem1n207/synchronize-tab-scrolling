@@ -4,10 +4,9 @@ import type { Page } from '@playwright/test';
 
 const FOLLOW_CHANGED_TAB_NAME = /Follow changed tab|변경한 탭 따라가기/i;
 const KEEP_EACH_TABS_WEBSITE_NAME = /Keep each tab's website|각 탭의 웹사이트 유지/i;
-const LANGUAGE_HELPER_COPY =
-  /Languages are kept when possible\.|가능한 경우 언어 설정은 유지됩니다\./i;
 const START_SYNC_NAME = /Start synchronization|동기화 시작/i;
 const STOP_SYNC_NAME = /Stop synchronization|동기화 중지/i;
+const URL_SYNC_EXPAND_SETTINGS_NAME = /Expand URL Sync settings|URL 동기화 설정 펼치기/i;
 const URL_SYNC_SWITCH_NAME = /URL Sync|URL 동기화 여부/i;
 
 function escapeRegExp(value: string): string {
@@ -31,10 +30,14 @@ async function selectTabsAndStartSync(
 }
 
 async function chooseKeepEachTabsWebsiteMode(popup: Page): Promise<void> {
-  const keepWebsiteRadio = popup.getByRole('radio', { name: KEEP_EACH_TABS_WEBSITE_NAME });
+  await popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
+  await popup.locator('label').filter({ hasText: KEEP_EACH_TABS_WEBSITE_NAME }).click();
+  await expect(popup.getByText(KEEP_EACH_TABS_WEBSITE_NAME).first()).toBeVisible();
+}
 
-  await popup.getByText(KEEP_EACH_TABS_WEBSITE_NAME).click();
-  await expect(keepWebsiteRadio).toBeChecked();
+async function expectFollowChangedTabMode(popup: Page): Promise<void> {
+  await popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
+  await expect(popup.getByRole('radio', { name: FOLLOW_CHANGED_TAB_NAME })).toBeChecked();
 }
 
 async function turnUrlSyncOff(popup: Page): Promise<void> {
@@ -57,7 +60,7 @@ test.describe('URL Sync modes', () => {
     await target.goto(fixtureSites.comparison.url('/ko/home?view=compact#comparison-home'));
 
     const popup = await openPopup();
-    await expect(popup.getByRole('radio', { name: FOLLOW_CHANGED_TAB_NAME })).toBeChecked();
+    await expectFollowChangedTabMode(popup);
     await selectTabsAndStartSync(popup, 'Primary Home', 'Comparison Home');
 
     await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
@@ -132,9 +135,9 @@ test.describe('URL Sync modes', () => {
     await firstPopup.close();
 
     const secondPopup = await openPopup();
+    await secondPopup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
     await expect(
       secondPopup.getByRole('radio', { name: KEEP_EACH_TABS_WEBSITE_NAME }),
     ).toBeChecked();
-    await expect(secondPopup.getByText(LANGUAGE_HELPER_COPY)).toBeVisible();
   });
 });

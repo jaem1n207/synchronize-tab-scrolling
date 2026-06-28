@@ -22,7 +22,7 @@ interface ExtensionFixtures {
   openPopup: () => Promise<Page>;
 }
 
-const URL_SYNC_HEADING_NAME = /URL Sync|URL 동기화 여부/i;
+const URL_SYNC_SWITCH_NAME = /URL Sync|URL 동기화 여부/i;
 
 function titleFor(siteName: string, pathname: string): string {
   const pageName = pathname.includes('/about') ? 'About' : 'Home';
@@ -134,7 +134,7 @@ export const test = base.extend<ExtensionFixtures>({
     await run(async () => {
       const popup = await extensionContext.newPage();
       await popup.goto(`chrome-extension://${extensionId}/dist/popup/index.html`);
-      await expect(popup.getByRole('heading', { name: URL_SYNC_HEADING_NAME })).toBeVisible();
+      await expect(popup.getByRole('switch', { name: URL_SYNC_SWITCH_NAME })).toBeVisible();
       return popup;
     });
   },
