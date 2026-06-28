@@ -518,7 +518,7 @@
     }
   },
   "autoSyncSameUrl": {
-    "message": "동일 URL 자동 동기화"
+    "message": "같은 페이지 탭 자동 제안"
   },
   "autoSyncActive": {
     "message": "자동"
