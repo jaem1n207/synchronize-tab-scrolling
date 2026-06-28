@@ -25,6 +25,7 @@ vite.config.*.timestamp-*
 !.env.example
 
 # Test artifacts
+playwright-report-extension/
 test-results/
 
 # MCP configuration with sensitive tokens
