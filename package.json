@@ -66,6 +66,8 @@
     "format:fix": "pnpm prettier --write .",
     "typecheck": "pnpm tsc --noEmit",
     "i18n:validate": "esno scripts/validate-i18n.ts",
+    "privacy:logging": "esno scripts/validate-privacy-logging.ts",
+    "privacy:logging:test": "vitest run --root . scripts/privacy-logging-rules.test.ts",
     "cz": "czg"
   },
   "dependencies": {
