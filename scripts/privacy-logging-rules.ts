@@ -7,9 +7,12 @@ const SENSITIVE_MEMBER_SUFFIXES = new Set([
   'canonicalUrl',
   'currentUrl',
   'documentTitle',
+  'hash',
   'href',
   'normalizedUrl',
   'pageTitle',
+  'pathname',
+  'search',
   'sourceUrl',
   'tabTitle',
   'targetUrl',
@@ -33,12 +36,15 @@ const DISALLOWED_LOG_NAMES = new Set([
   'currentUrl',
   'data',
   'documentTitle',
+  'hash',
   'href',
   'metadata',
   'normalizedUrl',
   'pageTitle',
   'payload',
+  'pathname',
   'response',
+  'search',
   'sender',
   'sourceUrl',
   'syncState',
@@ -64,6 +70,7 @@ interface UnsafeExpressionMatch {
 interface BindingEntry {
   name: string;
   initializer?: ts.Expression;
+  unsafeName?: string;
   declarationStart: number;
   scopeNode: ts.Node;
 }
@@ -123,7 +130,12 @@ export function analyzePrivacyLoggingSource(
     }
 
     if (ts.isIdentifier(expression)) {
-      const initializer = resolveVisibleInitializer(bindings, expression);
+      const binding = resolveVisibleBinding(bindings, expression);
+      const initializer = binding?.initializer;
+
+      if (binding?.unsafeName) {
+        report(expression, binding.unsafeName);
+      }
 
       if (!initializer || seenAliases.has(expression.text)) {
         return;
@@ -259,7 +271,7 @@ function isLoggerExpression(
       return false;
     }
 
-    const initializer = resolveVisibleInitializer(bindings, expression);
+    const initializer = resolveVisibleBinding(bindings, expression)?.initializer;
     if (!initializer) {
       return false;
     }
@@ -392,19 +404,34 @@ function findDirectBrowserDataName(
     return null;
   }
 
+  return findDirectBrowserDataNameFromPath(names);
+}
+
+function findDirectBrowserDataNameFromPath(names: Array<string>): string | null {
   if (matchesPropertyAccessPath(names, ['document', 'title'])) {
     return names[names.length - 1];
   }
 
-  if (matchesPropertyAccessPath(names, ['location', 'href'])) {
+  if (isSensitiveLocationPath(names, ['location'])) {
     return names[names.length - 1];
   }
 
-  if (matchesPropertyAccessPath(names, ['window', 'location', 'href'])) {
+  if (isSensitiveLocationPath(names, ['window', 'location'])) {
     return names[names.length - 1];
   }
 
   return null;
+}
+
+function isSensitiveLocationPath(names: Array<string>, prefix: Array<string>): boolean {
+  if (names.length !== prefix.length + 1) {
+    return false;
+  }
+
+  return (
+    prefix.every((part, index) => names[index] === part) &&
+    SENSITIVE_MEMBER_SUFFIXES.has(names[names.length - 1] ?? '')
+  );
 }
 
 function isComputedSensitiveAccess(
@@ -494,25 +521,63 @@ function collectBindings(sourceFile: ts.SourceFile): Map<string, Array<BindingEn
   const bindings = new Map<string, Array<BindingEntry>>();
 
   function visit(node: ts.Node): void {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      const entries = bindings.get(node.name.text) ?? [];
-      entries.push({
-        name: node.name.text,
-        initializer: node.initializer,
-        declarationStart: node.getStart(sourceFile),
-        scopeNode: getDeclarationScopeNode(node),
-      });
-      bindings.set(node.name.text, entries);
+    if (ts.isVariableDeclaration(node)) {
+      if (ts.isIdentifier(node.name) && node.initializer) {
+        addBindingEntry(bindings, node.name.text, {
+          name: node.name.text,
+          initializer: node.initializer,
+          declarationStart: node.getStart(sourceFile),
+          scopeNode: getDeclarationScopeNode(node),
+        });
+      } else if (ts.isObjectBindingPattern(node.name) && node.initializer) {
+        collectObjectBindingPatternBindings(
+          bindings,
+          node.name,
+          node.initializer,
+          [],
+          node.getStart(sourceFile),
+          getDeclarationScopeNode(node),
+        );
+      }
+    }
+
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      if (ts.isIdentifier(node.left)) {
+        addBindingEntry(bindings, node.left.text, {
+          name: node.left.text,
+          initializer: node.right,
+          declarationStart: node.getStart(sourceFile),
+          scopeNode: getAssignmentScopeNode(node),
+        });
+      } else if (ts.isObjectLiteralExpression(node.left)) {
+        collectObjectAssignmentPatternBindings(
+          bindings,
+          node.left,
+          node.right,
+          [],
+          node.getStart(sourceFile),
+          getAssignmentScopeNode(node),
+        );
+      }
     }
 
     if (ts.isParameter(node) && ts.isIdentifier(node.name)) {
-      const entries = bindings.get(node.name.text) ?? [];
-      entries.push({
+      addBindingEntry(bindings, node.name.text, {
         name: node.name.text,
         declarationStart: node.getStart(sourceFile),
         scopeNode: getParameterScopeNode(node),
       });
-      bindings.set(node.name.text, entries);
+    }
+
+    if (ts.isParameter(node) && ts.isObjectBindingPattern(node.name)) {
+      collectObjectBindingPatternBindings(
+        bindings,
+        node.name,
+        undefined,
+        [],
+        node.getStart(sourceFile),
+        getParameterScopeNode(node),
+      );
     }
 
     if (
@@ -521,13 +586,11 @@ function collectBindings(sourceFile: ts.SourceFile): Map<string, Array<BindingEn
       ts.isIdentifier(node.variableDeclaration.name)
     ) {
       const name = node.variableDeclaration.name.text;
-      const entries = bindings.get(name) ?? [];
-      entries.push({
+      addBindingEntry(bindings, name, {
         name,
         declarationStart: node.variableDeclaration.getStart(sourceFile),
         scopeNode: node,
       });
-      bindings.set(name, entries);
     }
 
     ts.forEachChild(node, visit);
@@ -538,10 +601,194 @@ function collectBindings(sourceFile: ts.SourceFile): Map<string, Array<BindingEn
   return bindings;
 }
 
-function resolveVisibleInitializer(
+function addBindingEntry(
+  bindings: Map<string, Array<BindingEntry>>,
+  name: string,
+  entry: BindingEntry,
+): void {
+  const entries = bindings.get(name) ?? [];
+  entries.push(entry);
+  bindings.set(name, entries);
+}
+
+function collectObjectBindingPatternBindings(
+  bindings: Map<string, Array<BindingEntry>>,
+  pattern: ts.ObjectBindingPattern,
+  initializer: ts.Expression | undefined,
+  propertyPath: Array<string>,
+  declarationStart: number,
+  scopeNode: ts.Node,
+): void {
+  for (const element of pattern.elements) {
+    if (element.dotDotDotToken) {
+      if (ts.isIdentifier(element.name)) {
+        addBindingEntry(bindings, element.name.text, {
+          name: element.name.text,
+          unsafeName: findDestructuredBindingUnsafeName(initializer, propertyPath),
+          declarationStart,
+          scopeNode,
+        });
+      }
+      continue;
+    }
+
+    const propertyName = getBindingElementPropertyName(element);
+    if (!propertyName) {
+      continue;
+    }
+
+    const nextPropertyPath = [...propertyPath, propertyName];
+
+    if (ts.isIdentifier(element.name)) {
+      addBindingEntry(bindings, element.name.text, {
+        name: element.name.text,
+        unsafeName: findDestructuredBindingUnsafeName(initializer, nextPropertyPath),
+        declarationStart,
+        scopeNode,
+      });
+      continue;
+    }
+
+    if (ts.isObjectBindingPattern(element.name)) {
+      collectObjectBindingPatternBindings(
+        bindings,
+        element.name,
+        initializer,
+        nextPropertyPath,
+        declarationStart,
+        scopeNode,
+      );
+    }
+  }
+}
+
+function collectObjectAssignmentPatternBindings(
+  bindings: Map<string, Array<BindingEntry>>,
+  pattern: ts.ObjectLiteralExpression,
+  initializer: ts.Expression,
+  propertyPath: Array<string>,
+  declarationStart: number,
+  scopeNode: ts.Node,
+): void {
+  for (const property of pattern.properties) {
+    if (ts.isShorthandPropertyAssignment(property)) {
+      const propertyName = property.name.text;
+      addBindingEntry(bindings, propertyName, {
+        name: propertyName,
+        unsafeName: findDestructuredBindingUnsafeName(initializer, [...propertyPath, propertyName]),
+        declarationStart,
+        scopeNode,
+      });
+      continue;
+    }
+
+    if (!ts.isPropertyAssignment(property)) {
+      continue;
+    }
+
+    const propertyName = getPropertyNameText(property.name);
+    if (!propertyName) {
+      continue;
+    }
+
+    const nextPropertyPath = [...propertyPath, propertyName];
+
+    if (ts.isIdentifier(property.initializer)) {
+      addBindingEntry(bindings, property.initializer.text, {
+        name: property.initializer.text,
+        unsafeName: findDestructuredBindingUnsafeName(initializer, nextPropertyPath),
+        declarationStart,
+        scopeNode,
+      });
+      continue;
+    }
+
+    if (ts.isObjectLiteralExpression(property.initializer)) {
+      collectObjectAssignmentPatternBindings(
+        bindings,
+        property.initializer,
+        initializer,
+        nextPropertyPath,
+        declarationStart,
+        scopeNode,
+      );
+    }
+  }
+}
+
+function getBindingElementPropertyName(element: ts.BindingElement): string | null {
+  if (element.propertyName) {
+    return getPropertyNameText(element.propertyName);
+  }
+
+  if (ts.isIdentifier(element.name)) {
+    return element.name.text;
+  }
+
+  return null;
+}
+
+function findDestructuredBindingUnsafeName(
+  initializer: ts.Expression | undefined,
+  propertyPath: Array<string>,
+): string | undefined {
+  if (!initializer) {
+    return undefined;
+  }
+
+  const initializerPath = getExpressionPath(initializer);
+
+  if (!initializerPath) {
+    return undefined;
+  }
+
+  const combinedPath = [...initializerPath, ...propertyPath];
+  return (
+    findSensitiveRootNameFromPath(combinedPath) ??
+    findDirectBrowserDataNameFromPath(combinedPath) ??
+    undefined
+  );
+}
+
+function getExpressionPath(expression: ts.Expression): Array<string> | null {
+  if (ts.isIdentifier(expression)) {
+    return [expression.text];
+  }
+
+  if (!isMemberAccessExpression(expression)) {
+    return null;
+  }
+
+  const pathInfo = getMemberAccessPathInfo(expression);
+
+  if (!pathInfo || pathInfo.hasComputedNonLiteral) {
+    return null;
+  }
+
+  return pathInfo.names;
+}
+
+function findSensitiveRootNameFromPath(names: Array<string>): string | null {
+  if (names.length < 2) {
+    return null;
+  }
+
+  const [rootName, ...nestedNames] = names;
+  if (!rootName || !SENSITIVE_MEMBER_ROOTS.has(rootName)) {
+    return null;
+  }
+
+  return nestedNames.some(
+    (name) => SENSITIVE_MEMBER_SUFFIXES.has(name) || DISALLOWED_LOG_NAMES.has(name),
+  )
+    ? rootName
+    : null;
+}
+
+function resolveVisibleBinding(
   bindings: Map<string, Array<BindingEntry>>,
   identifier: ts.Identifier,
-): ts.Expression | null {
+): BindingEntry | null {
   const candidates = bindings.get(identifier.text);
 
   if (!candidates) {
@@ -574,11 +821,7 @@ function resolveVisibleInitializer(
     }
   }
 
-  if (!bestCandidate || !bestCandidate.initializer) {
-    return null;
-  }
-
-  return bestCandidate.initializer;
+  return bestCandidate;
 }
 
 function getContainingScopes(node: ts.Node): Array<ts.Node> {
@@ -620,6 +863,20 @@ function getDeclarationScopeNode(node: ts.VariableDeclaration): ts.Node {
 }
 
 function getParameterScopeNode(node: ts.ParameterDeclaration): ts.Node {
+  let current: ts.Node | undefined = node.parent;
+
+  while (current) {
+    if (ts.isFunctionLike(current) || ts.isSourceFile(current)) {
+      return current;
+    }
+
+    current = current.parent;
+  }
+
+  return node.getSourceFile();
+}
+
+function getAssignmentScopeNode(node: ts.BinaryExpression): ts.Node {
   let current: ts.Node | undefined = node.parent;
 
   while (current) {

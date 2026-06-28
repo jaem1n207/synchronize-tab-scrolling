@@ -228,6 +228,60 @@ describe('privacy logging rules', () => {
     ]);
   });
 
+  it('rejects browser location path, query, and fragment expressions', () => {
+    expect(
+      messagesFor(`
+        logger.info('Path changed', { raw: window.location.pathname });
+        logger.info('Query changed', { raw: location.search });
+        logger.info('Fragment changed', { raw: window.location.hash });
+      `),
+    ).toEqual([
+      'Do not log "pathname". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "search". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "hash". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('rejects destructured aliases from sensitive browser and payload sources', () => {
+    expect(
+      messagesFor(`
+        const { pathname: rawPath } = window.location;
+        const { search } = location;
+        const { url: rawUrl } = payload;
+        logger.info('x', { rawPath });
+        logger.info('x', { search });
+        logger.info('x', { rawUrl });
+      `),
+    ).toEqual([
+      'Do not log "pathname". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "search". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('rejects aliases created by later assignments', () => {
+    expect(
+      messagesFor(`
+        let raw;
+        raw = payload.url;
+        logger.info('x', { raw });
+      `),
+    ).toEqual([
+      'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('uses the latest visible assignment when checking aliases', () => {
+    expect(
+      messagesFor(`
+        let raw;
+        raw = payload.url;
+        raw = { tabCount: 2 };
+        logger.info('x', { raw });
+      `),
+    ).toEqual([]);
+  });
+
   it('allows static primary log messages', () => {
     expect(
       messagesFor(`
