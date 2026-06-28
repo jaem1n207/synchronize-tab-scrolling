@@ -279,7 +279,7 @@
     "message": "Scroll-Sync-Werkzeugleiste"
   },
   "urlSyncNavigation": {
-    "message": "URL-Synchronisierung"
+    "message": "Seitenwechsel mitsynchronisieren"
   },
   "urlSyncStateOn": {
     "message": "Ein"
@@ -288,10 +288,10 @@
     "message": "Aus"
   },
   "urlSyncExpandSettings": {
-    "message": "URL-Sync-Einstellungen erweitern"
+    "message": "Seitensynchronisationsmodus ändern"
   },
   "urlSyncCollapseSettings": {
-    "message": "URL-Sync-Einstellungen einklappen"
+    "message": "Seitensynchronisationsmodi ausblenden"
   },
   "urlSyncModeDescription": {
     "message": "Wählen Sie, wie verknüpfte Tabs Seitenänderungen folgen."
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "Andere Tabs wechseln zu der Website, die Sie geändert haben."
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "Beispiel: Wenn Tab A example.com/products öffnet, öffnen die anderen Tabs auch example.com/products."
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "Website jedes Tabs beibehalten"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "Andere Tabs bleiben auf ihrer eigenen Website und öffnen die passende Seite."
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "Beispiel: Wenn Tab A docs.example.com/pricing öffnet, öffnet Tab B shop.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Sprachen werden nach Möglichkeit beibehalten."

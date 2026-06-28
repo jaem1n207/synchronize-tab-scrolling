@@ -279,7 +279,7 @@
     "message": "スクロール同期ツールバー"
   },
   "urlSyncNavigation": {
-    "message": "URL同期"
+    "message": "ページ移動も同期"
   },
   "urlSyncStateOn": {
     "message": "オン"
@@ -288,10 +288,10 @@
     "message": "オフ"
   },
   "urlSyncExpandSettings": {
-    "message": "URL同期設定を展開"
+    "message": "ページ同期モードを変更"
   },
   "urlSyncCollapseSettings": {
-    "message": "URL同期設定を折りたたむ"
+    "message": "ページ同期モードを閉じる"
   },
   "urlSyncModeDescription": {
     "message": "リンクしたタブがページ変更にどう追従するかを選択します。"
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "他のタブも変更したタブのウェブサイトへ移動します。"
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "例: Aタブが example.com/products に移動すると、他のタブも example.com/products に移動します。"
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "各タブのウェブサイトを維持"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "他のタブはそれぞれのウェブサイトに残り、対応するページを開きます。"
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "例: Aタブが docs.example.com/pricing に移動すると、Bタブは shop.example.com/pricing を開きます。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "可能な場合は言語設定を維持します。"

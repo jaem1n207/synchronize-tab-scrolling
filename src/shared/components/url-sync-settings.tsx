@@ -26,16 +26,19 @@ const URL_SYNC_MODE_OPTIONS: Array<{
   descriptionKey:
     | 'urlSyncModeFollowChangedTabDescription'
     | 'urlSyncModeKeepEachTabsWebsiteDescription';
+  exampleKey: 'urlSyncModeFollowChangedTabExample' | 'urlSyncModeKeepEachTabsWebsiteExample';
 }> = [
   {
     mode: 'follow-changed-tab',
     labelKey: 'urlSyncModeFollowChangedTab',
     descriptionKey: 'urlSyncModeFollowChangedTabDescription',
+    exampleKey: 'urlSyncModeFollowChangedTabExample',
   },
   {
     mode: 'keep-each-tabs-website',
     labelKey: 'urlSyncModeKeepEachTabsWebsite',
     descriptionKey: 'urlSyncModeKeepEachTabsWebsiteDescription',
+    exampleKey: 'urlSyncModeKeepEachTabsWebsiteExample',
   },
 ];
 
@@ -173,6 +176,11 @@ export function UrlSyncSettings({
           <span className="min-w-0">
             <span className="block text-sm font-medium">{t(option.labelKey)}</span>
             <span className="block text-xs text-muted-foreground">{t(option.descriptionKey)}</span>
+            {layout === 'inline' && (
+              <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                {t(option.exampleKey)}
+              </span>
+            )}
           </span>
         </label>
       </div>
@@ -183,7 +191,7 @@ export function UrlSyncSettings({
     return (
       <section
         aria-labelledby={headingId}
-        className="space-y-2 text-sm"
+        className="rounded-lg border bg-muted/20 p-2 text-sm"
         data-variant="inline-collapsible"
       >
         <div className="flex min-w-0 items-center gap-2">
@@ -195,7 +203,7 @@ export function UrlSyncSettings({
               inlineEditorExpanded ? 'urlSyncCollapseSettings' : 'urlSyncExpandSettings',
             )}
             className={cn(
-              'flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left',
+              'flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left',
               'transition-colors hover:bg-accent hover:text-accent-foreground',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               'focus-visible:ring-offset-2',
@@ -235,7 +243,7 @@ export function UrlSyncSettings({
         </div>
 
         {inlineEditorExpanded && (
-          <fieldset className="grid grid-cols-1 gap-1" id={inlineEditorId}>
+          <fieldset className="mt-2 grid grid-cols-1 gap-1" id={inlineEditorId}>
             <legend className="sr-only">{t('urlSyncNavigation')}</legend>
             {URL_SYNC_MODE_OPTIONS.map((option) => renderModeOption(option, 'inline'))}
           </fieldset>

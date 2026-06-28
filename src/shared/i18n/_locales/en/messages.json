@@ -279,7 +279,7 @@
     "message": "Scroll Sync Toolbar"
   },
   "urlSyncNavigation": {
-    "message": "URL Sync"
+    "message": "Sync page changes"
   },
   "urlSyncStateOn": {
     "message": "On"
@@ -288,10 +288,10 @@
     "message": "Off"
   },
   "urlSyncExpandSettings": {
-    "message": "Expand URL Sync settings"
+    "message": "Change page sync mode"
   },
   "urlSyncCollapseSettings": {
-    "message": "Collapse URL Sync settings"
+    "message": "Hide page sync modes"
   },
   "urlSyncModeDescription": {
     "message": "Choose how linked tabs follow page changes."
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "Other tabs move to the website you changed."
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "Example: if tab A moves to example.com/products, other tabs move to example.com/products too."
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "Keep each tab's website"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "Other tabs stay on their own website and open the matching page."
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "Example: if tab A moves to docs.example.com/pricing, tab B opens shop.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Languages are kept when possible."

@@ -279,7 +279,7 @@
     "message": "Barra de Sincronizacion de Desplazamiento"
   },
   "urlSyncNavigation": {
-    "message": "Sincronización URL"
+    "message": "Sincronizar cambios de página"
   },
   "urlSyncStateOn": {
     "message": "Activado"
@@ -288,10 +288,10 @@
     "message": "Desactivado"
   },
   "urlSyncExpandSettings": {
-    "message": "Expandir ajustes de URL Sync"
+    "message": "Cambiar modo de sincronización de páginas"
   },
   "urlSyncCollapseSettings": {
-    "message": "Contraer ajustes de URL Sync"
+    "message": "Ocultar modos de sincronización de páginas"
   },
   "urlSyncModeDescription": {
     "message": "Elige cómo las pestañas vinculadas siguen los cambios de página."
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "Las demás pestañas se mueven al sitio web que cambiaste."
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "Ejemplo: si la pestaña A va a example.com/products, las demás pestañas también van a example.com/products."
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "Mantener el sitio de cada pestaña"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "Las demás pestañas permanecen en su propio sitio web y abren la página correspondiente."
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "Ejemplo: si la pestaña A va a docs.example.com/pricing, la pestaña B abre shop.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Los idiomas se mantienen cuando es posible."

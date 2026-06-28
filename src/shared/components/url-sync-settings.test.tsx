@@ -8,17 +8,21 @@ import { UrlSyncSettings } from './url-sync-settings';
 vi.mock('~/shared/i18n', () => ({
   t: (key: string) => {
     const messages: Record<string, string> = {
-      urlSyncNavigation: 'URL Sync',
+      urlSyncNavigation: 'Sync page changes',
       urlSyncStateOn: 'On',
       urlSyncStateOff: 'Off',
-      urlSyncExpandSettings: 'Expand URL Sync settings',
-      urlSyncCollapseSettings: 'Collapse URL Sync settings',
+      urlSyncExpandSettings: 'Change page sync mode',
+      urlSyncCollapseSettings: 'Hide page sync modes',
       urlSyncModeDescription: 'Choose how linked tabs follow page changes.',
       urlSyncModeFollowChangedTab: 'Follow changed tab',
       urlSyncModeFollowChangedTabDescription: 'Other tabs move to the website you changed.',
+      urlSyncModeFollowChangedTabExample:
+        'Example: if tab A moves to example.com/products, other tabs move to example.com/products too.',
       urlSyncModeKeepEachTabsWebsite: "Keep each tab's website",
       urlSyncModeKeepEachTabsWebsiteDescription:
         'Other tabs stay on their own website and open the matching page.',
+      urlSyncModeKeepEachTabsWebsiteExample:
+        'Example: if tab A moves to docs.example.com/pricing, tab B opens shop.example.com/pricing.',
       urlSyncModeLanguageHelper: 'Languages are kept when possible.',
       urlSyncModeResetNotice: 'URL Sync mode was reset because the saved setting was not valid.',
       urlSyncKeepWebsiteBlockedNotice:
@@ -49,7 +53,7 @@ describe('UrlSyncSettings', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: 'URL Sync' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sync page changes' })).toBeInTheDocument();
     expect(screen.getByText("Keep each tab's website")).toBeInTheDocument();
     expect(screen.queryByText('Languages are kept when possible.')).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toBeChecked();
@@ -68,7 +72,7 @@ describe('UrlSyncSettings', () => {
       />,
     );
 
-    await user.click(screen.getByRole('switch', { name: 'URL Sync' }));
+    await user.click(screen.getByRole('switch', { name: 'Sync page changes' }));
 
     expect(onEnabledChange).toHaveBeenCalledWith(false);
   });
@@ -88,7 +92,7 @@ describe('UrlSyncSettings', () => {
       />,
     );
 
-    const enabledSwitch = screen.getByRole('switch', { name: 'URL Sync' });
+    const enabledSwitch = screen.getByRole('switch', { name: 'Sync page changes' });
 
     await user.click(enabledSwitch);
     await waitFor(() => {
@@ -127,7 +131,7 @@ describe('UrlSyncSettings', () => {
       />,
     );
 
-    const enabledSwitch = screen.getByRole('switch', { name: 'URL Sync' });
+    const enabledSwitch = screen.getByRole('switch', { name: 'Sync page changes' });
     const keepWebsiteRadio = screen.getByRole('radio', { name: /Keep each tab's website/i });
 
     await user.click(enabledSwitch);
@@ -255,12 +259,14 @@ describe('UrlSyncSettings', () => {
         />,
       );
 
-      const settings = screen.getByRole('region', { name: 'URL Sync' });
-      const disclosure = screen.getByRole('button', { name: 'Expand URL Sync settings' });
+      const settings = screen.getByRole('region', { name: 'Sync page changes' });
+      const disclosure = screen.getByRole('button', { name: 'Change page sync mode' });
 
       expect(settings).toHaveAttribute('data-variant', 'inline-collapsible');
       expect(settings).toHaveTextContent('On');
       expect(settings).toHaveTextContent("Keep each tab's website");
+      expect(settings).not.toHaveTextContent('example.com/products');
+      expect(settings).not.toHaveTextContent('docs.example.com/pricing');
       expect(settings).not.toHaveTextContent('Languages are kept when possible.');
       expect(disclosure).toHaveAttribute('aria-expanded', 'false');
       expect(disclosure).toHaveAccessibleDescription(/On.*Keep each tab's website/);
@@ -282,17 +288,27 @@ describe('UrlSyncSettings', () => {
         />,
       );
 
-      const disclosure = screen.getByRole('button', { name: 'Expand URL Sync settings' });
+      const disclosure = screen.getByRole('button', { name: 'Change page sync mode' });
 
       await user.click(disclosure);
 
-      expect(screen.getByRole('button', { name: 'Collapse URL Sync settings' })).toHaveAttribute(
+      expect(screen.getByRole('button', { name: 'Hide page sync modes' })).toHaveAttribute(
         'aria-expanded',
         'true',
       );
       expect(screen.getByText('Other tabs move to the website you changed.')).toBeInTheDocument();
       expect(
+        screen.getByText(
+          'Example: if tab A moves to example.com/products, other tabs move to example.com/products too.',
+        ),
+      ).toBeInTheDocument();
+      expect(
         screen.getByText('Other tabs stay on their own website and open the matching page.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Example: if tab A moves to docs.example.com/pricing, tab B opens shop.example.com/pricing.',
+        ),
       ).toBeInTheDocument();
     });
 
@@ -310,12 +326,12 @@ describe('UrlSyncSettings', () => {
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+      await user.click(screen.getByRole('button', { name: 'Change page sync mode' }));
       await user.click(screen.getByRole('radio', { name: /Keep each tab's website/i }));
 
       expect(onModeChange).toHaveBeenCalledWith('keep-each-tabs-website');
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Expand URL Sync settings' })).toHaveAttribute(
+        expect(screen.getByRole('button', { name: 'Change page sync mode' })).toHaveAttribute(
           'aria-expanded',
           'false',
         );
@@ -336,11 +352,11 @@ describe('UrlSyncSettings', () => {
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+      await user.click(screen.getByRole('button', { name: 'Change page sync mode' }));
       await user.click(screen.getByRole('radio', { name: /Keep each tab's website/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Collapse URL Sync settings' })).toHaveAttribute(
+        expect(screen.getByRole('button', { name: 'Hide page sync modes' })).toHaveAttribute(
           'aria-expanded',
           'true',
         );
@@ -361,12 +377,12 @@ describe('UrlSyncSettings', () => {
         />,
       );
 
-      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+      await user.click(screen.getByRole('button', { name: 'Change page sync mode' }));
       await user.click(screen.getByRole('radio', { name: /Keep each tab's website/i }));
 
       expect(onModeChange).toHaveBeenCalledWith('keep-each-tabs-website');
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Collapse URL Sync settings' })).toHaveAttribute(
+        expect(screen.getByRole('button', { name: 'Hide page sync modes' })).toHaveAttribute(
           'aria-expanded',
           'true',
         );
@@ -389,7 +405,7 @@ describe('UrlSyncSettings', () => {
       expect(screen.getByText('Off')).toBeInTheDocument();
       expect(screen.getByText("Keep each tab's website")).toBeInTheDocument();
 
-      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+      await user.click(screen.getByRole('button', { name: 'Change page sync mode' }));
 
       expect(screen.getByRole('radio', { name: /Follow changed tab/i })).toBeDisabled();
       expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toBeDisabled();
@@ -407,7 +423,7 @@ describe('UrlSyncSettings', () => {
       />,
     );
 
-    const settings = screen.getByRole('region', { name: 'URL Sync' });
+    const settings = screen.getByRole('region', { name: 'Sync page changes' });
 
     expect(settings).toHaveAttribute('data-variant', 'panel-compact');
     expect(settings.className).not.toContain('border');

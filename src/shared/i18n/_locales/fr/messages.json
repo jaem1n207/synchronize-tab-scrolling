@@ -279,7 +279,7 @@
     "message": "Barre d'outils de synchronisation du défilement"
   },
   "urlSyncNavigation": {
-    "message": "Synchronisation URL"
+    "message": "Synchroniser les changements de page"
   },
   "urlSyncStateOn": {
     "message": "Activé"
@@ -288,10 +288,10 @@
     "message": "Désactivé"
   },
   "urlSyncExpandSettings": {
-    "message": "Développer les réglages URL Sync"
+    "message": "Changer le mode de synchronisation des pages"
   },
   "urlSyncCollapseSettings": {
-    "message": "Réduire les réglages URL Sync"
+    "message": "Masquer les modes de synchronisation des pages"
   },
   "urlSyncModeDescription": {
     "message": "Choisissez comment les onglets liés suivent les changements de page."
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "Les autres onglets ouvrent le site web que vous avez modifié."
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "Exemple : si l'onglet A ouvre example.com/products, les autres onglets ouvrent aussi example.com/products."
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "Garder le site de chaque onglet"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "Les autres onglets restent sur leur propre site web et ouvrent la page correspondante."
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "Exemple : si l'onglet A ouvre docs.example.com/pricing, l'onglet B ouvre shop.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Les langues sont conservées lorsque c'est possible."

@@ -279,7 +279,7 @@
     "message": "滚动同步工具栏"
   },
   "urlSyncNavigation": {
-    "message": "URL同步"
+    "message": "同步页面变化"
   },
   "urlSyncStateOn": {
     "message": "开启"
@@ -288,10 +288,10 @@
     "message": "关闭"
   },
   "urlSyncExpandSettings": {
-    "message": "展开 URL 同步设置"
+    "message": "更改页面同步模式"
   },
   "urlSyncCollapseSettings": {
-    "message": "收起 URL 同步设置"
+    "message": "收起页面同步模式"
   },
   "urlSyncModeDescription": {
     "message": "选择关联标签页如何跟随页面变化。"
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "其他标签页会跳转到你更改的那个网站。"
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "示例：如果标签页 A 打开 example.com/products，其他标签页也会打开 example.com/products。"
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "保留每个标签页的网站"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "其他标签页会留在各自的网站，并打开对应页面。"
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "示例：如果标签页 A 打开 docs.example.com/pricing，标签页 B 会打开 shop.example.com/pricing。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "会尽可能保留语言设置。"

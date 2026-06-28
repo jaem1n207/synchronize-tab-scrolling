@@ -279,7 +279,7 @@
     "message": "स्क्रॉल सिंक टूलबार"
   },
   "urlSyncNavigation": {
-    "message": "URL सिंक"
+    "message": "पेज बदलाव भी सिंक करें"
   },
   "urlSyncStateOn": {
     "message": "चालू"
@@ -288,10 +288,10 @@
     "message": "बंद"
   },
   "urlSyncExpandSettings": {
-    "message": "URL Sync सेटिंग खोलें"
+    "message": "पेज सिंक मोड बदलें"
   },
   "urlSyncCollapseSettings": {
-    "message": "URL Sync सेटिंग बंद करें"
+    "message": "पेज सिंक मोड छिपाएं"
   },
   "urlSyncModeDescription": {
     "message": "चुनें कि जुड़े हुए टैब पेज बदलावों का पालन कैसे करें।"
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "दूसरे टैब उस वेबसाइट पर चले जाते हैं जिसे आपने बदला है।"
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "उदाहरण: अगर टैब A example.com/products पर जाता है, तो दूसरे टैब भी example.com/products पर जाते हैं।"
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "हर टैब की वेबसाइट बनाए रखें"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "दूसरे टैब अपनी वेबसाइट पर रहते हैं और मिलती-जुलती पेज खोलते हैं।"
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "उदाहरण: अगर टैब A docs.example.com/pricing पर जाता है, तो टैब B shop.example.com/pricing खोलता है।"
   },
   "urlSyncModeLanguageHelper": {
     "message": "जहां संभव हो, भाषा सेटिंग बनाए रखी जाती है।"

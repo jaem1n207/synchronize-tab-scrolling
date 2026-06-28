@@ -279,7 +279,7 @@
     "message": "捲動同步工具列"
   },
   "urlSyncNavigation": {
-    "message": "URL同步"
+    "message": "同步頁面變更"
   },
   "urlSyncStateOn": {
     "message": "開啟"
@@ -288,10 +288,10 @@
     "message": "關閉"
   },
   "urlSyncExpandSettings": {
-    "message": "展開 URL 同步設定"
+    "message": "變更頁面同步模式"
   },
   "urlSyncCollapseSettings": {
-    "message": "收合 URL 同步設定"
+    "message": "收合頁面同步模式"
   },
   "urlSyncModeDescription": {
     "message": "選擇連結的分頁如何跟隨頁面變更。"
@@ -302,11 +302,17 @@
   "urlSyncModeFollowChangedTabDescription": {
     "message": "其他分頁會前往你變更的那個網站。"
   },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "範例：如果分頁 A 開啟 example.com/products，其他分頁也會開啟 example.com/products。"
+  },
   "urlSyncModeKeepEachTabsWebsite": {
     "message": "保留每個分頁的網站"
   },
   "urlSyncModeKeepEachTabsWebsiteDescription": {
     "message": "其他分頁會留在各自的網站，並開啟對應頁面。"
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "範例：如果分頁 A 開啟 docs.example.com/pricing，分頁 B 會開啟 shop.example.com/pricing。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "會盡可能保留語言設定。"
