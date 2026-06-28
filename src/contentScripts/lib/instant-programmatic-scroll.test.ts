@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { applyInstantProgrammaticScroll } from './instant-programmatic-scroll';
+import {
+  applyInstantProgrammaticScroll,
+  createLatestProgrammaticScrollScheduler,
+} from './instant-programmatic-scroll';
 
 function restoreDescriptor(
   target: object,
@@ -180,5 +183,96 @@ describe('applyInstantProgrammaticScroll', () => {
       restoreBodyScrollTop();
       restoreRootScrollTop();
     }
+  });
+});
+
+interface ScheduledFrame {
+  id: number;
+  callback: FrameRequestCallback;
+}
+
+function createFrameHarness() {
+  const frames: Array<ScheduledFrame> = [];
+  let nextFrameId = 1;
+
+  return {
+    frames,
+    requestFrame: vi.fn((callback: FrameRequestCallback) => {
+      const id = nextFrameId;
+      nextFrameId += 1;
+      frames.push({ id, callback });
+      return id;
+    }),
+    cancelFrame: vi.fn((id: number) => {
+      const index = frames.findIndex((frame) => frame.id === id);
+      if (index >= 0) {
+        frames.splice(index, 1);
+      }
+    }),
+    flushNextFrame() {
+      const frame = frames.shift();
+      if (frame) {
+        frame.callback(16);
+      }
+    },
+  };
+}
+
+describe('createLatestProgrammaticScrollScheduler', () => {
+  it('applies only the latest target scheduled before the frame runs', () => {
+    const frameHarness = createFrameHarness();
+    const apply = vi.fn();
+    const scheduler = createLatestProgrammaticScrollScheduler({
+      requestFrame: frameHarness.requestFrame,
+      cancelFrame: frameHarness.cancelFrame,
+      apply,
+    });
+
+    scheduler.schedule({ top: 100, mode: 'ratio', sourceTabId: 1 });
+    scheduler.schedule({ top: 200, mode: 'ratio', sourceTabId: 1 });
+    scheduler.schedule({ top: 300, mode: 'ratio', sourceTabId: 1 });
+
+    expect(frameHarness.requestFrame).toHaveBeenCalledTimes(1);
+
+    frameHarness.flushNextFrame();
+
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(apply).toHaveBeenCalledWith({ top: 300, mode: 'ratio', sourceTabId: 1 });
+  });
+
+  it('schedules a new frame after the pending frame has flushed', () => {
+    const frameHarness = createFrameHarness();
+    const apply = vi.fn();
+    const scheduler = createLatestProgrammaticScrollScheduler({
+      requestFrame: frameHarness.requestFrame,
+      cancelFrame: frameHarness.cancelFrame,
+      apply,
+    });
+
+    scheduler.schedule({ top: 100, mode: 'ratio', sourceTabId: 1 });
+    frameHarness.flushNextFrame();
+    scheduler.schedule({ top: 400, mode: 'element', sourceTabId: 2 });
+    frameHarness.flushNextFrame();
+
+    expect(frameHarness.requestFrame).toHaveBeenCalledTimes(2);
+    expect(apply).toHaveBeenNthCalledWith(1, { top: 100, mode: 'ratio', sourceTabId: 1 });
+    expect(apply).toHaveBeenNthCalledWith(2, { top: 400, mode: 'element', sourceTabId: 2 });
+  });
+
+  it('cancels the pending frame and clears the latest target', () => {
+    const frameHarness = createFrameHarness();
+    const apply = vi.fn();
+    const scheduler = createLatestProgrammaticScrollScheduler({
+      requestFrame: frameHarness.requestFrame,
+      cancelFrame: frameHarness.cancelFrame,
+      apply,
+    });
+
+    scheduler.schedule({ top: 100, mode: 'ratio', sourceTabId: 1 });
+    scheduler.cancel();
+    frameHarness.flushNextFrame();
+
+    expect(frameHarness.cancelFrame).toHaveBeenCalledWith(1);
+    expect(apply).not.toHaveBeenCalled();
   });
 });

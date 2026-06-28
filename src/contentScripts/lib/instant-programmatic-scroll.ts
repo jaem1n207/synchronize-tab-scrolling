@@ -1,3 +1,5 @@
+import type { SyncMode } from '~/shared/types/messages';
+
 interface ScrollBehaviorSnapshot {
   element: HTMLElement;
   scrollBehavior: string;
@@ -76,4 +78,65 @@ export function applyInstantProgrammaticScroll(
   } finally {
     restoreScrollBehavior(snapshots);
   }
+}
+
+export interface ProgrammaticScrollTarget {
+  top: number;
+  mode: SyncMode;
+  sourceTabId: number;
+}
+
+export interface LatestProgrammaticScrollScheduler {
+  schedule: (target: ProgrammaticScrollTarget) => void;
+  cancel: () => void;
+}
+
+interface LatestProgrammaticScrollSchedulerOptions {
+  requestFrame: (callback: FrameRequestCallback) => number;
+  cancelFrame: (frameId: number) => void;
+  apply: (target: ProgrammaticScrollTarget) => void;
+}
+
+export function createLatestProgrammaticScrollScheduler({
+  requestFrame,
+  cancelFrame,
+  apply,
+}: LatestProgrammaticScrollSchedulerOptions): LatestProgrammaticScrollScheduler {
+  let pendingTarget: ProgrammaticScrollTarget | null = null;
+  let pendingFrameId: number | null = null;
+
+  function flushPendingTarget(): void {
+    pendingFrameId = null;
+
+    const target = pendingTarget;
+    pendingTarget = null;
+
+    if (!target) {
+      return;
+    }
+
+    apply(target);
+  }
+
+  return {
+    schedule(target) {
+      pendingTarget = target;
+
+      if (pendingFrameId !== null) {
+        return;
+      }
+
+      pendingFrameId = requestFrame(flushPendingTarget);
+    },
+    cancel() {
+      pendingTarget = null;
+
+      if (pendingFrameId === null) {
+        return;
+      }
+
+      cancelFrame(pendingFrameId);
+      pendingFrameId = null;
+    },
+  };
 }
