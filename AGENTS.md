@@ -9,31 +9,31 @@ src/
 ├── background/          # Service worker (MV3). State, message relay, auto-sync
 ├── contentScripts/      # Page injection. Scroll sync engine, Shadow DOM UI
 ├── popup/               # Extension popup. Tab selection, sync control
-├── shared/              # Cross-cutting. 14 utils, 4 hooks, shadcn UI, types, i18n
+├── shared/              # Cross-cutting. 16 utils, 4 hooks, shadcn UI, types, i18n
 ├── landing/             # Marketing site. SEPARATE build/CI/deploy pipeline
 └── manifest.ts          # Dynamic manifest (Firefox vs Chromium)
 scripts/                 # Build: prepare, prerender, manifest, i18n validate, store stats
 docs/guides/             # Domain guides (Korean). Required reading before modifying related code
-.github/workflows/       # 3 pipelines: release, deploy-landing, update-store-stats
+.github/workflows/       # 4 pipelines: release, deploy-landing, extension-pr-checks, update-store-stats
 ```
 
 ## Where to Look
 
-| Task                    | Location                                                     | Notes                                                                    |
-| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Scroll sync logic       | `src/contentScripts/scroll-sync.ts`                          | 987-line state machine. Read `docs/guides/scroll-sync-pipeline.md` first |
-| Add message type        | `src/shared/types/messages.ts` + `shim.d.ts`                 | Must update ProtocolMap augmentation in both                             |
-| Add shared utility      | `src/shared/lib/`                                            | Export via barrel `index.ts`                                             |
-| Add popup feature       | `src/popup/components/` + `src/popup/hooks/`                 | See `src/popup/README.md`                                                |
-| Add i18n key            | `extension/_locales/` + `src/shared/i18n/_locales/`          | Must exist in BOTH. Run `pnpm i18n:validate`                             |
-| Modify background state | `src/background/lib/sync-state.ts` or `auto-sync-state.ts`   | Mutable objects. Persist via storage                                     |
-| Add background handler  | `src/background/handlers/`                                   | Register in `main.ts` startup sequence                                   |
-| Add content script UI   | `src/contentScripts/panel.tsx` or `suggestion-toast.tsx`     | Shadow DOM. z-index 2147483647                                           |
-| Add shadcn component    | `src/shared/components/ui/`                                  | Re-export in barrel. Uses UnoCSS                                         |
-| Modify manifest         | `src/manifest.ts`                                            | Check Firefox vs Chromium branches                                       |
-| Add extension page      | `src/manifest.ts` + `vite.config.mts` + `scripts/prepare.ts` | Must update all three                                                    |
-| Landing page work       | `src/landing/`                                               | Separate build. ALWAYS use `(landing)` commit scope                      |
-| CI/CD changes           | `.github/workflows/`                                         | Two isolated pipelines. See CI Isolation Rules below                     |
+| Task                    | Location                                                     | Notes                                                                     |
+| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Scroll sync logic       | `src/contentScripts/scroll-sync.ts`                          | 1074-line state machine. Read `docs/guides/scroll-sync-pipeline.md` first |
+| Add message type        | `src/shared/types/messages.ts` + `shim.d.ts`                 | Must update ProtocolMap augmentation in both                              |
+| Add shared utility      | `src/shared/lib/`                                            | Export via barrel `index.ts`                                              |
+| Add popup feature       | `src/popup/components/` + `src/popup/hooks/`                 | See `src/popup/README.md`                                                 |
+| Add i18n key            | `extension/_locales/` + `src/shared/i18n/_locales/`          | Must exist in BOTH. Run `pnpm i18n:validate`                              |
+| Modify background state | `src/background/lib/sync-state.ts` or `auto-sync-state.ts`   | Mutable objects. Persist via storage                                      |
+| Add background handler  | `src/background/handlers/`                                   | Register in `main.ts` startup sequence                                    |
+| Add content script UI   | `src/contentScripts/panel.tsx` or `suggestion-toast.tsx`     | Shadow DOM. z-index 2147483647                                            |
+| Add shadcn component    | `src/shared/components/ui/`                                  | Re-export in barrel. Uses UnoCSS                                          |
+| Modify manifest         | `src/manifest.ts`                                            | Check Firefox vs Chromium branches                                        |
+| Add extension page      | `src/manifest.ts` + `vite.config.mts` + `scripts/prepare.ts` | Must update all three                                                     |
+| Landing page work       | `src/landing/`                                               | Separate build. ALWAYS use `(landing)` commit scope                       |
+| CI/CD changes           | `.github/workflows/`                                         | Two isolated pipelines. See CI Isolation Rules below                      |
 
 ## Commands
 
@@ -48,6 +48,7 @@ pnpm test               # Vitest unit tests
 pnpm test:e2e           # Playwright E2E (extension)
 pnpm test:e2e:landing   # Playwright E2E (landing)
 pnpm i18n:validate      # Validate locale key parity
+pnpm privacy:logging    # Reject raw URL/title/payload logging patterns
 pnpm health             # All checks (lint + format + typecheck + i18n)
 pnpm pack               # Create .zip, .crx, .xpi
 pnpm start:chromium     # Launch in Chrome/Edge/Brave
@@ -119,6 +120,9 @@ pnpm start:firefox      # Launch in Firefox
 | Both                  | Runs          | Runs                 |
 
 - **Extension release**: semantic-release → Chrome Web Store + Firefox AMO + Edge Add-ons. Dual build (Chrome + Firefox). Edge API key expires — manual renewal
+- **Extension PR checks**: required `extension-pr-checks` status. Extension-impacting PRs run
+  privacy logging validation, i18n validation, typecheck, lint check, unit tests, Chrome/Firefox
+  builds, and the URL Sync mode smoke E2E.
 - **Landing deploy**: Build → Playwright prerender → GitHub Pages. `LANDING_BASE=/synchronize-tab-scrolling/`
 - **Store stats**: Weekly cron fetches CWS + AMO ratings. Commits with `(landing)` scope
 
@@ -127,6 +131,8 @@ pnpm start:firefox      # Launch in Firefox
 - **Message passing**: webext-bridge (24 typed messages via `ProtocolMap` in `shim.d.ts`). CustomEvent for same-context (faster, untyped)
 - **State**: No Redux/Zustand. Mutable module-level objects + `withAutoSyncLock()` mutex. Persisted to `browser.storage.local`
 - **Content script UI**: Two independent React roots in Shadow DOM (`panel.tsx`, `suggestion-toast.tsx`). z-index 2147483647
+- **URL Sync settings**: persisted enabled state plus mode in `browser.storage.local`. UI must show
+  the actual active mode: `follow-changed-tab` or `keep-each-tabs-website`.
 - **Build**: 4 Vite configs — popup (HTML+JS), background (IIFE), content (IIFE), landing (HTML+JS). `mangle: false` for CWS readability
 - **Manifest**: Generated by `scripts/manifest.ts` at build time, not by Vite
 
