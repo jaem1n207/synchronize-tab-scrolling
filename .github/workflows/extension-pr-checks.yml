@@ -116,24 +116,17 @@ jobs:
         if: steps.changes.outputs.extension_changed == 'true'
         run: pnpm build-firefox
 
-      - name: Cache Playwright browsers
+      - name: Verify system Chrome
         if: steps.changes.outputs.extension_changed == 'true'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright Chromium
-        if: steps.changes.outputs.extension_changed == 'true'
-        run: pnpm exec playwright install chromium
+        run: google-chrome --version
 
       - name: URL Sync extension smoke tests
         if: steps.changes.outputs.extension_changed == 'true'
-        run: pnpm test:e2e:extension
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" pnpm test:e2e:extension
         env:
           EXTENSION_E2E_DIR: .extension-e2e/chromium-extension
+          EXTENSION_E2E_BROWSER_CHANNEL: chrome
+          EXTENSION_E2E_HEADLESS: 'false'
 
       - name: Upload extension Playwright report
         if: failure() && steps.changes.outputs.extension_changed == 'true'

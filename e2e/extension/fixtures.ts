@@ -24,6 +24,10 @@ interface ExtensionFixtures {
 
 const URL_SYNC_HEADING_NAME = /URL Sync|URL 동기화 여부/i;
 
+function getBrowserChannel(): 'chromium' | 'chrome' {
+  return process.env.EXTENSION_E2E_BROWSER_CHANNEL === 'chrome' ? 'chrome' : 'chromium';
+}
+
 function titleFor(siteName: string, pathname: string): string {
   const pageName = pathname.includes('/about') ? 'About' : 'Home';
   return `${siteName} ${pageName}`;
@@ -114,11 +118,13 @@ export const test = base.extend<ExtensionFixtures>({
   extensionContext: async ({}, run) => {
     const extensionPath = resolve(process.env.EXTENSION_E2E_DIR ?? 'extension');
     const userDataDir = await mkdtemp(join(tmpdir(), 'synchronize-tab-scrolling-e2e-'));
-
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      channel: 'chromium',
+    const launchOptions = {
+      channel: getBrowserChannel(),
       args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
-    });
+      ...(process.env.EXTENSION_E2E_HEADLESS === 'false' ? { headless: false } : {}),
+    };
+
+    const context = await chromium.launchPersistentContext(userDataDir, launchOptions);
 
     await run(context);
 
