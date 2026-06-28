@@ -186,7 +186,7 @@ export function analyzePrivacyLoggingSource(
   }
 
   function visit(node: ts.Node): void {
-    if (ts.isCallExpression(node) && isLoggerCall(node)) {
+    if (ts.isCallExpression(node) && isLoggerCall(node, bindings)) {
       const [messageArgument, ...metadataArguments] = node.arguments;
 
       if (messageArgument && shouldInspectPrimaryLogArgument(messageArgument)) {
@@ -231,16 +231,52 @@ function getScriptKind(filePath: string): ts.ScriptKind {
   return ts.ScriptKind.TS;
 }
 
-function isLoggerCall(node: ts.CallExpression): boolean {
+function isLoggerCall(
+  node: ts.CallExpression,
+  bindings: Map<string, Array<BindingEntry>>,
+): boolean {
   if (!ts.isPropertyAccessExpression(node.expression)) {
     return false;
   }
 
   return (
-    ts.isIdentifier(node.expression.expression) &&
-    node.expression.expression.text === 'logger' &&
-    LOGGER_METHODS.has(node.expression.name.text)
+    LOGGER_METHODS.has(node.expression.name.text) &&
+    isLoggerExpression(node.expression.expression, bindings)
   );
+}
+
+function isLoggerExpression(
+  expression: ts.Expression,
+  bindings: Map<string, Array<BindingEntry>>,
+  seenAliases = new Set<string>(),
+): boolean {
+  if (ts.isIdentifier(expression)) {
+    if (expression.text === 'logger') {
+      return true;
+    }
+
+    if (seenAliases.has(expression.text)) {
+      return false;
+    }
+
+    const initializer = resolveVisibleInitializer(bindings, expression);
+    if (!initializer) {
+      return false;
+    }
+
+    const nextSeenAliases = new Set(seenAliases);
+    nextSeenAliases.add(expression.text);
+    return isLoggerExpression(initializer, bindings, nextSeenAliases);
+  }
+
+  if (ts.isCallExpression(expression) && ts.isPropertyAccessExpression(expression.expression)) {
+    return (
+      expression.expression.name.text === 'with' &&
+      isLoggerExpression(expression.expression.expression, bindings, seenAliases)
+    );
+  }
+
+  return false;
 }
 
 function getPropertyNameText(name: ts.PropertyName): string | null {
@@ -335,7 +371,11 @@ function findSensitiveRootName(
     return null;
   }
 
-  if (nestedNames.some((name) => SENSITIVE_MEMBER_SUFFIXES.has(name))) {
+  if (
+    nestedNames.some(
+      (name) => SENSITIVE_MEMBER_SUFFIXES.has(name) || DISALLOWED_LOG_NAMES.has(name),
+    )
+  ) {
     return rootName;
   }
 

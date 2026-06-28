@@ -266,4 +266,31 @@ describe('privacy logging rules', () => {
       'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
     ]);
   });
+
+  it('rejects logger.with calls and aliases derived from logger.with', () => {
+    expect(
+      messagesFor(`
+        logger.with({ tabId }).info('x', { payload });
+        const scopedLogger = logger.with({ tabId });
+        scopedLogger.warn('x', { safe: window.location.href });
+      `),
+    ).toEqual([
+      'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "href". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('rejects nested raw object members under sensitive roots', () => {
+    expect(
+      messagesFor(`
+        logger.info('x', { safe: payload.response });
+        logger.info('x', { safe: response.payload });
+        logger.info('x', { safe: syncState.tab });
+      `),
+    ).toEqual([
+      'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "response". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "syncState". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
 });
