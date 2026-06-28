@@ -279,7 +279,52 @@
     "message": "Barra de Sincronizacion de Desplazamiento"
   },
   "urlSyncNavigation": {
-    "message": "Sincronización URL"
+    "message": "Sincronizar cambios de página"
+  },
+  "urlSyncStateOn": {
+    "message": "Activado"
+  },
+  "urlSyncStateOff": {
+    "message": "Desactivado"
+  },
+  "urlSyncExpandSettings": {
+    "message": "Cambiar modo de sincronización de páginas"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "Ocultar modos de sincronización de páginas"
+  },
+  "urlSyncModeDescription": {
+    "message": "Elige cómo las pestañas vinculadas siguen los cambios de página."
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "Seguir la pestaña cambiada"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "Las demás pestañas se mueven al sitio web que cambiaste."
+  },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "Ejemplo: si la pestaña A va a example.com/products, las demás pestañas también van a example.com/products."
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "Mantener el sitio de cada pestaña"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "Las demás pestañas permanecen en su propio sitio web y abren la página correspondiente."
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "Ejemplo: si la pestaña A va a docs.example.com/pricing, la pestaña B abre shop.example.com/pricing."
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "Los idiomas se mantienen cuando es posible."
+  },
+  "urlSyncModeResetNotice": {
+    "message": "El modo URL Sync se restableció porque la configuración guardada no era válida."
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "No se pudo mantener esta pestaña en su sitio web actual para este cambio de página. No se sincronizó ninguna navegación."
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "No se pudo conservar el idioma para este cambio de página."
   },
   "syncedTabs": {
     "message": "Pestanas Sincronizadas"
@@ -642,5 +687,11 @@
   },
   "confirmRemoveDomain": {
     "message": "Enter para eliminar"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "No se pudo guardar la configuración de URL Sync. Se sigue usando la configuración anterior."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "No se pudo leer la configuración de URL Sync. No se sincronizó la navegación de URL. Revisa los permisos de la extensión o inténtalo de nuevo."
   }
 }

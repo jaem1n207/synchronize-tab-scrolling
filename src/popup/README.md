@@ -21,6 +21,7 @@ This directory contains the UI components for the scroll synchronization control
    - Displays eligible tabs with titles and favicons
    - Shows ineligible tabs with explanation tooltips
    - Shows local-file privacy notes and Chromium file-access settings actions when needed
+   - Keeps the selection requirement/status visually grouped with the tab list
    - Visual feedback for selection state (checkmarks)
    - Full keyboard navigation support
 
@@ -36,7 +37,13 @@ This directory contains the UI components for the scroll synchronization control
    - Re-sync button when connection errors detected
    - Visual feedback for active sync state
 
-6. **StatusIndicator** (`components/StatusIndicator.tsx`)
+6. **UrlSyncSettings** (`shared/components/url-sync-settings.tsx`)
+   - Compact **Sync page changes** control placed above the Start Sync button
+   - Keeps URL navigation behavior secondary to tab selection
+   - Expands inline to switch between **Follow changed tab** and **Keep each tab's website**
+   - Uses fixed-domain examples instead of user page data
+
+7. **StatusIndicator** (`components/StatusIndicator.tsx`)
    - Visual connection status indicators
    - States: connected (pulsing green), disconnected (gray), error (pulsing red)
    - Includes ARIA labels for screen readers

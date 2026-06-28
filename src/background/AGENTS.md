@@ -49,12 +49,14 @@ Manifest V3 service worker (Chrome/Edge/Brave) / persistent background (Firefox)
 
 ## Anti-Patterns
 
+- **NEVER** log raw URLs, tab titles, normalized URL keys, or whole tab/message payloads. `tab.url`, `payload.url`, `normalizedUrl`, and tab titles can expose tokens, emails, private document IDs, search terms, or workspace paths. Log only non-sensitive metadata such as tab IDs, group sizes, reasons, modes, counts, and boolean states.
 - **NEVER** use `await` in hot-path message handlers (scroll:sync relay adds latency)
 - **NEVER** skip `withAutoSyncLock()` when modifying auto-sync state
 - **ALWAYS** restore in-memory `Set`/`Map` state after SW restart (lost on 30s idle termination)
 - **ALWAYS** check `syncState` before pinging content scripts (Chrome throttles background tabs)
 - **ALWAYS** send `scroll:stop` to old tabs BEFORE `scroll:start` to new tabs
 - **ALWAYS** remove closed tabs from `manualSyncOverriddenTabs` set
+- **ALWAYS** model storage failures explicitly. Do not convert read/write failures into a normal default mode if that would make tabs behave differently from what the UI shows.
 
 ## Timing Constants
 

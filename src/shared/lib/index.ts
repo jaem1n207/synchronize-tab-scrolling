@@ -39,7 +39,7 @@ export {
 } from './scroll-math';
 export type { Platform } from './platform';
 export { getPlatform, isLinux, isMac, isWindows } from './platform';
-export type { ManualScrollOffset } from './storage';
+export type { ManualScrollOffset, UrlSyncModeRepairResult } from './storage';
 export {
   clearAllManualScrollOffsets,
   clearManualScrollOffset,
@@ -53,6 +53,8 @@ export {
   loadSelectedTabIds,
   loadSyncMode,
   loadUrlSyncEnabled,
+  loadUrlSyncMode,
+  repairUrlSyncMode,
   saveAutoSyncEnabled,
   saveAutoSyncExcludedUrls,
   saveExcludedDomains,
@@ -61,6 +63,7 @@ export {
   saveSelectedTabIds,
   saveSyncMode,
   saveUrlSyncEnabled,
+  saveUrlSyncMode,
 } from './storage';
 export {
   calculateTabSimilarity,

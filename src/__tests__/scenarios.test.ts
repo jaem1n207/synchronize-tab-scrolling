@@ -21,7 +21,6 @@ const mocks = vi.hoisted(() => {
     loggerDebugMock: vi.fn(),
     loggerWarnMock: vi.fn(),
     loggerErrorMock: vi.fn(),
-    applyLocalePreservingSyncMock: vi.fn((sourceUrl: string) => sourceUrl),
   };
 });
 
@@ -104,10 +103,6 @@ vi.mock('~/shared/lib/logger', () => ({
   })),
 }));
 
-vi.mock('~/shared/lib/locale-utils', () => ({
-  applyLocalePreservingSync: mocks.applyLocalePreservingSyncMock,
-}));
-
 vi.mock('~/contentScripts/keyboard-handler', () => ({
   initKeyboardHandler: vi.fn(),
   cleanupKeyboardHandler: vi.fn(),
@@ -143,12 +138,15 @@ import {
   clearManualScrollOffset,
   getManualScrollOffset,
   loadUrlSyncEnabled,
+  loadUrlSyncMode,
   saveAutoSyncExcludedUrls,
   saveManualScrollOffset,
   saveUrlSyncEnabled,
+  saveUrlSyncMode,
 } from '~/shared/lib/storage';
 import { getAutoSyncPageKey } from '~/shared/lib/translated-page-url-utils';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
+import type { UrlSyncPanelNoticeEventDetail } from '~/shared/types/url-sync';
 
 interface MockMutationObserverInstance {
   observe: ReturnType<typeof vi.fn>;
@@ -222,6 +220,24 @@ function getBackgroundCalls(messageId: string) {
   return mocks.sendMessageBackgroundMock.mock.calls.filter((call) => call[0] === messageId);
 }
 
+function collectUrlSyncNotices() {
+  const notices: Array<UrlSyncPanelNoticeEventDetail> = [];
+  const listener = (event: Event) => {
+    if (event instanceof CustomEvent) {
+      notices.push(event.detail);
+    }
+  };
+
+  window.addEventListener('scroll-sync-url-sync-notice', listener);
+
+  return {
+    notices,
+    cleanup: () => {
+      window.removeEventListener('scroll-sync-url-sync-notice', listener);
+    },
+  };
+}
+
 function setWindowUrl(url: string): void {
   jsdom.reconfigure({ url });
 }
@@ -282,8 +298,6 @@ beforeEach(() => {
     },
   );
 
-  mocks.applyLocalePreservingSyncMock.mockImplementation((sourceUrl: string) => sourceUrl);
-
   initScrollSync();
 });
 
@@ -309,6 +323,10 @@ describe('Scenario: URL sync toggle behavior', () => {
     await expect(loadUrlSyncEnabled()).resolves.toBe(true);
   });
 
+  it('default URL sync mode is follow-changed-tab', async () => {
+    await expect(loadUrlSyncMode()).resolves.toBe('follow-changed-tab');
+  });
+
   it('when URL sync is disabled, broadcastUrlChange still sends url:sync', async () => {
     await startContentSync(11);
     await saveUrlSyncEnabled(false);
@@ -326,7 +344,7 @@ describe('Scenario: URL sync toggle behavior', () => {
     await startContentSync(22);
     await saveUrlSyncEnabled(true);
 
-    const targetUrl = `${window.location.origin}/start#enabled-target`;
+    const targetUrl = `${window.location.origin}/enabled-target`;
 
     await invokeContentMessage('url:sync', {
       url: targetUrl,
@@ -340,34 +358,73 @@ describe('Scenario: URL sync toggle behavior', () => {
     await startContentSync(23);
     await saveUrlSyncEnabled(true);
     setWindowUrl('https://example.com/docs/install?lang=tr');
-    mocks.applyLocalePreservingSyncMock.mockReturnValue('https://example.com/docs/install?lang=tr');
 
     await invokeContentMessage('url:sync', {
       url: 'https://example.com/docs/config?lang=en',
       sourceTabId: 99,
     });
 
-    expect(mocks.applyLocalePreservingSyncMock).toHaveBeenCalledWith(
-      'https://example.com/docs/config?lang=en',
-      'https://example.com/docs/install?lang=tr',
-    );
+    expect(window.location.href).toBe('https://example.com/docs/config?lang=tr');
   });
 
   it('preserves target subdomain locale when relaying URL sync', async () => {
     await startContentSync(24);
     await saveUrlSyncEnabled(true);
     setWindowUrl('https://tr.example.com/docs/install');
-    mocks.applyLocalePreservingSyncMock.mockReturnValue('https://tr.example.com/docs/install');
 
     await invokeContentMessage('url:sync', {
       url: 'https://en.example.com/docs/config',
       sourceTabId: 99,
     });
 
-    expect(mocks.applyLocalePreservingSyncMock).toHaveBeenCalledWith(
-      'https://en.example.com/docs/config',
-      'https://tr.example.com/docs/install',
-    );
+    expect(window.location.href).toBe('https://tr.example.com/docs/config');
+  });
+
+  it('keep-each-tabs-website keeps target website when receiving url:sync', async () => {
+    await startContentSync(25);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('keep-each-tabs-website');
+    setWindowUrl('https://staging.example.com/ko/home#intro');
+
+    await invokeContentMessage('url:sync', {
+      url: 'https://example.com/en/about?tab=pricing',
+      sourceTabId: 99,
+    });
+
+    expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
+  });
+
+  it('invalid stored URL sync mode is repaired before navigation', async () => {
+    await startContentSync(26);
+    await saveUrlSyncEnabled(true);
+    mocks.storageData.set('urlSyncMode', 'unexpected-mode');
+    setWindowUrl('https://staging.example.com/ko/home#intro');
+    const resetNotice = { key: 'urlSyncModeResetNotice', severity: 'warning' };
+    const { notices, cleanup } = collectUrlSyncNotices();
+
+    try {
+      await invokeContentMessage('url:sync', {
+        url: 'https://example.com/en/about',
+        sourceTabId: 99,
+      });
+
+      expect(await loadUrlSyncMode()).toBe('follow-changed-tab');
+      expect(notices).toContainEqual({
+        mode: 'follow-changed-tab',
+        notice: resetNotice,
+      });
+      expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+        'sync:url-mode-changed',
+        {
+          mode: 'follow-changed-tab',
+          notice: resetNotice,
+        },
+        'background',
+      );
+      expect(window.location.href).toBe('https://example.com/ko/about#intro');
+    } finally {
+      cleanup();
+    }
   });
 
   it('when URL sync is disabled, url:sync receiver does not navigate', async () => {
@@ -661,7 +718,7 @@ describe('Scenario: manual offset reset when URL changes', () => {
     await saveUrlSyncEnabled(true);
     await saveManualScrollOffset(202, -0.2, -70);
 
-    const targetUrl = `${window.location.origin}/start#target-url-change`;
+    const targetUrl = `${window.location.origin}/target-url-change`;
 
     await invokeContentMessage('url:sync', {
       url: targetUrl,
@@ -669,6 +726,48 @@ describe('Scenario: manual offset reset when URL changes', () => {
     });
 
     await expect(getManualScrollOffset(202)).resolves.toEqual({ ratio: 0, pixels: 0 });
+  });
+
+  it('blocked keep-each-tabs-website navigation does not clear target offset', async () => {
+    await startContentSync(204);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('keep-each-tabs-website');
+    await saveManualScrollOffset(204, 0.3, 90);
+    setWindowUrl('https://staging.example.com/ko/home');
+    const { notices, cleanup } = collectUrlSyncNotices();
+
+    try {
+      await invokeContentMessage('url:sync', {
+        url: 'not-a-url',
+        sourceTabId: 999,
+      });
+
+      expect(notices).toContainEqual({
+        notice: {
+          key: 'urlSyncKeepWebsiteBlockedNotice',
+          severity: 'warning',
+        },
+      });
+      expect(window.location.href).toBe('https://staging.example.com/ko/home');
+      await expect(getManualScrollOffset(204)).resolves.toEqual({ ratio: 0.3, pixels: 90 });
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('same-url resolution does not clear target offset', async () => {
+    await startContentSync(205);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('keep-each-tabs-website');
+    await saveManualScrollOffset(205, -0.1, -30);
+    setWindowUrl('https://staging.example.com/ko/about');
+
+    await invokeContentMessage('url:sync', {
+      url: 'https://example.com/en/about',
+      sourceTabId: 999,
+    });
+
+    await expect(getManualScrollOffset(205)).resolves.toEqual({ ratio: -0.1, pixels: -30 });
   });
 
   it('clearManualScrollOffset is idempotent for non-existent tab offsets', async () => {

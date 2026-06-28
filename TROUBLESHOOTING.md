@@ -307,22 +307,22 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 ---
 
-### B2. urlSyncEnabled 상태 탭 간 동기화 문제
+### B2. URL Sync 설정 상태 탭 간 동기화 문제
 
 **커밋:** `18526be` | **파일:** `src/background/main.ts`, `src/contentScripts/panel.tsx`, `src/shared/types/messages.ts`
 
 #### 검색 키워드
 
-`urlSyncEnabled`, `state sync`, `상태 동기화`, `Switch 토글`, `webext-bridge`, `background script`, `메시지 패싱`
+`urlSyncEnabled`, `urlSyncMode`, `state sync`, `상태 동기화`, `Switch 토글`, `webext-bridge`, `background script`, `메시지 패싱`
 
 #### 배경
 
-- URL Sync Switch: 각 탭의 Control Panel에서 URL 동기화 on/off 가능
-- 설정값은 `browser.storage.local`에 저장
+- URL Sync 설정: 각 탭의 Control Panel에서 URL 이동 동기화 on/off 및 mode 확인 가능
+- 설정값과 mode는 `browser.storage.local`에 저장
 
 #### 문제 상황
 
-- Tab A에서 URL Sync Switch OFF → Tab B 패널은 여전히 ON 표시
+- Tab A에서 URL Sync OFF 또는 mode 변경 → Tab B 패널은 여전히 이전 설정 표시
 - 사용자가 한 탭에서 설정 변경해도 다른 탭에 반영 안됨
 
 #### 원인 분석
@@ -346,24 +346,43 @@ export interface UrlSyncEnabledChangedMessage {
   enabled: boolean;
 }
 
+export interface UrlSyncModeChangedMessage {
+  mode: UrlSyncMode;
+  notice?: UrlSyncNotice;
+}
+
 // ProtocolMap에 추가
 'sync:url-enabled-changed': UrlSyncEnabledChangedMessage;
+'sync:url-mode-changed': UrlSyncModeChangedMessage;
 ```
 
 **2. Background Script 브로드캐스트 핸들러:**
 
 ```typescript
-// background/main.ts
+// background/handlers/scroll-sync-handlers.ts
 onMessage('sync:url-enabled-changed', async ({ data, sender }) => {
-  const { enabled } = data;
+  const payload = data;
   const sourceTabId = sender.tabId;
-
-  // 소스 탭 제외, 모든 동기화된 탭에 브로드캐스트
   const targetTabIds = syncState.linkedTabs.filter((id) => id !== sourceTabId);
 
   await Promise.all(
     targetTabIds.map((tabId) =>
-      sendMessage('sync:url-enabled-changed', { enabled }, { context: 'content-script', tabId }),
+      sendMessage('sync:url-enabled-changed', payload, { context: 'content-script', tabId }),
+    ),
+  );
+});
+
+onMessage('sync:url-mode-changed', async ({ data, sender }) => {
+  const payload = data;
+  const sourceTabId = sender.tabId;
+  const targetTabIds =
+    sourceTabId === undefined
+      ? syncState.linkedTabs
+      : syncState.linkedTabs.filter((id) => id !== sourceTabId);
+
+  await Promise.all(
+    targetTabIds.map((tabId) =>
+      sendMessage('sync:url-mode-changed', payload, { context: 'content-script', tabId }),
     ),
   );
 });
@@ -374,24 +393,32 @@ onMessage('sync:url-enabled-changed', async ({ data, sender }) => {
 ```typescript
 // panel.tsx
 useEffect(() => {
-  // 초기 로드
-  loadUrlSyncEnabled().then(setUrlSyncEnabled);
-
-  // 다른 탭의 상태 변경 리스닝
-  const unsubscribe = onMessage('sync:url-enabled-changed', ({ data }) => {
+  const unsubscribeEnabled = onMessage('sync:url-enabled-changed', async ({ data }) => {
     setUrlSyncEnabled(data.enabled);
-    saveUrlSyncEnabled(data.enabled); // 로컬 스토리지도 업데이트
+    await saveUrlSyncEnabled(data.enabled);
   });
 
-  return () => unsubscribe();
+  const unsubscribeMode = onMessage('sync:url-mode-changed', async ({ data }) => {
+    setUrlSyncMode(data.mode);
+    await saveUrlSyncMode(data.mode);
+  });
+
+  return () => {
+    unsubscribeEnabled();
+    unsubscribeMode();
+  };
 }, []);
 
-// 토글 시 브로드캐스트
-const handleToggle = async () => {
-  const newValue = !urlSyncEnabled;
-  setUrlSyncEnabled(newValue);
-  saveUrlSyncEnabled(newValue);
-  await sendMessage('sync:url-enabled-changed', { enabled: newValue }, 'background');
+// mode 변경 시 브로드캐스트
+const handleUrlSyncModeChange = async (mode: UrlSyncMode) => {
+  const saved = await saveUrlSyncMode(mode);
+  if (!saved) {
+    setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+    return;
+  }
+
+  setUrlSyncMode(mode);
+  await sendMessage('sync:url-mode-changed', { mode }, 'background');
 };
 ```
 
@@ -403,8 +430,9 @@ const handleToggle = async () => {
 
 #### 결과
 
-- 한 탭에서 설정 변경 시 모든 동기화된 탭에서 즉시 반영
-- 스토리지와 UI 상태가 항상 일관성 유지
+- 한 탭에서 URL Sync enabled 상태 또는 mode 변경 시 모든 동기화된 탭에서 즉시 반영
+- 저장 실패 또는 읽기/복구 실패 시 UI가 다른 mode를 성공한 것처럼 표시하지 않고 notice를 표시
+- 스토리지와 UI 상태가 실제 active mode 기준으로 일관성 유지
 
 #### 참고
 

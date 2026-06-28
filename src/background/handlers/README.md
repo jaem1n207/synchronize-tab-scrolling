@@ -6,7 +6,7 @@ Event handler modules that register message listeners and browser event listener
 
 | Module                    | Lines | Events Handled                                                                                                                                      |
 | ------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scroll-sync-handlers.ts` | 291   | `scroll:start`, `scroll:stop`, `scroll:sync`, `scroll:manual`, `url:sync`, `sync:url-enabled-changed`                                               |
+| `scroll-sync-handlers.ts` | 338   | `scroll:start`, `scroll:stop`, `scroll:sync`, `scroll:manual`, `url:sync`, `sync:url-enabled-changed`, `sync:url-mode-changed`                      |
 | `connection-handlers.ts`  | 160   | `sync:get-status`, `scroll:ping`, `scroll:reconnect`, `scroll:request-reinject`                                                                     |
 | `auto-sync-handlers.ts`   | 291   | `auto-sync:status-changed`, `auto-sync:get-status`, `auto-sync:get-detailed-status`, `sync-suggestion:response`, `sync-suggestion:add-tab-response` |
 | `tab-event-handlers.ts`   | 353   | `tabs.onRemoved`, `tabs.onCreated`, `tabs.onUpdated`, `tabs.onActivated`, `storage.onChanged`                                                       |

@@ -9,7 +9,7 @@ import {
 } from '~/shared/lib/storage';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
-import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
+import { removeTabFromAllAutoSyncGroups, updateAutoSyncGroup } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
@@ -20,6 +20,7 @@ import {
   pendingSuggestions,
   SUGGESTION_SNOOZE_DURATION_MS,
   suggestionSnoozeUntil,
+  withAutoSyncLock,
 } from '../lib/auto-sync-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
@@ -78,6 +79,7 @@ vi.mock('~/shared/lib/storage', () => ({
 
 vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
+  updateAutoSyncGroup: vi.fn(),
 }));
 
 vi.mock('../lib/auto-sync-lifecycle', () => ({
@@ -100,6 +102,7 @@ vi.mock('../lib/auto-sync-state', () => ({
   pendingSuggestions: new Set<string>(),
   SUGGESTION_SNOOZE_DURATION_MS: 2 * 60 * 60 * 1000,
   suggestionSnoozeUntil: new Map<string, number>(),
+  withAutoSyncLock: vi.fn((fn: () => Promise<unknown>) => fn()),
 }));
 
 vi.mock('../lib/messaging', () => ({
@@ -176,6 +179,8 @@ describe('registerAutoSyncHandlers', () => {
       incognito: false,
     } as browser.Tabs.Tab);
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
+    vi.mocked(updateAutoSyncGroup).mockResolvedValue('https://example.com/page');
+    vi.mocked(withAutoSyncLock).mockImplementation((fn: () => Promise<unknown>) => fn());
     vi.mocked(persistSyncState).mockResolvedValue();
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
 
@@ -256,7 +261,6 @@ describe('registerAutoSyncHandlers', () => {
         totalSyncedTabs: 3,
         potentialSyncTabs: 5,
         currentTabGroup: {
-          normalizedUrl: 'https://example.com/a',
           tabCount: 2,
           isActive: true,
         },
@@ -339,6 +343,24 @@ describe('registerAutoSyncHandlers', () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
       syncState.mode = 'ratio';
+      autoSyncState.enabled = true;
+
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId: number) => {
+        const urlByTabId = new Map([
+          [1, 'https://old.test/one'],
+          [2, 'https://old.test/two'],
+        ]);
+
+        return {
+          id: tabId,
+          index: 0,
+          highlighted: false,
+          active: false,
+          pinned: false,
+          incognito: false,
+          url: urlByTabId.get(tabId),
+        } as browser.Tabs.Tab;
+      });
 
       vi.mocked(sendMessageWithTimeout).mockImplementation(
         async (
@@ -385,6 +407,8 @@ describe('registerAutoSyncHandlers', () => {
       // Verify old tabs are NOT in manualSyncOverriddenTabs
       expect(manualSyncOverriddenTabs.has(1)).toBe(false);
       expect(manualSyncOverriddenTabs.has(2)).toBe(false);
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(1, 'https://old.test/one');
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(2, 'https://old.test/two');
 
       // Verify new tabs ARE in manualSyncOverriddenTabs
       expect(manualSyncOverriddenTabs.has(10)).toBe(true);
@@ -398,6 +422,30 @@ describe('registerAutoSyncHandlers', () => {
 
       // Verify pending suggestion was cleared
       expect(pendingSuggestions.has(newNormalizedUrl)).toBe(false);
+    });
+
+    it('deletes accepted suggestion group under the auto-sync lock', async () => {
+      const normalizedUrl = 'https://locked-delete.test/page';
+      autoSyncState.groups.set(normalizedUrl, { tabIds: new Set([10, 20]), isActive: false });
+
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (
+          messageId: string,
+          _data: unknown,
+          destination: { context: 'content-script'; tabId: number },
+        ) => {
+          if (messageId === 'scroll:start') {
+            return { success: true, tabId: destination.tabId };
+          }
+          return { success: true, tabId: destination.tabId };
+        },
+      );
+
+      const handler = getRequiredHandler('sync-suggestion:response');
+      await handler({ data: { normalizedUrl, accepted: true }, sender: {} });
+
+      expect(withAutoSyncLock).toHaveBeenCalled();
+      expect(autoSyncState.groups.has(normalizedUrl)).toBe(false);
     });
 
     it('rejected response adds URL to dismissed groups', async () => {
@@ -440,8 +488,11 @@ describe('registerAutoSyncHandlers', () => {
       expect(syncState.isActive).toBe(false);
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
-      expect(persistSyncState).not.toHaveBeenCalled();
-      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+      expect(manualSyncOverriddenTabs.has(1)).toBe(false);
+      expect(manualSyncOverriddenTabs.has(2)).toBe(false);
+      expect(autoSyncState.groups.has(normalizedUrl)).toBe(true);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
     it('returns success when accepted suggestion group no longer exists', async () => {
@@ -600,6 +651,51 @@ describe('registerAutoSyncHandlers', () => {
       );
     });
 
+    it('does not persist a new tab when its scroll start ack fails', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.mode = 'ratio';
+      manualSyncOverriddenTabs.add(1);
+      manualSyncOverriddenTabs.add(2);
+
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 3,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      } as browser.Tabs.Tab);
+
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (
+          messageId: string,
+          _data: unknown,
+          destination: { context: 'content-script'; tabId: number },
+        ) => {
+          if (messageId === 'scroll:start' && destination.tabId === 3) {
+            return { success: false, tabId: 3 };
+          }
+          if (messageId === 'scroll:start') {
+            return { success: true, tabId: destination.tabId };
+          }
+          return { success: true, tabId: destination.tabId };
+        },
+      );
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({ data: { tabId: 3, accepted: true }, sender: {} });
+
+      expect(response).toEqual({ success: false, error: 'Tab failed to join sync' });
+      expect(syncState.linkedTabs).toEqual([1, 2]);
+      expect(syncState.connectionStatuses[3]).toBe('error');
+      expect(manualSyncOverriddenTabs.has(1)).toBe(true);
+      expect(manualSyncOverriddenTabs.has(2)).toBe(true);
+      expect(manualSyncOverriddenTabs.has(3)).toBe(false);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
+    });
+
     it('rejected response dismisses toast without adding tab to sync', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [100, 200];
@@ -627,6 +723,22 @@ describe('registerAutoSyncHandlers', () => {
       expect(response).toEqual({ success: false, error: 'Error: Tab no longer exists' });
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
       expect(syncState.linkedTabs).toEqual([1, 2]);
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+    });
+
+    it('ignores duplicate accepted add-tab responses for an already linked tab', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2, 3];
+      manualSyncOverriddenTabs.add(3);
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({ data: { tabId: 3, accepted: true }, sender: {} });
+
+      expect(response).toEqual({ success: true });
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
+      expect(syncState.linkedTabs).toEqual([1, 2, 3]);
       expect(persistSyncState).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });

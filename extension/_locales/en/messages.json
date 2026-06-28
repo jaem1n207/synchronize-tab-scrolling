@@ -279,7 +279,52 @@
     "message": "Scroll Sync Toolbar"
   },
   "urlSyncNavigation": {
-    "message": "URL Sync"
+    "message": "Sync page changes"
+  },
+  "urlSyncStateOn": {
+    "message": "On"
+  },
+  "urlSyncStateOff": {
+    "message": "Off"
+  },
+  "urlSyncExpandSettings": {
+    "message": "Change page sync mode"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "Hide page sync modes"
+  },
+  "urlSyncModeDescription": {
+    "message": "Choose how linked tabs follow page changes."
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "Follow changed tab"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "Other tabs move to the website you changed."
+  },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "Example: if tab A moves to example.com/products, other tabs move to example.com/products too."
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "Keep each tab's website"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "Other tabs stay on their own website and open the matching page."
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "Example: if tab A moves to docs.example.com/pricing, tab B opens shop.example.com/pricing."
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "Languages are kept when possible."
+  },
+  "urlSyncModeResetNotice": {
+    "message": "URL Sync mode was reset because the saved setting was not valid."
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "Could not keep this tab on its current website for that page change. No navigation was synced."
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "Language could not be preserved for this page change."
   },
   "syncedTabs": {
     "message": "Synced Tabs"
@@ -473,7 +518,7 @@
     }
   },
   "autoSyncSameUrl": {
-    "message": "Suggest sync for same URL"
+    "message": "Suggest same-page tabs"
   },
   "autoSyncActive": {
     "message": "Auto"
@@ -642,5 +687,11 @@
   },
   "confirmRemoveDomain": {
     "message": "Press Enter to remove"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "Could not save the URL Sync setting. The previous setting is still being used."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "Could not read the URL Sync setting. URL navigation was not synced. Check extension permissions or try again."
   }
 }

@@ -164,3 +164,36 @@ describe('TabCommandPalette local file actions', () => {
     expect(onToggleTab).not.toHaveBeenCalled();
   });
 });
+
+describe('TabCommandPalette selection summary', () => {
+  it('renders the selection summary between the heading and search input', async () => {
+    render(
+      <TabCommandPalette
+        currentTabId={1}
+        isSyncActive={false}
+        selectedTabIds={[]}
+        selectionSummary={<div data-testid="selection-summary">Select 2 or more tabs</div>}
+        tabs={[
+          {
+            eligible: true,
+            id: 1,
+            title: 'Example tab',
+            url: 'https://example.com',
+          },
+        ]}
+        onToggleTab={vi.fn()}
+      />,
+    );
+
+    const heading = await screen.findByRole('heading', { name: 'tabSelectionHeading' });
+    const summary = await screen.findByTestId('selection-summary');
+    const searchInput = await screen.findByRole('combobox');
+
+    expect(
+      heading.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      summary.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});

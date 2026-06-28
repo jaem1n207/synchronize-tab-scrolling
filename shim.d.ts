@@ -23,6 +23,7 @@ import type {
   TranslatedPageMetadataResponseMessage,
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
+  UrlSyncModeChangedMessage,
 } from '~/shared/types/messages';
 
 import type { AttributifyAttributes } from 'unocss/preset-attributify';
@@ -47,6 +48,7 @@ declare module 'webext-bridge' {
     'element:match': ElementMatchMessage;
     'panel:position': PanelPositionMessage;
     'sync:url-enabled-changed': ProtocolWithReturn<UrlSyncEnabledChangedMessage, unknown>;
+    'sync:url-mode-changed': ProtocolWithReturn<UrlSyncModeChangedMessage, unknown>;
     'auto-sync:status-changed': ProtocolWithReturn<AutoSyncStatusChangedMessage, unknown>;
     'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
     'auto-sync:get-status': ProtocolWithReturn<Record<string, never>, unknown>;

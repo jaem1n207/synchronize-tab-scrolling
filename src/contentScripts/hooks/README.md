@@ -19,7 +19,7 @@ Manages the draggable positioning of the floating control panel:
 Manages the internal state and behavior of the sync control panel:
 
 - **Sync status tracking**: Listens for `sync:status` broadcasts from background
-- **URL sync toggle**: Handles URL navigation sync enable/disable with storage persistence
+- **URL sync settings**: Handles URL navigation sync enable/disable and active mode with storage persistence
 - **Connection display**: Tracks linked tab info and connection statuses
 - **Toast notifications**: Manages collapse/expand state transitions
 

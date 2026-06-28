@@ -151,15 +151,26 @@ flowchart TD
 
 ### URL Navigation Sync
 
-When you click a link in one tab, all linked tabs navigate to the same URL together.
+When you click a link in one synced tab, the other synced tabs can follow the page change too. This
+is optional and appears in the popup as **"Sync page changes"** near the final **"Start Sync"**
+button.
+
+You can choose how page changes behave:
+
+- **Follow changed tab**: other tabs move to the website/page opened by the tab you changed.
+- **Keep each tab's website**: each tab stays on its own website and opens the matching page path
+  when possible.
 
 ### Auto-Sync Suggestion
 
-When you open multiple tabs with the same URL, a toast notification appears in the bottom-right corner of each tab, making it easy to start scroll sync with one click.
+When the extension finds tabs that appear to be the same page, such as multiple tabs with the same
+URL, a toast notification appears in the bottom-right corner of each tab. This is only a suggestion
+to start scroll sync; it is separate from **"Sync page changes"**, which controls navigation after
+sync starts.
 
 ```mermaid
 flowchart LR
-    A[Open same URL in 2+ tabs] --> B[Toast appears]
+    A[Open same-page tabs] --> B[Toast appears]
     B --> C{User choice}
     C -->|Start Sync| D[Sync begins]
     C -->|Not Now| E[Dismissed for session]
@@ -169,7 +180,7 @@ flowchart LR
 
 This feature is **enabled by default**. You can:
 
-- Disable it globally in the **Actions menu** → **"Suggest sync for same URL"**
+- Disable it globally in the **Actions menu** → **"Suggest same-page tabs"**
 - Exclude specific domains by clicking **"Never show again for this site"** on the toast
 - Manage excluded domains in the **Actions menu** → **"Manage excluded domains"**
 

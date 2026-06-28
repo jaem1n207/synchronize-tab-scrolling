@@ -8,6 +8,7 @@ import { Button } from '~/shared/components/ui/button';
 import { Kbd } from '~/shared/components/ui/kbd';
 import { Popover, PopoverTrigger } from '~/shared/components/ui/popover';
 import { Switch } from '~/shared/components/ui/switch';
+import { UrlSyncSettings } from '~/shared/components/url-sync-settings';
 import { useModifierKey } from '~/shared/hooks/use-modifier-key';
 import { useSystemTheme } from '~/shared/hooks/use-system-theme';
 import { t } from '~/shared/i18n';
@@ -19,6 +20,7 @@ import {
   prefersReducedMotion,
 } from '~/shared/lib/animations';
 import { cn } from '~/shared/lib/utils';
+import type { UrlSyncMode, UrlSyncNotice } from '~/shared/types/url-sync';
 
 import { useDragPosition, usePanelState } from '../hooks';
 
@@ -27,7 +29,10 @@ import IconSettings2 from '~icons/lucide/settings-2';
 
 interface SyncControlPanelProps {
   urlSyncEnabled: boolean;
-  onToggle: () => void;
+  urlSyncMode: UrlSyncMode;
+  urlSyncNotice: UrlSyncNotice | null;
+  onUrlSyncEnabledChange: (enabled: boolean) => void | Promise<void>;
+  onUrlSyncModeChange: (mode: UrlSyncMode) => boolean | void | Promise<boolean | void>;
   isConnectionHealthy?: boolean;
   onReconnect?: () => void;
   className?: string;
@@ -72,7 +77,10 @@ CustomPopoverContent.displayName = 'CustomPopoverContent';
 
 export const SyncControlPanel = ({
   urlSyncEnabled,
-  onToggle,
+  urlSyncMode,
+  urlSyncNotice,
+  onUrlSyncEnabledChange,
+  onUrlSyncModeChange,
   isConnectionHealthy = true,
   onReconnect,
   className,
@@ -228,14 +236,14 @@ export const SyncControlPanel = ({
                   </div>
                 )}
 
-                {/* URL Sync Navigation toggle */}
-                <div className="flex items-center justify-between gap-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <IconSettings2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{t('urlSyncNavigation')}</span>
-                  </div>
-                  <Switch checked={urlSyncEnabled} onCheckedChange={onToggle} />
-                </div>
+                <UrlSyncSettings
+                  compact
+                  enabled={urlSyncEnabled}
+                  mode={urlSyncMode}
+                  notice={urlSyncNotice}
+                  onEnabledChange={onUrlSyncEnabledChange}
+                  onModeChange={onUrlSyncModeChange}
+                />
 
                 {/* Auto-sync same URL toggle */}
                 <div className="flex items-center justify-between gap-3 py-2">

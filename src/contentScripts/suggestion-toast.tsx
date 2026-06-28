@@ -554,7 +554,6 @@ function renderToast() {
 export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage) {
   // Debug logging to diagnose toast display issues
   logger.debug('[SuggestionToast] showSyncSuggestionToast called', {
-    normalizedUrl: suggestion.normalizedUrl,
     tabCount: suggestion.tabCount,
     hasContainer: !!toastContainer,
     containerInDOM: toastContainer ? document.body.contains(toastContainer) : false,

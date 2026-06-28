@@ -279,7 +279,52 @@
     "message": "Barre d'outils de synchronisation du défilement"
   },
   "urlSyncNavigation": {
-    "message": "Synchronisation URL"
+    "message": "Synchroniser les changements de page"
+  },
+  "urlSyncStateOn": {
+    "message": "Activé"
+  },
+  "urlSyncStateOff": {
+    "message": "Désactivé"
+  },
+  "urlSyncExpandSettings": {
+    "message": "Changer le mode de synchronisation des pages"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "Masquer les modes de synchronisation des pages"
+  },
+  "urlSyncModeDescription": {
+    "message": "Choisissez comment les onglets liés suivent les changements de page."
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "Suivre l'onglet modifié"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "Les autres onglets ouvrent le site web que vous avez modifié."
+  },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "Exemple : si l'onglet A ouvre example.com/products, les autres onglets ouvrent aussi example.com/products."
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "Garder le site de chaque onglet"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "Les autres onglets restent sur leur propre site web et ouvrent la page correspondante."
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "Exemple : si l'onglet A ouvre docs.example.com/pricing, l'onglet B ouvre shop.example.com/pricing."
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "Les langues sont conservées lorsque c'est possible."
+  },
+  "urlSyncModeResetNotice": {
+    "message": "Le mode URL Sync a été réinitialisé, car le réglage enregistré n'était pas valide."
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "Impossible de garder cet onglet sur son site actuel pour ce changement de page. Aucune navigation n'a été synchronisée."
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "La langue n'a pas pu être conservée pour ce changement de page."
   },
   "syncedTabs": {
     "message": "Onglets synchronisés"
@@ -642,5 +687,11 @@
   },
   "confirmRemoveDomain": {
     "message": "Entrée pour supprimer"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "Impossible d'enregistrer le paramètre URL Sync. Le paramètre précédent est toujours utilisé."
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "Impossible de lire le réglage URL Sync. La navigation URL n'a pas été synchronisée. Vérifiez les autorisations de l'extension ou réessayez."
   }
 }

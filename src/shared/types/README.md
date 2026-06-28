@@ -9,6 +9,7 @@ TypeScript interfaces and types shared across all extension components (backgrou
 | `messages.ts`        | All `webext-bridge` message types and the `ProtocolMap` for type-safe messaging |
 | `sync-state.ts`      | `SyncState` interface for manual scroll sync state                              |
 | `auto-sync-state.ts` | `AutoSyncGroup` and `AutoSyncState` interfaces for automatic URL-based sync     |
+| `url-sync.ts`        | URL Sync mode, notice, and storage repair result types                          |
 | `index.ts`           | Barrel file re-exporting all types                                              |
 
 ## Message Type Safety
@@ -28,5 +29,6 @@ declare module 'webext-bridge' {
 - **`ConnectionStatus`**: `'connected' | 'disconnected' | 'error'` — per-tab health
 - **`StartSyncMessage`**: Payload for initiating sync (tabIds, mode, isAutoSync flag)
 - **`ScrollSyncMessage`**: Scroll position data relayed between tabs
+- **`UrlSyncMode`**: `'follow-changed-tab' | 'keep-each-tabs-website'` — page-change behavior for synced tabs
 - **`AutoSyncGroup`**: Internal group using `Set<number>` for O(1) tab lookups
 - **`AutoSyncGroupInfo`**: Serialized group using `Array<number>` for message passing

@@ -5,6 +5,66 @@
 
 ---
 
+## Pitfall 0: Raw URL/Title 로깅으로 인한 개인정보 노출
+
+### 규칙
+
+> URL, tab title, page title, canonical URL, alternate link, message payload 전체를 log에 남기지 마세요.
+
+### 배경
+
+브라우저 확장 프로그램은 사용자의 실제 탐색 데이터를 다룹니다. URL의 hostname, path, query, hash에는 다음과 같은 민감 정보가 들어갈 수 있습니다.
+
+- 로그인 토큰, 세션 키, OAuth code
+- 이메일 주소, 사용자 ID, tenant/workspace ID
+- 비공개 문서 ID, 파일 경로, 검색어
+- 사내 도메인, staging URL, 고객사 이름
+
+```ts
+❌ BAD: raw URL 노출
+logger.info('Navigating to synced URL', {
+  url: resolution.url,
+  sourceUrl: payload.url,
+  targetUrl: window.location.href,
+});
+
+❌ BAD: payload/tab 객체 전체 로깅
+logger.info('Relaying URL sync message', { payload });
+logger.debug('Verified tab exists', { tab });
+
+✅ GOOD: 비민감 metadata만 로깅
+logger.info('Navigating to synced URL', {
+  sourceTabId: payload.sourceTabId,
+  mode,
+});
+
+logger.warn('URL sync navigation blocked', {
+  reason,
+  sourceTabId,
+  mode,
+});
+```
+
+### 적용 원칙
+
+- 기본적으로 `window.location.href`, `tab.url`, `payload.url`, `sourceUrl`, `targetUrl`, `normalizedUrl` 로깅 금지
+- `tab.title`, `document.title`, page metadata, canonical/alternate URL 로깅 금지
+- `logger(..., { payload })`, `logger(..., { tab })`처럼 URL/title을 포함할 수 있는 객체 전체 로깅 금지
+- domain exclusion처럼 도메인이 기능의 핵심인 경우에만 normalized domain을 사용하고 path/query/hash는 절대 포함하지 말 것
+- 외부 서비스, PR/issue comment, telemetry, analytics, screenshot에도 raw URL/title을 노출하지 말 것
+
+### 리뷰 체크리스트
+
+URL sync, auto-sync, tab discovery, logging, storage, notice 관련 코드를 수정했다면 완료 전 반드시 검색하세요.
+
+```bash
+rg -n "logger\\.|tab\\.url|window\\.location\\.href|payload\\.url|normalizedUrl|sourceUrl|targetUrl|document\\.title|tab\\.title" src
+```
+
+검색 결과가 기능 로직이라면 괜찮을 수 있지만, `logger` 호출이나 외부 전송 경로에 raw URL/title이 들어가면 **차단 이슈**입니다.
+
+---
+
 ## Pitfall 1: Hot Path에서 비동기 I/O 사용 금지
 
 ### 규칙

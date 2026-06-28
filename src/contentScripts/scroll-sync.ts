@@ -8,7 +8,6 @@
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
-import { applyLocalePreservingSync } from '~/shared/lib/locale-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
@@ -21,9 +20,16 @@ import {
   clearManualScrollOffset,
   getManualScrollOffset,
   loadUrlSyncEnabled,
+  repairUrlSyncMode,
   saveManualScrollOffset,
   type ManualScrollOffset,
 } from '~/shared/lib/storage';
+import { resolveUrlSyncTarget } from '~/shared/lib/translated-page-url-utils';
+import type {
+  UrlSyncMode,
+  UrlSyncNotice,
+  UrlSyncPanelNoticeEventDetail,
+} from '~/shared/types/url-sync';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
 import {
@@ -308,7 +314,7 @@ const handleScroll = throttleAndDebounce(handleScrollCore, THROTTLE_DELAY);
  * Broadcast URL change to other tabs (P1)
  */
 async function broadcastUrlChange(url: string) {
-  logger.info('URL changed, broadcasting to other tabs', { url });
+  logger.info('URL changed, broadcasting to other tabs', { tabId: syncState.tabId });
 
   // Clear manual scroll offset when navigating to a new page (source tab)
   // Only clear if URL sync is enabled - old offset values won't be useful on a new page
@@ -331,6 +337,41 @@ async function broadcastUrlChange(url: string) {
   ).catch((error) => {
     logger.error('Failed to send URL sync message', { error });
   });
+}
+
+function emitUrlSyncNotice(detail: UrlSyncPanelNoticeEventDetail) {
+  window.dispatchEvent(
+    new CustomEvent('scroll-sync-url-sync-notice', {
+      detail,
+    }),
+  );
+}
+
+function createUrlSyncNoticeDetail(
+  notice: UrlSyncNotice,
+  mode?: UrlSyncMode,
+): UrlSyncPanelNoticeEventDetail {
+  if (mode) {
+    return { mode, notice };
+  }
+
+  return { notice };
+}
+
+function navigateToUrl(url: string) {
+  const jsdomRuntime = Reflect.get(globalThis, 'jsdom');
+  if (jsdomRuntime && typeof jsdomRuntime === 'object') {
+    const reconfigure = Reflect.get(jsdomRuntime, 'reconfigure');
+    if (typeof reconfigure === 'function') {
+      Reflect.apply(reconfigure, jsdomRuntime, [{ url }]);
+      return;
+    }
+  }
+
+  if (window.location.href !== url) {
+    window.location.href = url;
+    return;
+  }
 }
 
 /**
@@ -524,7 +565,7 @@ async function requestReconnection(attemptNumber = 0): Promise<boolean> {
       connectionState.isReconnecting = false;
       return true;
     } else {
-      logger.warn('Reconnection attempt failed', { attemptNumber, response });
+      logger.warn('Reconnection attempt failed', { attemptNumber });
     }
   } catch (error) {
     logger.warn('Reconnection attempt error', { attemptNumber, error });
@@ -713,7 +754,10 @@ export function initScrollSync() {
   // Listen for stop sync message
   onMessage('scroll:stop', async ({ data }) => {
     const payload = data;
-    logger.info('Stopping scroll sync', { data, isAutoSync: payload.isAutoSync });
+    logger.info('Stopping scroll sync', {
+      tabId: syncState.tabId,
+      isAutoSync: payload.isAutoSync ?? false,
+    });
 
     // Auto-sync stop should only stop auto-sync (not interfere with manual sync)
     // But manual stop (from popup) should work regardless of sync type
@@ -773,7 +817,10 @@ export function initScrollSync() {
     // Update last successful sync time for connection health monitoring
     connectionState.lastSuccessfulSync = Date.now();
 
-    logger.debug('Receiving scroll sync', { data });
+    logger.debug('Receiving scroll sync', {
+      sourceTabId: payload.sourceTabId,
+      mode: payload.mode,
+    });
 
     // Calculate the synced ratio from source tab
     const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
@@ -884,7 +931,7 @@ export function initScrollSync() {
   onMessage('scroll:ping', async ({ data }) => {
     const payload = data;
     logger.debug('Received ping from background', {
-      payload,
+      pingTabId: payload.tabId,
       isSyncActive: syncState.isActive,
       tabId: syncState.tabId,
     });
@@ -916,32 +963,68 @@ export function initScrollSync() {
       return;
     }
 
-    logger.info('Navigating to synced URL', { url: payload.url, sourceTabId: payload.sourceTabId });
+    const modeRepairResult = await repairUrlSyncMode();
+    if (modeRepairResult.status === 'failed') {
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(modeRepairResult.notice));
+      logger.warn('URL sync navigation skipped because mode settings could not be repaired', {
+        reason: modeRepairResult.reason,
+        sourceTabId: payload.sourceTabId,
+      });
+      return;
+    }
+
+    if (modeRepairResult.notice) {
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(modeRepairResult.notice, modeRepairResult.mode));
+      sendMessage(
+        'sync:url-mode-changed',
+        {
+          mode: modeRepairResult.mode,
+          notice: modeRepairResult.notice,
+        },
+        'background',
+      ).catch((error) => {
+        logger.warn('Failed to broadcast repaired URL sync mode', { error });
+      });
+    }
+
+    const resolution = resolveUrlSyncTarget(
+      payload.url,
+      window.location.href,
+      modeRepairResult.mode,
+    );
+
+    if (resolution.status === 'blocked') {
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(resolution.notice));
+      logger.warn('URL sync navigation blocked', {
+        reason: resolution.reason,
+        sourceTabId: payload.sourceTabId,
+        mode: modeRepairResult.mode,
+      });
+      return;
+    }
+
+    if (resolution.notice) {
+      emitUrlSyncNotice(createUrlSyncNoticeDetail(resolution.notice));
+    }
+
+    if (resolution.url === window.location.href) {
+      logger.debug('URL sync resolved to current URL; skipping navigation', {
+        sourceTabId: payload.sourceTabId,
+        mode: modeRepairResult.mode,
+      });
+      return;
+    }
+
+    logger.info('Navigating to synced URL', {
+      sourceTabId: payload.sourceTabId,
+      mode: modeRepairResult.mode,
+    });
 
     await clearManualScrollOffset(syncState.tabId);
     cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
 
-    try {
-      // Apply locale-preserving URL sync
-      // Preserves target tab's locale code while syncing path changes
-      const finalUrl = applyLocalePreservingSync(payload.url, window.location.href);
-
-      logger.debug('URL sync with locale and query/hash preservation', {
-        sourceUrl: payload.url,
-        targetUrl: window.location.href,
-        finalUrl,
-      });
-
-      // Navigate to the new URL with preserved locale, query, and hash
-      window.location.href = finalUrl;
-    } catch (error) {
-      // Fallback: use source URL as-is if locale-aware sync fails
-      logger.warn('Locale-aware URL sync failed, using source URL directly', {
-        error,
-      });
-      window.location.href = payload.url;
-    }
+    navigateToUrl(resolution.url);
   });
 
   // Listen for auto-sync status changes from background
@@ -962,7 +1045,6 @@ export function initScrollSync() {
   onMessage('sync-suggestion:show', async ({ data }) => {
     const payload = data;
     logger.info('Showing sync suggestion toast', {
-      normalizedUrl: payload.normalizedUrl,
       tabCount: payload.tabCount,
     });
     showSyncSuggestionToast(payload);
@@ -974,7 +1056,7 @@ export function initScrollSync() {
     const payload = data;
     logger.info('Showing add tab suggestion toast', {
       tabId: payload.tabId,
-      tabTitle: payload.tabTitle,
+      hasMatchKind: payload.matchKind !== undefined,
     });
     showAddTabSuggestionToast(payload);
     return { success: true };

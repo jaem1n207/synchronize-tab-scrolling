@@ -279,7 +279,52 @@
     "message": "捲動同步工具列"
   },
   "urlSyncNavigation": {
-    "message": "URL同步"
+    "message": "同步頁面變更"
+  },
+  "urlSyncStateOn": {
+    "message": "開啟"
+  },
+  "urlSyncStateOff": {
+    "message": "關閉"
+  },
+  "urlSyncExpandSettings": {
+    "message": "變更頁面同步模式"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "收合頁面同步模式"
+  },
+  "urlSyncModeDescription": {
+    "message": "選擇連結的分頁如何跟隨頁面變更。"
+  },
+  "urlSyncModeFollowChangedTab": {
+    "message": "跟隨已變更的分頁"
+  },
+  "urlSyncModeFollowChangedTabDescription": {
+    "message": "其他分頁會前往你變更的那個網站。"
+  },
+  "urlSyncModeFollowChangedTabExample": {
+    "message": "範例：如果分頁 A 開啟 example.com/products，其他分頁也會開啟 example.com/products。"
+  },
+  "urlSyncModeKeepEachTabsWebsite": {
+    "message": "保留每個分頁的網站"
+  },
+  "urlSyncModeKeepEachTabsWebsiteDescription": {
+    "message": "其他分頁會留在各自的網站，並開啟對應頁面。"
+  },
+  "urlSyncModeKeepEachTabsWebsiteExample": {
+    "message": "範例：如果分頁 A 開啟 docs.example.com/pricing，分頁 B 會開啟 shop.example.com/pricing。"
+  },
+  "urlSyncModeLanguageHelper": {
+    "message": "會盡可能保留語言設定。"
+  },
+  "urlSyncModeResetNotice": {
+    "message": "因為已儲存的設定無效，URL Sync 模式已重設。"
+  },
+  "urlSyncKeepWebsiteBlockedNotice": {
+    "message": "這次頁面變更無法讓此分頁保留在目前網站，因此未同步導覽。"
+  },
+  "urlSyncLanguagePreservationNotice": {
+    "message": "這次頁面變更無法保留語言設定。"
   },
   "syncedTabs": {
     "message": "已同步的標籤頁"
@@ -642,5 +687,11 @@
   },
   "confirmRemoveDomain": {
     "message": "按 Enter 刪除"
+  },
+  "urlSyncSettingSaveFailedNotice": {
+    "message": "無法儲存 URL Sync 設定。仍在使用先前的設定。"
+  },
+  "urlSyncSettingReadFailedNotice": {
+    "message": "無法讀取 URL Sync 設定。未同步 URL 導覽。請檢查擴充功能權限或再試一次。"
   }
 }

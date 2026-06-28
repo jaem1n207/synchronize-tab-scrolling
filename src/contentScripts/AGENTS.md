@@ -1,6 +1,6 @@
 # Content Scripts — Scroll Sync Engine
 
-Injected into all web pages. Core scroll synchronization engine (987 lines), Shadow DOM UI (panel + toast), keyboard handler for manual position offset. Two independent React roots in Shadow DOM.
+Injected into all web pages. Core scroll synchronization engine (1074 lines), Shadow DOM UI (panel + toast), keyboard handler for manual position offset. Two independent React roots in Shadow DOM.
 
 **Read `docs/guides/scroll-sync-pipeline.md` before modifying `scroll-sync.ts`.**
 
@@ -8,14 +8,14 @@ Injected into all web pages. Core scroll synchronization engine (987 lines), Sha
 
 | File                         | Purpose                                                                 | Complexity |
 | ---------------------------- | ----------------------------------------------------------------------- | ---------- |
-| `scroll-sync.ts`             | Core sync engine. 4 state objects, scroll capture/relay, URL monitoring | 987 lines  |
+| `scroll-sync.ts`             | Core sync engine. 4 state objects, scroll capture/relay, URL monitoring | 1074 lines |
 | `keyboard-handler.ts`        | Option/Alt key detection for manual offset mode                         | 202 lines  |
 | `index.ts`                   | Entry point. Calls `initScrollSync()` + initializes keyboard handler    | 11 lines   |
 | `panel.tsx`                  | SyncControlPanel mounted in Shadow DOM. Drag, minimize, status display  | —          |
 | `suggestion-toast.tsx`       | Auto-sync suggestion toast in Shadow DOM. Orphaned container cleanup    | —          |
 | `lib/scroll-sync-state.ts`   | State object factories and timing constants                             | —          |
 | `hooks/use-drag-position.ts` | Draggable panel positioning with viewport edge snapping                 | 204 lines  |
-| `hooks/use-panel-state.ts`   | Sync status tracking, URL sync toggle, connection status                | 190 lines  |
+| `hooks/use-panel-state.ts`   | Sync status tracking, URL sync enabled state/mode, connection status    | 190 lines  |
 
 ## Scroll Sync Pipeline
 
@@ -80,9 +80,11 @@ Reconnection triggers: visibility change (tab becomes visible), message send fai
 
 ## Anti-Patterns
 
+- **NEVER** log raw URLs, tab titles, page titles, canonical URLs, alternate links, or full message payloads. `window.location.href`, `payload.url`, `sourceUrl`, `targetUrl`, and `normalizedUrl` may contain tokens, emails, private document IDs, search terms, or workspace paths. Log only `tabId`, `sourceTabId`, `mode`, `reason`, counts, booleans, or enum states.
 - **NEVER** `await` in `handleScrollCore()` — scroll fires 20x/sec, async adds variable delay
 - **NEVER** reduce `PROGRAMMATIC_SCROLL_GRACE_PERIOD` below 200ms — causes feedback loops
 - **ALWAYS** update `cachedManualOffset` at ALL save/clear points — mismatch causes misaligned scrolling
 - **ALWAYS** check for orphaned containers before creating Shadow DOM roots
 - **ALWAYS** use `passive: true` on scroll event listeners
 - **ALWAYS** use CustomEvent (not webext-bridge) for same-context communication between scroll-sync.ts and panel.tsx
+- **ALWAYS** keep visible URL Sync mode aligned with actual behavior. If storage read/write/repair fails, emit an explicit failure notice and skip unsafe navigation instead of silently falling back to another mode.

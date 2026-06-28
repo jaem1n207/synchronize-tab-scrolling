@@ -197,7 +197,7 @@ stateDiagram-v2
 
 ### Auto-Sync Detection System
 
-Automatically detects tabs with the same URL and suggests scroll synchronization via toast notifications.
+Automatically detects tabs that represent the same page and suggests scroll synchronization via toast notifications. In the popup this user-facing setting is labeled **"Suggest same-page tabs"** to avoid confusing it with **"Sync page changes"**, which controls navigation behavior after sync starts.
 
 **URL Normalization:**
 
@@ -234,7 +234,7 @@ sequenceDiagram
     Tab->>BG: tabs.onCreated / tabs.onUpdated
     BG->>BG: Normalize URL
     BG->>BG: Update AutoSyncGroup
-    alt 2+ tabs with same URL
+    alt 2+ same-page tab candidates
         BG->>CS: sync-suggestion:show (to all tabs in group)
         CS->>CS: Render toast in Shadow DOM
         alt User clicks "Start Sync"
@@ -257,6 +257,18 @@ sequenceDiagram
 - `dismissedUrlGroups` persists only for browser session (memory-only)
 - Retry mechanism handles content scripts not ready (500ms delay, 3 retries)
 - Manual sync takes priority over auto-sync (`manualSyncOverriddenTabs`)
+
+### URL Navigation Sync Modes
+
+URL navigation sync is separate from auto-sync suggestions. It controls what happens after a user
+starts scroll sync and then changes page in one synced tab.
+
+- **Sync page changes** is the compact popup setting near the final Start Sync button.
+- **Follow changed tab** moves other synced tabs to the changed tab's website/page.
+- **Keep each tab's website** keeps each tab on its own website and opens the matching page path
+  when possible.
+- The expanded popup editor shows fixed-domain examples. Do not render raw user URLs in examples,
+  logs, telemetry, docs screenshots, or issue/PR comments unless the user explicitly provides them.
 
 ---
 

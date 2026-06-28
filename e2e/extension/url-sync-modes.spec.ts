@@ -1,0 +1,170 @@
+import { test, expect } from './fixtures';
+
+import type { Page } from '@playwright/test';
+
+const FOLLOW_CHANGED_TAB_NAME = /Follow changed tab|변경한 탭 따라가기/i;
+const KEEP_EACH_TABS_WEBSITE_NAME = /Keep each tab's website|각 탭의 웹사이트 유지/i;
+const START_SYNC_NAME =
+  /^(?:Start synchronization|동기화 시작|Select at least 2 tabs to start \(\d+ selected\)|시작하려면 2개 이상의 탭을 선택하세요 \(\d+개 선택됨\))$/i;
+const STOP_SYNC_NAME = /Stop synchronization|동기화 중지/i;
+const URL_SYNC_EXPAND_SETTINGS_NAME = /Change page sync mode|페이지 이동 방식 변경/i;
+const URL_SYNC_SWITCH_NAME = /Sync page changes|페이지 이동도 동기화/i;
+const LAYOUT_ORDER_TOLERANCE_PX = 1;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function selectTabCheckboxName(tabTitle: string): RegExp {
+  const escapedTitle = escapeRegExp(tabTitle);
+  return new RegExp(`^(?:Select ${escapedTitle}|${escapedTitle} 선택)$`);
+}
+
+async function expectUrlSyncRowBeforeStartControls(popup: Page): Promise<void> {
+  const tabSelectionSection = popup.locator('section[aria-labelledby="tab-selection-heading"]');
+  const urlSyncRegion = popup.getByRole('region', { name: URL_SYNC_SWITCH_NAME });
+  const startButton = popup.getByRole('button', { name: START_SYNC_NAME });
+
+  await expect(tabSelectionSection).toBeVisible();
+  await expect(urlSyncRegion).toBeVisible();
+  await expect(startButton).toBeVisible();
+
+  const tabSelectionBox = await tabSelectionSection.boundingBox();
+  const urlSyncBox = await urlSyncRegion.boundingBox();
+  const startBox = await startButton.boundingBox();
+
+  expect(tabSelectionBox).not.toBeNull();
+  expect(urlSyncBox).not.toBeNull();
+  expect(startBox).not.toBeNull();
+  expect(urlSyncBox!.y).toBeGreaterThanOrEqual(
+    tabSelectionBox!.y + tabSelectionBox!.height - LAYOUT_ORDER_TOLERANCE_PX,
+  );
+  expect(startBox!.y).toBeGreaterThanOrEqual(
+    urlSyncBox!.y + urlSyncBox!.height - LAYOUT_ORDER_TOLERANCE_PX,
+  );
+}
+
+async function selectTabsAndStartSync(
+  popup: Page,
+  sourceTitle: string,
+  targetTitle: string,
+): Promise<void> {
+  await popup.getByRole('checkbox', { name: selectTabCheckboxName(sourceTitle) }).click();
+  await popup.getByRole('checkbox', { name: selectTabCheckboxName(targetTitle) }).click();
+  await popup.getByRole('button', { name: START_SYNC_NAME }).click();
+  await expect(popup.getByRole('button', { name: STOP_SYNC_NAME })).toBeVisible();
+}
+
+async function chooseKeepEachTabsWebsiteMode(popup: Page): Promise<void> {
+  await popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
+  await popup.locator('label').filter({ hasText: KEEP_EACH_TABS_WEBSITE_NAME }).click();
+  await expect(popup.getByText(KEEP_EACH_TABS_WEBSITE_NAME).first()).toBeVisible();
+}
+
+async function expectFollowChangedTabMode(popup: Page): Promise<void> {
+  await popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
+  await expect(popup.getByRole('radio', { name: FOLLOW_CHANGED_TAB_NAME })).toBeChecked();
+}
+
+async function turnUrlSyncOff(popup: Page): Promise<void> {
+  const urlSyncSwitch = popup.getByRole('switch', { name: URL_SYNC_SWITCH_NAME });
+
+  await urlSyncSwitch.click();
+  await expect(urlSyncSwitch).not.toBeChecked();
+}
+
+test.describe('URL Sync modes', () => {
+  test('default Follow changed tab moves target to source website while preserving target language and hash', async ({
+    extensionContext,
+    fixtureSites,
+    openPopup,
+  }) => {
+    const source = await extensionContext.newPage();
+    const target = await extensionContext.newPage();
+
+    await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
+    await target.goto(fixtureSites.comparison.url('/ko/home?view=compact#comparison-home'));
+
+    const popup = await openPopup();
+    await expectUrlSyncRowBeforeStartControls(popup);
+    await expectFollowChangedTabMode(popup);
+    await selectTabsAndStartSync(popup, 'Primary Home', 'Comparison Home');
+
+    await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
+
+    await expect(target).toHaveURL(
+      fixtureSites.primary.url('/ko/about?tab=pricing#comparison-home'),
+    );
+  });
+
+  test("Keep each tab's website keeps target origin while applying changed page", async ({
+    extensionContext,
+    fixtureSites,
+    openPopup,
+  }) => {
+    const source = await extensionContext.newPage();
+    const target = await extensionContext.newPage();
+
+    await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
+    await target.goto(fixtureSites.comparison.url('/ko/home?view=compact#comparison-home'));
+
+    const popup = await openPopup();
+    await chooseKeepEachTabsWebsiteMode(popup);
+    await selectTabsAndStartSync(popup, 'Primary Home', 'Comparison Home');
+
+    await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
+
+    await expect(target).toHaveURL(
+      fixtureSites.comparison.url('/ko/about?tab=pricing#comparison-home'),
+    );
+  });
+
+  test('URL Sync off prevents target navigation', async ({
+    extensionContext,
+    fixtureSites,
+    openPopup,
+  }) => {
+    const source = await extensionContext.newPage();
+    const target = await extensionContext.newPage();
+    const targetInitialUrl = fixtureSites.comparison.url('/ko/home?view=compact#comparison-home');
+
+    await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
+    await target.goto(targetInitialUrl);
+
+    const popup = await openPopup();
+    await turnUrlSyncOff(popup);
+    await selectTabsAndStartSync(popup, 'Primary Home', 'Comparison Home');
+
+    await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
+
+    const didNavigate = await target
+      .waitForURL((url) => url.href !== targetInitialUrl, { timeout: 1_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    expect(didNavigate).toBe(false);
+    await expect(target).toHaveURL(targetInitialUrl);
+  });
+
+  test('selected mode remains visible and persisted when popup is reopened', async ({
+    extensionContext,
+    fixtureSites,
+    openPopup,
+  }) => {
+    const source = await extensionContext.newPage();
+    const target = await extensionContext.newPage();
+
+    await source.goto(fixtureSites.primary.url('/en/home'));
+    await target.goto(fixtureSites.comparison.url('/ko/home'));
+
+    const firstPopup = await openPopup();
+    await chooseKeepEachTabsWebsiteMode(firstPopup);
+    await firstPopup.close();
+
+    const secondPopup = await openPopup();
+    await secondPopup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
+    await expect(
+      secondPopup.getByRole('radio', { name: KEEP_EACH_TABS_WEBSITE_NAME }),
+    ).toBeChecked();
+  });
+});
