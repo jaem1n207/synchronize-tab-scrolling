@@ -53,7 +53,9 @@ export function registerScrollSyncHandlers(): void {
     const connectionResults: Record<number, { success: boolean; error?: string }> = {};
 
     // Attempt to connect to each tab with timeout and acknowledgment validation
-    logger.info(`Connecting to ${startRequest.tabIds.length} tabs`, { tabIds: startRequest.tabIds });
+    logger.info(`Connecting to ${startRequest.tabIds.length} tabs`, {
+      tabIds: startRequest.tabIds,
+    });
 
     const promises = startRequest.tabIds.map(async (tabId) => {
       try {

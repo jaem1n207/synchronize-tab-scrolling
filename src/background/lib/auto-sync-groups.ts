@@ -521,7 +521,10 @@ export function removeTabFromAutoSyncGroup(normalizedUrl: string, tabId: number)
 
   group.tabIds.delete(tabId);
   group.tabUrls?.delete(tabId);
-  logger.debug(`Removed tab ${tabId} from auto-sync group`, { tabId, remainingTabCount: group.tabIds.size });
+  logger.debug(`Removed tab ${tabId} from auto-sync group`, {
+    tabId,
+    remainingTabCount: group.tabIds.size,
+  });
 
   if (group.tabIds.size === 0) {
     autoSyncState.groups.delete(normalizedUrl);
