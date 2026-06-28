@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "URL同期"
   },
+  "urlSyncStateOn": {
+    "message": "オン"
+  },
+  "urlSyncStateOff": {
+    "message": "オフ"
+  },
+  "urlSyncExpandSettings": {
+    "message": "URL同期設定を展開"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "URL同期設定を折りたたむ"
+  },
   "urlSyncModeDescription": {
     "message": "リンクしたタブがページ変更にどう追従するかを選択します。"
   },

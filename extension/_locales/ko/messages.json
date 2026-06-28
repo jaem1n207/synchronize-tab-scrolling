@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "URL 동기화 여부"
   },
+  "urlSyncStateOn": {
+    "message": "켜짐"
+  },
+  "urlSyncStateOff": {
+    "message": "꺼짐"
+  },
+  "urlSyncExpandSettings": {
+    "message": "URL 동기화 설정 펼치기"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "URL 동기화 설정 접기"
+  },
   "urlSyncModeDescription": {
     "message": "연결된 탭이 페이지 변경을 따라가는 방식을 선택하세요."
   },

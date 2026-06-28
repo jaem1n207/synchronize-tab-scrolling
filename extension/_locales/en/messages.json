@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "URL Sync"
   },
+  "urlSyncStateOn": {
+    "message": "On"
+  },
+  "urlSyncStateOff": {
+    "message": "Off"
+  },
+  "urlSyncExpandSettings": {
+    "message": "Expand URL Sync settings"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "Collapse URL Sync settings"
+  },
   "urlSyncModeDescription": {
     "message": "Choose how linked tabs follow page changes."
   },

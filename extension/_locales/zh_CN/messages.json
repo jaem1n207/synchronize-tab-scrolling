@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "URL同步"
   },
+  "urlSyncStateOn": {
+    "message": "开启"
+  },
+  "urlSyncStateOff": {
+    "message": "关闭"
+  },
+  "urlSyncExpandSettings": {
+    "message": "展开 URL 同步设置"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "收起 URL 同步设置"
+  },
   "urlSyncModeDescription": {
     "message": "选择关联标签页如何跟随页面变化。"
   },

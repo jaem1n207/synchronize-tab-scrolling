@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "URL सिंक"
   },
+  "urlSyncStateOn": {
+    "message": "चालू"
+  },
+  "urlSyncStateOff": {
+    "message": "बंद"
+  },
+  "urlSyncExpandSettings": {
+    "message": "URL Sync सेटिंग खोलें"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "URL Sync सेटिंग बंद करें"
+  },
   "urlSyncModeDescription": {
     "message": "चुनें कि जुड़े हुए टैब पेज बदलावों का पालन कैसे करें।"
   },

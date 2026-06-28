@@ -179,6 +179,7 @@ export function ScrollSyncPopup() {
           enabled={urlSyncEnabled}
           mode={urlSyncMode}
           notice={urlSyncNotice}
+          variant="inline-collapsible"
           onEnabledChange={handleUrlSyncChange}
           onModeChange={handleUrlSyncModeChange}
         />

@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "URL同步"
   },
+  "urlSyncStateOn": {
+    "message": "開啟"
+  },
+  "urlSyncStateOff": {
+    "message": "關閉"
+  },
+  "urlSyncExpandSettings": {
+    "message": "展開 URL 同步設定"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "收合 URL 同步設定"
+  },
   "urlSyncModeDescription": {
     "message": "選擇連結的分頁如何跟隨頁面變更。"
   },

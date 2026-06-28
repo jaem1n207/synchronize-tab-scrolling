@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "Sincronización URL"
   },
+  "urlSyncStateOn": {
+    "message": "Activado"
+  },
+  "urlSyncStateOff": {
+    "message": "Desactivado"
+  },
+  "urlSyncExpandSettings": {
+    "message": "Expandir ajustes de URL Sync"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "Contraer ajustes de URL Sync"
+  },
   "urlSyncModeDescription": {
     "message": "Elige cómo las pestañas vinculadas siguen los cambios de página."
   },

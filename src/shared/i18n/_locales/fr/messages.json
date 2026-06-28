@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "Synchronisation URL"
   },
+  "urlSyncStateOn": {
+    "message": "Activé"
+  },
+  "urlSyncStateOff": {
+    "message": "Désactivé"
+  },
+  "urlSyncExpandSettings": {
+    "message": "Développer les réglages URL Sync"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "Réduire les réglages URL Sync"
+  },
   "urlSyncModeDescription": {
     "message": "Choisissez comment les onglets liés suivent les changements de page."
   },

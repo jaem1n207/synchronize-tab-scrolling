@@ -281,6 +281,18 @@
   "urlSyncNavigation": {
     "message": "URL-Synchronisierung"
   },
+  "urlSyncStateOn": {
+    "message": "Ein"
+  },
+  "urlSyncStateOff": {
+    "message": "Aus"
+  },
+  "urlSyncExpandSettings": {
+    "message": "URL-Sync-Einstellungen erweitern"
+  },
+  "urlSyncCollapseSettings": {
+    "message": "URL-Sync-Einstellungen einklappen"
+  },
   "urlSyncModeDescription": {
     "message": "Wählen Sie, wie verknüpfte Tabs Seitenänderungen folgen."
   },

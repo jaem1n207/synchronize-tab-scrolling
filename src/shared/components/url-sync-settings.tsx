@@ -39,25 +39,6 @@ const URL_SYNC_MODE_OPTIONS: Array<{
   },
 ];
 
-const INLINE_COLLAPSIBLE_MESSAGE_FALLBACKS = {
-  urlSyncStateOn: 'On',
-  urlSyncStateOff: 'Off',
-  urlSyncExpandSettings: 'Expand URL Sync settings',
-  urlSyncCollapseSettings: 'Collapse URL Sync settings',
-};
-
-type InlineCollapsibleMessageKey = keyof typeof INLINE_COLLAPSIBLE_MESSAGE_FALLBACKS;
-
-function tInlineCollapsibleMessage(key: InlineCollapsibleMessageKey) {
-  const translated = Reflect.apply(t, undefined, [key]);
-
-  if (typeof translated === 'string' && translated.length > 0) {
-    return translated;
-  }
-
-  return INLINE_COLLAPSIBLE_MESSAGE_FALLBACKS[key];
-}
-
 function getNoticeClassName(notice: UrlSyncNotice) {
   if (notice.severity === 'error') {
     return 'border-red-200 bg-red-50 text-red-800';
@@ -211,7 +192,7 @@ export function UrlSyncSettings({
             aria-controls={inlineEditorId}
             aria-describedby={summaryId}
             aria-expanded={inlineEditorExpanded}
-            aria-label={tInlineCollapsibleMessage(
+            aria-label={t(
               inlineEditorExpanded ? 'urlSyncCollapseSettings' : 'urlSyncExpandSettings',
             )}
             className={cn(
@@ -233,9 +214,7 @@ export function UrlSyncSettings({
                 className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
                 id={summaryId}
               >
-                <span>
-                  {tInlineCollapsibleMessage(enabled ? 'urlSyncStateOn' : 'urlSyncStateOff')}
-                </span>
+                <span>{t(enabled ? 'urlSyncStateOn' : 'urlSyncStateOff')}</span>
                 <span aria-hidden="true">·</span>
                 <span className="min-w-0 truncate">{t(selectedOption.labelKey)}</span>
               </span>
