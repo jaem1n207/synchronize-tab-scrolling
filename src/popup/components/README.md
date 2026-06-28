@@ -4,16 +4,17 @@ React UI components for the extension popup — the main user interface for sele
 
 ## Component Overview
 
-| Component                  | Responsibility                                                                    |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| `scroll-sync-popup.tsx`    | Root component — coordinates hooks and child components (203 lines)               |
-| `tab-command-palette.tsx`  | Command palette for tab search, selection, local-file notes, and settings actions |
-| `sync-control-buttons.tsx` | Start/Stop/Re-sync buttons with state-dependent visibility                        |
-| `selected-tabs-chips.tsx`  | Chip display of selected tabs with removal capability                             |
-| `actions-menu.tsx`         | Dropdown menu for auto-sync toggle, URL sync toggle, and settings                 |
-| `error-notification.tsx`   | Inline error display with auto-dismiss                                            |
-| `footer-info.tsx`          | Extension info and version display                                                |
-| `index.ts`                 | Barrel file re-exporting all components                                           |
+| Component                  | Responsibility                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------- |
+| `scroll-sync-popup.tsx`    | Root component — coordinates hooks and child components (248 lines)                     |
+| `tab-command-palette.tsx`  | Tab selection group with heading, selection summary, search, list, and settings actions |
+| `sync-control-buttons.tsx` | Start/Stop/Re-sync buttons with state-dependent visibility                              |
+| `selected-tabs-chips.tsx`  | Chip display of selected tabs with removal capability                                   |
+| `actions-menu.tsx`         | Dropdown menu for same-page tab suggestions and excluded-domain settings                |
+| `url-sync-settings.tsx`    | Shared compact/inline control for "Sync page changes" and URL sync mode selection       |
+| `error-notification.tsx`   | Inline error display with auto-dismiss                                                  |
+| `footer-info.tsx`          | Extension info and version display                                                      |
+| `index.ts`                 | Barrel file re-exporting all components                                                 |
 
 ## Component Hierarchy
 
@@ -21,12 +22,13 @@ React UI components for the extension popup — the main user interface for sele
 ScrollSyncPopup
 ├── ErrorNotification
 ├── TabCommandPalette
-│   └── (tab list with search/filter/keyboard nav)
-├── SelectedTabsChips
+│   ├── SelectedTabsChips summary
+│   └── tab list with search/filter/keyboard nav
+├── UrlSyncSettings
 ├── SyncControlButtons
 ├── ActionsMenu
-│   ├── Auto-sync toggle
-│   └── URL sync toggle
+│   ├── Same-page tab suggestion toggle
+│   └── Excluded-domain settings
 └── FooterInfo
 ```
 

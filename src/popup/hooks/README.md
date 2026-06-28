@@ -4,14 +4,14 @@ Custom React hooks extracted from `ScrollSyncPopup` to separate state management
 
 ## Hooks
 
-| Hook                   | Lines | Responsibility                                                             |
-| ---------------------- | ----- | -------------------------------------------------------------------------- |
-| `use-sync-control.ts`  | 386   | Core sync operations, connection management, local-file failure guidance   |
-| `use-tab-discovery.ts` | 173   | Tab querying, eligibility filtering, local-file access state, auto-refresh |
-| `use-popup-state.ts`   | 80    | UI state: search, selection, keyboard shortcut hints                       |
-| `use-auto-sync.ts`     | 67    | Auto-sync toggle and status fetching                                       |
-| `use-url-sync.ts`      | 38    | URL navigation sync toggle with storage persistence                        |
-| `index.ts`             | —     | Barrel file re-exporting all hooks                                         |
+| Hook                   | Lines | Responsibility                                                                 |
+| ---------------------- | ----- | ------------------------------------------------------------------------------ |
+| `use-sync-control.ts`  | 386   | Core sync operations, connection management, local-file failure guidance       |
+| `use-tab-discovery.ts` | 173   | Tab querying, eligibility filtering, local-file access state, auto-refresh     |
+| `use-popup-state.ts`   | 80    | UI state: search, selection, keyboard shortcut hints                           |
+| `use-auto-sync.ts`     | 67    | Auto-sync toggle and status fetching                                           |
+| `use-url-sync.ts`      | 227   | URL navigation sync enabled state, mode persistence, save/read failure notices |
+| `index.ts`             | —     | Barrel file re-exporting all hooks                                             |
 
 ## Key Design Decisions
 
@@ -37,6 +37,13 @@ or Edge reports file URL access as disabled, the tab gets an unavailable setting
 a selected `file://` tab actually failed. Mixed selections preserve the generic connection error when
 only web tabs fail.
 
+### URL Sync State Truthfulness
+
+`useUrlSync` loads both the enabled state and the active URL sync mode from storage, repairs invalid
+stored values explicitly, and exposes save/read failure notices. Popup UI must render the mode that
+is actually active; if persistence fails, keep the previous known state visible and show an
+actionable notice instead of silently pretending the requested mode was saved.
+
 ## Import Pattern
 
 ```typescript
@@ -51,4 +58,5 @@ import {
 
 ## Extraction History
 
-Extracted from `ScrollSyncPopup` in Phase 5, reducing the component from 713 to 203 lines.
+Extracted from `ScrollSyncPopup` in Phase 5. Later URL Sync mode work moved more state into
+`useUrlSync`, while the popup root remains focused on orchestration.
