@@ -265,9 +265,7 @@ export function registerTabEventHandlers(): void {
     }
 
     if (tab.url && tab.url !== 'about:blank' && tab.url !== 'chrome://newtab/') {
-      logger.debug(`New tab ${tab.id} created with URL, adding to auto-sync group (pending)`, {
-        url: tab.url,
-      });
+      logger.debug(`New tab ${tab.id} created with URL, adding to auto-sync group (pending)`);
       const groupKey = await updateAutoSyncGroup(tab.id, tab.url, true, true);
 
       // ✅ FIX: Show suggestion after content script is ready (delayed)
@@ -288,13 +286,13 @@ export function registerTabEventHandlers(): void {
               if (pendingSuggestions.has(normalizedUrl) && tab.id !== undefined) {
                 logger.info('[AUTO-SYNC] Sending suggestion to newly joined tab', {
                   tabId: tab.id,
-                  normalizedUrl,
+                  groupTabCount: currentGroup.tabIds.size,
                 });
                 await sendSuggestionToSingleTab(tab.id, normalizedUrl, currentGroup);
               } else {
                 logger.info('[AUTO-SYNC] Showing delayed suggestion after tab creation', {
                   tabId: tab.id,
-                  normalizedUrl,
+                  groupTabCount: currentGroup.tabIds.size,
                 });
                 await showSyncSuggestion(normalizedUrl);
               }
@@ -336,8 +334,8 @@ export function registerTabEventHandlers(): void {
             addTabSuggestedTabs.add(tabId);
             logger.info('[AUTO-SYNC] Detected new tab with same URL as synced tab (immediate)', {
               tabId,
-              normalizedUrl,
               trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
+              sourceMatchCount: matchingSyncedTabSignatures.length,
             });
             const isTranslatedPageMatch =
               newTabSignature?.matchKind === 'translated-page' ||
@@ -358,7 +356,6 @@ export function registerTabEventHandlers(): void {
               addTabSuggestedTabs.add(tabId);
               logger.info('[AUTO-SYNC] Detected translated metadata match for active sync tab', {
                 tabId,
-                normalizedUrl: metadataMatch.normalizedUrl,
                 trigger: changeInfo.url ? 'url_change' : 'loading_with_url',
               });
 
@@ -421,7 +418,7 @@ export function registerTabEventHandlers(): void {
 
     if (changeInfo.url) {
       const changedUrl = changeInfo.url;
-      logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { url: changedUrl });
+      logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { tabId });
 
       const urlSyncEnabled = await loadUrlSyncEnabled();
       if (urlSyncEnabled) {
@@ -444,7 +441,7 @@ export function registerTabEventHandlers(): void {
       return;
     }
 
-    logger.info(`Synced tab ${tabId} was refreshed/updated, reconnecting`, { url: tab.url });
+    logger.info(`Synced tab ${tabId} was refreshed/updated, reconnecting`, { tabId });
 
     try {
       await sendMessage(

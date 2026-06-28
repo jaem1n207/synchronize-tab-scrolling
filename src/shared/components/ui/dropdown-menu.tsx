@@ -20,7 +20,6 @@ function DropdownMenuContent({
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
         ref={ref}
-        sideOffset={sideOffset}
         className={cn(
           'z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
           'data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -30,6 +29,7 @@ function DropdownMenuContent({
           'data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
           className,
         )}
+        sideOffset={sideOffset}
         {...props}
       />
     </DropdownMenuPrimitive.Portal>

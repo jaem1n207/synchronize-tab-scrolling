@@ -51,6 +51,7 @@
     "--------------------------------test-----------------------------": "",
     "test": "vitest test",
     "test:e2e": "playwright test",
+    "test:e2e:extension": "playwright test --config playwright.config.extension.ts",
     "test:e2e:landing": "playwright test --config playwright.config.landing.ts",
     "--------------------------------landing-----------------------------": "",
     "dev:landing": "vite --config vite.config.landing.mts",
@@ -63,9 +64,12 @@
     "clean": "find . -type f -name 'vite.config.*.timestamp-*' -ls -delete 2>/dev/null",
     "health": "lefthook run health",
     "lint:fix": "NODE_OPTIONS='--experimental-strip-types' eslint . --fix --flag unstable_native_nodejs_ts_config",
+    "lint:check": "NODE_OPTIONS='--experimental-strip-types' eslint src/background src/contentScripts src/popup src/shared src/manifest.ts scripts e2e '*.ts' '*.mts' --flag unstable_native_nodejs_ts_config --max-warnings=0",
     "format:fix": "pnpm prettier --write .",
     "typecheck": "pnpm tsc --noEmit",
     "i18n:validate": "esno scripts/validate-i18n.ts",
+    "privacy:logging": "esno scripts/validate-privacy-logging.ts",
+    "privacy:logging:test": "vitest run --root . scripts/privacy-logging-rules.test.ts",
     "cz": "czg"
   },
   "dependencies": {

@@ -16,7 +16,11 @@ export const syncState: SyncState = {
 export async function persistSyncState(): Promise<void> {
   try {
     await browser.storage.local.set({ syncState });
-    logger.debug('Sync state persisted to storage', { syncState });
+    logger.debug('Sync state persisted to storage', {
+      isActive: syncState.isActive,
+      linkedTabCount: syncState.linkedTabs.length,
+      mode: syncState.mode,
+    });
   } catch (error) {
     logger.error('Failed to persist sync state', { error });
   }
@@ -27,7 +31,11 @@ export async function restoreSyncState(): Promise<void> {
     const result = await browser.storage.local.get('syncState');
     if (result.syncState) {
       Object.assign(syncState, result.syncState as SyncState);
-      logger.info('Sync state restored from storage', { syncState });
+      logger.info('Sync state restored from storage', {
+        isActive: syncState.isActive,
+        linkedTabCount: syncState.linkedTabs.length,
+        mode: syncState.mode,
+      });
 
       if (syncState.isActive && syncState.linkedTabs.length >= 2) {
         logger.info('Reconnecting previously synced tabs after service worker restart');

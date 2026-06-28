@@ -10,7 +10,7 @@ import {
 } from '~/shared/lib/storage';
 import type { AutoSyncGroupInfo } from '~/shared/types/messages';
 
-import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
+import { removeTabFromAllAutoSyncGroups, updateAutoSyncGroup } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
@@ -27,6 +27,64 @@ import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-handlers' });
+
+async function stopManualSyncAndReturnTabsToAutoSync(tabIds: Array<number>): Promise<void> {
+  await Promise.allSettled(
+    tabIds.map((tabId) =>
+      sendMessageWithTimeout(
+        'scroll:stop',
+        { tabIds },
+        { context: 'content-script', tabId },
+        1_000,
+      ),
+    ),
+  );
+
+  if (autoSyncState.enabled) {
+    for (const tabId of tabIds) {
+      manualSyncOverriddenTabs.delete(tabId);
+
+      try {
+        const tab = await browser.tabs.get(tabId);
+        if (tab.url) {
+          await updateAutoSyncGroup(tabId, tab.url);
+        }
+      } catch {
+        // Tab may have been closed.
+      }
+    }
+  } else {
+    for (const tabId of tabIds) {
+      manualSyncOverriddenTabs.delete(tabId);
+    }
+  }
+
+  stopKeepAlive();
+  addTabSuggestedTabs.clear();
+
+  syncState.isActive = false;
+  syncState.linkedTabs = [];
+  syncState.connectionStatuses = {};
+  syncState.mode = undefined;
+
+  await persistSyncState();
+}
+
+async function rollbackFailedSuggestionStart(connectedTabIds: Array<number>): Promise<void> {
+  await Promise.allSettled(
+    connectedTabIds.map((tabId) =>
+      sendMessageWithTimeout('scroll:stop', {}, { context: 'content-script', tabId }, 1_000),
+    ),
+  );
+
+  syncState.isActive = false;
+  syncState.linkedTabs = [];
+  syncState.connectionStatuses = {};
+  syncState.mode = undefined;
+
+  await persistSyncState();
+  await broadcastSyncStatus();
+}
 
 export function registerAutoSyncHandlers(): void {
   onMessage('auto-sync:status-changed', async ({ data }) => {
@@ -57,12 +115,6 @@ export function registerAutoSyncHandlers(): void {
   onMessage('auto-sync:get-detailed-status', async ({ sender }) => {
     logger.debug('[AUTO-SYNC] get-detailed-status request', { senderTabId: sender.tabId });
 
-    const allGroups = Array.from(autoSyncState.groups.entries()).map(([url, g]) => ({
-      url,
-      tabCount: g.tabIds.size,
-      tabIds: Array.from(g.tabIds),
-      isActive: g.isActive,
-    }));
     const activeGroups = Array.from(autoSyncState.groups.values()).filter((g) => g.isActive);
     const totalSyncedTabs = activeGroups.reduce((sum, g) => sum + g.tabIds.size, 0);
 
@@ -91,7 +143,7 @@ export function registerAutoSyncHandlers(): void {
       }
     }
 
-    const response = {
+    const status = {
       success: true,
       enabled: autoSyncState.enabled,
       activeGroupCount: activeGroups.length,
@@ -101,30 +153,180 @@ export function registerAutoSyncHandlers(): void {
     };
 
     logger.debug('[AUTO-SYNC] get-detailed-status response', {
-      ...response,
-      allGroups,
       groupCount: autoSyncState.groups.size,
+      activeGroupCount: activeGroups.length,
+      totalSyncedTabs,
+      potentialSyncTabs,
+      hasCurrentTabGroup: currentTabGroup !== undefined,
+      currentTabGroupSize: currentTabGroup?.tabCount,
     });
 
-    return response;
+    return status;
   });
 
-  onMessage('sync-suggestion:response', async ({ data }) => {
-    const payload = data;
-    logger.info('[AUTO-SYNC] Received sync suggestion response', payload);
+  onMessage(
+    'sync-suggestion:response',
+    async ({ data: { accepted, normalizedUrl, permanent, snooze } }) => {
+      logger.info('[AUTO-SYNC] Received sync suggestion response', {
+        accepted,
+        permanent: permanent === true,
+        snooze: snooze === true,
+      });
 
-    pendingSuggestions.delete(payload.normalizedUrl);
+      pendingSuggestions.delete(normalizedUrl);
 
-    // Issue 12 Fix: Broadcast dismiss message to ALL tabs in the group
-    const group = autoSyncState.groups.get(payload.normalizedUrl);
-    if (group) {
-      const uniqueTargetTabs = Array.from(group.tabIds);
+      // Issue 12 Fix: Broadcast dismiss message to ALL tabs in the group
+      const group = autoSyncState.groups.get(normalizedUrl);
+      if (group) {
+        const uniqueTargetTabs = Array.from(group.tabIds);
+
+        Promise.allSettled(
+          uniqueTargetTabs.map((targetTabId) =>
+            sendMessageWithTimeout(
+              'sync-suggestion:dismiss',
+              { normalizedUrl },
+              { context: 'content-script', tabId: targetTabId },
+              1_000,
+            ).catch(() => {
+              // Ignore errors - tab may have been closed or content script not ready
+            }),
+          ),
+        ).then((results) => {
+          const successCount = results.filter((r) => r.status === 'fulfilled').length;
+          logger.debug('[AUTO-SYNC] Dismiss sync suggestion toast broadcast', {
+            totalTabs: uniqueTargetTabs.length,
+            successCount,
+          });
+        });
+      }
+      if (accepted) {
+        const group = autoSyncState.groups.get(normalizedUrl);
+        if (group && group.tabIds.size >= 2) {
+          const tabIds = Array.from(group.tabIds);
+
+          if (syncState.isActive && syncState.linkedTabs.length > 0) {
+            const previousLinkedTabs = [...syncState.linkedTabs];
+
+            logger.info(
+              '[AUTO-SYNC] Stopping existing sync before starting new sync from suggestion',
+              { previousLinkedTabs: syncState.linkedTabs, newTabIds: tabIds },
+            );
+
+            await stopManualSyncAndReturnTabsToAutoSync(previousLinkedTabs);
+          }
+
+          logger.info('[AUTO-SYNC] Starting manual sync from suggestion acceptance', {
+            tabCount: tabIds.length,
+            tabIds,
+          });
+
+          // ✅ FIX: Set syncState BEFORE starting connections to prevent race condition
+          syncState.isActive = true;
+          syncState.linkedTabs = tabIds;
+          syncState.mode = 'ratio';
+
+          const connectionResults: Record<number, { success: boolean; error?: string }> = {};
+
+          const promises = tabIds.map(async (tabId) => {
+            try {
+              const ack = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+                'scroll:start',
+                {
+                  tabIds,
+                  mode: 'ratio',
+                  currentTabId: tabId,
+                  isAutoSync: false,
+                },
+                { context: 'content-script', tabId },
+                2_000,
+              );
+
+              if (ack && ack.success && ack.tabId === tabId) {
+                connectionResults[tabId] = { success: true };
+                syncState.connectionStatuses[tabId] = 'connected';
+              } else {
+                connectionResults[tabId] = { success: false, error: 'Invalid acknowledgment' };
+                syncState.connectionStatuses[tabId] = 'error';
+              }
+            } catch (error) {
+              connectionResults[tabId] = { success: false, error: String(error) };
+              syncState.connectionStatuses[tabId] = 'error';
+            }
+          });
+
+          await Promise.all(promises);
+
+          const successfulConnections = Object.entries(connectionResults).filter(
+            ([, result]) => result.success,
+          );
+          const connectedTabIds = successfulConnections.map(([tabId]) => Number(tabId));
+
+          if (connectedTabIds.length >= 2) {
+            for (const tabId of connectedTabIds) {
+              manualSyncOverriddenTabs.add(tabId);
+            }
+
+            autoSyncState.groups.delete(normalizedUrl);
+            syncState.linkedTabs = connectedTabIds;
+            await persistSyncState();
+            await broadcastSyncStatus();
+            logger.info('[AUTO-SYNC] Manual sync started from suggestion', { connectedTabIds });
+          } else {
+            await rollbackFailedSuggestionStart(connectedTabIds);
+            logger.warn('[AUTO-SYNC] Failed to start sync - not enough tabs connected', {
+              attemptedTabCount: tabIds.length,
+              connectedTabCount: connectedTabIds.length,
+            });
+          }
+        }
+      } else {
+        dismissedUrlGroups.add(normalizedUrl);
+
+        if (permanent) {
+          const domain = extractDomainFromUrl(normalizedUrl);
+          if (domain) {
+            excludedDomains.add(domain);
+            await saveExcludedDomains(Array.from(excludedDomains));
+            logger.info('[AUTO-SYNC] User permanently excluded domain from suggestions');
+          }
+        } else if (snooze) {
+          const domain = extractDomainFromUrl(normalizedUrl);
+          if (domain) {
+            const expiresAt = Date.now() + SUGGESTION_SNOOZE_DURATION_MS;
+            suggestionSnoozeUntil.set(domain, expiresAt);
+            await saveSuggestionSnooze(domain, expiresAt);
+            logger.info('[AUTO-SYNC] User snoozed sync suggestion for domain', {
+              expiresAt: new Date(expiresAt).toISOString(),
+            });
+          }
+        } else {
+          logger.info('[AUTO-SYNC] Sync suggestion auto-dismissed');
+        }
+      }
+
+      return { success: true };
+    },
+  );
+
+  onMessage(
+    'sync-suggestion:add-tab-response',
+    async ({ data: { accepted, tabId, permanent, snooze, normalizedUrl } }) => {
+      logger.info('[AUTO-SYNC] Received add-tab suggestion response', {
+        accepted,
+        tabId,
+        permanent: permanent === true,
+        snooze: snooze === true,
+      });
+
+      // Issue 10 Fix: Broadcast dismiss message to ALL tabs (synced + new tab)
+      const allTargetTabs = [...syncState.linkedTabs, tabId];
+      const uniqueTargetTabs = [...new Set(allTargetTabs)];
 
       Promise.allSettled(
         uniqueTargetTabs.map((targetTabId) =>
           sendMessageWithTimeout(
-            'sync-suggestion:dismiss',
-            { normalizedUrl: payload.normalizedUrl },
+            'sync-suggestion:dismiss-add-tab',
+            { tabId },
             { context: 'content-script', tabId: targetTabId },
             1_000,
           ).catch(() => {
@@ -133,254 +335,89 @@ export function registerAutoSyncHandlers(): void {
         ),
       ).then((results) => {
         const successCount = results.filter((r) => r.status === 'fulfilled').length;
-        logger.debug('[AUTO-SYNC] Dismiss sync suggestion toast broadcast', {
+        logger.debug('[AUTO-SYNC] Dismiss add-tab toast broadcast', {
           totalTabs: uniqueTargetTabs.length,
           successCount,
         });
       });
-    }
 
-    if (payload.accepted) {
-      const group = autoSyncState.groups.get(payload.normalizedUrl);
-      if (group && group.tabIds.size >= 2) {
-        const tabIds = Array.from(group.tabIds);
-
-        if (syncState.isActive && syncState.linkedTabs.length > 0) {
-          const previousLinkedTabs = [...syncState.linkedTabs];
-
-          logger.info(
-            '[AUTO-SYNC] Stopping existing sync before starting new sync from suggestion',
-            { previousLinkedTabs: syncState.linkedTabs, newTabIds: tabIds },
-          );
-
-          await Promise.allSettled(
-            previousLinkedTabs.map((tabId) =>
-              sendMessageWithTimeout(
-                'scroll:stop',
-                { tabIds: previousLinkedTabs },
-                { context: 'content-script', tabId },
-                1_000,
-              ),
-            ),
-          );
-
-          for (const oldTabId of previousLinkedTabs) {
-            manualSyncOverriddenTabs.delete(oldTabId);
+      if (accepted && syncState.isActive) {
+        try {
+          if (syncState.linkedTabs.includes(tabId)) {
+            return { success: true };
           }
 
-          stopKeepAlive();
-          addTabSuggestedTabs.clear();
+          const tab = await browser.tabs.get(tabId);
+          if (!tab) {
+            return { success: false, error: 'Tab no longer exists' };
+          }
 
-          syncState.isActive = false;
-          syncState.linkedTabs = [];
-          syncState.connectionStatuses = {};
-          syncState.mode = undefined;
-        }
-
-        logger.info('[AUTO-SYNC] Starting manual sync from suggestion acceptance', {
-          normalizedUrl: payload.normalizedUrl,
-          tabIds,
-        });
-
-        for (const tabId of tabIds) {
           manualSyncOverriddenTabs.add(tabId);
-        }
 
-        autoSyncState.groups.delete(payload.normalizedUrl);
+          await removeTabFromAllAutoSyncGroups(tabId);
 
-        // ✅ FIX: Set syncState BEFORE starting connections to prevent race condition
-        syncState.isActive = true;
-        syncState.linkedTabs = tabIds;
-        syncState.mode = 'ratio';
+          const newTabIds = [...new Set([...syncState.linkedTabs, tabId])];
 
-        const connectionResults: Record<number, { success: boolean; error?: string }> = {};
+          const promises = newTabIds.map(async (candidateTabId) => {
+            try {
+              const ack = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+                'scroll:start',
+                {
+                  tabIds: newTabIds,
+                  mode: syncState.mode || 'ratio',
+                  currentTabId: candidateTabId,
+                  isAutoSync: false,
+                },
+                { context: 'content-script', tabId: candidateTabId },
+                2_000,
+              );
 
-        const promises = tabIds.map(async (tabId) => {
-          try {
-            const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
-              'scroll:start',
-              {
-                tabIds,
-                mode: 'ratio',
-                currentTabId: tabId,
-                isAutoSync: false,
-              },
-              { context: 'content-script', tabId },
-              2_000,
-            );
-
-            if (response && response.success && response.tabId === tabId) {
-              connectionResults[tabId] = { success: true };
-              syncState.connectionStatuses[tabId] = 'connected';
-            } else {
-              connectionResults[tabId] = { success: false, error: 'Invalid acknowledgment' };
-              syncState.connectionStatuses[tabId] = 'error';
+              if (ack && ack.success && ack.tabId === candidateTabId) {
+                syncState.connectionStatuses[candidateTabId] = 'connected';
+              } else {
+                syncState.connectionStatuses[candidateTabId] = 'error';
+              }
+            } catch {
+              syncState.connectionStatuses[candidateTabId] = 'error';
             }
-          } catch (error) {
-            connectionResults[tabId] = { success: false, error: String(error) };
-            syncState.connectionStatuses[tabId] = 'error';
-          }
-        });
+          });
 
-        await Promise.all(promises);
+          await Promise.all(promises);
 
-        const successfulConnections = Object.entries(connectionResults).filter(
-          ([, result]) => result.success,
-        );
-        const connectedTabIds = successfulConnections.map(([tabId]) => Number(tabId));
-
-        if (connectedTabIds.length >= 2) {
-          syncState.linkedTabs = connectedTabIds;
+          syncState.linkedTabs = newTabIds;
           await persistSyncState();
           await broadcastSyncStatus();
-          logger.info('[AUTO-SYNC] Manual sync started from suggestion', { connectedTabIds });
-        } else {
-          syncState.isActive = false;
-          syncState.linkedTabs = [];
-          syncState.connectionStatuses = {};
-          logger.warn('[AUTO-SYNC] Failed to start sync - not enough tabs connected', {
-            connectionResults,
-          });
-        }
-      }
-    } else {
-      dismissedUrlGroups.add(payload.normalizedUrl);
 
-      if (payload.permanent) {
-        const domain = extractDomainFromUrl(payload.normalizedUrl);
+          logger.info('[AUTO-SYNC] Added tab to manual sync', { tabId, newTabIds });
+        } catch (error) {
+          logger.error('[AUTO-SYNC] Failed to add tab to sync', { tabId, error });
+          return { success: false, error: String(error) };
+        }
+      } else if (!accepted && permanent && normalizedUrl) {
+        const domain = extractDomainFromUrl(normalizedUrl);
         if (domain) {
           excludedDomains.add(domain);
           await saveExcludedDomains(Array.from(excludedDomains));
-          logger.info('[AUTO-SYNC] User permanently excluded domain from suggestions', {
-            normalizedUrl: payload.normalizedUrl,
-            domain,
+          logger.info('[AUTO-SYNC] User permanently excluded domain from add-tab suggestions', {
+            tabId,
           });
         }
-      } else if (payload.snooze) {
-        const domain = extractDomainFromUrl(payload.normalizedUrl);
+      } else if (!accepted && snooze && normalizedUrl) {
+        const domain = extractDomainFromUrl(normalizedUrl);
         if (domain) {
           const expiresAt = Date.now() + SUGGESTION_SNOOZE_DURATION_MS;
           suggestionSnoozeUntil.set(domain, expiresAt);
           await saveSuggestionSnooze(domain, expiresAt);
-          logger.info('[AUTO-SYNC] User snoozed sync suggestion for domain', {
-            normalizedUrl: payload.normalizedUrl,
-            domain,
+          logger.info('[AUTO-SYNC] User snoozed add-tab suggestion for domain', {
+            tabId,
             expiresAt: new Date(expiresAt).toISOString(),
           });
         }
-      } else {
-        logger.info('[AUTO-SYNC] Sync suggestion auto-dismissed', {
-          normalizedUrl: payload.normalizedUrl,
-        });
       }
-    }
 
-    return { success: true };
-  });
-
-  onMessage('sync-suggestion:add-tab-response', async ({ data }) => {
-    const payload = data;
-    logger.info('[AUTO-SYNC] Received add-tab suggestion response', payload);
-
-    // Issue 10 Fix: Broadcast dismiss message to ALL tabs (synced + new tab)
-    const allTargetTabs = [...syncState.linkedTabs, payload.tabId];
-    const uniqueTargetTabs = [...new Set(allTargetTabs)];
-
-    Promise.allSettled(
-      uniqueTargetTabs.map((targetTabId) =>
-        sendMessageWithTimeout(
-          'sync-suggestion:dismiss-add-tab',
-          { tabId: payload.tabId },
-          { context: 'content-script', tabId: targetTabId },
-          1_000,
-        ).catch(() => {
-          // Ignore errors - tab may have been closed or content script not ready
-        }),
-      ),
-    ).then((results) => {
-      const successCount = results.filter((r) => r.status === 'fulfilled').length;
-      logger.debug('[AUTO-SYNC] Dismiss add-tab toast broadcast', {
-        totalTabs: uniqueTargetTabs.length,
-        successCount,
-      });
-    });
-
-    if (payload.accepted && syncState.isActive) {
-      const tabId = payload.tabId;
-
-      try {
-        const tab = await browser.tabs.get(tabId);
-        if (!tab) {
-          return { success: false, error: 'Tab no longer exists' };
-        }
-
-        manualSyncOverriddenTabs.add(tabId);
-
-        await removeTabFromAllAutoSyncGroups(tabId);
-
-        const newTabIds = [...syncState.linkedTabs, tabId];
-
-        const promises = newTabIds.map(async (tId) => {
-          try {
-            const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
-              'scroll:start',
-              {
-                tabIds: newTabIds,
-                mode: syncState.mode || 'ratio',
-                currentTabId: tId,
-                isAutoSync: false,
-              },
-              { context: 'content-script', tabId: tId },
-              2_000,
-            );
-
-            if (response && response.success && response.tabId === tId) {
-              syncState.connectionStatuses[tId] = 'connected';
-            } else {
-              syncState.connectionStatuses[tId] = 'error';
-            }
-          } catch {
-            syncState.connectionStatuses[tId] = 'error';
-          }
-        });
-
-        await Promise.all(promises);
-
-        syncState.linkedTabs = newTabIds;
-        await persistSyncState();
-        await broadcastSyncStatus();
-
-        logger.info('[AUTO-SYNC] Added tab to manual sync', { tabId, newTabIds });
-      } catch (error) {
-        logger.error('[AUTO-SYNC] Failed to add tab to sync', { tabId, error });
-        return { success: false, error: String(error) };
-      }
-    } else if (!payload.accepted && payload.permanent && payload.normalizedUrl) {
-      const domain = extractDomainFromUrl(payload.normalizedUrl);
-      if (domain) {
-        excludedDomains.add(domain);
-        await saveExcludedDomains(Array.from(excludedDomains));
-        logger.info('[AUTO-SYNC] User permanently excluded domain from add-tab suggestions', {
-          tabId: payload.tabId,
-          domain,
-        });
-      }
-    } else if (!payload.accepted && payload.snooze && payload.normalizedUrl) {
-      const domain = extractDomainFromUrl(payload.normalizedUrl);
-      if (domain) {
-        const expiresAt = Date.now() + SUGGESTION_SNOOZE_DURATION_MS;
-        suggestionSnoozeUntil.set(domain, expiresAt);
-        await saveSuggestionSnooze(domain, expiresAt);
-        logger.info('[AUTO-SYNC] User snoozed add-tab suggestion for domain', {
-          tabId: payload.tabId,
-          domain,
-          expiresAt: new Date(expiresAt).toISOString(),
-        });
-      }
-    }
-
-    return { success: true };
-  });
+      return { success: true };
+    },
+  );
 
   onMessage('auto-sync:excluded-domains-changed', async ({ data }) => {
     const { domains } = data;
@@ -389,7 +426,9 @@ export function registerAutoSyncHandlers(): void {
       excludedDomains.add(domain);
     }
     await saveExcludedDomains(domains);
-    logger.info('[AUTO-SYNC] Excluded domains updated from popup', { domains });
+    logger.info('[AUTO-SYNC] Excluded domains updated from popup', {
+      domainCount: domains.length,
+    });
   });
 
   onMessage('auto-sync:get-excluded-domains', async () => {

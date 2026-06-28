@@ -44,3 +44,7 @@ health:
       run: bunx tsc --noEmit
     i18n-validate:
       run: bunx esno scripts/validate-i18n.ts
+    privacy-logging:
+      run: bunx esno scripts/validate-privacy-logging.ts
+    privacy-logging-test:
+      run: bunx vitest run --root . scripts/privacy-logging-rules.test.ts

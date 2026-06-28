@@ -9,7 +9,7 @@ import {
 } from '~/shared/lib/storage';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
-import { removeTabFromAllAutoSyncGroups } from '../lib/auto-sync-groups';
+import { removeTabFromAllAutoSyncGroups, updateAutoSyncGroup } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
 import {
   autoSyncState,
@@ -78,6 +78,7 @@ vi.mock('~/shared/lib/storage', () => ({
 
 vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
+  updateAutoSyncGroup: vi.fn(),
 }));
 
 vi.mock('../lib/auto-sync-lifecycle', () => ({
@@ -176,6 +177,7 @@ describe('registerAutoSyncHandlers', () => {
       incognito: false,
     } as browser.Tabs.Tab);
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
+    vi.mocked(updateAutoSyncGroup).mockResolvedValue('https://example.com/page');
     vi.mocked(persistSyncState).mockResolvedValue();
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
 
@@ -339,6 +341,24 @@ describe('registerAutoSyncHandlers', () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
       syncState.mode = 'ratio';
+      autoSyncState.enabled = true;
+
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId: number) => {
+        const urlByTabId = new Map([
+          [1, 'https://old.test/one'],
+          [2, 'https://old.test/two'],
+        ]);
+
+        return {
+          id: tabId,
+          index: 0,
+          highlighted: false,
+          active: false,
+          pinned: false,
+          incognito: false,
+          url: urlByTabId.get(tabId),
+        } as browser.Tabs.Tab;
+      });
 
       vi.mocked(sendMessageWithTimeout).mockImplementation(
         async (
@@ -385,6 +405,8 @@ describe('registerAutoSyncHandlers', () => {
       // Verify old tabs are NOT in manualSyncOverriddenTabs
       expect(manualSyncOverriddenTabs.has(1)).toBe(false);
       expect(manualSyncOverriddenTabs.has(2)).toBe(false);
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(1, 'https://old.test/one');
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(2, 'https://old.test/two');
 
       // Verify new tabs ARE in manualSyncOverriddenTabs
       expect(manualSyncOverriddenTabs.has(10)).toBe(true);
@@ -440,8 +462,11 @@ describe('registerAutoSyncHandlers', () => {
       expect(syncState.isActive).toBe(false);
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
-      expect(persistSyncState).not.toHaveBeenCalled();
-      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+      expect(manualSyncOverriddenTabs.has(1)).toBe(false);
+      expect(manualSyncOverriddenTabs.has(2)).toBe(false);
+      expect(autoSyncState.groups.has(normalizedUrl)).toBe(true);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
     it('returns success when accepted suggestion group no longer exists', async () => {
@@ -627,6 +652,22 @@ describe('registerAutoSyncHandlers', () => {
       expect(response).toEqual({ success: false, error: 'Error: Tab no longer exists' });
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
       expect(syncState.linkedTabs).toEqual([1, 2]);
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+    });
+
+    it('ignores duplicate accepted add-tab responses for an already linked tab', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2, 3];
+      manualSyncOverriddenTabs.add(3);
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({ data: { tabId: 3, accepted: true }, sender: {} });
+
+      expect(response).toEqual({ success: true });
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
+      expect(syncState.linkedTabs).toEqual([1, 2, 3]);
       expect(persistSyncState).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });

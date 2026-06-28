@@ -53,52 +53,42 @@ export function isDomainSnoozed(normalizedUrl: string): boolean {
  */
 export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   const group = autoSyncState.groups.get(normalizedUrl);
+  const hasAnyPendingSuggestions = pendingSuggestions.size > 0;
+  const hasAnyDismissedGroups = dismissedUrlGroups.size > 0;
 
   // Comprehensive debug logging for troubleshooting toast display issues
   logger.info('[AUTO-SYNC] showSyncSuggestion called', {
-    normalizedUrl,
-    groupExists: !!group,
-    groupSize: group?.tabIds.size,
-    groupTabIds: group ? Array.from(group.tabIds) : [],
-    isActive: group?.isActive,
-    isPending: pendingSuggestions.has(normalizedUrl),
-    isDismissed: dismissedUrlGroups.has(normalizedUrl),
+    groupCount: autoSyncState.groups.size,
+    hasAnyPendingSuggestions,
+    hasAnyDismissedGroups,
   });
 
   if (!group || group.tabIds.size < 2) {
-    logger.debug('[AUTO-SYNC] Cannot show suggestion - group not found or too small', {
-      normalizedUrl,
-      groupExists: !!group,
-      groupSize: group?.tabIds.size,
-    });
+    logger.debug('[AUTO-SYNC] Cannot show suggestion - group not found or too small');
     return;
   }
 
   if (dismissedUrlGroups.has(normalizedUrl)) {
-    logger.debug('[AUTO-SYNC] Skipping suggestion - URL group dismissed by user', {
-      normalizedUrl,
-    });
+    logger.debug('[AUTO-SYNC] Skipping suggestion - URL group dismissed by user');
     return;
   }
 
   if (isDomainPermanentlyExcluded(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping suggestion - domain is permanently excluded', {
-      normalizedUrl,
-      domain: extractDomainFromUrl(normalizedUrl),
+      isDomainExcluded: true,
     });
     return;
   }
 
   if (isDomainSnoozed(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping suggestion - domain is snoozed', {
-      normalizedUrl,
-      domain: extractDomainFromUrl(normalizedUrl),
+      isDomainSnoozed: true,
     });
     return;
   }
 
   if (pendingSuggestions.has(normalizedUrl)) {
-    logger.debug('[AUTO-SYNC] Skipping suggestion - already pending', { normalizedUrl });
+    logger.debug('[AUTO-SYNC] Skipping suggestion - already pending');
     return;
   }
 
@@ -108,8 +98,7 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
     const hasSyncedTabWithSameUrl = await hasSyncedTabMatchingUrl(normalizedUrl);
     if (hasSyncedTabWithSameUrl) {
       logger.info('[AUTO-SYNC] Skipping suggestion - synced tabs share this normalized URL', {
-        normalizedUrl,
-        syncedTabs: syncState.linkedTabs,
+        syncedTabCount: syncState.linkedTabs.length,
       });
       return;
     }
@@ -144,8 +133,7 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   // Only inject into tabs that don't respond to ping (no content script yet)
   // Also check if any tab is already syncing - if so, skip showing suggestion
   logger.info('[AUTO-SYNC] Checking content script status before showing suggestion', {
-    normalizedUrl,
-    targetTabs: uniqueTargetTabs,
+    targetTabCount: uniqueTargetTabs.length,
   });
 
   const tabsNeedingInjection: number[] = [];
@@ -184,7 +172,6 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
 
   // Log ping results summary
   logger.info('[AUTO-SYNC] Ping results summary', {
-    normalizedUrl,
     totalTabs: uniqueTargetTabs.length,
     tabsNeedingInjection: tabsNeedingInjection.length,
     hasActiveSyncTab,
@@ -192,9 +179,7 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
 
   // If any tab is already syncing, skip showing suggestion
   if (hasActiveSyncTab) {
-    logger.info('[AUTO-SYNC] Skipping suggestion - tabs are already syncing', {
-      normalizedUrl,
-    });
+    logger.info('[AUTO-SYNC] Skipping suggestion - tabs are already syncing');
     pendingSuggestions.delete(normalizedUrl);
     return;
   }
@@ -202,7 +187,7 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   // Only inject into tabs without content scripts
   if (tabsNeedingInjection.length > 0) {
     logger.info('[AUTO-SYNC] Injecting content scripts into tabs without scripts', {
-      normalizedUrl,
+      tabCountNeedingInjection: tabsNeedingInjection.length,
       tabsNeedingInjection,
     });
 
@@ -228,10 +213,8 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   }
 
   logger.info('[AUTO-SYNC] Showing sync suggestion toast on ALL tabs', {
-    normalizedUrl,
-    targetTabs: uniqueTargetTabs,
+    targetTabCount: uniqueTargetTabs.length,
     tabCount: tabIds.length,
-    tabTitles,
   });
 
   // Send toast to all tabs in parallel
@@ -293,7 +276,7 @@ export async function sendSuggestionToSingleTab(
   if (isDomainPermanentlyExcluded(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping single-tab suggestion - domain is permanently excluded', {
       tabId,
-      normalizedUrl,
+      isDomainExcluded: true,
     });
     return;
   }
@@ -301,7 +284,7 @@ export async function sendSuggestionToSingleTab(
   if (isDomainSnoozed(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping single-tab suggestion - domain is snoozed', {
       tabId,
-      normalizedUrl,
+      isDomainSnoozed: true,
     });
     return;
   }
@@ -354,7 +337,10 @@ export async function sendSuggestionToSingleTab(
       },
       { context: 'content-script', tabId },
     );
-    logger.info('[AUTO-SYNC] Sent suggestion to newly joined tab', { tabId, normalizedUrl });
+    logger.info('[AUTO-SYNC] Sent suggestion to newly joined tab', {
+      tabId,
+      groupTabCount: tabIds.length,
+    });
   } catch (error) {
     logger.warn('[AUTO-SYNC] Failed to send suggestion to new tab', { tabId, error });
   }
@@ -379,7 +365,7 @@ export async function showAddTabSuggestion(
   if (isDomainPermanentlyExcluded(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is permanently excluded', {
       tabId,
-      normalizedUrl,
+      isDomainExcluded: true,
     });
     return;
   }
@@ -387,7 +373,7 @@ export async function showAddTabSuggestion(
   if (isDomainSnoozed(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is snoozed', {
       tabId,
-      normalizedUrl,
+      isDomainSnoozed: true,
     });
     return;
   }
@@ -407,9 +393,8 @@ export async function showAddTabSuggestion(
 
   logger.info('[AUTO-SYNC] Showing add-tab suggestion toast on ALL tabs', {
     newTabId: tabId,
-    tabTitle,
     syncedTabs: syncState.linkedTabs,
-    allTargetTabs: uniqueTargetTabs,
+    targetTabCount: uniqueTargetTabs.length,
     hasManualOffsets,
   });
 

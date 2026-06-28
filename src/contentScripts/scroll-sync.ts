@@ -314,7 +314,7 @@ const handleScroll = throttleAndDebounce(handleScrollCore, THROTTLE_DELAY);
  * Broadcast URL change to other tabs (P1)
  */
 async function broadcastUrlChange(url: string) {
-  logger.info('URL changed, broadcasting to other tabs', { url });
+  logger.info('URL changed, broadcasting to other tabs', { tabId: syncState.tabId });
 
   // Clear manual scroll offset when navigating to a new page (source tab)
   // Only clear if URL sync is enabled - old offset values won't be useful on a new page
@@ -565,7 +565,7 @@ async function requestReconnection(attemptNumber = 0): Promise<boolean> {
       connectionState.isReconnecting = false;
       return true;
     } else {
-      logger.warn('Reconnection attempt failed', { attemptNumber, response });
+      logger.warn('Reconnection attempt failed', { attemptNumber });
     }
   } catch (error) {
     logger.warn('Reconnection attempt error', { attemptNumber, error });
@@ -754,7 +754,10 @@ export function initScrollSync() {
   // Listen for stop sync message
   onMessage('scroll:stop', async ({ data }) => {
     const payload = data;
-    logger.info('Stopping scroll sync', { data, isAutoSync: payload.isAutoSync });
+    logger.info('Stopping scroll sync', {
+      tabId: syncState.tabId,
+      isAutoSync: payload.isAutoSync ?? false,
+    });
 
     // Auto-sync stop should only stop auto-sync (not interfere with manual sync)
     // But manual stop (from popup) should work regardless of sync type
@@ -814,7 +817,10 @@ export function initScrollSync() {
     // Update last successful sync time for connection health monitoring
     connectionState.lastSuccessfulSync = Date.now();
 
-    logger.debug('Receiving scroll sync', { data });
+    logger.debug('Receiving scroll sync', {
+      sourceTabId: payload.sourceTabId,
+      mode: payload.mode,
+    });
 
     // Calculate the synced ratio from source tab
     const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
@@ -925,7 +931,7 @@ export function initScrollSync() {
   onMessage('scroll:ping', async ({ data }) => {
     const payload = data;
     logger.debug('Received ping from background', {
-      payload,
+      pingTabId: payload.tabId,
       isSyncActive: syncState.isActive,
       tabId: syncState.tabId,
     });
@@ -1039,7 +1045,6 @@ export function initScrollSync() {
   onMessage('sync-suggestion:show', async ({ data }) => {
     const payload = data;
     logger.info('Showing sync suggestion toast', {
-      normalizedUrl: payload.normalizedUrl,
       tabCount: payload.tabCount,
     });
     showSyncSuggestionToast(payload);
@@ -1051,7 +1056,7 @@ export function initScrollSync() {
     const payload = data;
     logger.info('Showing add tab suggestion toast', {
       tabId: payload.tabId,
-      tabTitle: payload.tabTitle,
+      hasMatchKind: payload.matchKind !== undefined,
     });
     showAddTabSuggestionToast(payload);
     return { success: true };
