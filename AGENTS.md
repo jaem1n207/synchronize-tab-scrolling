@@ -66,6 +66,14 @@ pnpm start:firefox      # Launch in Firefox
 
 ## Anti-Patterns
 
+### P0: Privacy & Security (will leak user data)
+
+1. **Never log raw URLs** — URLs can contain tokens, emails, document IDs, search terms, and private workspace paths in the hostname, path, query, or hash. Do not log `window.location.href`, `tab.url`, `payload.url`, `sourceUrl`, `targetUrl`, `normalizedUrl`, or objects that contain them.
+2. **Log only non-sensitive metadata** — Prefer `tabId`, `sourceTabId`, `targetTabId`, `mode`, `reason`, counts, booleans, and enum states. If a domain is truly required for a domain-specific feature, log only the normalized domain and never path/query/hash.
+3. **Do not log tab titles or page metadata** — Treat tab titles, document titles, canonical URLs, alternate links, and page metadata as user data unless explicitly sanitized.
+4. **No external leakage** — Do not send raw URLs, titles, page metadata, storage values, or user browsing data to external services, issue comments, PR comments, telemetry, analytics, or screenshots unless the user explicitly provides the data and asks for it.
+5. **Search before completion** — For changes touching URL sync, auto-sync, tab discovery, logging, notices, or storage, search for `logger`, `url`, `Url`, `URL`, `tab.url`, `window.location.href`, `payload`, `normalizedUrl`, `sourceUrl`, and `targetUrl` before finishing. Any raw URL/title logging is a blocking bug.
+
 ### P0: Timing & State (will cause sync bugs)
 
 1. **No async I/O in scroll handlers** — Never `await` in `handleScrollCore()`. Scroll fires 20x/sec
@@ -79,6 +87,7 @@ pnpm start:firefox      # Launch in Firefox
 6. **Tab-specific data → `sessionStorage`** — Never `browser.storage.local` for per-tab state
 7. **SW in-memory state lost on restart** — `Set`/`Map` state must restore from persistent storage
 8. **Check `syncState` before pinging content scripts** — Chrome throttles background tab network
+9. **State truthfulness** — UI must show the mode that is actually active. If storage read/write/repair fails, return an explicit failure state, avoid silent fallback to another mode, and show an actionable notice instead of pretending the requested setting is active.
 
 ### P2: UI (will cause visual bugs)
 
@@ -96,6 +105,7 @@ pnpm start:firefox      # Launch in Firefox
 - `@ts-ignore`, `as any` — fix the type
 - Empty `catch(e) {}` — log or handle
 - Delete failing tests to "pass"
+- Raw URL/title logging or `logger(..., { payload })` when payload may contain URLs, titles, or page metadata
 
 ## CI/CD
 

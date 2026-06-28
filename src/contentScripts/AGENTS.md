@@ -80,9 +80,11 @@ Reconnection triggers: visibility change (tab becomes visible), message send fai
 
 ## Anti-Patterns
 
+- **NEVER** log raw URLs, tab titles, page titles, canonical URLs, alternate links, or full message payloads. `window.location.href`, `payload.url`, `sourceUrl`, `targetUrl`, and `normalizedUrl` may contain tokens, emails, private document IDs, search terms, or workspace paths. Log only `tabId`, `sourceTabId`, `mode`, `reason`, counts, booleans, or enum states.
 - **NEVER** `await` in `handleScrollCore()` — scroll fires 20x/sec, async adds variable delay
 - **NEVER** reduce `PROGRAMMATIC_SCROLL_GRACE_PERIOD` below 200ms — causes feedback loops
 - **ALWAYS** update `cachedManualOffset` at ALL save/clear points — mismatch causes misaligned scrolling
 - **ALWAYS** check for orphaned containers before creating Shadow DOM roots
 - **ALWAYS** use `passive: true` on scroll event listeners
 - **ALWAYS** use CustomEvent (not webext-bridge) for same-context communication between scroll-sync.ts and panel.tsx
+- **ALWAYS** keep visible URL Sync mode aligned with actual behavior. If storage read/write/repair fails, emit an explicit failure notice and skip unsafe navigation instead of silently falling back to another mode.
