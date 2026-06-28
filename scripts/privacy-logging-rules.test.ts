@@ -33,6 +33,26 @@ describe('privacy logging rules', () => {
     ).toEqual([]);
   });
 
+  it('inspects nested metadata object literals recursively', () => {
+    expect(
+      messagesFor(`
+        logger.info('Nested', { meta: { url: window.location.href } });
+        logger.info('Nested payload', { meta: { payload } });
+      `),
+    ).toEqual([
+      'Do not log "url". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('allows safe nested metadata object literals', () => {
+    expect(
+      messagesFor(`
+        logger.info('Nested safe', { meta: { tabCount: 2, domain: 'example.com' } });
+      `),
+    ).toEqual([]);
+  });
+
   it('rejects raw URL metadata keys', () => {
     expect(
       messagesFor(`

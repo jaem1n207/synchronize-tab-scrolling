@@ -67,6 +67,11 @@ export function analyzePrivacyLoggingSource(
   }
 
   function inspectExpression(expression: ts.Expression): void {
+    if (ts.isObjectLiteralExpression(expression)) {
+      inspectObjectLiteral(expression);
+      return;
+    }
+
     const unsafeName = findUnsafeExpressionName(expression);
 
     if (unsafeName) {
