@@ -22,13 +22,16 @@ const logger = new ExtensionLogger({ scope: 'background/scroll-sync-handlers' })
 
 export function registerScrollSyncHandlers(): void {
   logger.info('Registering scroll:start handler');
-  onMessage('scroll:start', async ({ data }) => {
-    logger.info('Received scroll:start message', { data });
-    const payload = data;
+  onMessage('scroll:start', async ({ data: startRequest }) => {
+    logger.info('Received scroll:start message', {
+      requestedTabCount: startRequest.tabIds.length,
+      mode: startRequest.mode,
+      isAutoSync: startRequest.isAutoSync ?? false,
+    });
 
     // If this is a manual sync (not auto-sync), handle conflict with auto-sync
-    if (!payload.isAutoSync) {
-      for (const tabId of payload.tabIds) {
+    if (!startRequest.isAutoSync) {
+      for (const tabId of startRequest.tabIds) {
         manualSyncOverriddenTabs.add(tabId);
         await removeTabFromAllAutoSyncGroups(tabId);
       }
@@ -42,7 +45,7 @@ export function registerScrollSyncHandlers(): void {
       }
 
       logger.debug('Manual sync started, tabs excluded from auto-sync', {
-        tabIds: payload.tabIds,
+        tabIds: startRequest.tabIds,
       });
     }
 
@@ -50,20 +53,20 @@ export function registerScrollSyncHandlers(): void {
     const connectionResults: Record<number, { success: boolean; error?: string }> = {};
 
     // Attempt to connect to each tab with timeout and acknowledgment validation
-    logger.info(`Connecting to ${payload.tabIds.length} tabs`, { tabIds: payload.tabIds });
+    logger.info(`Connecting to ${startRequest.tabIds.length} tabs`, { tabIds: startRequest.tabIds });
 
-    const promises = payload.tabIds.map(async (tabId) => {
+    const promises = startRequest.tabIds.map(async (tabId) => {
       try {
         // Verify tab exists first
-        const tab = await browser.tabs.get(tabId);
-        logger.debug(`Verified tab ${tabId} exists:`, { title: tab.title, url: tab.url });
+        await browser.tabs.get(tabId);
+        logger.debug(`Verified tab ${tabId} exists`);
 
         logger.debug(`Sending scroll:start to tab ${tabId}`);
 
         // Send message with timeout and capture acknowledgment
         const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
           'scroll:start',
-          { ...payload, currentTabId: tabId },
+          { ...startRequest, currentTabId: tabId },
           { context: 'content-script', tabId },
           1_000, // 1 second timeout
         );
@@ -74,7 +77,7 @@ export function registerScrollSyncHandlers(): void {
           connectionResults[tabId] = { success: true };
           syncState.connectionStatuses[tabId] = 'connected';
         } else {
-          logger.error(`Tab ${tabId} returned invalid acknowledgment`, { response });
+          logger.error(`Tab ${tabId} returned invalid acknowledgment`);
           connectionResults[tabId] = { success: false, error: 'Invalid acknowledgment' };
           syncState.connectionStatuses[tabId] = 'error';
         }
@@ -95,9 +98,9 @@ export function registerScrollSyncHandlers(): void {
     const connectedTabIds = successfulConnections.map(([tabId]) => Number(tabId));
 
     logger.info('Connection results', {
-      total: payload.tabIds.length,
+      total: startRequest.tabIds.length,
       successful: successfulConnections.length,
-      failed: payload.tabIds.length - successfulConnections.length,
+      failed: startRequest.tabIds.length - successfulConnections.length,
       results: connectionResults,
     });
 
@@ -129,7 +132,7 @@ export function registerScrollSyncHandlers(): void {
     // Update sync state with only successfully connected tabs
     syncState.isActive = true;
     syncState.linkedTabs = connectedTabIds;
-    syncState.mode = payload.mode;
+    syncState.mode = startRequest.mode;
 
     // Start keep-alive mechanism to prevent service worker termination
     startKeepAlive();
@@ -150,9 +153,12 @@ export function registerScrollSyncHandlers(): void {
   });
 
   onMessage('scroll:stop', async ({ data }) => {
-    logger.info('Stopping scroll sync for tabs', { data });
     const payload = data;
     const tabIds = payload.tabIds ?? [];
+    logger.info('Stopping scroll sync for tabs', {
+      tabCount: tabIds.length,
+      isAutoSync: payload.isAutoSync ?? false,
+    });
 
     // Broadcast stop message to all selected tabs
     const promises = tabIds.map((tabId) =>
@@ -165,13 +171,13 @@ export function registerScrollSyncHandlers(): void {
 
     // Also stop any auto-sync groups that contain these tabs
     // This ensures auto-sync state is cleared when user stops from popup
-    for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
+    for (const [, group] of autoSyncState.groups.entries()) {
       if (group.isActive) {
         const hasStoppedTab = tabIds.some((tabId) => group.tabIds.has(tabId));
         if (hasStoppedTab) {
           logger.info('[AUTO-SYNC] Clearing auto-sync group due to manual stop', {
-            normalizedUrl,
             stoppedTabIds: tabIds,
+            groupTabCount: group.tabIds.size,
           });
           group.isActive = false;
         }
@@ -214,8 +220,11 @@ export function registerScrollSyncHandlers(): void {
 
   onMessage('scroll:sync', async ({ data, sender }) => {
     const payload = data;
-
-    logger.debug('Relaying scroll sync message', { payload, sender });
+    logger.debug('Relaying scroll sync message', {
+      sourceTabId: payload.sourceTabId,
+      mode: payload.mode,
+      hasSenderTab: sender.tabId !== undefined,
+    });
 
     // Manual sync tabs (existing logic)
     let targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
@@ -247,8 +256,11 @@ export function registerScrollSyncHandlers(): void {
   });
 
   onMessage('scroll:manual', async ({ data }) => {
-    logger.debug('Manual scroll mode toggled', { data });
     const payload = data;
+    logger.debug('Manual scroll mode toggled', {
+      tabId: payload.tabId,
+      enabled: payload.enabled,
+    });
 
     // Send manual mode change to the specific tab only
     try {
@@ -265,7 +277,7 @@ export function registerScrollSyncHandlers(): void {
 
   onMessage('url:sync', async ({ data }) => {
     const payload = data;
-    logger.info('Relaying URL sync message', { payload });
+    logger.info('Relaying URL sync message', { sourceTabId: payload.sourceTabId });
 
     // Broadcast to all synced tabs except the source
     const targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);

@@ -56,14 +56,14 @@ export function registerConnectionHandlers(): void {
 
   onMessage('scroll:ping', async ({ data }) => {
     const payload = data;
-    logger.debug('Received connection health ping', { payload });
+    logger.debug('Received connection health ping', { tabId: payload.tabId });
 
     return { success: true, timestamp: Date.now(), tabId: payload.tabId };
   });
 
   onMessage('scroll:reconnect', async ({ data }) => {
     const payload = data;
-    logger.info('Received reconnection request from content script', { payload });
+    logger.info('Received reconnection request from content script', { tabId: payload.tabId });
 
     const isInManualSync = syncState.isActive && syncState.linkedTabs.includes(payload.tabId);
     const isInAutoSync = isTabInActiveAutoSyncGroup(payload.tabId);
@@ -79,8 +79,8 @@ export function registerConnectionHandlers(): void {
     }
 
     try {
-      const tab = await browser.tabs.get(payload.tabId);
-      logger.debug('Tab verified for reconnection', { tabId: tab.id, url: tab.url });
+      await browser.tabs.get(payload.tabId);
+      logger.debug('Tab verified for reconnection', { tabId: payload.tabId });
     } catch (error) {
       logger.error('Tab no longer exists, removing from sync', { tabId: payload.tabId, error });
       if (isInManualSync) {
@@ -123,7 +123,7 @@ export function registerConnectionHandlers(): void {
         });
         return { success: true };
       } else {
-        logger.error('Invalid reconnection acknowledgment', { response });
+        logger.error('Invalid reconnection acknowledgment', { tabId: payload.tabId });
         if (isInManualSync) {
           syncState.connectionStatuses[payload.tabId] = 'error';
           await persistSyncState();
