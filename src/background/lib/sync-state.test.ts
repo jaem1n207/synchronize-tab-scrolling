@@ -102,7 +102,9 @@ describe('sync-state', () => {
 
       expect(mockedBrowser.storage.local.set).toHaveBeenCalledWith({ syncState });
       expect(loggerMock.debug).toHaveBeenCalledWith('Sync state persisted to storage', {
-        syncState,
+        isActive: true,
+        linkedTabCount: 2,
+        mode: undefined,
       });
     });
 
@@ -135,7 +137,9 @@ describe('sync-state', () => {
       expect(syncState.connectionStatuses).toEqual({ 7: 'connected' });
       expect(syncState.lastActiveSyncedTabId).toBe(7);
       expect(loggerMock.info).toHaveBeenCalledWith('Sync state restored from storage', {
-        syncState,
+        isActive: false,
+        linkedTabCount: 1,
+        mode: undefined,
       });
     });
 
