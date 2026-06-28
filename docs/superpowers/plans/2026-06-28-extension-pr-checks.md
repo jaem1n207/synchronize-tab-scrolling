@@ -1134,9 +1134,18 @@ jobs:
         if: steps.changes.outputs.extension_changed == 'true'
         run: pnpm build-firefox
 
+      - name: Cache Playwright browsers
+        if: steps.changes.outputs.extension_changed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright Chromium
         if: steps.changes.outputs.extension_changed == 'true'
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: URL Sync extension smoke tests
         if: steps.changes.outputs.extension_changed == 'true'

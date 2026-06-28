@@ -125,7 +125,9 @@ When extension-impacting files changed, run the gate in this order:
 10. Run `pnpm test -- --run`.
 11. Run `pnpm build`.
 12. Run `pnpm build-firefox`.
-13. Run the extension URL Sync smoke E2E test.
+13. Restore/cache Playwright's browser cache.
+14. Install Playwright Chromium with `pnpm exec playwright install chromium`.
+15. Run the extension URL Sync smoke E2E test.
 
 Add missing package scripts instead of embedding long commands in the workflow. At minimum, add:
 
