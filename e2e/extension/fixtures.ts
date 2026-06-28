@@ -22,7 +22,7 @@ interface ExtensionFixtures {
   openPopup: () => Promise<Page>;
 }
 
-const URL_SYNC_SWITCH_NAME = /URL Sync|URL 동기화 여부/i;
+const URL_SYNC_SWITCH_NAME = /Sync page changes|페이지 이동도 동기화/i;
 
 function titleFor(siteName: string, pathname: string): string {
   const pageName = pathname.includes('/about') ? 'About' : 'Home';

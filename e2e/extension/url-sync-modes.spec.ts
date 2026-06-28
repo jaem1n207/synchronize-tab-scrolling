@@ -4,10 +4,12 @@ import type { Page } from '@playwright/test';
 
 const FOLLOW_CHANGED_TAB_NAME = /Follow changed tab|변경한 탭 따라가기/i;
 const KEEP_EACH_TABS_WEBSITE_NAME = /Keep each tab's website|각 탭의 웹사이트 유지/i;
-const START_SYNC_NAME = /Start synchronization|동기화 시작/i;
+const START_SYNC_NAME =
+  /^(?:Start synchronization|동기화 시작|Select at least 2 tabs to start \(\d+ selected\)|시작하려면 2개 이상의 탭을 선택하세요 \(\d+개 선택됨\))$/i;
 const STOP_SYNC_NAME = /Stop synchronization|동기화 중지/i;
-const URL_SYNC_EXPAND_SETTINGS_NAME = /Expand URL Sync settings|URL 동기화 설정 펼치기/i;
-const URL_SYNC_SWITCH_NAME = /URL Sync|URL 동기화 여부/i;
+const URL_SYNC_EXPAND_SETTINGS_NAME = /Change page sync mode|페이지 이동 방식 변경/i;
+const URL_SYNC_SWITCH_NAME = /Sync page changes|페이지 이동도 동기화/i;
+const LAYOUT_ORDER_TOLERANCE_PX = 1;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -16,6 +18,30 @@ function escapeRegExp(value: string): string {
 function selectTabCheckboxName(tabTitle: string): RegExp {
   const escapedTitle = escapeRegExp(tabTitle);
   return new RegExp(`^(?:Select ${escapedTitle}|${escapedTitle} 선택)$`);
+}
+
+async function expectUrlSyncRowBeforeStartControls(popup: Page): Promise<void> {
+  const tabSelectionSection = popup.locator('section[aria-labelledby="tab-selection-heading"]');
+  const urlSyncRegion = popup.getByRole('region', { name: URL_SYNC_SWITCH_NAME });
+  const startButton = popup.getByRole('button', { name: START_SYNC_NAME });
+
+  await expect(tabSelectionSection).toBeVisible();
+  await expect(urlSyncRegion).toBeVisible();
+  await expect(startButton).toBeVisible();
+
+  const tabSelectionBox = await tabSelectionSection.boundingBox();
+  const urlSyncBox = await urlSyncRegion.boundingBox();
+  const startBox = await startButton.boundingBox();
+
+  expect(tabSelectionBox).not.toBeNull();
+  expect(urlSyncBox).not.toBeNull();
+  expect(startBox).not.toBeNull();
+  expect(urlSyncBox!.y).toBeGreaterThanOrEqual(
+    tabSelectionBox!.y + tabSelectionBox!.height - LAYOUT_ORDER_TOLERANCE_PX,
+  );
+  expect(startBox!.y).toBeGreaterThanOrEqual(
+    urlSyncBox!.y + urlSyncBox!.height - LAYOUT_ORDER_TOLERANCE_PX,
+  );
 }
 
 async function selectTabsAndStartSync(
@@ -60,6 +86,7 @@ test.describe('URL Sync modes', () => {
     await target.goto(fixtureSites.comparison.url('/ko/home?view=compact#comparison-home'));
 
     const popup = await openPopup();
+    await expectUrlSyncRowBeforeStartControls(popup);
     await expectFollowChangedTabMode(popup);
     await selectTabsAndStartSync(popup, 'Primary Home', 'Comparison Home');
 
