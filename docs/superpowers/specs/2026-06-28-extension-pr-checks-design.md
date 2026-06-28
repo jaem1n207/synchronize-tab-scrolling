@@ -118,20 +118,22 @@ builds.
 When extension-impacting files changed, run the gate in this order:
 
 1. Check out the pull request code.
-2. Set up pnpm with the repository's package manager version.
-3. Set up Node.js with pnpm caching.
-4. Run `pnpm install --frozen-lockfile`.
-5. Run `pnpm privacy:logging:test`.
-6. Run the static privacy logging check.
-7. Run `pnpm i18n:validate`.
-8. Run `pnpm typecheck`.
-9. Run a non-mutating lint check.
-10. Run `pnpm test -- --run`.
-11. Run `pnpm build`.
-12. Run `pnpm build-firefox`.
-13. Run in the Playwright Docker image that matches the lockfile Playwright version, so Chromium is
+2. Trust the checked-out repository path in the job container's git config before running local git
+   commands.
+3. Set up pnpm with the repository's package manager version.
+4. Set up Node.js with pnpm caching.
+5. Run `pnpm install --frozen-lockfile`.
+6. Run `pnpm privacy:logging:test`.
+7. Run the static privacy logging check.
+8. Run `pnpm i18n:validate`.
+9. Run `pnpm typecheck`.
+10. Run a non-mutating lint check.
+11. Run `pnpm test -- --run`.
+12. Run `pnpm build`.
+13. Run `pnpm build-firefox`.
+14. Run in the Playwright Docker image that matches the lockfile Playwright version, so Chromium is
     already present and CI does not download browsers during the job.
-14. Run the extension URL Sync smoke E2E test.
+15. Run the extension URL Sync smoke E2E test.
 
 Add missing package scripts instead of embedding long commands in the workflow. At minimum, add:
 

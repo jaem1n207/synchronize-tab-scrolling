@@ -1011,6 +1011,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Trust checked-out repository
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Detect extension-impacting changes
         id: changes
         shell: bash
