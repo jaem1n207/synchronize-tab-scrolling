@@ -45,8 +45,11 @@
 │  ├─ cachedManualOffset 읽기 (동기, 메모리)                        │
 │  ├─ targetRatio = sourceRatio + offsetRatio                      │
 │  ├─ pixel 변환 & clamp                                           │
+│  ├─ latest pending target으로 저장                                │
+│  ├─ requestAnimationFrame에서 최신 target만 적용                   │
+│  ├─ lastSyncedRatio = sourceRatio (실제 적용 시점)                 │
 │  ├─ lastProgrammaticScrollTime = Date.now()                      │
-│  └─ window.scrollTo({ top, behavior: 'auto' })                   │
+│  └─ scroll root/body의 scroll-behavior를 임시 우회 후 scrollTop 적용 │
 │       ↓                                                          │
 │  scroll event 발생                                               │
 │       ↓                                                          │
@@ -55,6 +58,16 @@
 │     └─ < 200ms → return (역방향 브로드캐스트 차단) ✓               │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+수신 탭은 페이지 CSS의 `scroll-behavior: smooth`가 동기화 스크롤에 적용되지 않도록
+프로그램 스크롤을 적용하는 짧은 구간에만 scroll root와, 별도 element일 때는
+`document.body`의 inline `scrollBehavior`를 `auto`로 바꾼 뒤 즉시 복원합니다. 빠른
+연속 메시지는 `requestAnimationFrame` 단위로 최신 target만 적용해 오래된 위치를 순차
+재생하지 않습니다.
+
+`lastSyncedRatio`는 메시지 수신 시점이 아니라 실제 프로그램 스크롤 적용 시점에
+갱신합니다. 따라서 manual baseline은 아직 적용되지 않은 pending target의 미래
+source ratio를 snapshot하지 않습니다.
 
 ## 핵심 타이밍 상수
 
@@ -78,7 +91,7 @@ KEEP_ALIVE_INTERVAL_MS < CONNECTION_TIMEOUT_THRESHOLD
     KEEP_ALIVE_INTERVAL_MS * 2 < CONNECTION_TIMEOUT_THRESHOLD
 
 PROGRAMMATIC_SCROLL_GRACE_PERIOD > 파이프라인 최대 지연
-  → 파이프라인 지연 = throttle + relay + 브라우저 지터
+  → 파이프라인 지연 = throttle + relay + receiver rAF coalescing + 브라우저 지터
   → 현재 최악 케이스: ~135ms → grace period 200ms로 안전
 ```
 
