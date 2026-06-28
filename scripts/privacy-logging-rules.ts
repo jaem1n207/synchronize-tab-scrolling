@@ -46,6 +46,7 @@ export function analyzePrivacyLoggingSource(
 
   const violations: Array<PrivacyLoggingViolation> = [];
   const seenViolations = new Set<string>();
+  const variableInitializers = collectVariableInitializers(sourceFile);
 
   function report(node: ts.Node, name: string): void {
     const start = node.getStart(sourceFile);
@@ -66,7 +67,7 @@ export function analyzePrivacyLoggingSource(
     });
   }
 
-  function inspectExpression(expression: ts.Expression): void {
+  function inspectExpression(expression: ts.Expression, seenAliases = new Set<string>()): void {
     if (ts.isObjectLiteralExpression(expression)) {
       inspectObjectLiteral(expression);
       return;
@@ -78,7 +79,20 @@ export function analyzePrivacyLoggingSource(
       report(expression, unsafeName);
     }
 
-    if (ts.isIdentifier(expression) || ts.isPropertyAccessExpression(expression)) {
+    if (ts.isIdentifier(expression)) {
+      const initializer = variableInitializers.get(expression.text);
+
+      if (!initializer || seenAliases.has(expression.text)) {
+        return;
+      }
+
+      const nextSeenAliases = new Set(seenAliases);
+      nextSeenAliases.add(expression.text);
+      inspectExpression(initializer, nextSeenAliases);
+      return;
+    }
+
+    if (isMemberAccessExpression(expression)) {
       return;
     }
 
@@ -87,7 +101,7 @@ export function analyzePrivacyLoggingSource(
         return;
       }
 
-      inspectExpression(child);
+      inspectExpression(child, seenAliases);
     });
   }
 
@@ -96,8 +110,10 @@ export function analyzePrivacyLoggingSource(
       if (ts.isShorthandPropertyAssignment(property)) {
         if (DISALLOWED_LOG_NAMES.has(property.name.text)) {
           report(property.name, property.name.text);
+          continue;
         }
 
+        inspectExpression(property.name);
         continue;
       }
 
@@ -189,7 +205,7 @@ function findUnsafeExpressionName(expression: ts.Expression): string | null {
     return DISALLOWED_LOG_NAMES.has(expression.text) ? expression.text : null;
   }
 
-  if (ts.isPropertyAccessExpression(expression)) {
+  if (isMemberAccessExpression(expression)) {
     const rootSensitiveName = findSensitiveRootName(expression);
 
     if (rootSensitiveName) {
@@ -230,8 +246,10 @@ function findUnsafeExpressionName(expression: ts.Expression): string | null {
   return nestedUnsafeName;
 }
 
-function findSensitiveRootName(expression: ts.PropertyAccessExpression): string | null {
-  const names = getPropertyAccessNames(expression);
+function findSensitiveRootName(
+  expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
+): string | null {
+  const names = getMemberAccessNames(expression);
 
   if (!names || names.length < 2) {
     return null;
@@ -252,8 +270,10 @@ function findSensitiveRootName(expression: ts.PropertyAccessExpression): string 
   return null;
 }
 
-function findDirectBrowserDataName(expression: ts.PropertyAccessExpression): string | null {
-  const names = getPropertyAccessNames(expression);
+function findDirectBrowserDataName(
+  expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
+): string | null {
+  const names = getMemberAccessNames(expression);
 
   if (!names) {
     return null;
@@ -282,12 +302,32 @@ function matchesPropertyAccessPath(names: Array<string>, expectedPath: Array<str
   return expectedPath.every((part, index) => names[index] === part);
 }
 
-function getPropertyAccessNames(expression: ts.PropertyAccessExpression): Array<string> | null {
+function isMemberAccessExpression(
+  expression: ts.Expression,
+): expression is ts.PropertyAccessExpression | ts.ElementAccessExpression {
+  return ts.isPropertyAccessExpression(expression) || ts.isElementAccessExpression(expression);
+}
+
+function getMemberAccessNames(
+  expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
+): Array<string> | null {
   const names = new Array<string>();
   let current: ts.Expression = expression;
 
-  while (ts.isPropertyAccessExpression(current)) {
-    names.unshift(current.name.text);
+  while (isMemberAccessExpression(current)) {
+    if (ts.isPropertyAccessExpression(current)) {
+      names.unshift(current.name.text);
+      current = current.expression;
+      continue;
+    }
+
+    const argumentName = getElementAccessArgumentName(current.argumentExpression);
+
+    if (!argumentName) {
+      return null;
+    }
+
+    names.unshift(argumentName);
     current = current.expression;
   }
 
@@ -298,4 +338,28 @@ function getPropertyAccessNames(expression: ts.PropertyAccessExpression): Array<
   names.unshift(current.text);
 
   return names;
+}
+
+function getElementAccessArgumentName(argument: ts.Expression): string | null {
+  if (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument)) {
+    return argument.text;
+  }
+
+  return null;
+}
+
+function collectVariableInitializers(sourceFile: ts.SourceFile): Map<string, ts.Expression> {
+  const initializers = new Map<string, ts.Expression>();
+
+  function visit(node: ts.Node): void {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      initializers.set(node.name.text, node.initializer);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+
+  return initializers;
 }

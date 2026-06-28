@@ -33,6 +33,26 @@ describe('privacy logging rules', () => {
     ).toEqual([]);
   });
 
+  it('inspects simple same-file metadata aliases', () => {
+    expect(
+      messagesFor(`
+        const meta = { url: window.location.href };
+        logger.info('x', { meta });
+      `),
+    ).toEqual([
+      'Do not log "url". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('allows safe simple same-file metadata aliases', () => {
+    expect(
+      messagesFor(`
+        const meta = { tabCount: 2, domain: 'example.com' };
+        logger.info('x', { meta });
+      `),
+    ).toEqual([]);
+  });
+
   it('inspects nested metadata object literals recursively', () => {
     expect(
       messagesFor(`
@@ -72,6 +92,20 @@ describe('privacy logging rules', () => {
         logger.info('Safe conditional', { meta: condition ? { tabCount: 1, enabled: true } : { domain: 'example.com' } });
       `),
     ).toEqual([]);
+  });
+
+  it('rejects bracket-notation browser data inside safe metadata keys', () => {
+    expect(
+      messagesFor(`
+        logger.info('x', { meta: { raw: window.location['href'] } });
+        logger.info('x', { meta: { raw: document['title'] } });
+        logger.info('x', { meta: { raw: window['location'].href } });
+      `),
+    ).toEqual([
+      'Do not log "href". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "title". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "href". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
   });
 
   it('rejects raw URL metadata keys', () => {
