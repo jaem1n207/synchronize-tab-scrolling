@@ -1,21 +1,23 @@
 # Content Scripts — Scroll Sync Engine
 
-Injected into all web pages. Core scroll synchronization engine (1074 lines), Shadow DOM UI (panel + toast), keyboard handler for manual position offset. Two independent React roots in Shadow DOM.
+Injected into all web pages. Core scroll synchronization engine (1114 lines), Shadow DOM UI (panel + toast), keyboard handler for manual position offset. Two independent React roots in Shadow DOM.
 
 **Read `docs/guides/scroll-sync-pipeline.md` before modifying `scroll-sync.ts`.**
 
 ## Key Files
 
-| File                         | Purpose                                                                 | Complexity |
-| ---------------------------- | ----------------------------------------------------------------------- | ---------- |
-| `scroll-sync.ts`             | Core sync engine. 4 state objects, scroll capture/relay, URL monitoring | 1074 lines |
-| `keyboard-handler.ts`        | Option/Alt key detection for manual offset mode                         | 202 lines  |
-| `index.ts`                   | Entry point. Calls `initScrollSync()` + initializes keyboard handler    | 11 lines   |
-| `panel.tsx`                  | SyncControlPanel mounted in Shadow DOM. Drag, minimize, status display  | —          |
-| `suggestion-toast.tsx`       | Auto-sync suggestion toast in Shadow DOM. Orphaned container cleanup    | —          |
-| `lib/scroll-sync-state.ts`   | State object factories and timing constants                             | —          |
-| `hooks/use-drag-position.ts` | Draggable panel positioning with viewport edge snapping                 | 204 lines  |
-| `hooks/use-panel-state.ts`   | Sync status tracking, URL sync enabled state/mode, connection status    | 190 lines  |
+| File                                      | Purpose                                                                 | Complexity |
+| ----------------------------------------- | ----------------------------------------------------------------------- | ---------- |
+| `scroll-sync.ts`                          | Core sync engine. 4 state objects, scroll capture/relay, URL monitoring | 1114 lines |
+| `keyboard-handler.ts`                     | Option/Alt key detection for manual offset mode                         | 202 lines  |
+| `index.ts`                                | Entry point. Calls `initScrollSync()` + initializes keyboard handler    | 11 lines   |
+| `panel.tsx`                               | SyncControlPanel mounted in Shadow DOM. Drag, minimize, status display  | —          |
+| `suggestion-toast.tsx`                    | Auto-sync suggestion toast in Shadow DOM. Orphaned container cleanup    | —          |
+| `lib/instant-programmatic-scroll.ts`      | Instant receiver-side scroll apply + latest-wins rAF scheduler          | 143 lines  |
+| `lib/instant-programmatic-scroll.test.ts` | Helper/scheduler regression tests                                       | 293 lines  |
+| `lib/scroll-sync-state.ts`                | State object factories and timing constants                             | 81 lines   |
+| `hooks/use-drag-position.ts`              | Draggable panel positioning with viewport edge snapping                 | 202 lines  |
+| `hooks/use-panel-state.ts`                | Sync status tracking, URL sync enabled state/mode, connection status    | 190 lines  |
 
 ## Scroll Sync Pipeline
 
@@ -28,24 +30,30 @@ User scrolls in Tab A
   → sendMessage('scroll:sync', {ratio, sourceTabId, ...})
   → [Background] relays to all other synced tabs
   → [Tab B] receives → apply own manual offset
-  → window.scrollTo({top: targetPosition, behavior: 'auto'})
+  → Store latest pending receiver target
+  → requestAnimationFrame applies newest target only
+  → applyInstantProgrammaticScroll(targetPosition)
+  → Temporarily force scroll root/body scrollBehavior: auto, then restore
   → Grace period (200ms) suppresses scroll event from programmatic scroll
 ```
 
 **Key**: Ratio-based positioning — `scrollTop / (scrollHeight - clientHeight)`. Proportional sync across documents of different heights.
+Receiver-side sync targets are latest-wins per animation frame so pages do not replay stale scroll
+positions during rapid source scrolling. `lastSyncedRatio` is updated only when the scheduled target
+actually applies.
 
 ## Timing Constants (INVARIANTS — do not modify without understanding constraints)
 
 | Constant                           | Value    | Constraint                        |
 | ---------------------------------- | -------- | --------------------------------- |
 | `THROTTLE_DELAY`                   | 50ms     | Must be < GRACE_PERIOD            |
-| `PROGRAMMATIC_SCROLL_GRACE_PERIOD` | 200ms    | Must exceed pipeline max (~115ms) |
+| `PROGRAMMATIC_SCROLL_GRACE_PERIOD` | 200ms    | Must exceed pipeline max (~135ms) |
 | `MOUSEMOVE_THROTTLE`               | 50ms     | Wheel mode Alt release detection  |
 | `CONNECTION_CHECK_INTERVAL`        | 30,000ms | Health check ping frequency       |
 | `CONNECTION_TIMEOUT_THRESHOLD`     | 60,000ms | Declare connection lost           |
 | `MAX_RECONNECTION_ATTEMPTS`        | 3        | Backoff: 500ms, 1000ms, 2000ms    |
 
-**Pipeline max delay**: THROTTLE (50) + network (~50) + processing (~15) ≈ 115ms. Grace period MUST exceed this.
+**Pipeline max delay**: THROTTLE (50) + relay (2-15) + receiver rAF coalescing (~16) + browser jitter (0-50) ≈ 135ms. Grace period MUST exceed this.
 
 ## Manual Offset System
 
@@ -58,6 +66,8 @@ User scrolls in Tab A
 **Wheel mode** (unfocused tabs — Arc/Dia split view): Detect Alt via `wheel.altKey` property. Release detection via `mousemove` event throttling since `keyup` doesn't fire in unfocused tabs.
 
 **Offset cleared on**: URL navigation, sync stop, or manual reset.
+Pending receiver targets are cancelled before manual baselines, resets, and stop transitions so
+unapplied future targets cannot pollute offsets or apply after state changes.
 
 ## Shadow DOM Mounting
 
@@ -83,7 +93,9 @@ Reconnection triggers: visibility change (tab becomes visible), message send fai
 - **NEVER** log raw URLs, tab titles, page titles, canonical URLs, alternate links, or full message payloads. `window.location.href`, `payload.url`, `sourceUrl`, `targetUrl`, and `normalizedUrl` may contain tokens, emails, private document IDs, search terms, or workspace paths. Log only `tabId`, `sourceTabId`, `mode`, `reason`, counts, booleans, or enum states.
 - **NEVER** `await` in `handleScrollCore()` — scroll fires 20x/sec, async adds variable delay
 - **NEVER** reduce `PROGRAMMATIC_SCROLL_GRACE_PERIOD` below 200ms — causes feedback loops
+- **NEVER** use page-native smooth scrolling for receiver sync. Use `applyInstantProgrammaticScroll()` and keep the `scrollBehavior` override scoped to the actual programmatic assignment.
 - **ALWAYS** update `cachedManualOffset` at ALL save/clear points — mismatch causes misaligned scrolling
+- **ALWAYS** coalesce incoming receiver targets with latest-wins rAF scheduling and update `lastSyncedRatio` only when a target actually applies.
 - **ALWAYS** check for orphaned containers before creating Shadow DOM roots
 - **ALWAYS** use `passive: true` on scroll event listeners
 - **ALWAYS** use CustomEvent (not webext-bridge) for same-context communication between scroll-sync.ts and panel.tsx
