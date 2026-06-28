@@ -21,7 +21,7 @@ docs/guides/             # Domain guides (Korean). Required reading before modif
 
 | Task                    | Location                                                     | Notes                                                                     |
 | ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Scroll sync logic       | `src/contentScripts/scroll-sync.ts`                          | 1074-line state machine. Read `docs/guides/scroll-sync-pipeline.md` first |
+| Scroll sync logic       | `src/contentScripts/scroll-sync.ts`                          | 1114-line state machine. Read `docs/guides/scroll-sync-pipeline.md` first |
 | Add message type        | `src/shared/types/messages.ts` + `shim.d.ts`                 | Must update ProtocolMap augmentation in both                              |
 | Add shared utility      | `src/shared/lib/`                                            | Export via barrel `index.ts`                                              |
 | Add popup feature       | `src/popup/components/` + `src/popup/hooks/`                 | See `src/popup/README.md`                                                 |
@@ -78,10 +78,11 @@ pnpm start:firefox      # Launch in Firefox
 ### P0: Timing & State (will cause sync bugs)
 
 1. **No async I/O in scroll handlers** — Never `await` in `handleScrollCore()`. Scroll fires 20x/sec
-2. **Grace period invariant** — `PROGRAMMATIC_SCROLL_GRACE_PERIOD` (200ms) must exceed pipeline max (~115ms)
+2. **Grace period invariant** — `PROGRAMMATIC_SCROLL_GRACE_PERIOD` (200ms) must exceed pipeline max (~135ms, including receiver rAF coalescing)
 3. **Cache sync at ALL points** — `cachedManualOffset` must update at every save/clear. Mismatch → misaligned scrolling
 4. **Startup ordering** — `restoreSyncState()` before `initializeAutoSync()`. Wrong order → race conditions
 5. **Cleanup before new sync** — `scroll:stop` to old tabs BEFORE `scroll:start` to new. Prevents orphaned DOM
+6. **Instant receiver scrolls** — `scroll:sync` receivers must use latest-wins scheduling and `applyInstantProgrammaticScroll()` so page `scroll-behavior: smooth` cannot animate extension-driven sync.
 
 ### P1: Storage & State (will cause leaks)
 
@@ -143,7 +144,7 @@ pnpm start:firefox      # Launch in Firefox
 | Feature                     | Guide                                              |
 | --------------------------- | -------------------------------------------------- |
 | Scroll sync engine          | `docs/guides/scroll-sync-pipeline.md`              |
-| Critical pitfalls (9)       | `docs/guides/known-pitfalls.md`                    |
+| Critical pitfalls (10)      | `docs/guides/known-pitfalls.md`                    |
 | Domain exclusion            | `docs/guides/domain-exclusion.md`                  |
 | Local file manual sync      | `docs/guides/local-file-sync.md`                   |
 | Sync suggestion replacement | `docs/guides/sync-suggestion-replacement.md`       |
