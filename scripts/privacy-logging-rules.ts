@@ -77,6 +77,18 @@ export function analyzePrivacyLoggingSource(
     if (unsafeName) {
       report(expression, unsafeName);
     }
+
+    if (ts.isIdentifier(expression) || ts.isPropertyAccessExpression(expression)) {
+      return;
+    }
+
+    expression.forEachChild((child) => {
+      if (!ts.isExpression(child)) {
+        return;
+      }
+
+      inspectExpression(child);
+    });
   }
 
   function inspectObjectLiteral(expression: ts.ObjectLiteralExpression): void {

@@ -53,6 +53,27 @@ describe('privacy logging rules', () => {
     ).toEqual([]);
   });
 
+  it('inspects nested metadata objects inside arrays and conditional expressions', () => {
+    expect(
+      messagesFor(`
+        logger.info('Nested array', { meta: [{ url: window.location.href }] });
+        logger.info('Nested conditional', { meta: condition ? { url: window.location.href } : { tabCount: 1 } });
+      `),
+    ).toEqual([
+      'Do not log "url". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "url". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('allows safe nested arrays and conditional metadata', () => {
+    expect(
+      messagesFor(`
+        logger.info('Safe array', { meta: [{ tabCount: 2, domain: 'example.com', enabled: true }] });
+        logger.info('Safe conditional', { meta: condition ? { tabCount: 1, enabled: true } : { domain: 'example.com' } });
+      `),
+    ).toEqual([]);
+  });
+
   it('rejects raw URL metadata keys', () => {
     expect(
       messagesFor(`
