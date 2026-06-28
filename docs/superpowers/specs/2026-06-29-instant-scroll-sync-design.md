@@ -45,12 +45,13 @@ The accepted product behavior is:
 
 ## Non-Goals
 
-- Do not change user-initiated anchor link behavior on the page.
-- Do not globally disable smooth scrolling for the whole page.
-- Do not change `THROTTLE_DELAY` or `PROGRAMMATIC_SCROLL_GRACE_PERIOD` as the primary fix.
-- Do not add a user-facing setting for smooth-scroll bypass.
-- Do not rewrite the background relay protocol unless implementation evidence proves it is needed.
-- Do not log raw URLs, tab titles, document titles, page metadata, or full message payloads.
+- Preserve user-initiated anchor link behavior on the page.
+- Keep smooth scrolling enabled for the whole page outside the programmatic sync assignment.
+- Leave `THROTTLE_DELAY` and `PROGRAMMATIC_SCROLL_GRACE_PERIOD` unchanged as the primary fix.
+- Avoid adding a user-facing setting for smooth-scroll bypass.
+- Keep the background relay protocol intact unless implementation evidence proves a rewrite is needed.
+- Continue excluding raw URLs, tab titles, document titles, page metadata, and full message payloads
+  from logs.
 
 ## Chosen Approach
 
@@ -64,10 +65,10 @@ the document scroll root to `scroll-behavior: auto`.
 The helper should:
 
 1. Identify the scroll root with `document.scrollingElement ?? document.documentElement`.
-2. Save the current inline `scrollBehavior` value for the root.
-3. Save the current inline `scrollBehavior` value for `document.body` only when the body exists and
-   is different from the root.
-4. Set those inline values to `auto`.
+2. Save the current inline `scrollBehavior` value and priority for the root.
+3. Save the current inline `scrollBehavior` value and priority for `document.body` only when the
+   body exists and is different from the root.
+4. Set those inline declarations to `auto !important`.
 5. Apply the target immediately by setting `scrollRoot.scrollTop = top`.
 6. Fall back to `window.scrollTo(0, top)` only if direct root assignment does not move the page in
    the current browser.
@@ -151,10 +152,10 @@ schedule raw message payloads. This keeps DOM querying out of the frame callback
 
 The helper should be defensive:
 
-- If `document.scrollingElement` is unavailable, fall back to `document.documentElement`.
-- If `document.body` is unavailable, only override the root.
-- If the scroll target is not finite, skip applying it.
-- If scroll application throws, restore inline styles before rethrowing or logging a sanitized
+- When `document.scrollingElement` is unavailable, fall back to `document.documentElement`.
+- Missing `document.body` means only the root is overridden.
+- Non-finite scroll targets are skipped.
+- Scroll application failures must restore inline styles before rethrowing or logging a sanitized
   warning.
 
 Logs must include only non-sensitive metadata such as mode, source tab id, or reason. They must not
@@ -165,7 +166,7 @@ include URL, title, payload, target URL, source URL, or page metadata.
 Unit or integration tests should cover:
 
 - A root with inline or stylesheet smooth scrolling receives an instant scroll command.
-- Inline `scrollBehavior` values are restored after programmatic sync.
+- Inline `scrollBehavior` values and priorities are restored after programmatic sync.
 - Body style restoration works when body is present and separate from the root.
 - Multiple receiver messages before the next animation frame apply only the newest target.
 - Manual mode still ignores incoming sync messages and does not schedule a pending target.

@@ -17,10 +17,10 @@ including MDN, define `scroll-behavior: smooth` on the scroll root. Browser-nati
 can make `window.scrollTo({ behavior: 'auto' })` animate anyway because the computed page style still
 applies.
 
-The helper temporarily sets inline `scrollBehavior: auto` on the active scroll root and
-`document.body` when they are distinct, writes `scrollTop`, then restores the previous inline values.
-Keep this override scoped to the actual programmatic assignment so page anchor navigation and user
-scrolling keep their original behavior.
+The helper temporarily sets inline `scrollBehavior: auto !important` on the active scroll root and
+`document.body` when they are distinct, writes `scrollTop`, then restores the previous inline values
+and priorities. Keep this override scoped to the actual programmatic assignment so page anchor
+navigation and user scrolling keep their original behavior.
 
 `LatestProgrammaticScrollScheduler` coalesces incoming receiver targets so only the newest target is
 applied in the next animation frame. When integrating it, update scroll sync state such as
