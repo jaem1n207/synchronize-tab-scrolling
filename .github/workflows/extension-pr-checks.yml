@@ -107,9 +107,9 @@ jobs:
       - name: Preserve Chromium extension build for E2E
         if: steps.changes.outputs.extension_changed == 'true'
         run: |
-          rm -rf test-results/chromium-extension
-          mkdir -p test-results/chromium-extension
-          cp -R extension/. test-results/chromium-extension/
+          rm -rf .extension-e2e/chromium-extension
+          mkdir -p .extension-e2e/chromium-extension
+          cp -R extension/. .extension-e2e/chromium-extension/
 
       - name: Build Firefox extension
         if: steps.changes.outputs.extension_changed == 'true'
@@ -123,7 +123,7 @@ jobs:
         if: steps.changes.outputs.extension_changed == 'true'
         run: pnpm test:e2e:extension
         env:
-          EXTENSION_E2E_DIR: test-results/chromium-extension
+          EXTENSION_E2E_DIR: .extension-e2e/chromium-extension
 
       - name: Upload extension Playwright report
         if: failure() && steps.changes.outputs.extension_changed == 'true'
