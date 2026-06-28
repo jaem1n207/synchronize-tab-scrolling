@@ -1,5 +1,9 @@
 # Popup URL Sync Compact Layout Design
 
+> Follow-up: `2026-06-29-popup-url-sync-grouped-start-controls-design.md` supersedes this document's
+> popup placement, top-level label, and URL Sync helper/example-copy details. This document remains
+> the base rationale for keeping URL Sync compact.
+
 ## Context
 
 URL Sync mode selection was added so users can choose between the existing behavior and the new
