@@ -139,8 +139,9 @@ Users can effortlessly synchronize scrolling across 2+ tabs with 99% accuracy, r
 
 8. **URL Navigation Synchronization**
    - Optional synchronized navigation between tabs
-   - Auto-enable for tabs with identical URLs (excluding query parameters)
-   - User toggle for enabling/disabling URL sync
+   - User toggle for enabling/disabling page changes alongside scroll sync
+   - Mode selector for following the changed tab or keeping each tab's website
+   - Clear separation from same-page tab suggestions, which discover sync candidates before sync starts
 
 ### P1 (Should Have) - User Interface
 
@@ -414,7 +415,8 @@ As a content reviewer comparing different versions of the same website, I want n
 **Acceptance Criteria**:
 
 - Given all selected tabs have identical URLs (excluding query parameters), when URL sync is enabled, then navigation in one tab triggers navigation in all synchronized tabs
-- Given tabs have different base URLs, when I check URL sync settings, then the option is disabled by default with an explanation
+- Given synced tabs should keep their own websites, when URL sync mode is set to keep each tab's website, then page changes preserve the target tab's site whenever a matching page can be resolved
+- Given URL sync is disabled, when I click a link in one tab, then scroll sync remains active but other tabs do not navigate
 - Given URL sync is enabled, when I click a link in one tab, then all synchronized tabs attempt to navigate to the corresponding page
 - Given URL sync navigation fails in some tabs, when I check the status, then I see which tabs successfully navigated and which failed with reasons
 
