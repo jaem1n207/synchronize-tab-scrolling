@@ -88,7 +88,7 @@ Extension-impacting paths:
 - `extension/_locales/**`
 - `package.json`
 - `pnpm-lock.yaml`
-- `playwright.config.ts`
+- `playwright.config*.ts`
 - `scripts/**`
 - `src/background/**`
 - `src/contentScripts/**`
@@ -97,7 +97,7 @@ Extension-impacting paths:
 - `src/shared/**`
 - `tsconfig*.json`
 - `uno.config.ts`
-- `vite.config*.mts`
+- `vite.config*`
 
 Landing-only changes should still produce a successful `extension-pr-checks` status, but the job
 should exit after a short message such as:
@@ -117,21 +117,24 @@ When extension-impacting files changed, run the gate in this order:
 2. Set up pnpm with the repository's package manager version.
 3. Set up Node.js with pnpm caching.
 4. Run `pnpm install --frozen-lockfile`.
-5. Run the static privacy logging check.
-6. Run `pnpm i18n:validate`.
-7. Run `pnpm typecheck`.
-8. Run a non-mutating lint check.
-9. Run `pnpm test -- --run`.
-10. Run `pnpm build`.
-11. Run `pnpm build-firefox`.
-12. Run the extension URL Sync smoke E2E test.
+5. Run `pnpm privacy:logging:test`.
+6. Run the static privacy logging check.
+7. Run `pnpm i18n:validate`.
+8. Run `pnpm typecheck`.
+9. Run a non-mutating lint check.
+10. Run `pnpm test -- --run`.
+11. Run `pnpm build`.
+12. Run `pnpm build-firefox`.
+13. Run the extension URL Sync smoke E2E test.
 
 Add missing package scripts instead of embedding long commands in the workflow. At minimum, add:
 
 ```json
 {
-  "lint:check": "NODE_OPTIONS='--experimental-strip-types' eslint . --flag unstable_native_nodejs_ts_config --max-warnings=0",
+  "build-firefox": "cross-env NODE_ENV=production EXTENSION=firefox run-s clear i18n:validate build:web build:prepare build:background build:js",
+  "lint:check": "NODE_OPTIONS='--experimental-strip-types' eslint src/background src/contentScripts src/popup src/shared src/manifest.ts scripts e2e '*.ts' '*.mts' --flag unstable_native_nodejs_ts_config --max-warnings=0",
   "privacy:logging": "esno scripts/validate-privacy-logging.ts",
+  "privacy:logging:test": "vitest run --root . scripts/privacy-logging-rules.test.ts",
   "test:e2e:extension": "playwright test --config playwright.config.extension.ts"
 }
 ```

@@ -167,7 +167,7 @@ Expected: FAIL because `scripts/privacy-logging-rules.ts` does not exist.
 Create `scripts/privacy-logging-rules.ts`:
 
 ```typescript
-import ts from 'typescript';
+import * as ts from 'typescript';
 
 export interface PrivacyLoggingViolation {
   filePath: string;
@@ -1043,10 +1043,7 @@ jobs:
               pnpm-lock.yaml)
                 extension_changed=true
                 ;;
-              playwright.config.ts)
-                extension_changed=true
-                ;;
-              playwright.config.extension.ts)
+              playwright.config*.ts)
                 extension_changed=true
                 ;;
               scripts/*)
@@ -1073,7 +1070,7 @@ jobs:
               uno.config.ts)
                 extension_changed=true
                 ;;
-              vite.config*.mts)
+              vite.config*)
                 extension_changed=true
                 ;;
             esac
@@ -1097,6 +1094,10 @@ jobs:
       - name: Install dependencies
         if: steps.changes.outputs.extension_changed == 'true'
         run: pnpm install --frozen-lockfile
+
+      - name: Test privacy-safe logging validator
+        if: steps.changes.outputs.extension_changed == 'true'
+        run: pnpm privacy:logging:test
 
       - name: Validate privacy-safe logging
         if: steps.changes.outputs.extension_changed == 'true'
@@ -1125,9 +1126,9 @@ jobs:
       - name: Preserve Chromium extension build for E2E
         if: steps.changes.outputs.extension_changed == 'true'
         run: |
-          rm -rf test-results/chromium-extension
-          mkdir -p test-results/chromium-extension
-          cp -R extension/. test-results/chromium-extension/
+          rm -rf .extension-e2e/chromium-extension
+          mkdir -p .extension-e2e/chromium-extension
+          cp -R extension/. .extension-e2e/chromium-extension/
 
       - name: Build Firefox extension
         if: steps.changes.outputs.extension_changed == 'true'
@@ -1141,7 +1142,7 @@ jobs:
         if: steps.changes.outputs.extension_changed == 'true'
         run: pnpm test:e2e:extension
         env:
-          EXTENSION_E2E_DIR: test-results/chromium-extension
+          EXTENSION_E2E_DIR: .extension-e2e/chromium-extension
 
       - name: Upload extension Playwright report
         if: failure() && steps.changes.outputs.extension_changed == 'true'
@@ -1207,9 +1208,9 @@ Run:
 
 ```bash
 pnpm build
-rm -rf test-results/chromium-extension
-mkdir -p test-results/chromium-extension
-cp -R extension/. test-results/chromium-extension/
+rm -rf .extension-e2e/chromium-extension
+mkdir -p .extension-e2e/chromium-extension
+cp -R extension/. .extension-e2e/chromium-extension/
 pnpm build-firefox
 ```
 
@@ -1220,7 +1221,7 @@ Expected: both builds PASS.
 Run:
 
 ```bash
-EXTENSION_E2E_DIR=test-results/chromium-extension pnpm test:e2e:extension
+EXTENSION_E2E_DIR=.extension-e2e/chromium-extension pnpm test:e2e:extension
 ```
 
 Expected: PASS.

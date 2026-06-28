@@ -10,17 +10,22 @@ const START_SYNC_NAME = /Start synchronization|동기화 시작/i;
 const STOP_SYNC_NAME = /Stop synchronization|동기화 중지/i;
 const URL_SYNC_SWITCH_NAME = /URL Sync|URL 동기화 여부/i;
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function selectTabCheckboxName(tabTitle: string): RegExp {
+  const escapedTitle = escapeRegExp(tabTitle);
+  return new RegExp(`^(?:Select ${escapedTitle}|${escapedTitle} 선택)$`);
+}
+
 async function selectTabsAndStartSync(
   popup: Page,
   sourceTitle: string,
   targetTitle: string,
 ): Promise<void> {
-  await popup
-    .getByRole('checkbox', { name: new RegExp(`Select ${sourceTitle}|${sourceTitle} 선택`) })
-    .click();
-  await popup
-    .getByRole('checkbox', { name: new RegExp(`Select ${targetTitle}|${targetTitle} 선택`) })
-    .click();
+  await popup.getByRole('checkbox', { name: selectTabCheckboxName(sourceTitle) }).click();
+  await popup.getByRole('checkbox', { name: selectTabCheckboxName(targetTitle) }).click();
   await popup.getByRole('button', { name: START_SYNC_NAME }).click();
   await expect(popup.getByRole('button', { name: STOP_SYNC_NAME })).toBeVisible();
 }
