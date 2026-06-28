@@ -163,6 +163,30 @@ describe('privacy logging rules', () => {
     ]);
   });
 
+  it('treats parameter bindings as shadowing outer unsafe aliases', () => {
+    expect(
+      messagesFor(`
+        const meta = { url: window.location.href };
+        function run(meta) {
+          logger.info('x', { meta });
+        }
+      `),
+    ).toEqual([]);
+  });
+
+  it('treats catch bindings as shadowing outer unsafe aliases', () => {
+    expect(
+      messagesFor(`
+        const meta = { url: window.location.href };
+        try {
+          throw new Error('x');
+        } catch (meta) {
+          logger.info('x', { meta });
+        }
+      `),
+    ).toEqual([]);
+  });
+
   it('rejects raw URL metadata keys', () => {
     expect(
       messagesFor(`

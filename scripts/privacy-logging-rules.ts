@@ -37,9 +37,9 @@ interface UnsafeExpressionMatch {
   prefersContainerName: boolean;
 }
 
-interface VariableInitializerEntry {
+interface BindingEntry {
   name: string;
-  initializer: ts.Expression;
+  initializer?: ts.Expression;
   declarationStart: number;
   scopeNode: ts.Node;
 }
@@ -58,7 +58,7 @@ export function analyzePrivacyLoggingSource(
 
   const violations: Array<PrivacyLoggingViolation> = [];
   const seenViolations = new Set<string>();
-  const variableInitializers = collectVariableInitializers(sourceFile);
+  const bindings = collectBindings(sourceFile);
 
   function report(node: ts.Node, name: string): void {
     const start = node.getStart(sourceFile);
@@ -99,7 +99,7 @@ export function analyzePrivacyLoggingSource(
     }
 
     if (ts.isIdentifier(expression)) {
-      const initializer = resolveVisibleInitializer(variableInitializers, expression);
+      const initializer = resolveVisibleInitializer(bindings, expression);
 
       if (!initializer || seenAliases.has(expression.text)) {
         return;
@@ -412,21 +412,44 @@ function getElementAccessArgumentName(argument: ts.Expression): string | null {
   return null;
 }
 
-function collectVariableInitializers(
-  sourceFile: ts.SourceFile,
-): Map<string, Array<VariableInitializerEntry>> {
-  const initializers = new Map<string, Array<VariableInitializerEntry>>();
+function collectBindings(sourceFile: ts.SourceFile): Map<string, Array<BindingEntry>> {
+  const bindings = new Map<string, Array<BindingEntry>>();
 
   function visit(node: ts.Node): void {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      const entries = initializers.get(node.name.text) ?? [];
+      const entries = bindings.get(node.name.text) ?? [];
       entries.push({
         name: node.name.text,
         initializer: node.initializer,
         declarationStart: node.getStart(sourceFile),
         scopeNode: getDeclarationScopeNode(node),
       });
-      initializers.set(node.name.text, entries);
+      bindings.set(node.name.text, entries);
+    }
+
+    if (ts.isParameter(node) && ts.isIdentifier(node.name)) {
+      const entries = bindings.get(node.name.text) ?? [];
+      entries.push({
+        name: node.name.text,
+        declarationStart: node.getStart(sourceFile),
+        scopeNode: getParameterScopeNode(node),
+      });
+      bindings.set(node.name.text, entries);
+    }
+
+    if (
+      ts.isCatchClause(node) &&
+      node.variableDeclaration &&
+      ts.isIdentifier(node.variableDeclaration.name)
+    ) {
+      const name = node.variableDeclaration.name.text;
+      const entries = bindings.get(name) ?? [];
+      entries.push({
+        name,
+        declarationStart: node.variableDeclaration.getStart(sourceFile),
+        scopeNode: node,
+      });
+      bindings.set(name, entries);
     }
 
     ts.forEachChild(node, visit);
@@ -434,14 +457,14 @@ function collectVariableInitializers(
 
   visit(sourceFile);
 
-  return initializers;
+  return bindings;
 }
 
 function resolveVisibleInitializer(
-  initializers: Map<string, Array<VariableInitializerEntry>>,
+  bindings: Map<string, Array<BindingEntry>>,
   identifier: ts.Identifier,
 ): ts.Expression | null {
-  const candidates = initializers.get(identifier.text);
+  const candidates = bindings.get(identifier.text);
 
   if (!candidates) {
     return null;
@@ -449,7 +472,7 @@ function resolveVisibleInitializer(
 
   const usageStart = identifier.getStart();
   const usageScopes = getContainingScopes(identifier);
-  let bestCandidate: VariableInitializerEntry | null = null;
+  let bestCandidate: BindingEntry | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
 
   for (const candidate of candidates) {
@@ -473,7 +496,11 @@ function resolveVisibleInitializer(
     }
   }
 
-  return bestCandidate?.initializer ?? null;
+  if (!bestCandidate || !bestCandidate.initializer) {
+    return null;
+  }
+
+  return bestCandidate.initializer;
 }
 
 function getContainingScopes(node: ts.Node): Array<ts.Node> {
@@ -514,13 +541,31 @@ function getDeclarationScopeNode(node: ts.VariableDeclaration): ts.Node {
   return node.getSourceFile();
 }
 
+function getParameterScopeNode(node: ts.ParameterDeclaration): ts.Node {
+  let current: ts.Node | undefined = node.parent;
+
+  while (current) {
+    if (ts.isFunctionLike(current) || ts.isSourceFile(current)) {
+      return current;
+    }
+
+    current = current.parent;
+  }
+
+  return node.getSourceFile();
+}
+
 function isScopeNode(node: ts.Node): boolean {
   return isBlockScopeNode(node) || isVarScopeNode(node);
 }
 
 function isBlockScopeNode(node: ts.Node): boolean {
   return (
-    ts.isSourceFile(node) || ts.isBlock(node) || ts.isCaseClause(node) || ts.isDefaultClause(node)
+    ts.isSourceFile(node) ||
+    ts.isBlock(node) ||
+    ts.isCaseClause(node) ||
+    ts.isDefaultClause(node) ||
+    ts.isCatchClause(node)
   );
 }
 
