@@ -169,21 +169,6 @@ export function ScrollSyncPopup() {
       )}
 
       <div className="flex-1 p-4 gap-3 overflow-hidden flex flex-col min-h-0">
-        <SelectedTabsChips
-          isSyncActive={syncStatus.isActive}
-          tabs={selectedTabsInfo}
-          onRemoveTab={handleToggleTab}
-        />
-
-        <UrlSyncSettings
-          enabled={urlSyncEnabled}
-          mode={urlSyncMode}
-          notice={urlSyncNotice}
-          variant="inline-collapsible"
-          onEnabledChange={handleUrlSyncChange}
-          onModeChange={handleUrlSyncModeChange}
-        />
-
         <section
           aria-labelledby="tab-selection-heading"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -195,12 +180,28 @@ export function ScrollSyncPopup() {
             isSyncActive={syncStatus.isActive}
             sameDomainFilter={sameDomainFilter}
             selectedTabIds={selectedTabIds}
+            selectionSummary={
+              <SelectedTabsChips
+                isSyncActive={syncStatus.isActive}
+                tabs={selectedTabsInfo}
+                onRemoveTab={handleToggleTab}
+              />
+            }
             tabs={filteredAndSortedTabs}
             totalTabCount={tabs.length}
             onClearFilter={() => setSameDomainFilter(false)}
             onToggleTab={handleToggleTab}
           />
         </section>
+
+        <UrlSyncSettings
+          enabled={urlSyncEnabled}
+          mode={urlSyncMode}
+          notice={urlSyncNotice}
+          variant="inline-collapsible"
+          onEnabledChange={handleUrlSyncChange}
+          onModeChange={handleUrlSyncModeChange}
+        />
 
         <div className="flex shrink-0 items-center justify-end gap-2">
           <SyncControlButtons

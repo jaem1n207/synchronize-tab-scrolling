@@ -45,6 +45,7 @@ export interface TabCommandPaletteProps {
   selectedTabIds: Array<number>;
   currentTabId?: number;
   isSyncActive: boolean;
+  selectionSummary?: React.ReactNode;
   onToggleTab: (tabId: number) => void;
   totalTabCount?: number;
   sameDomainFilter?: boolean;
@@ -58,6 +59,7 @@ export function TabCommandPalette({
   selectedTabIds,
   currentTabId,
   isSyncActive,
+  selectionSummary,
   onToggleTab,
   totalTabCount,
   sameDomainFilter,
@@ -167,6 +169,8 @@ export function TabCommandPalette({
             )}
           </div>
         )}
+
+        {selectionSummary}
 
         <Command
           aria-labelledby="tab-selection-heading"
