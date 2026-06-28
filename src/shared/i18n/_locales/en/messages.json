@@ -518,7 +518,7 @@
     }
   },
   "autoSyncSameUrl": {
-    "message": "Suggest sync for same URL"
+    "message": "Suggest same-page tabs"
   },
   "autoSyncActive": {
     "message": "Auto"
