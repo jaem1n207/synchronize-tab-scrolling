@@ -770,13 +770,11 @@ export const test = base.extend<ExtensionFixtures>({
   extensionContext: async ({}, use) => {
     const extensionPath = resolve(process.env.EXTENSION_E2E_DIR ?? 'extension');
     const userDataDir = await mkdtemp(join(tmpdir(), 'synchronize-tab-scrolling-e2e-'));
-    const launchOptions = {
-      channel: process.env.EXTENSION_E2E_BROWSER_CHANNEL === 'chrome' ? 'chrome' : 'chromium',
-      args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
-      ...(process.env.EXTENSION_E2E_HEADLESS === 'false' ? { headless: false } : {}),
-    };
 
-    const context = await chromium.launchPersistentContext(userDataDir, launchOptions);
+    const context = await chromium.launchPersistentContext(userDataDir, {
+      channel: 'chromium',
+      args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
+    });
 
     await use(context);
 
@@ -960,12 +958,6 @@ pnpm exec playwright install chromium
 pnpm test:e2e:extension
 ```
 
-or point the smoke test at a local Chrome install:
-
-```bash
-EXTENSION_E2E_BROWSER_CHANNEL=chrome EXTENSION_E2E_HEADLESS=false pnpm test:e2e:extension
-```
-
 - [ ] **Step 3: Commit the extension E2E test suite**
 
 Run:
@@ -1142,17 +1134,25 @@ jobs:
         if: steps.changes.outputs.extension_changed == 'true'
         run: pnpm build-firefox
 
-      - name: Verify system Chrome
+      - name: Cache Playwright browsers
         if: steps.changes.outputs.extension_changed == 'true'
-        run: google-chrome --version
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright Chromium
+        if: steps.changes.outputs.extension_changed == 'true'
+        timeout-minutes: 10
+        run: pnpm exec playwright install chromium
 
       - name: URL Sync extension smoke tests
         if: steps.changes.outputs.extension_changed == 'true'
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" pnpm test:e2e:extension
+        run: pnpm test:e2e:extension
         env:
           EXTENSION_E2E_DIR: .extension-e2e/chromium-extension
-          EXTENSION_E2E_BROWSER_CHANNEL: chrome
-          EXTENSION_E2E_HEADLESS: 'false'
 
       - name: Upload extension Playwright report
         if: failure() && steps.changes.outputs.extension_changed == 'true'
