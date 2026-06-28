@@ -85,8 +85,8 @@ The active mode text must remain visible in the collapsed row. Users should not 
 row just to know whether synced tabs will follow the changed website or keep each tab's website.
 
 The collapsed row should be short enough to preserve tab list space. A target visual height around
-44px to 52px is appropriate. The row can use a second compact helper line when needed, but it should
-not become another large card.
+44px to 52px is appropriate. Do not add a persistent helper line below the row; the row should spend
+its limited space on the current state and active mode.
 
 ### Expanded Inline Editor
 
@@ -109,7 +109,6 @@ When URL Sync is off:
 
 - keep the selected mode visible in the collapsed row
 - disable mode option changes
-- keep the helper text visible
 - make the off state clear through text and disabled styling
 
 This preserves the user's mental model: turning URL Sync back on will use the visible mode.
@@ -207,7 +206,6 @@ Follow changed tab
 Other tabs move to the website you changed.
 Keep each tab's website
 Other tabs stay on their own website and open the matching page.
-Languages are kept when possible.
 ```
 
 Additional compact labels may be needed:
@@ -232,7 +230,7 @@ Update or add `UrlSyncSettings` component tests for:
 
 - popup inline-collapsible variant renders in collapsed state by default
 - collapsed state shows enabled/off status and active mode label
-- collapsed state keeps the language helper visible or otherwise directly readable
+- collapsed state does not render the language helper copy
 - disclosure expands and collapses the mode editor
 - expanded state shows both mode descriptions
 - selecting a mode calls `onModeChange`

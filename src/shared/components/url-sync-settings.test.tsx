@@ -39,7 +39,7 @@ vi.mock('~/shared/i18n', () => ({
 }));
 
 describe('UrlSyncSettings', () => {
-  it('shows the title, current mode, and helper copy', () => {
+  it('shows the title and current mode', () => {
     render(
       <UrlSyncSettings
         enabled={true}
@@ -51,7 +51,7 @@ describe('UrlSyncSettings', () => {
 
     expect(screen.getByRole('heading', { name: 'URL Sync' })).toBeInTheDocument();
     expect(screen.getByText("Keep each tab's website")).toBeInTheDocument();
-    expect(screen.getByText('Languages are kept when possible.')).toBeInTheDocument();
+    expect(screen.queryByText('Languages are kept when possible.')).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toBeChecked();
   });
 
@@ -244,7 +244,7 @@ describe('UrlSyncSettings', () => {
   });
 
   describe('inline-collapsible variant', () => {
-    it('renders collapsed with status, active mode, and helper copy visible', () => {
+    it('renders collapsed with status and active mode visible', () => {
       render(
         <UrlSyncSettings
           enabled={true}
@@ -261,7 +261,7 @@ describe('UrlSyncSettings', () => {
       expect(settings).toHaveAttribute('data-variant', 'inline-collapsible');
       expect(settings).toHaveTextContent('On');
       expect(settings).toHaveTextContent("Keep each tab's website");
-      expect(settings).toHaveTextContent('Languages are kept when possible.');
+      expect(settings).not.toHaveTextContent('Languages are kept when possible.');
       expect(disclosure).toHaveAttribute('aria-expanded', 'false');
       expect(disclosure).toHaveAccessibleDescription(/On.*Keep each tab's website/);
       expect(

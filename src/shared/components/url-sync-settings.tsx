@@ -62,7 +62,6 @@ export function UrlSyncSettings({
 }: UrlSyncSettingsProps) {
   const headingId = React.useId();
   const descriptionId = React.useId();
-  const helperId = React.useId();
   const radioGroupName = React.useId();
   const inlineEditorId = React.useId();
   const summaryId = React.useId();
@@ -235,16 +234,8 @@ export function UrlSyncSettings({
           />
         </div>
 
-        <p className="px-2 text-xs text-muted-foreground" id={helperId}>
-          {t('urlSyncModeLanguageHelper')}
-        </p>
-
         {inlineEditorExpanded && (
-          <fieldset
-            aria-describedby={helperId}
-            className="grid grid-cols-1 gap-1"
-            id={inlineEditorId}
-          >
+          <fieldset className="grid grid-cols-1 gap-1" id={inlineEditorId}>
             <legend className="sr-only">{t('urlSyncNavigation')}</legend>
             {URL_SYNC_MODE_OPTIONS.map((option) => renderModeOption(option, 'inline'))}
           </fieldset>
@@ -289,14 +280,10 @@ export function UrlSyncSettings({
         />
       </div>
 
-      <fieldset aria-describedby={helperId} className="grid grid-cols-1 gap-1.5">
+      <fieldset className="grid grid-cols-1 gap-1.5">
         <legend className="sr-only">{t('urlSyncNavigation')}</legend>
         {URL_SYNC_MODE_OPTIONS.map((option) => renderModeOption(option, 'card'))}
       </fieldset>
-
-      <p className="text-xs text-muted-foreground" id={helperId}>
-        {t('urlSyncModeLanguageHelper')}
-      </p>
 
       {notice && (
         <p
