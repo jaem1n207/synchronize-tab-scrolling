@@ -602,7 +602,7 @@ Privacy logging validation passed for N files.
 Run:
 
 ```bash
-pnpm test -- --run src/shared/lib/translated-page-url-utils.test.ts src/shared/lib/storage.test.ts src/__tests__/scenarios.test.ts
+pnpm exec vitest run src/shared/lib/translated-page-url-utils.test.ts src/shared/lib/storage.test.ts src/__tests__/scenarios.test.ts
 ```
 
 Expected: PASS.
