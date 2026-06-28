@@ -88,6 +88,19 @@ cp -r extension/* build/firefox/
 
 Repository Settings → Secrets and variables → Actions → New repository secret 에서 등록합니다.
 
+### GitHub Release / release commit
+
+| Secret                 | 설명                                                                 |
+| ---------------------- | -------------------------------------------------------------------- |
+| `RELEASE_GITHUB_TOKEN` | semantic-release가 GitHub Release를 만들고 release commit/tag를 push |
+
+`RELEASE_GITHUB_TOKEN`은 `main` 브랜치 ruleset을 bypass할 수 있는 repository admin 또는
+bypass list에 등록된 user의 Personal Access Token이어야 합니다. release workflow의
+`actions/checkout` 단계도 이 token을 사용합니다. 그렇지 않으면 `@semantic-release/git`이
+release commit과 tag를 push할 때 checkout이 저장한 기본 GitHub Actions token으로 push하여
+`Changes must be made through a pull request` 또는 `Required status check ... is expected`
+ruleset 위반으로 실패할 수 있습니다.
+
 ### Chrome Web Store
 
 | Secret                 | 설명                    | 취득 경로                                                                                                  |
@@ -147,6 +160,17 @@ Repository Settings → Secrets and variables → Actions → New repository sec
 - Conventional Commits 형식을 따르지 않는 커밋만 있으면 버전이 올라가지 않음
 - `fix:`, `feat:` 등의 prefix가 있는 커밋이 필요
 - `chore:`, `docs:`, `style:` 등은 기본적으로 버전 변경을 트리거하지 않음
+
+### release commit push가 ruleset에 막히는 경우
+
+- 로그에 `GH013: Repository rule violations found for refs/heads/main`가 표시되면 release
+  commit/tag push가 `main` ruleset을 통과하지 못한 것입니다.
+- `RELEASE_GITHUB_TOKEN`의 소유자가 repository admin 또는 ruleset bypass list에 등록된
+  user인지 확인합니다.
+- `.github/workflows/release.yml`의 `actions/checkout` 단계가
+  `token: ${{ secrets.RELEASE_GITHUB_TOKEN }}`을 사용해야 합니다. Release step의
+  `GITHUB_TOKEN` env만 바꾸면 GitHub API 인증은 바뀌지만, `@semantic-release/git`의 실제
+  `git push` credentials는 기본 Actions token으로 남을 수 있습니다.
 
 ### Chrome Web Store 업로드 실패
 
