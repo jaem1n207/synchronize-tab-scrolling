@@ -1,6 +1,6 @@
 # Content Scripts — Scroll Sync Engine
 
-Injected into all web pages. Core scroll synchronization engine (987 lines), Shadow DOM UI (panel + toast), keyboard handler for manual position offset. Two independent React roots in Shadow DOM.
+Injected into all web pages. Core scroll synchronization engine (1074 lines), Shadow DOM UI (panel + toast), keyboard handler for manual position offset. Two independent React roots in Shadow DOM.
 
 **Read `docs/guides/scroll-sync-pipeline.md` before modifying `scroll-sync.ts`.**
 
@@ -8,14 +8,14 @@ Injected into all web pages. Core scroll synchronization engine (987 lines), Sha
 
 | File                         | Purpose                                                                 | Complexity |
 | ---------------------------- | ----------------------------------------------------------------------- | ---------- |
-| `scroll-sync.ts`             | Core sync engine. 4 state objects, scroll capture/relay, URL monitoring | 987 lines  |
+| `scroll-sync.ts`             | Core sync engine. 4 state objects, scroll capture/relay, URL monitoring | 1074 lines |
 | `keyboard-handler.ts`        | Option/Alt key detection for manual offset mode                         | 202 lines  |
 | `index.ts`                   | Entry point. Calls `initScrollSync()` + initializes keyboard handler    | 11 lines   |
 | `panel.tsx`                  | SyncControlPanel mounted in Shadow DOM. Drag, minimize, status display  | —          |
 | `suggestion-toast.tsx`       | Auto-sync suggestion toast in Shadow DOM. Orphaned container cleanup    | —          |
 | `lib/scroll-sync-state.ts`   | State object factories and timing constants                             | —          |
 | `hooks/use-drag-position.ts` | Draggable panel positioning with viewport edge snapping                 | 204 lines  |
-| `hooks/use-panel-state.ts`   | Sync status tracking, URL sync toggle, connection status                | 190 lines  |
+| `hooks/use-panel-state.ts`   | Sync status tracking, URL sync enabled state/mode, connection status    | 190 lines  |
 
 ## Scroll Sync Pipeline
 
