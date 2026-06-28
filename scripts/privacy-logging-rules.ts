@@ -32,6 +32,18 @@ export interface PrivacyLoggingViolation {
   message: string;
 }
 
+interface UnsafeExpressionMatch {
+  name: string;
+  prefersContainerName: boolean;
+}
+
+interface VariableInitializerEntry {
+  name: string;
+  initializer: ts.Expression;
+  declarationStart: number;
+  scopeNode: ts.Node;
+}
+
 export function analyzePrivacyLoggingSource(
   filePath: string,
   sourceText: string,
@@ -67,20 +79,27 @@ export function analyzePrivacyLoggingSource(
     });
   }
 
-  function inspectExpression(expression: ts.Expression, seenAliases = new Set<string>()): void {
+  function inspectExpression(
+    expression: ts.Expression,
+    seenAliases = new Set<string>(),
+    containerName?: string,
+  ): void {
     if (ts.isObjectLiteralExpression(expression)) {
       inspectObjectLiteral(expression);
       return;
     }
 
-    const unsafeName = findUnsafeExpressionName(expression);
+    const unsafeMatch = findUnsafeExpressionMatch(expression);
 
-    if (unsafeName) {
-      report(expression, unsafeName);
+    if (unsafeMatch) {
+      report(
+        expression,
+        unsafeMatch.prefersContainerName && containerName ? containerName : unsafeMatch.name,
+      );
     }
 
     if (ts.isIdentifier(expression)) {
-      const initializer = variableInitializers.get(expression.text);
+      const initializer = resolveVisibleInitializer(variableInitializers, expression);
 
       if (!initializer || seenAliases.has(expression.text)) {
         return;
@@ -88,7 +107,7 @@ export function analyzePrivacyLoggingSource(
 
       const nextSeenAliases = new Set(seenAliases);
       nextSeenAliases.add(expression.text);
-      inspectExpression(initializer, nextSeenAliases);
+      inspectExpression(initializer, nextSeenAliases, containerName);
       return;
     }
 
@@ -101,7 +120,7 @@ export function analyzePrivacyLoggingSource(
         return;
       }
 
-      inspectExpression(child, seenAliases);
+      inspectExpression(child, seenAliases, containerName);
     });
   }
 
@@ -113,7 +132,7 @@ export function analyzePrivacyLoggingSource(
           continue;
         }
 
-        inspectExpression(property.name);
+        inspectExpression(property.name, new Set<string>(), property.name.text);
         continue;
       }
 
@@ -125,7 +144,7 @@ export function analyzePrivacyLoggingSource(
           continue;
         }
 
-        inspectExpression(property.initializer);
+        inspectExpression(property.initializer, new Set<string>(), propertyName ?? undefined);
         continue;
       }
 
@@ -200,47 +219,65 @@ function getPropertyNameText(name: ts.PropertyName): string | null {
   return null;
 }
 
-function findUnsafeExpressionName(expression: ts.Expression): string | null {
+function findUnsafeExpressionMatch(expression: ts.Expression): UnsafeExpressionMatch | null {
   if (ts.isIdentifier(expression)) {
-    return DISALLOWED_LOG_NAMES.has(expression.text) ? expression.text : null;
+    return DISALLOWED_LOG_NAMES.has(expression.text)
+      ? {
+          name: expression.text,
+          prefersContainerName: false,
+        }
+      : null;
   }
 
   if (isMemberAccessExpression(expression)) {
     const rootSensitiveName = findSensitiveRootName(expression);
 
     if (rootSensitiveName) {
-      return rootSensitiveName;
+      return {
+        name: rootSensitiveName,
+        prefersContainerName: false,
+      };
     }
 
     const expressionName = findDirectBrowserDataName(expression);
 
     if (expressionName) {
-      return expressionName;
+      return {
+        name: expressionName,
+        prefersContainerName: false,
+      };
+    }
+
+    if (isComputedSensitiveAccess(expression)) {
+      return {
+        name: 'computed browser access',
+        prefersContainerName: true,
+      };
     }
 
     return null;
   }
 
   if (ts.isElementAccessExpression(expression)) {
-    const targetName = findUnsafeExpressionName(expression.expression);
+    const targetName = findUnsafeExpressionMatch(expression.expression);
 
     if (targetName) {
       return targetName;
     }
 
     if (ts.isExpression(expression.argumentExpression)) {
-      return findUnsafeExpressionName(expression.argumentExpression);
+      return findUnsafeExpressionMatch(expression.argumentExpression);
     }
   }
 
-  let nestedUnsafeName: string | null = null;
+  let nestedUnsafeName: UnsafeExpressionMatch | null = null;
 
   expression.forEachChild((child) => {
     if (nestedUnsafeName || !ts.isExpression(child)) {
       return;
     }
 
-    nestedUnsafeName = findUnsafeExpressionName(child);
+    nestedUnsafeName = findUnsafeExpressionMatch(child);
   });
 
   return nestedUnsafeName;
@@ -249,9 +286,10 @@ function findUnsafeExpressionName(expression: ts.Expression): string | null {
 function findSensitiveRootName(
   expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
 ): string | null {
-  const names = getMemberAccessNames(expression);
+  const pathInfo = getMemberAccessPathInfo(expression);
+  const names = pathInfo?.names;
 
-  if (!names || names.length < 2) {
+  if (!names || names.length < 2 || pathInfo.hasComputedNonLiteral) {
     return null;
   }
 
@@ -273,9 +311,10 @@ function findSensitiveRootName(
 function findDirectBrowserDataName(
   expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
 ): string | null {
-  const names = getMemberAccessNames(expression);
+  const pathInfo = getMemberAccessPathInfo(expression);
+  const names = pathInfo?.names;
 
-  if (!names) {
+  if (!names || pathInfo.hasComputedNonLiteral) {
     return null;
   }
 
@@ -294,6 +333,25 @@ function findDirectBrowserDataName(
   return null;
 }
 
+function isComputedSensitiveAccess(
+  expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
+): boolean {
+  const pathInfo = getMemberAccessPathInfo(expression);
+  const names = pathInfo?.names;
+
+  if (!pathInfo?.hasComputedNonLiteral || !names) {
+    return false;
+  }
+
+  return (
+    matchesPropertyAccessPath(names, ['document']) ||
+    matchesPropertyAccessPath(names, ['location']) ||
+    matchesPropertyAccessPath(names, ['window', 'location']) ||
+    matchesPropertyAccessPath(names, ['payload']) ||
+    matchesPropertyAccessPath(names, ['tab'])
+  );
+}
+
 function matchesPropertyAccessPath(names: Array<string>, expectedPath: Array<string>): boolean {
   if (names.length !== expectedPath.length) {
     return false;
@@ -308,10 +366,11 @@ function isMemberAccessExpression(
   return ts.isPropertyAccessExpression(expression) || ts.isElementAccessExpression(expression);
 }
 
-function getMemberAccessNames(
+function getMemberAccessPathInfo(
   expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
-): Array<string> | null {
+): { names: Array<string>; hasComputedNonLiteral: boolean } | null {
   const names = new Array<string>();
+  let hasComputedNonLiteral = false;
   let current: ts.Expression = expression;
 
   while (isMemberAccessExpression(current)) {
@@ -324,7 +383,9 @@ function getMemberAccessNames(
     const argumentName = getElementAccessArgumentName(current.argumentExpression);
 
     if (!argumentName) {
-      return null;
+      hasComputedNonLiteral = true;
+      current = current.expression;
+      continue;
     }
 
     names.unshift(argumentName);
@@ -337,7 +398,10 @@ function getMemberAccessNames(
 
   names.unshift(current.text);
 
-  return names;
+  return {
+    names,
+    hasComputedNonLiteral,
+  };
 }
 
 function getElementAccessArgumentName(argument: ts.Expression): string | null {
@@ -348,12 +412,21 @@ function getElementAccessArgumentName(argument: ts.Expression): string | null {
   return null;
 }
 
-function collectVariableInitializers(sourceFile: ts.SourceFile): Map<string, ts.Expression> {
-  const initializers = new Map<string, ts.Expression>();
+function collectVariableInitializers(
+  sourceFile: ts.SourceFile,
+): Map<string, Array<VariableInitializerEntry>> {
+  const initializers = new Map<string, Array<VariableInitializerEntry>>();
 
   function visit(node: ts.Node): void {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-      initializers.set(node.name.text, node.initializer);
+      const entries = initializers.get(node.name.text) ?? [];
+      entries.push({
+        name: node.name.text,
+        initializer: node.initializer,
+        declarationStart: node.getStart(sourceFile),
+        scopeNode: getDeclarationScopeNode(node),
+      });
+      initializers.set(node.name.text, entries);
     }
 
     ts.forEachChild(node, visit);
@@ -362,4 +435,100 @@ function collectVariableInitializers(sourceFile: ts.SourceFile): Map<string, ts.
   visit(sourceFile);
 
   return initializers;
+}
+
+function resolveVisibleInitializer(
+  initializers: Map<string, Array<VariableInitializerEntry>>,
+  identifier: ts.Identifier,
+): ts.Expression | null {
+  const candidates = initializers.get(identifier.text);
+
+  if (!candidates) {
+    return null;
+  }
+
+  const usageStart = identifier.getStart();
+  const usageScopes = getContainingScopes(identifier);
+  let bestCandidate: VariableInitializerEntry | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const candidate of candidates) {
+    if (candidate.declarationStart >= usageStart) {
+      continue;
+    }
+
+    const distance = usageScopes.indexOf(candidate.scopeNode);
+
+    if (distance === -1) {
+      continue;
+    }
+
+    if (
+      !bestCandidate ||
+      distance < bestDistance ||
+      (distance === bestDistance && candidate.declarationStart > bestCandidate.declarationStart)
+    ) {
+      bestCandidate = candidate;
+      bestDistance = distance;
+    }
+  }
+
+  return bestCandidate?.initializer ?? null;
+}
+
+function getContainingScopes(node: ts.Node): Array<ts.Node> {
+  const scopes = new Array<ts.Node>();
+  let current: ts.Node | undefined = node;
+
+  while (current) {
+    if (isScopeNode(current)) {
+      scopes.push(current);
+    }
+
+    current = current.parent;
+  }
+
+  return scopes;
+}
+
+function getDeclarationScopeNode(node: ts.VariableDeclaration): ts.Node {
+  const declarationList = node.parent;
+  const isBlockScoped =
+    ts.isVariableDeclarationList(declarationList) &&
+    (declarationList.flags & ts.NodeFlags.BlockScoped) !== 0;
+
+  let current: ts.Node | undefined = node.parent;
+
+  while (current) {
+    if (isBlockScoped) {
+      if (isBlockScopeNode(current)) {
+        return current;
+      }
+    } else if (isVarScopeNode(current)) {
+      return current;
+    }
+
+    current = current.parent;
+  }
+
+  return node.getSourceFile();
+}
+
+function isScopeNode(node: ts.Node): boolean {
+  return isBlockScopeNode(node) || isVarScopeNode(node);
+}
+
+function isBlockScopeNode(node: ts.Node): boolean {
+  return (
+    ts.isSourceFile(node) || ts.isBlock(node) || ts.isCaseClause(node) || ts.isDefaultClause(node)
+  );
+}
+
+function isVarScopeNode(node: ts.Node): boolean {
+  return (
+    ts.isSourceFile(node) ||
+    ts.isFunctionLike(node) ||
+    ts.isModuleBlock(node) ||
+    ts.isConstructorDeclaration(node)
+  );
 }

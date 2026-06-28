@@ -108,6 +108,61 @@ describe('privacy logging rules', () => {
     ]);
   });
 
+  it('rejects computed sensitive browser access with identifier keys', () => {
+    expect(
+      messagesFor(`
+        const key = 'href';
+        const prop = 'title';
+        logger.info('x', { raw: window.location[key] });
+        logger.info('x', { raw: document[prop] });
+        logger.info('x', { safe: workflow[key] });
+      `),
+    ).toEqual([
+      'Do not log "raw". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "raw". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('keeps outer unsafe alias visible outside inner safe shadowing block', () => {
+    expect(
+      messagesFor(`
+        const meta = { url: window.location.href };
+        if (enabled) {
+          const meta = { tabCount: 2 };
+        }
+        logger.info('x', { meta });
+      `),
+    ).toEqual([
+      'Do not log "url". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('keeps outer safe alias isolated from later inner unsafe shadowing block', () => {
+    expect(
+      messagesFor(`
+        const meta = { tabCount: 2 };
+        if (enabled) {
+          const meta = { url: window.location.href };
+        }
+        logger.info('x', { meta });
+      `),
+    ).toEqual([]);
+  });
+
+  it('uses inner alias shadowing inside its block', () => {
+    expect(
+      messagesFor(`
+        const meta = { tabCount: 2 };
+        if (enabled) {
+          const meta = { url: window.location.href };
+          logger.info('x', { meta });
+        }
+      `),
+    ).toEqual([
+      'Do not log "url". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
   it('rejects raw URL metadata keys', () => {
     expect(
       messagesFor(`
