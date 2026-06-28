@@ -227,4 +227,43 @@ describe('privacy logging rules', () => {
       'Do not log "pageTitle". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
     ]);
   });
+
+  it('allows static primary log messages', () => {
+    expect(
+      messagesFor(`
+        logger.info('URL changed');
+        logger.info(\`URL changed\`);
+      `),
+    ).toEqual([]);
+  });
+
+  it('rejects dynamic primary log message expressions', () => {
+    expect(
+      messagesFor(`
+        const message = \`Navigating \${window.location.href}\`;
+        logger.info(\`Navigating \${window.location.href}\`);
+        logger.info('Navigating ' + tab.url);
+        logger.info(message);
+      `),
+    ).toEqual([
+      'Do not log "href". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "tab". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "href". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
+
+  it('rejects nested sensitive member paths inside safe metadata keys', () => {
+    expect(
+      messagesFor(`
+        logger.info('x', { safe: payload.nested.url });
+        logger.info('x', { safe: tab.metadata.title });
+        const nestedUrl = payload.deep.link.url;
+        logger.info('x', { safe: nestedUrl });
+      `),
+    ).toEqual([
+      'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "tab". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+      'Do not log "payload". Log tabId, mode, reason, counts, booleans, or sanitized domain instead.',
+    ]);
+  });
 });

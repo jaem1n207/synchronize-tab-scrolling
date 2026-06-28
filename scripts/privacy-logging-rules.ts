@@ -1,6 +1,30 @@
 import * as ts from 'typescript';
 
 const LOGGER_METHODS = new Set(['debug', 'error', 'info', 'warn']);
+const SENSITIVE_MEMBER_SUFFIXES = new Set([
+  'alternateUrl',
+  'alternateUrls',
+  'canonicalUrl',
+  'currentUrl',
+  'documentTitle',
+  'href',
+  'normalizedUrl',
+  'pageTitle',
+  'sourceUrl',
+  'tabTitle',
+  'targetUrl',
+  'title',
+  'url',
+]);
+const SENSITIVE_MEMBER_ROOTS = new Set([
+  'data',
+  'metadata',
+  'payload',
+  'response',
+  'sender',
+  'syncState',
+  'tab',
+]);
 
 const DISALLOWED_LOG_NAMES = new Set([
   'alternateUrl',
@@ -91,7 +115,7 @@ export function analyzePrivacyLoggingSource(
 
     const unsafeMatch = findUnsafeExpressionMatch(expression);
 
-    if (unsafeMatch) {
+    if (unsafeMatch && (ts.isIdentifier(expression) || isMemberAccessExpression(expression))) {
       report(
         expression,
         unsafeMatch.prefersContainerName && containerName ? containerName : unsafeMatch.name,
@@ -112,6 +136,13 @@ export function analyzePrivacyLoggingSource(
     }
 
     if (isMemberAccessExpression(expression)) {
+      return;
+    }
+
+    if (ts.isTemplateExpression(expression)) {
+      for (const span of expression.templateSpans) {
+        inspectExpression(span.expression, seenAliases, containerName);
+      }
       return;
     }
 
@@ -156,7 +187,13 @@ export function analyzePrivacyLoggingSource(
 
   function visit(node: ts.Node): void {
     if (ts.isCallExpression(node) && isLoggerCall(node)) {
-      for (const argument of node.arguments.slice(1)) {
+      const [messageArgument, ...metadataArguments] = node.arguments;
+
+      if (messageArgument && shouldInspectPrimaryLogArgument(messageArgument)) {
+        inspectExpression(messageArgument);
+      }
+
+      for (const argument of metadataArguments) {
         if (ts.isObjectLiteralExpression(argument)) {
           inspectObjectLiteral(argument);
           continue;
@@ -293,16 +330,13 @@ function findSensitiveRootName(
     return null;
   }
 
-  if (matchesPropertyAccessPath(names, ['payload', 'url'])) {
-    return names[0];
+  const [rootName, ...nestedNames] = names;
+  if (!rootName || !SENSITIVE_MEMBER_ROOTS.has(rootName)) {
+    return null;
   }
 
-  if (matchesPropertyAccessPath(names, ['tab', 'url'])) {
-    return names[0];
-  }
-
-  if (matchesPropertyAccessPath(names, ['tab', 'title'])) {
-    return names[0];
+  if (nestedNames.some((name) => SENSITIVE_MEMBER_SUFFIXES.has(name))) {
+    return rootName;
   }
 
   return null;
@@ -410,6 +444,10 @@ function getElementAccessArgumentName(argument: ts.Expression): string | null {
   }
 
   return null;
+}
+
+function shouldInspectPrimaryLogArgument(argument: ts.Expression): boolean {
+  return !ts.isStringLiteral(argument) && !ts.isNoSubstitutionTemplateLiteral(argument);
 }
 
 function collectBindings(sourceFile: ts.SourceFile): Map<string, Array<BindingEntry>> {
