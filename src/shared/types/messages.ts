@@ -205,7 +205,6 @@ export interface AutoSyncDetailedStatusResponse {
   activeGroupCount: number;
   totalSyncedTabs: number;
   currentTabGroup?: {
-    normalizedUrl: string;
     tabCount: number;
     isActive: boolean;
   };

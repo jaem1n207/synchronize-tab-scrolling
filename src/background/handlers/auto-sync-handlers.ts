@@ -21,6 +21,7 @@ import {
   pendingSuggestions,
   SUGGESTION_SNOOZE_DURATION_MS,
   suggestionSnoozeUntil,
+  withAutoSyncLock,
 } from '../lib/auto-sync-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
@@ -124,17 +125,15 @@ export function registerAutoSyncHandlers(): void {
 
     let currentTabGroup:
       | {
-          normalizedUrl: string;
           tabCount: number;
           isActive: boolean;
         }
       | undefined;
 
     if (sender.tabId) {
-      for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
+      for (const [, group] of autoSyncState.groups.entries()) {
         if (group.tabIds.has(sender.tabId)) {
           currentTabGroup = {
-            normalizedUrl,
             tabCount: group.tabIds.size,
             isActive: group.isActive,
           };
@@ -266,7 +265,9 @@ export function registerAutoSyncHandlers(): void {
               manualSyncOverriddenTabs.add(tabId);
             }
 
-            autoSyncState.groups.delete(normalizedUrl);
+            await withAutoSyncLock(async () => {
+              autoSyncState.groups.delete(normalizedUrl);
+            });
             syncState.linkedTabs = connectedTabIds;
             await persistSyncState();
             await broadcastSyncStatus();
@@ -352,11 +353,10 @@ export function registerAutoSyncHandlers(): void {
             return { success: false, error: 'Tab no longer exists' };
           }
 
-          manualSyncOverriddenTabs.add(tabId);
-
           await removeTabFromAllAutoSyncGroups(tabId);
 
           const newTabIds = [...new Set([...syncState.linkedTabs, tabId])];
+          const connectionResults = new Map<number, boolean>();
 
           const promises = newTabIds.map(async (candidateTabId) => {
             try {
@@ -373,22 +373,59 @@ export function registerAutoSyncHandlers(): void {
               );
 
               if (ack && ack.success && ack.tabId === candidateTabId) {
+                connectionResults.set(candidateTabId, true);
                 syncState.connectionStatuses[candidateTabId] = 'connected';
               } else {
+                connectionResults.set(candidateTabId, false);
                 syncState.connectionStatuses[candidateTabId] = 'error';
               }
             } catch {
+              connectionResults.set(candidateTabId, false);
               syncState.connectionStatuses[candidateTabId] = 'error';
             }
           });
 
           await Promise.all(promises);
 
-          syncState.linkedTabs = newTabIds;
+          const connectedTabIds = newTabIds.filter(
+            (candidateTabId) => connectionResults.get(candidateTabId) === true,
+          );
+          const failedTabIds = newTabIds.filter(
+            (candidateTabId) => connectionResults.get(candidateTabId) !== true,
+          );
+
+          for (const candidateTabId of connectedTabIds) {
+            manualSyncOverriddenTabs.add(candidateTabId);
+          }
+
+          for (const candidateTabId of failedTabIds) {
+            manualSyncOverriddenTabs.delete(candidateTabId);
+          }
+
+          if (connectedTabIds.length < 2) {
+            syncState.isActive = false;
+            syncState.linkedTabs = [];
+            syncState.connectionStatuses = {};
+            syncState.mode = undefined;
+            await persistSyncState();
+            await broadcastSyncStatus();
+
+            return { success: false, error: 'Not enough tabs connected' };
+          }
+
+          syncState.linkedTabs = connectedTabIds;
           await persistSyncState();
           await broadcastSyncStatus();
 
-          logger.info('[AUTO-SYNC] Added tab to manual sync', { tabId, newTabIds });
+          logger.info('[AUTO-SYNC] Added tab to manual sync', {
+            tabId,
+            connectedTabIds,
+            failedTabCount: failedTabIds.length,
+          });
+
+          if (!connectedTabIds.includes(tabId)) {
+            return { success: false, error: 'Tab failed to join sync' };
+          }
         } catch (error) {
           logger.error('[AUTO-SYNC] Failed to add tab to sync', { tabId, error });
           return { success: false, error: String(error) };
