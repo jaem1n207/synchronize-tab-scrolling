@@ -17,7 +17,7 @@ interface UrlSyncSettingsProps {
   compact?: boolean;
   variant?: UrlSyncSettingsVariant;
   onEnabledChange: (enabled: boolean) => void | Promise<void>;
-  onModeChange: (mode: UrlSyncMode) => void | Promise<void>;
+  onModeChange: (mode: UrlSyncMode) => boolean | void | Promise<boolean | void>;
 }
 
 const URL_SYNC_MODE_OPTIONS: Array<{
@@ -111,8 +111,8 @@ export function UrlSyncSettings({
 
     Promise.resolve()
       .then(() => onModeChange(nextMode))
-      .then(() => {
-        if (isInlineCollapsible) {
+      .then((saved) => {
+        if (isInlineCollapsible && saved !== false) {
           setInlineEditorExpanded(false);
         }
       })

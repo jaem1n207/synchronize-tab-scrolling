@@ -347,6 +347,32 @@ describe('UrlSyncSettings', () => {
       });
     });
 
+    it('keeps the editor open when a mode change resolves to false', async () => {
+      const onModeChange = vi.fn().mockResolvedValue(false);
+      const user = userEvent.setup();
+
+      render(
+        <UrlSyncSettings
+          enabled={true}
+          mode="follow-changed-tab"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={onModeChange}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Expand URL Sync settings' }));
+      await user.click(screen.getByRole('radio', { name: /Keep each tab's website/i }));
+
+      expect(onModeChange).toHaveBeenCalledWith('keep-each-tabs-website');
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Collapse URL Sync settings' })).toHaveAttribute(
+          'aria-expanded',
+          'true',
+        );
+      });
+    });
+
     it('keeps the active mode visible but disables mode choices when URL Sync is off', async () => {
       const user = userEvent.setup();
 
