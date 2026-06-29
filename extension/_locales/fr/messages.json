@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "Impossible de lire le réglage URL Sync. La navigation URL n'a pas été synchronisée. Vérifiez les autorisations de l'extension ou réessayez."
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "Ajustez une page sans arrêter la synchro"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "Quand les pages synchronisées ont des longueurs différentes, la position peut sembler décalée."
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "Maintenez $SHORTCUT$ et faites défiler pour déplacer seulement la page actuelle.",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "Relâchez la touche et la synchronisation reprend depuis la position ajustée."
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "Masquer cette astuce"
   }
 }
