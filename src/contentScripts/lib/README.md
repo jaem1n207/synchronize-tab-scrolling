@@ -4,11 +4,12 @@ Utilities used by `src/contentScripts/scroll-sync.ts` and related content-script
 
 ## Files
 
-| File                             | Purpose                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `instant-programmatic-scroll.ts` | Instant receiver-side scroll application and latest-wins rAF scheduling |
-| `scroll-sync-state.ts`           | Scroll sync state factories, timing constants, and state transitions    |
-| `translated-page-metadata.ts`    | Canonical/alternate metadata extraction for translated-page matching    |
+| File                                  | Purpose                                                                 |
+| ------------------------------------- | ----------------------------------------------------------------------- |
+| `instant-programmatic-scroll.ts`      | Instant receiver-side scroll application and latest-wins rAF scheduling |
+| `contextual-hint-navigation-queue.ts` | Tab-scoped pending URL Sync hint queue for post-navigation overlays     |
+| `scroll-sync-state.ts`                | Scroll sync state factories, timing constants, and state transitions    |
+| `translated-page-metadata.ts`         | Canonical/alternate metadata extraction for translated-page matching    |
 
 ## Instant Programmatic Scroll
 

@@ -117,6 +117,7 @@ vi.mock('~/contentScripts/panel', () => ({
 vi.mock('~/contentScripts/suggestion-toast', () => ({
   showSyncSuggestionToast: vi.fn(),
   showAddTabSuggestionToast: vi.fn(),
+  showContextualHintToast: vi.fn(),
   hideSuggestionToasts: vi.fn(),
 }));
 

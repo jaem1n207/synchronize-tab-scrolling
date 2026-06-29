@@ -25,7 +25,10 @@ import {
   type ManualScrollOffset,
 } from '~/shared/lib/storage';
 import { resolveUrlSyncTarget } from '~/shared/lib/translated-page-url-utils';
-import type { ContextualHintScrollMetrics } from '~/shared/types/contextual-hints';
+import type {
+  ContextualHintScrollMetrics,
+  ContextualHintShowMessage,
+} from '~/shared/types/contextual-hints';
 import type {
   UrlSyncMode,
   UrlSyncNotice,
@@ -33,6 +36,11 @@ import type {
 } from '~/shared/types/url-sync';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
+import {
+  consumePendingUrlSyncContextualHintId,
+  getPendingUrlSyncHintIdForMode,
+  savePendingUrlSyncContextualHintId,
+} from './lib/contextual-hint-navigation-queue';
 import {
   applyInstantProgrammaticScroll,
   createLatestProgrammaticScrollScheduler,
@@ -106,6 +114,44 @@ function scheduleProgrammaticScroll(target: ProgrammaticScrollTarget): void {
 
 function cancelPendingProgrammaticScroll(): void {
   programmaticScrollScheduler.cancel();
+}
+
+function isSupportedWebpageOverlayContextualHint(
+  payload: ContextualHintShowMessage,
+): payload is ContextualHintShowMessage & {
+  hintId: 'manual-scroll-adjustment' | 'page-change-synced' | 'keep-website-path-synced';
+} {
+  return (
+    payload.surface === 'webpage-overlay' &&
+    (payload.hintId === 'manual-scroll-adjustment' ||
+      payload.hintId === 'page-change-synced' ||
+      payload.hintId === 'keep-website-path-synced')
+  );
+}
+
+async function showPendingUrlSyncContextualHint(): Promise<void> {
+  const consumeResult = consumePendingUrlSyncContextualHintId(sessionStorage);
+  if (consumeResult.status === 'failed') {
+    logger.warn('Failed to read pending URL Sync contextual hint', {
+      operation: 'consume-pending-url-sync-contextual-hint',
+    });
+    return;
+  }
+
+  if (!consumeResult.hintId) {
+    return;
+  }
+
+  logger.info('Showing pending URL Sync contextual hint', {
+    hintId: consumeResult.hintId,
+    source: 'url-sync',
+  });
+
+  await showContextualHintToast({
+    hintId: consumeResult.hintId,
+    surface: 'webpage-overlay',
+    source: 'url-sync',
+  });
 }
 
 /**
@@ -1081,6 +1127,16 @@ export function initScrollSync() {
     cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
 
+    const pendingHintId = getPendingUrlSyncHintIdForMode(modeRepairResult.mode);
+    const pendingHintSaveResult = savePendingUrlSyncContextualHintId(sessionStorage, pendingHintId);
+    if (pendingHintSaveResult.status === 'failed') {
+      logger.warn('Failed to save pending URL Sync contextual hint', {
+        hintId: pendingHintId,
+        mode: modeRepairResult.mode,
+        operation: 'save-pending-url-sync-contextual-hint',
+      });
+    }
+
     navigateToUrl(resolution.url);
   });
 
@@ -1121,7 +1177,7 @@ export function initScrollSync() {
 
   onMessage('contextual-hint:show', async ({ data }) => {
     const payload = data;
-    if (payload.hintId !== 'manual-scroll-adjustment' || payload.surface !== 'webpage-overlay') {
+    if (!isSupportedWebpageOverlayContextualHint(payload)) {
       logger.debug('Ignoring unsupported contextual hint', {
         hintId: payload.hintId,
         surface: payload.surface,
@@ -1136,6 +1192,8 @@ export function initScrollSync() {
     await showContextualHintToast(payload);
     return { success: true };
   });
+
+  void showPendingUrlSyncContextualHint();
 }
 
 /**
