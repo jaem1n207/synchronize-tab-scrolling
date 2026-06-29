@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "新しいタブ「$TITLE$」が同じURLです。同期に追加しますか？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "このタブを現在の同期に追加しますか？"
   },
   "newTabSameTranslatedPage": {
-    "message": "新しいタブ「$TITLE$」が同じ翻訳ページです。同期に追加しますか？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "このタブを現在の同期に追加しますか？"
   },
   "newTabMayBeTranslation": {
-    "message": "新しいタブ「$TITLE$」は同期中ページの翻訳である可能性があります。同期に追加しますか？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "このタブを現在の同期に追加しますか？"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "追加すると、このタブも現在同期中のタブと一緒にスクロールします。"
   },
   "warningResetScrollOffsets": {
-    "message": "このタブを追加すると、手動で調整したスクロール位置がリセットされます"
+    "message": "追加すると、調整したスクロール差分はリセットされます。"
   },
   "existingSyncWarning": {
     "message": "現在$COUNT$個のタブを同期中です。これを開始すると現在の同期が置き換えられます。",
@@ -623,13 +608,13 @@
     "message": "同期開始"
   },
   "addTabButton": {
-    "message": "タブを追加"
+    "message": "現在の同期に追加"
   },
   "notNowButton": {
     "message": "後で"
   },
   "skipButton": {
-    "message": "スキップ"
+    "message": "後で行う"
   },
   "manageExcludedDomains": {
     "message": "除外ドメインの管理"
