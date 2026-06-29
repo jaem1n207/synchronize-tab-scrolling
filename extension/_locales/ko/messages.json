@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "새 탭 $TITLE$ 동일한 URL입니다. 동기화에 추가할까요?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "\"Google Docs\"가"
-      }
-    }
+    "message": "현재 동기화에 이 탭을 추가할까요?"
   },
   "newTabSameTranslatedPage": {
-    "message": "새 탭 $TITLE$ 동일한 번역 페이지입니다. 동기화에 추가할까요?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "\"Google Docs\"가"
-      }
-    }
+    "message": "현재 동기화에 이 탭을 추가할까요?"
   },
   "newTabMayBeTranslation": {
-    "message": "새 탭 $TITLE$ 동기화 중인 페이지의 번역본일 수 있습니다. 동기화에 추가할까요?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "\"Google Docs\"가"
-      }
-    }
+    "message": "현재 동기화에 이 탭을 추가할까요?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "추가하면 이 탭도 지금 동기화 중인 탭들과 함께 스크롤돼요."
   },
   "warningResetScrollOffsets": {
-    "message": "이 탭을 추가하면 수동으로 조정한 스크롤 위치가 초기화됩니다"
+    "message": "추가하면 조정한 스크롤 차이는 초기화돼요."
   },
   "existingSyncWarning": {
     "message": "현재 $COUNT$개 탭을 동기화 중입니다. 이 동기화를 시작하면 기존 동기화가 중지됩니다.",
@@ -623,13 +608,13 @@
     "message": "동기화 시작"
   },
   "addTabButton": {
-    "message": "탭 추가"
+    "message": "동기화에 추가하기"
   },
   "notNowButton": {
     "message": "나중에"
   },
   "skipButton": {
-    "message": "건너뛰기"
+    "message": "다음에 하기"
   },
   "manageExcludedDomains": {
     "message": "제외 도메인 관리"
