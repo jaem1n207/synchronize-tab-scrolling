@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "隐藏此提示"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "其他标签页已跳转到同一页面"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "如果不需要，可以关闭页面跳转同步。"
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "已保留每个标签页的网站"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "在可用时只打开了相同路径。"
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "更改设置"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "稍后查看"
+  },
+  "contextualHintHideAction": {
+    "message": "隐藏此提示"
   }
 }
