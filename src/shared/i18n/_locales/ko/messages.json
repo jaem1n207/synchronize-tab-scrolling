@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "URL Sync 설정을 읽을 수 없어 URL 이동을 동기화하지 않았습니다. 확장 프로그램 권한을 확인하거나 다시 시도하세요."
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "현재 페이지만 따로 스크롤할 수 있어요"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "동기화한 페이지 길이가 다르면 같은 위치처럼 느껴지지 않을 수 있어요."
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "$SHORTCUT$ 키를 누른 채 스크롤하면 현재 페이지만 움직여요.",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "키를 떼면 그 지점부터 다시 함께 스크롤돼요."
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "이 안내 숨기기"
   }
 }
