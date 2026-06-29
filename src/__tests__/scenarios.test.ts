@@ -119,6 +119,7 @@ vi.mock('~/contentScripts/suggestion-toast', () => ({
   showAddTabSuggestionToast: vi.fn(),
   showContextualHintToast: vi.fn(),
   hideSuggestionToasts: vi.fn(),
+  hideTransientSuggestionToasts: vi.fn(),
 }));
 
 import { updateAutoSyncGroup } from '~/background/lib/auto-sync-groups';

@@ -65,7 +65,7 @@ import {
   showSyncSuggestionToast,
   showAddTabSuggestionToast,
   showContextualHintToast,
-  hideSuggestionToasts,
+  hideTransientSuggestionToasts,
 } from './suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'scroll-sync' });
@@ -757,8 +757,8 @@ export function initScrollSync() {
   onMessage('scroll:start', async ({ data }) => {
     const payload = data;
 
-    // Hide any pending suggestion toasts since sync is starting
-    hideSuggestionToasts();
+    // Hide pre-sync suggestion toasts without clearing contextual onboarding shown after navigation.
+    hideTransientSuggestionToasts();
 
     // Clean up any existing sync state before starting new sync
     // This is critical for re-sync scenarios where content script is already active
