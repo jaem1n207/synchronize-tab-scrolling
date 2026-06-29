@@ -721,7 +721,26 @@ describe('loadDismissedContextualHintIds', () => {
       'manual-scroll-adjustment',
       'floating-panel',
     ]);
-    expect(storageGetMock).toHaveBeenCalledWith('contextualHintsDismissed');
+    expect(storageGetMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        'contextualHintsDismissed',
+        'contextualHintsDismissed:manual-scroll-adjustment',
+        'contextualHintsDismissed:floating-panel',
+      ]),
+    );
+  });
+
+  it('returns dismissed hint IDs from legacy array and per-hint keys', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: ['manual-scroll-adjustment'],
+      'contextualHintsDismissed:floating-panel': true,
+      'contextualHintsDismissed:sync-suggestion': false,
+    });
+
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([
+      'manual-scroll-adjustment',
+      'floating-panel',
+    ]);
   });
 
   it('returns an empty list when stored value is not an array', async () => {
@@ -745,9 +764,10 @@ describe('loadDismissedContextualHintIds', () => {
 });
 
 describe('saveDismissedContextualHintId', () => {
-  it('appends a dismissed contextual hint ID idempotently', async () => {
+  it('saves a dismissed contextual hint ID under a per-hint key', async () => {
     storageGetMock.mockResolvedValue({
       contextualHintsDismissed: ['manual-scroll-adjustment'],
+      'contextualHintsDismissed:floating-panel': true,
     });
 
     await expect(saveDismissedContextualHintId('floating-panel')).resolves.toEqual([
@@ -755,11 +775,11 @@ describe('saveDismissedContextualHintId', () => {
       'floating-panel',
     ]);
     expect(storageSetMock).toHaveBeenCalledWith({
-      contextualHintsDismissed: ['manual-scroll-adjustment', 'floating-panel'],
+      'contextualHintsDismissed:floating-panel': true,
     });
   });
 
-  it('does not duplicate an already dismissed contextual hint ID', async () => {
+  it('does not duplicate an already dismissed contextual hint ID from legacy storage', async () => {
     storageGetMock.mockResolvedValue({
       contextualHintsDismissed: ['floating-panel'],
     });
@@ -768,7 +788,7 @@ describe('saveDismissedContextualHintId', () => {
       'floating-panel',
     ]);
     expect(storageSetMock).toHaveBeenCalledWith({
-      contextualHintsDismissed: ['floating-panel'],
+      'contextualHintsDismissed:floating-panel': true,
     });
   });
 

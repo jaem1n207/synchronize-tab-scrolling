@@ -14,7 +14,7 @@ import {
   type UrlSyncNotice,
 } from '~/shared/types/url-sync';
 
-import { isContextualHintId } from './contextual-hints';
+import { CONTEXTUAL_HINT_REGISTRY, isContextualHintId } from './contextual-hints';
 import { ExtensionLogger } from './logger';
 
 const logger = new ExtensionLogger({ scope: 'storage' });
@@ -52,9 +52,30 @@ function sanitizeContextualHintIds(value: unknown): Array<ContextualHintId> {
   return hintIds;
 }
 
+function getContextualHintDismissedKey(hintId: ContextualHintId): string {
+  return `${STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED}:${hintId}`;
+}
+
+function getContextualHintDismissedKeys(): Array<string> {
+  return Object.keys(CONTEXTUAL_HINT_REGISTRY).map((hintId) =>
+    getContextualHintDismissedKey(hintId as ContextualHintId),
+  );
+}
+
 async function readDismissedContextualHintIds(): Promise<Array<ContextualHintId>> {
-  const result = await browser.storage.local.get(STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED);
-  return sanitizeContextualHintIds(result[STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED]);
+  const result = await browser.storage.local.get([
+    STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED,
+    ...getContextualHintDismissedKeys(),
+  ]);
+  const hintIds = sanitizeContextualHintIds(result[STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED]);
+
+  for (const hintId of Object.keys(CONTEXTUAL_HINT_REGISTRY) as Array<ContextualHintId>) {
+    if (result[getContextualHintDismissedKey(hintId)] === true && !hintIds.includes(hintId)) {
+      hintIds.push(hintId);
+    }
+  }
+
+  return hintIds;
 }
 
 /**
@@ -515,16 +536,11 @@ export async function saveDismissedContextualHintId(
   hintId: ContextualHintId,
 ): Promise<Array<ContextualHintId>> {
   try {
-    const dismissedIds = await readDismissedContextualHintIds();
-    const nextDismissedIds = dismissedIds.includes(hintId)
-      ? dismissedIds
-      : [...dismissedIds, hintId];
-
     await browser.storage.local.set({
-      [STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED]: nextDismissedIds,
+      [getContextualHintDismissedKey(hintId)]: true,
     });
 
-    return nextDismissedIds;
+    return await readDismissedContextualHintIds();
   } catch (error) {
     await logger.error('Failed to save dismissed contextual hint ID:', error);
     return [];
