@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "No se pudo leer la configuración de URL Sync. No se sincronizó la navegación de URL. Revisa los permisos de la extensión o inténtalo de nuevo."
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "Ajusta una página sin detener la sincronización"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "Cuando las páginas sincronizadas tienen longitudes distintas, la posición puede sentirse desalineada."
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "Mantén $SHORTCUT$ y desplázate para mover solo la página actual.",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "Suelta la tecla y la sincronización continúa desde la posición ajustada."
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "Ocultar este consejo"
   }
 }
