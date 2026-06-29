@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "Nueva pestaña \"$TITLE$\" tiene la misma URL. ¿Agregar a la sincronización?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "¿Agregar esta pestaña a la sincronización actual?"
   },
   "newTabSameTranslatedPage": {
-    "message": "La nueva pestaña \"$TITLE$\" es la misma página traducida. ¿Agregar a la sincronización?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "¿Agregar esta pestaña a la sincronización actual?"
   },
   "newTabMayBeTranslation": {
-    "message": "La nueva pestaña \"$TITLE$\" puede ser una traducción de la página sincronizada. ¿Agregar a la sincronización?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "¿Agregar esta pestaña a la sincronización actual?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "Al agregarla, esta pestaña se desplazará junto con las pestañas que ya están sincronizadas."
   },
   "warningResetScrollOffsets": {
-    "message": "Agregar esta pestaña restablecerá los ajustes de posición de desplazamiento"
+    "message": "Al agregarla se restablecerán los ajustes de desplazamiento."
   },
   "existingSyncWarning": {
     "message": "Actualmente sincronizando $COUNT$ pestañas. Iniciar esto reemplazará la sincronización activa.",
@@ -623,13 +608,13 @@
     "message": "Iniciar Sync"
   },
   "addTabButton": {
-    "message": "Agregar Pestaña"
+    "message": "Agregar a la sincronización actual"
   },
   "notNowButton": {
     "message": "Ahora No"
   },
   "skipButton": {
-    "message": "Omitir"
+    "message": "Hacerlo después"
   },
   "manageExcludedDomains": {
     "message": "Gestionar dominios excluidos"
