@@ -8,6 +8,7 @@
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
+import { isWebpageOverlayContextualHintId } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
@@ -28,6 +29,7 @@ import { resolveUrlSyncTarget } from '~/shared/lib/translated-page-url-utils';
 import type {
   ContextualHintScrollMetrics,
   ContextualHintShowMessage,
+  WebpageOverlayContextualHintId,
 } from '~/shared/types/contextual-hints';
 import type {
   UrlSyncMode,
@@ -36,11 +38,7 @@ import type {
 } from '~/shared/types/url-sync';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
-import {
-  consumePendingUrlSyncContextualHintId,
-  getPendingUrlSyncHintIdForMode,
-  savePendingUrlSyncContextualHintId,
-} from './lib/contextual-hint-navigation-queue';
+import { getPendingUrlSyncHintIdForMode } from './lib/contextual-hint-navigation-queue';
 import {
   applyInstantProgrammaticScroll,
   createLatestProgrammaticScrollScheduler,
@@ -119,19 +117,19 @@ function cancelPendingProgrammaticScroll(): void {
 function isSupportedWebpageOverlayContextualHint(
   payload: ContextualHintShowMessage,
 ): payload is ContextualHintShowMessage & {
-  hintId: 'manual-scroll-adjustment' | 'page-change-synced' | 'keep-website-path-synced';
+  hintId: WebpageOverlayContextualHintId;
 } {
-  return (
-    payload.surface === 'webpage-overlay' &&
-    (payload.hintId === 'manual-scroll-adjustment' ||
-      payload.hintId === 'page-change-synced' ||
-      payload.hintId === 'keep-website-path-synced')
-  );
+  return payload.surface === 'webpage-overlay' && isWebpageOverlayContextualHintId(payload.hintId);
 }
 
 async function showPendingUrlSyncContextualHint(): Promise<void> {
-  const consumeResult = consumePendingUrlSyncContextualHintId(sessionStorage);
-  if (consumeResult.status === 'failed') {
+  const consumeResult = await sendMessage(
+    'contextual-hint:consume-pending-url-sync',
+    {},
+    'background',
+  ).catch(() => ({ status: 'failed' as const }));
+
+  if (!consumeResult || consumeResult.status === 'failed') {
     logger.warn('Failed to read pending URL Sync contextual hint', {
       operation: 'consume-pending-url-sync-contextual-hint',
     });
@@ -1128,8 +1126,12 @@ export function initScrollSync() {
     logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
 
     const pendingHintId = getPendingUrlSyncHintIdForMode(modeRepairResult.mode);
-    const pendingHintSaveResult = savePendingUrlSyncContextualHintId(sessionStorage, pendingHintId);
-    if (pendingHintSaveResult.status === 'failed') {
+    const pendingHintSaveResult = await sendMessage(
+      'contextual-hint:save-pending-url-sync',
+      { hintId: pendingHintId },
+      'background',
+    ).catch(() => ({ status: 'failed' as const }));
+    if (!pendingHintSaveResult || pendingHintSaveResult.status === 'failed') {
       logger.warn('Failed to save pending URL Sync contextual hint', {
         hintId: pendingHintId,
         mode: modeRepairResult.mode,

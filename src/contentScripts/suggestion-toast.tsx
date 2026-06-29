@@ -8,10 +8,16 @@ import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
-import { getContextualHintShortcutLabel } from '~/shared/lib/contextual-hints';
+import {
+  getContextualHintShortcutLabel,
+  isWebpageOverlayContextualHintId,
+} from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { isContextualHintDismissed, saveDismissedContextualHintId } from '~/shared/lib/storage';
-import type { ContextualHintId, ContextualHintShowMessage } from '~/shared/types/contextual-hints';
+import type {
+  ContextualHintShowMessage,
+  WebpageOverlayContextualHintId,
+} from '~/shared/types/contextual-hints';
 import type {
   SyncSuggestionMessage,
   AddTabToSyncMessage,
@@ -45,20 +51,10 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-type SupportedWebpageOverlayHintId = Extract<
-  ContextualHintId,
-  'manual-scroll-adjustment' | 'page-change-synced' | 'keep-website-path-synced'
->;
-
 function isSupportedContextualHint(
   message: ContextualHintShowMessage,
-): message is ContextualHintShowMessage & { hintId: SupportedWebpageOverlayHintId } {
-  return (
-    message.surface === 'webpage-overlay' &&
-    (message.hintId === 'manual-scroll-adjustment' ||
-      message.hintId === 'page-change-synced' ||
-      message.hintId === 'keep-website-path-synced')
-  );
+): message is ContextualHintShowMessage & { hintId: WebpageOverlayContextualHintId } {
+  return message.surface === 'webpage-overlay' && isWebpageOverlayContextualHintId(message.hintId);
 }
 
 /**
@@ -609,7 +605,7 @@ function renderToast() {
     renderToast();
   };
 
-  const handleContextualHintAutoDismiss = (hintId: SupportedWebpageOverlayHintId) => {
+  const handleContextualHintAutoDismiss = (hintId: WebpageOverlayContextualHintId) => {
     if (currentContextualHint?.hintId !== hintId) {
       return;
     }
@@ -618,7 +614,7 @@ function renderToast() {
     renderToast();
   };
 
-  const handleContextualHintOpenSettings = (hintId: SupportedWebpageOverlayHintId) => {
+  const handleContextualHintOpenSettings = (hintId: WebpageOverlayContextualHintId) => {
     if (currentContextualHint?.hintId !== hintId) {
       return;
     }
@@ -629,7 +625,7 @@ function renderToast() {
     window.dispatchEvent(new CustomEvent('scroll-sync-open-url-sync-settings'));
   };
 
-  const handleContextualHintHidePermanently = async (hintId: SupportedWebpageOverlayHintId) => {
+  const handleContextualHintHidePermanently = async (hintId: WebpageOverlayContextualHintId) => {
     if (currentContextualHint?.hintId !== hintId) {
       return;
     }
