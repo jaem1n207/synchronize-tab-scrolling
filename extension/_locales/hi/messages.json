@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "URL Sync सेटिंग पढ़ी नहीं जा सकी। URL नेविगेशन सिंक नहीं किया गया। एक्सटेंशन अनुमतियां जांचें या फिर कोशिश करें।"
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "सिंक चालू रखते हुए एक पेज समायोजित करें"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "सिंक किए गए पेजों की लंबाई अलग हो तो स्क्रॉल स्थिति थोड़ी हटकर लग सकती है।"
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "$SHORTCUT$ दबाए रखें और केवल मौजूदा पेज को स्क्रॉल करें।",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "कुंजी छोड़ने पर सिंक उसी समायोजित स्थिति से जारी रहता है।"
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "यह संकेत छिपाएँ"
   }
 }
