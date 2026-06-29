@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "Neuer Tab \"$TITLE$\" hat die gleiche URL. Zur Synchronisation hinzufügen?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Diesen Tab zur aktuellen Synchronisierung hinzufügen?"
   },
   "newTabSameTranslatedPage": {
-    "message": "Neuer Tab \"$TITLE$\" ist dieselbe übersetzte Seite. Zur Synchronisation hinzufügen?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Diesen Tab zur aktuellen Synchronisierung hinzufügen?"
   },
   "newTabMayBeTranslation": {
-    "message": "Neuer Tab \"$TITLE$\" könnte eine Übersetzung der synchronisierten Seite sein. Zur Synchronisation hinzufügen?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Diesen Tab zur aktuellen Synchronisierung hinzufügen?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "Nach dem Hinzufügen scrollt dieser Tab zusammen mit den aktuell synchronisierten Tabs."
   },
   "warningResetScrollOffsets": {
-    "message": "Das Hinzufügen dieses Tabs setzt Ihre manuell angepasste Scrollposition zurück"
+    "message": "Beim Hinzufügen werden deine Scroll-Anpassungen zurückgesetzt."
   },
   "existingSyncWarning": {
     "message": "Sie synchronisieren derzeit $COUNT$ Tabs. Dies wird die aktive Synchronisation ersetzen.",
@@ -623,13 +608,13 @@
     "message": "Sync starten"
   },
   "addTabButton": {
-    "message": "Tab hinzufügen"
+    "message": "Zur aktuellen Synchronisierung hinzufügen"
   },
   "notNowButton": {
     "message": "Nicht jetzt"
   },
   "skipButton": {
-    "message": "Überspringen"
+    "message": "Später"
   },
   "manageExcludedDomains": {
     "message": "Ausgeschlossene Domains verwalten"
