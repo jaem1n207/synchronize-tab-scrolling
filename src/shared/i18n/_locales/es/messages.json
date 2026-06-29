@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "Nueva pestaña \"$TITLE$\" tiene la misma URL. ¿Agregar a la sincronización?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "¿Agregar esta pestaña a la sincronización actual?"
   },
   "newTabSameTranslatedPage": {
-    "message": "La nueva pestaña \"$TITLE$\" es la misma página traducida. ¿Agregar a la sincronización?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "¿Agregar esta pestaña a la sincronización actual?"
   },
   "newTabMayBeTranslation": {
-    "message": "La nueva pestaña \"$TITLE$\" puede ser una traducción de la página sincronizada. ¿Agregar a la sincronización?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "¿Agregar esta pestaña a la sincronización actual?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "Al agregarla, esta pestaña se desplazará junto con las pestañas que ya están sincronizadas."
   },
   "warningResetScrollOffsets": {
-    "message": "Agregar esta pestaña restablecerá los ajustes de posición de desplazamiento"
+    "message": "Al agregarla se restablecerán los ajustes de desplazamiento."
   },
   "existingSyncWarning": {
     "message": "Actualmente sincronizando $COUNT$ pestañas. Iniciar esto reemplazará la sincronización activa.",
@@ -623,13 +608,13 @@
     "message": "Iniciar Sync"
   },
   "addTabButton": {
-    "message": "Agregar Pestaña"
+    "message": "Agregar a la sincronización actual"
   },
   "notNowButton": {
-    "message": "Ahora No"
+    "message": "Ahora no"
   },
   "skipButton": {
-    "message": "Omitir"
+    "message": "Hacerlo después"
   },
   "manageExcludedDomains": {
     "message": "Gestionar dominios excluidos"
@@ -693,5 +678,47 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "No se pudo leer la configuración de URL Sync. No se sincronizó la navegación de URL. Revisa los permisos de la extensión o inténtalo de nuevo."
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "Ajusta una página sin detener la sincronización"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "Cuando las páginas sincronizadas tienen longitudes distintas, la posición puede sentirse desalineada."
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "Mantén $SHORTCUT$ y desplázate para mover solo la página actual.",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "Suelta la tecla y la sincronización continúa desde la posición ajustada."
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "Ocultar este consejo"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "Las otras pestañas abrieron la misma página"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "Puedes desactivar la sincronización de cambios de página si no la quieres."
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "Cada pestaña mantuvo su sitio"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "Solo se abrió la ruta coincidente cuando fue posible."
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "Cambiar ajuste"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "Ver más tarde"
+  },
+  "contextualHintHideAction": {
+    "message": "Ocultar esta ayuda"
   }
 }

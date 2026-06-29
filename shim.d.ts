@@ -1,8 +1,11 @@
+import type { ContextualHintShowMessage } from '~/shared/types/contextual-hints';
 import type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
   AutoSyncGroupUpdatedMessage,
   AutoSyncStatusChangedMessage,
+  ConsumePendingUrlSyncContextualHintMessage,
+  ConsumePendingUrlSyncContextualHintResponse,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
@@ -13,7 +16,10 @@ import type {
   ScrollReconnectMessage,
   ScrollRequestReinjectMessage,
   ScrollSyncMessage,
+  SavePendingUrlSyncContextualHintMessage,
+  SavePendingUrlSyncContextualHintResponse,
   StartSyncMessage,
+  StartSyncResponse,
   StopSyncMessage,
   SyncBaselineUpdateMessage,
   SyncStatusBroadcastMessage,
@@ -35,7 +41,7 @@ declare module 'react' {
 
 declare module 'webext-bridge' {
   export interface ProtocolMap {
-    'scroll:start': ProtocolWithReturn<StartSyncMessage, unknown>;
+    'scroll:start': ProtocolWithReturn<StartSyncMessage, StartSyncResponse>;
     'scroll:stop': ProtocolWithReturn<StopSyncMessage, unknown>;
     'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
     'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
@@ -66,6 +72,15 @@ declare module 'webext-bridge' {
     'auto-sync:get-excluded-domains': ProtocolWithReturn<
       Record<string, never>,
       { domains: Array<string> }
+    >;
+    'contextual-hint:show': ProtocolWithReturn<ContextualHintShowMessage, unknown>;
+    'contextual-hint:save-pending-url-sync': ProtocolWithReturn<
+      SavePendingUrlSyncContextualHintMessage,
+      SavePendingUrlSyncContextualHintResponse
+    >;
+    'contextual-hint:consume-pending-url-sync': ProtocolWithReturn<
+      ConsumePendingUrlSyncContextualHintMessage,
+      ConsumePendingUrlSyncContextualHintResponse
     >;
   }
 }

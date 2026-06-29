@@ -1,4 +1,16 @@
 export type { AutoSyncGroup, AutoSyncState } from './auto-sync-state';
+export type {
+  ContextualHintAction,
+  ContextualHintActionMessage,
+  ContextualHintDefinition,
+  ContextualHintId,
+  ContextualHintScrollMetrics,
+  ContextualHintShowMessage,
+  ContextualHintSurface,
+  ManualAdjustmentHintDecision,
+  PendingUrlSyncContextualHintId,
+  WebpageOverlayContextualHintId,
+} from './contextual-hints';
 export * from './url-sync';
 export type {
   AddTabToSyncMessage,
@@ -9,6 +21,8 @@ export type {
   AutoSyncStatusChangedMessage,
   AutoSyncStatusResponse,
   ConnectionStatus,
+  ConsumePendingUrlSyncContextualHintMessage,
+  ConsumePendingUrlSyncContextualHintResponse,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
@@ -21,7 +35,14 @@ export type {
   ScrollReconnectMessage,
   ScrollRequestReinjectMessage,
   ScrollSyncMessage,
+  SavePendingUrlSyncContextualHintMessage,
+  SavePendingUrlSyncContextualHintResponse,
+  StartSyncBackgroundResponse,
+  StartSyncConnectionResult,
+  StartSyncConnectionResults,
+  StartSyncContentResponse,
   StartSyncMessage,
+  StartSyncResponse,
   StopSyncMessage,
   SyncBaselineUpdateMessage,
   SyncedTabInfo,

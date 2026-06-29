@@ -45,8 +45,10 @@ export {
   clearManualScrollOffset,
   clearStorage,
   getManualScrollOffset,
+  isContextualHintDismissed,
   loadAutoSyncEnabled,
   loadAutoSyncExcludedUrls,
+  loadDismissedContextualHintIds,
   loadExcludedDomains,
   loadManualScrollOffsets,
   loadPanelMinimized,
@@ -57,6 +59,7 @@ export {
   repairUrlSyncMode,
   saveAutoSyncEnabled,
   saveAutoSyncExcludedUrls,
+  saveDismissedContextualHintId,
   saveExcludedDomains,
   saveManualScrollOffset,
   savePanelMinimized,
@@ -74,3 +77,4 @@ export {
 } from './tab-similarity';
 export { detectBrowserType, isForbiddenUrl } from './url-utils';
 export { cn } from './utils';
+export * from './contextual-hints';

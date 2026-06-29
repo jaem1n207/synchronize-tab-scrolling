@@ -217,7 +217,7 @@ THROTTLE_DELAY < PROGRAMMATIC_SCROLL_GRACE_PERIOD
 
 ### 규칙
 
-> 탭별로 독립적이어야 하는 데이터는 `browser.storage.local`에 저장하지 마세요. `sessionStorage`를 사용하세요.
+> 탭별로 독립적이어야 하는 데이터는 `browser.storage.local`에 저장하지 마세요. 기본은 `sessionStorage`입니다. 단, 같은 탭에서 cross-origin navigation 이후에도 읽어야 하는 임시 상태는 page `sessionStorage`가 origin별로 갈라지므로 tab-keyed background/session store를 사용하세요.
 
 ### 배경
 
@@ -231,14 +231,20 @@ browser.storage.local.set({ panelPosition: { x: 200, y: 300 } })
 sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
 → 각 탭이 독립적인 sessionStorage를 가짐
 → 크로스탭 오염 원천 차단
+
+✅ GOOD: tab-keyed background store (cross-origin navigation 이후에도 같은 탭에서 읽어야 함)
+pendingUrlSyncContextualHints.set(tabId, 'page-change-synced')
+→ raw URL 없이 tabId와 hintId만 보관
+→ 다른 origin으로 이동해도 같은 탭의 후속 content script가 읽을 수 있음
 ```
 
 ### 언제 어떤 저장소를 사용하는가?
 
-| 저장소                  | 범위                | 사용 시점                                  |
-| ----------------------- | ------------------- | ------------------------------------------ |
-| `browser.storage.local` | 전역 (모든 탭 공유) | 사용자 설정, 동기화 모드, URL sync 토글 등 |
-| `sessionStorage`        | 탭별 독립           | UI 위치, 탭별 임시 상태 등                 |
+| 저장소                     | 범위                         | 사용 시점                                                            |
+| -------------------------- | ---------------------------- | -------------------------------------------------------------------- |
+| `browser.storage.local`    | 전역 (모든 탭 공유)          | 사용자 설정, 동기화 모드, URL sync 토글 등                           |
+| `sessionStorage`           | 탭별 독립                    | UI 위치, 탭별 임시 상태 등                                           |
+| tab-keyed background store | 탭별 독립 + origin 이동 유지 | URL Sync 후속 contextual hint처럼 navigation을 건너야 하는 임시 상태 |
 
 ### 체크리스트
 
@@ -246,6 +252,7 @@ sessionStorage.setItem('__sync_tab_scroll_panel_pos', '{"x":200,"y":300}')
 
 - [ ] 이 상태가 **모든 탭에서 동일해야** 하는가? → `browser.storage.local`
 - [ ] 이 상태가 **탭별로 독립적**이어야 하는가? → `sessionStorage`
+- [ ] 같은 탭의 **cross-origin navigation 이후에도 읽어야** 하는가? → tab-keyed background/session store
 - [ ] 동기화 인프라(`sendMessage`)를 통해 **공유할 필요가 있는가?** → 공유가 불필요하면 브로드캐스트하지 마라
 
 ---

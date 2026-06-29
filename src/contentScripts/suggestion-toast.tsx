@@ -8,7 +8,16 @@ import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
+import {
+  getContextualHintShortcutLabel,
+  isWebpageOverlayContextualHintId,
+} from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { isContextualHintDismissed, saveDismissedContextualHintId } from '~/shared/lib/storage';
+import type {
+  ContextualHintShowMessage,
+  WebpageOverlayContextualHintId,
+} from '~/shared/types/contextual-hints';
 import type {
   SyncSuggestionMessage,
   AddTabToSyncMessage,
@@ -16,6 +25,7 @@ import type {
   DismissSyncSuggestionToastMessage,
 } from '~/shared/types/messages';
 
+import { ContextualHintToast } from './components/contextual-hint-toast';
 import { SyncSuggestionToast, AddTabToSyncToast } from './components/sync-suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'suggestion-toast' });
@@ -24,6 +34,8 @@ let toastRoot: ReturnType<typeof createRoot> | null = null;
 let toastContainer: HTMLDivElement | null = null;
 let currentSuggestion: SyncSuggestionMessage | null = null;
 let currentAddTabSuggestion: AddTabToSyncMessage | null = null;
+let currentContextualHint: ContextualHintShowMessage | null = null;
+const pendingContextualHintDismissals = new Set<WebpageOverlayContextualHintId>();
 let cssLoaded = false;
 let cssLoadPromise: Promise<void> | null = null;
 
@@ -38,6 +50,12 @@ let messageHandlersRegistered = false;
  */
 function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function isSupportedContextualHint(
+  message: ContextualHintShowMessage,
+): message is ContextualHintShowMessage & { hintId: WebpageOverlayContextualHintId } {
+  return message.surface === 'webpage-overlay' && isWebpageOverlayContextualHintId(message.hintId);
 }
 
 /**
@@ -207,14 +225,76 @@ async function ensureToastContainer(): Promise<void> {
       line-height: 1.5;
     }
 
-    /* CRITICAL FIX: Override rem-based text size classes with absolute pixel values
+    /* CRITICAL FIX: Override rem-based toast utilities with absolute pixel values.
      * rem units in Shadow DOM still reference the host document's root font-size,
      * causing inconsistent sizes across different websites.
      * These pixel overrides ensure consistent appearance regardless of host styles.
      */
-    .text-xs { font-size: 12px !important; }
-    .text-sm { font-size: 14px !important; }
-    .text-base { font-size: 16px !important; }
+    #scroll-sync-suggestion-app .text-xs {
+      font-size: 12px !important;
+      line-height: 16px !important;
+    }
+
+    #scroll-sync-suggestion-app .text-sm {
+      font-size: 14px !important;
+      line-height: 20px !important;
+    }
+
+    #scroll-sync-suggestion-app .text-base {
+      font-size: 16px !important;
+      line-height: 24px !important;
+    }
+
+    #scroll-sync-suggestion-app .bottom-6 { bottom: 24px !important; }
+    #scroll-sync-suggestion-app .right-6 { right: 24px !important; }
+    #scroll-sync-suggestion-app .max-w-sm { max-width: 384px !important; }
+
+    #scroll-sync-suggestion-app .rounded-lg { border-radius: 8px !important; }
+    #scroll-sync-suggestion-app .rounded-md { border-radius: 6px !important; }
+    #scroll-sync-suggestion-app .rounded-sm { border-radius: 2px !important; }
+
+    #scroll-sync-suggestion-app .p-4 { padding: 16px !important; }
+    #scroll-sync-suggestion-app .p-1 { padding: 4px !important; }
+    #scroll-sync-suggestion-app .px-3 {
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+    }
+    #scroll-sync-suggestion-app .px-4 {
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+    }
+    #scroll-sync-suggestion-app .py-1 {
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+    #scroll-sync-suggestion-app .py-2 {
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+    }
+
+    #scroll-sync-suggestion-app .mt-1 { margin-top: 4px !important; }
+    #scroll-sync-suggestion-app .mt-2 { margin-top: 8px !important; }
+    #scroll-sync-suggestion-app .mt-3 { margin-top: 12px !important; }
+    #scroll-sync-suggestion-app .mt-4 { margin-top: 16px !important; }
+
+    #scroll-sync-suggestion-app .gap-1 { gap: 4px !important; }
+    #scroll-sync-suggestion-app .gap-2 { gap: 8px !important; }
+    #scroll-sync-suggestion-app .gap-3 { gap: 12px !important; }
+
+    #scroll-sync-suggestion-app .h-1 { height: 4px !important; }
+    #scroll-sync-suggestion-app .h-9 { height: 36px !important; }
+    #scroll-sync-suggestion-app .h-10 { height: 40px !important; }
+    #scroll-sync-suggestion-app .w-4 { width: 16px !important; }
+    #scroll-sync-suggestion-app .h-4 { height: 16px !important; }
+    #scroll-sync-suggestion-app .w-5 { width: 20px !important; }
+    #scroll-sync-suggestion-app .h-5 { height: 20px !important; }
+    #scroll-sync-suggestion-app .w-10 { width: 40px !important; }
+
+    #scroll-sync-suggestion-app .space-y-1 > :not([hidden]) ~ :not([hidden]) {
+      --un-space-y-reverse: 0;
+      margin-top: calc(4px * calc(1 - var(--un-space-y-reverse))) !important;
+      margin-bottom: calc(4px * var(--un-space-y-reverse)) !important;
+    }
 
     /* Scrollbar styling for better UX when content overflows */
     *::-webkit-scrollbar {
@@ -270,7 +350,7 @@ async function ensureToastContainer(): Promise<void> {
       --border: 0 0% 89.8%;
       --input: 0 0% 89.8%;
       --ring: 0 0% 3.9%;
-      --radius: 0.5rem;
+      --radius: 8px;
       color-scheme: light only;
       --colors-background: hsl(var(--background));
       --colors-foreground: hsl(var(--foreground));
@@ -314,7 +394,7 @@ async function ensureToastContainer(): Promise<void> {
       --border: 0 0% 14.9%;
       --input: 0 0% 14.9%;
       --ring: 0 0% 83.1%;
-      --radius: 0.5rem;
+      --radius: 8px;
       color-scheme: dark only;
       --colors-background: hsl(var(--background));
       --colors-foreground: hsl(var(--foreground));
@@ -526,6 +606,48 @@ function renderToast() {
     renderToast();
   };
 
+  const handleContextualHintAutoDismiss = (hintId: WebpageOverlayContextualHintId) => {
+    if (currentContextualHint?.hintId !== hintId) {
+      return;
+    }
+
+    currentContextualHint = null;
+    renderToast();
+  };
+
+  const handleContextualHintOpenSettings = (hintId: WebpageOverlayContextualHintId) => {
+    if (currentContextualHint?.hintId !== hintId) {
+      return;
+    }
+
+    currentContextualHint = null;
+    renderToast();
+
+    window.dispatchEvent(new CustomEvent('scroll-sync-open-url-sync-settings'));
+  };
+
+  const handleContextualHintHidePermanently = async (hintId: WebpageOverlayContextualHintId) => {
+    if (currentContextualHint?.hintId !== hintId) {
+      return;
+    }
+
+    pendingContextualHintDismissals.add(hintId);
+    try {
+      await saveDismissedContextualHintId(hintId);
+    } catch (error) {
+      await logger.error('Failed to save dismissed contextual hint ID', error);
+    } finally {
+      pendingContextualHintDismissals.delete(hintId);
+    }
+
+    if (currentContextualHint?.hintId === hintId) {
+      currentContextualHint = null;
+      renderToast();
+    }
+  };
+
+  const activeContextualHint = currentContextualHint;
+
   toastRoot.render(
     <>
       {currentSuggestion && (
@@ -543,6 +665,22 @@ function renderToast() {
           onPermanentExclude={handleAddTabPermanentExclude}
           onReject={handleAddTabReject}
         />
+      )}
+      {activeContextualHint && activeContextualHint.surface === 'webpage-overlay' && (
+        <>
+          {isSupportedContextualHint(activeContextualHint) && (
+            <ContextualHintToast
+              key={activeContextualHint.hintId}
+              hintId={activeContextualHint.hintId}
+              shortcutLabel={getContextualHintShortcutLabel()}
+              onAutoDismiss={() => handleContextualHintAutoDismiss(activeContextualHint.hintId)}
+              onHidePermanently={() =>
+                handleContextualHintHidePermanently(activeContextualHint.hintId)
+              }
+              onOpenSettings={() => handleContextualHintOpenSettings(activeContextualHint.hintId)}
+            />
+          )}
+        </>
       )}
     </>,
   );
@@ -583,10 +721,47 @@ export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage)
   renderToast();
 }
 
+export async function showContextualHintToast(hint: ContextualHintShowMessage) {
+  if (!isSupportedContextualHint(hint)) {
+    logger.debug('[SuggestionToast] Ignoring unsupported contextual hint', {
+      hintId: hint.hintId,
+      surface: hint.surface,
+    });
+    return;
+  }
+
+  if (pendingContextualHintDismissals.has(hint.hintId)) {
+    logger.debug('[SuggestionToast] Skipping contextual hint with pending dismissal', {
+      hintId: hint.hintId,
+      surface: hint.surface,
+    });
+    return;
+  }
+
+  if (await isContextualHintDismissed(hint.hintId)) {
+    logger.debug('[SuggestionToast] Skipping dismissed contextual hint', {
+      hintId: hint.hintId,
+      surface: hint.surface,
+    });
+    return;
+  }
+
+  await ensureToastContainer();
+  currentContextualHint = hint;
+  renderToast();
+}
+
 /**
  * Hide all suggestion toasts
  */
 export function hideSuggestionToasts() {
+  currentSuggestion = null;
+  currentAddTabSuggestion = null;
+  currentContextualHint = null;
+  renderToast();
+}
+
+export function hideTransientSuggestionToasts() {
   currentSuggestion = null;
   currentAddTabSuggestion = null;
   renderToast();
@@ -616,6 +791,7 @@ export function destroySuggestionToast() {
 
   currentSuggestion = null;
   currentAddTabSuggestion = null;
+  currentContextualHint = null;
   cssLoaded = false;
   cssLoadPromise = null;
 }

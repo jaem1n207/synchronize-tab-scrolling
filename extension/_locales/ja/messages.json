@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "新しいタブ「$TITLE$」が同じURLです。同期に追加しますか？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "このタブを現在の同期に追加しますか？"
   },
   "newTabSameTranslatedPage": {
-    "message": "新しいタブ「$TITLE$」が同じ翻訳ページです。同期に追加しますか？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "このタブを現在の同期に追加しますか？"
   },
   "newTabMayBeTranslation": {
-    "message": "新しいタブ「$TITLE$」は同期中ページの翻訳である可能性があります。同期に追加しますか？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "このタブを現在の同期に追加しますか？"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "追加すると、このタブも現在同期中のタブと一緒にスクロールします。"
   },
   "warningResetScrollOffsets": {
-    "message": "このタブを追加すると、手動で調整したスクロール位置がリセットされます"
+    "message": "追加すると、調整したスクロール差分はリセットされます。"
   },
   "existingSyncWarning": {
     "message": "現在$COUNT$個のタブを同期中です。これを開始すると現在の同期が置き換えられます。",
@@ -623,13 +608,13 @@
     "message": "同期開始"
   },
   "addTabButton": {
-    "message": "タブを追加"
+    "message": "現在の同期に追加"
   },
   "notNowButton": {
     "message": "後で"
   },
   "skipButton": {
-    "message": "スキップ"
+    "message": "後で行う"
   },
   "manageExcludedDomains": {
     "message": "除外ドメインの管理"
@@ -693,5 +678,47 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "URL Sync 設定を読み取れなかったため、URL 移動は同期されませんでした。拡張機能の権限を確認するか、もう一度お試しください。"
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "同期したままページごとに調整できます"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "同期したページの長さが違うと、スクロール位置がずれて感じられることがあります。"
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "$SHORTCUT$ キーを押したままスクロールすると、現在のページだけが動きます。",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "キーを離すと、調整した位置から同期が続きます。"
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "この案内を非表示にする"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "他のタブも同じページへ移動しました"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "不要な場合はページ移動の同期をオフにできます。"
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "各タブのサイトを維持しました"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "可能な場合は同じパスだけを開きました。"
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "設定を変更"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "あとで表示"
+  },
+  "contextualHintHideAction": {
+    "message": "この案内を非表示"
   }
 }

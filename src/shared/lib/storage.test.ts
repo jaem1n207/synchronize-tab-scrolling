@@ -5,8 +5,10 @@ import {
   clearManualScrollOffset,
   clearStorage,
   getManualScrollOffset,
+  isContextualHintDismissed,
   loadAutoSyncEnabled,
   loadAutoSyncExcludedUrls,
+  loadDismissedContextualHintIds,
   loadExcludedDomains,
   loadManualScrollOffsets,
   loadPanelMinimized,
@@ -17,6 +19,7 @@ import {
   repairUrlSyncMode,
   saveAutoSyncEnabled,
   saveAutoSyncExcludedUrls,
+  saveDismissedContextualHintId,
   saveExcludedDomains,
   saveManualScrollOffset,
   savePanelMinimized,
@@ -698,6 +701,136 @@ describe('loadExcludedDomains', () => {
 
     await expect(loadExcludedDomains()).resolves.toEqual([]);
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to load excluded domains:', error);
+  });
+});
+
+describe('loadDismissedContextualHintIds', () => {
+  it('returns only valid unique contextual hint IDs from storage', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: [
+        'manual-scroll-adjustment',
+        'unknown-hint',
+        'floating-panel',
+        'manual-scroll-adjustment',
+        42,
+        null,
+      ],
+    });
+
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([
+      'manual-scroll-adjustment',
+      'floating-panel',
+    ]);
+    expect(storageGetMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        'contextualHintsDismissed',
+        'contextualHintsDismissed:manual-scroll-adjustment',
+        'contextualHintsDismissed:floating-panel',
+      ]),
+    );
+  });
+
+  it('returns dismissed hint IDs from legacy array and per-hint keys', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: ['manual-scroll-adjustment'],
+      'contextualHintsDismissed:floating-panel': true,
+      'contextualHintsDismissed:sync-suggestion': false,
+    });
+
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([
+      'manual-scroll-adjustment',
+      'floating-panel',
+    ]);
+  });
+
+  it('returns an empty list when stored value is not an array', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: 'manual-scroll-adjustment',
+    });
+
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([]);
+  });
+
+  it('returns an empty list and logs a generic error when storage read fails', async () => {
+    const error = new Error('get failed');
+    storageGetMock.mockRejectedValue(error);
+
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([]);
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      'Failed to load dismissed contextual hint IDs:',
+      error,
+    );
+  });
+});
+
+describe('saveDismissedContextualHintId', () => {
+  it('saves a dismissed contextual hint ID under a per-hint key', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: ['manual-scroll-adjustment'],
+      'contextualHintsDismissed:floating-panel': true,
+    });
+
+    await expect(saveDismissedContextualHintId('floating-panel')).resolves.toEqual([
+      'manual-scroll-adjustment',
+      'floating-panel',
+    ]);
+    expect(storageSetMock).toHaveBeenCalledWith({
+      'contextualHintsDismissed:floating-panel': true,
+    });
+  });
+
+  it('does not duplicate an already dismissed contextual hint ID from legacy storage', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: ['floating-panel'],
+    });
+
+    await expect(saveDismissedContextualHintId('floating-panel')).resolves.toEqual([
+      'floating-panel',
+    ]);
+    expect(storageSetMock).toHaveBeenCalledWith({
+      'contextualHintsDismissed:floating-panel': true,
+    });
+  });
+
+  it('returns an empty list and logs a generic error when saving fails', async () => {
+    const error = new Error('set failed');
+    storageGetMock.mockResolvedValue({});
+    storageSetMock.mockRejectedValue(error);
+
+    await expect(saveDismissedContextualHintId('floating-panel')).resolves.toEqual([]);
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      'Failed to save dismissed contextual hint ID:',
+      error,
+    );
+  });
+});
+
+describe('isContextualHintDismissed', () => {
+  it('returns true when the contextual hint ID is dismissed', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: ['floating-panel'],
+    });
+
+    await expect(isContextualHintDismissed('floating-panel')).resolves.toBe(true);
+  });
+
+  it('returns false when the contextual hint ID is not dismissed', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: ['floating-panel'],
+    });
+
+    await expect(isContextualHintDismissed('manual-scroll-adjustment')).resolves.toBe(false);
+  });
+
+  it('returns false and logs a generic error when storage read fails', async () => {
+    const error = new Error('get failed');
+    storageGetMock.mockRejectedValue(error);
+
+    await expect(isContextualHintDismissed('floating-panel')).resolves.toBe(false);
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      'Failed to check dismissed contextual hint ID:',
+      error,
+    );
   });
 });
 

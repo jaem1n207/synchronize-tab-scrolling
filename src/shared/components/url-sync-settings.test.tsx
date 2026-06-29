@@ -312,6 +312,41 @@ describe('UrlSyncSettings', () => {
       ).toBeInTheDocument();
     });
 
+    it('expands inline settings when expandToken changes to a positive value', () => {
+      const { rerender } = render(
+        <UrlSyncSettings
+          enabled={true}
+          expandToken={0}
+          mode="follow-changed-tab"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Change page sync mode' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+
+      rerender(
+        <UrlSyncSettings
+          enabled={true}
+          expandToken={1}
+          mode="follow-changed-tab"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Hide page sync modes' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
+      expect(screen.getByText('Other tabs move to the website you changed.')).toBeInTheDocument();
+    });
+
     it('collapses after a successful mode change', async () => {
       const onModeChange = vi.fn().mockResolvedValue(undefined);
       const user = userEvent.setup();

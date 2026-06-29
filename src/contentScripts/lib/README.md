@@ -4,11 +4,12 @@ Utilities used by `src/contentScripts/scroll-sync.ts` and related content-script
 
 ## Files
 
-| File                             | Purpose                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `instant-programmatic-scroll.ts` | Instant receiver-side scroll application and latest-wins rAF scheduling |
-| `scroll-sync-state.ts`           | Scroll sync state factories, timing constants, and state transitions    |
-| `translated-page-metadata.ts`    | Canonical/alternate metadata extraction for translated-page matching    |
+| File                                  | Purpose                                                                 |
+| ------------------------------------- | ----------------------------------------------------------------------- |
+| `instant-programmatic-scroll.ts`      | Instant receiver-side scroll application and latest-wins rAF scheduling |
+| `contextual-hint-navigation-queue.ts` | Pure URL Sync mode → post-navigation contextual hint mapping            |
+| `scroll-sync-state.ts`                | Scroll sync state factories, timing constants, and state transitions    |
+| `translated-page-metadata.ts`         | Canonical/alternate metadata extraction for translated-page matching    |
 
 ## Instant Programmatic Scroll
 
@@ -33,3 +34,5 @@ baselines, resets, and stop transitions.
 - Do not log raw URLs, titles, full payloads, or page metadata from content-script utilities.
 - Keep `PROGRAMMATIC_SCROLL_GRACE_PERIOD` larger than the full pipeline delay, including receiver
   rAF coalescing.
+- Do not store post-navigation URL Sync hints in page `sessionStorage`; it is origin-scoped and is
+  lost on cross-origin navigation. Use the background tab-keyed pending hint store.

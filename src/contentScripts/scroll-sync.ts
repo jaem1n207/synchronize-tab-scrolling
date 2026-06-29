@@ -8,6 +8,7 @@
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
+import { isWebpageOverlayContextualHintId } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
@@ -26,12 +27,18 @@ import {
 } from '~/shared/lib/storage';
 import { resolveUrlSyncTarget } from '~/shared/lib/translated-page-url-utils';
 import type {
+  ContextualHintScrollMetrics,
+  ContextualHintShowMessage,
+  WebpageOverlayContextualHintId,
+} from '~/shared/types/contextual-hints';
+import type {
   UrlSyncMode,
   UrlSyncNotice,
   UrlSyncPanelNoticeEventDetail,
 } from '~/shared/types/url-sync';
 
 import { cleanupKeyboardHandler, initKeyboardHandler } from './keyboard-handler';
+import { getPendingUrlSyncHintIdForMode } from './lib/contextual-hint-navigation-queue';
 import {
   applyInstantProgrammaticScroll,
   createLatestProgrammaticScrollScheduler,
@@ -55,7 +62,8 @@ import { destroyPanel, hidePanel, showPanel } from './panel';
 import {
   showSyncSuggestionToast,
   showAddTabSuggestionToast,
-  hideSuggestionToasts,
+  showContextualHintToast,
+  hideTransientSuggestionToasts,
 } from './suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'scroll-sync' });
@@ -106,6 +114,44 @@ function cancelPendingProgrammaticScroll(): void {
   programmaticScrollScheduler.cancel();
 }
 
+function isSupportedWebpageOverlayContextualHint(
+  payload: ContextualHintShowMessage,
+): payload is ContextualHintShowMessage & {
+  hintId: WebpageOverlayContextualHintId;
+} {
+  return payload.surface === 'webpage-overlay' && isWebpageOverlayContextualHintId(payload.hintId);
+}
+
+async function showPendingUrlSyncContextualHint(): Promise<void> {
+  const consumeResult = await sendMessage(
+    'contextual-hint:consume-pending-url-sync',
+    {},
+    'background',
+  ).catch(() => ({ status: 'failed' as const }));
+
+  if (!consumeResult || consumeResult.status === 'failed') {
+    logger.warn('Failed to read pending URL Sync contextual hint', {
+      operation: 'consume-pending-url-sync-contextual-hint',
+    });
+    return;
+  }
+
+  if (!consumeResult.hintId) {
+    return;
+  }
+
+  logger.info('Showing pending URL Sync contextual hint', {
+    hintId: consumeResult.hintId,
+    source: 'url-sync',
+  });
+
+  await showContextualHintToast({
+    hintId: consumeResult.hintId,
+    surface: 'webpage-overlay',
+    source: 'url-sync',
+  });
+}
+
 /**
  * Get current scroll information
  */
@@ -114,6 +160,17 @@ function getScrollInfo() {
     scrollTop: window.scrollY || document.documentElement.scrollTop,
     scrollHeight: document.documentElement.scrollHeight,
     clientHeight: document.documentElement.clientHeight,
+  };
+}
+
+function getContextualHintScrollMetrics(tabId: number): ContextualHintScrollMetrics {
+  const { scrollHeight, clientHeight } = getScrollInfo();
+
+  return {
+    tabId,
+    scrollHeight,
+    clientHeight,
+    scrollableHeight: Math.max(0, scrollHeight - clientHeight),
   };
 }
 
@@ -698,8 +755,8 @@ export function initScrollSync() {
   onMessage('scroll:start', async ({ data }) => {
     const payload = data;
 
-    // Hide any pending suggestion toasts since sync is starting
-    hideSuggestionToasts();
+    // Hide pre-sync suggestion toasts without clearing contextual onboarding shown after navigation.
+    hideTransientSuggestionToasts();
 
     // Clean up any existing sync state before starting new sync
     // This is critical for re-sync scenarios where content script is already active
@@ -802,7 +859,11 @@ export function initScrollSync() {
     // Start visibility change monitoring for idle tab reconnection
     startVisibilityChangeMonitoring();
 
-    return { success: true, tabId: syncState.tabId };
+    return {
+      success: true,
+      tabId: syncState.tabId,
+      metrics: getContextualHintScrollMetrics(syncState.tabId),
+    };
   });
 
   // Listen for stop sync message
@@ -1064,6 +1125,20 @@ export function initScrollSync() {
     cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
 
+    const pendingHintId = getPendingUrlSyncHintIdForMode(modeRepairResult.mode);
+    const pendingHintSaveResult = await sendMessage(
+      'contextual-hint:save-pending-url-sync',
+      { hintId: pendingHintId },
+      'background',
+    ).catch(() => ({ status: 'failed' as const }));
+    if (!pendingHintSaveResult || pendingHintSaveResult.status === 'failed') {
+      logger.warn('Failed to save pending URL Sync contextual hint', {
+        hintId: pendingHintId,
+        mode: modeRepairResult.mode,
+        operation: 'save-pending-url-sync-contextual-hint',
+      });
+    }
+
     navigateToUrl(resolution.url);
   });
 
@@ -1101,6 +1176,26 @@ export function initScrollSync() {
     showAddTabSuggestionToast(payload);
     return { success: true };
   });
+
+  onMessage('contextual-hint:show', async ({ data }) => {
+    const payload = data;
+    if (!isSupportedWebpageOverlayContextualHint(payload)) {
+      logger.debug('Ignoring unsupported contextual hint', {
+        hintId: payload.hintId,
+        surface: payload.surface,
+      });
+      return { success: true };
+    }
+
+    logger.info('Showing contextual hint', {
+      hintId: payload.hintId,
+      surface: payload.surface,
+    });
+    await showContextualHintToast(payload);
+    return { success: true };
+  });
+
+  void showPendingUrlSyncContextualHint();
 }
 
 /**

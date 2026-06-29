@@ -21,6 +21,7 @@ import {
 } from '../lib/auto-sync-state';
 import { showAddTabSuggestion, showSyncSuggestion } from '../lib/auto-sync-suggestions';
 import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
+import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
@@ -122,6 +123,10 @@ vi.mock('../lib/auto-sync-suggestions', () => ({
   showAddTabSuggestion: vi.fn(),
   isDomainSnoozed: vi.fn().mockReturnValue(false),
   isDomainPermanentlyExcluded: vi.fn().mockReturnValue(false),
+}));
+
+vi.mock('../lib/contextual-hint-state', () => ({
+  clearPendingUrlSyncContextualHint: vi.fn(),
 }));
 
 vi.mock('../lib/content-script-manager', () => ({
@@ -233,6 +238,12 @@ describe('registerTabEventHandlers', () => {
       await getListener('tabs.onRemoved')(7);
 
       expect(manualSyncOverriddenTabs.has(7)).toBe(false);
+    });
+
+    it('clears pending URL Sync contextual hints for removed tabs', async () => {
+      await getListener('tabs.onRemoved')(17);
+
+      expect(clearPendingUrlSyncContextualHint).toHaveBeenCalledWith(17);
     });
 
     it('removes tab from auto-sync groups when enabled', async () => {

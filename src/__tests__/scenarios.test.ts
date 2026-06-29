@@ -117,7 +117,9 @@ vi.mock('~/contentScripts/panel', () => ({
 vi.mock('~/contentScripts/suggestion-toast', () => ({
   showSyncSuggestionToast: vi.fn(),
   showAddTabSuggestionToast: vi.fn(),
+  showContextualHintToast: vi.fn(),
   hideSuggestionToasts: vi.fn(),
+  hideTransientSuggestionToasts: vi.fn(),
 }));
 
 import { updateAutoSyncGroup } from '~/background/lib/auto-sync-groups';
@@ -242,6 +244,17 @@ function setWindowUrl(url: string): void {
   jsdom.reconfigure({ url });
 }
 
+function setDocumentScrollMetrics(scrollHeight: number, clientHeight: number): void {
+  Object.defineProperty(document.documentElement, 'scrollHeight', {
+    configurable: true,
+    value: scrollHeight,
+  });
+  Object.defineProperty(document.documentElement, 'clientHeight', {
+    configurable: true,
+    value: clientHeight,
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -304,6 +317,29 @@ beforeEach(() => {
 afterEach(async () => {
   await stopContentSync();
   vi.unstubAllGlobals();
+});
+
+describe('Scenario: scroll start acknowledgements', () => {
+  it('returns current scroll metrics in the scroll:start acknowledgement', async () => {
+    setDocumentScrollMetrics(3200, 900);
+
+    const response = await invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 77,
+      tabIds: [77, 78],
+    });
+
+    expect(response).toEqual({
+      success: true,
+      tabId: 77,
+      metrics: {
+        tabId: 77,
+        scrollHeight: 3200,
+        clientHeight: 900,
+        scrollableHeight: 2300,
+      },
+    });
+  });
 });
 
 describe('Scenario: URL sync toggle behavior', () => {

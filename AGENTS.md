@@ -86,7 +86,7 @@ pnpm start:firefox      # Launch in Firefox
 
 ### P1: Storage & State (will cause leaks)
 
-6. **Tab-specific data → `sessionStorage`** — Never `browser.storage.local` for per-tab state
+6. **Tab-specific page data → `sessionStorage`** — Never `browser.storage.local` for per-tab state. If state must survive cross-origin navigation in the same tab, use a tab-keyed background/session store instead of page `sessionStorage`.
 7. **SW in-memory state lost on restart** — `Set`/`Map` state must restore from persistent storage
 8. **Check `syncState` before pinging content scripts** — Chrome throttles background tab network
 9. **State truthfulness** — UI must show the mode that is actually active. If storage read/write/repair fails, return an explicit failure state, avoid silent fallback to another mode, and show an actionable notice instead of pretending the requested setting is active.

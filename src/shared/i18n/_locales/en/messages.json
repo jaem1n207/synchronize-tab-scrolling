@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "New tab \"$TITLE$\" has same URL. Add to sync?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Add this tab to the current sync?"
   },
   "newTabSameTranslatedPage": {
-    "message": "New tab \"$TITLE$\" is the same translated page. Add to sync?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Add this tab to the current sync?"
   },
   "newTabMayBeTranslation": {
-    "message": "New tab \"$TITLE$\" may be a translation of the synced page. Add to sync?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Add this tab to the current sync?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "Adding it will scroll this tab together with the tabs currently syncing."
   },
   "warningResetScrollOffsets": {
-    "message": "Adding this tab will reset your scroll position adjustments"
+    "message": "Adding it will reset your scroll position adjustments."
   },
   "existingSyncWarning": {
     "message": "You're currently syncing $COUNT$ tabs. Starting this will replace the active sync.",
@@ -623,13 +608,13 @@
     "message": "Start Sync"
   },
   "addTabButton": {
-    "message": "Add Tab"
+    "message": "Add to current sync"
   },
   "notNowButton": {
     "message": "Not Now"
   },
   "skipButton": {
-    "message": "Skip"
+    "message": "Do later"
   },
   "manageExcludedDomains": {
     "message": "Manage Excluded Domains"
@@ -693,5 +678,47 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "Could not read the URL Sync setting. URL navigation was not synced. Check extension permissions or try again."
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "Adjust one page while sync stays on"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "When synced pages have different lengths, the scroll position can feel offset."
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "Hold $SHORTCUT$ and scroll to move only the current page.",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "Release the key and sync continues from the adjusted position."
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "Hide this hint"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "Other tabs moved to the same page"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "Turn off page-change sync if you do not want this."
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "Each tab kept its website"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "Only the matching path was opened when possible."
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "Change setting"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "Show later"
+  },
+  "contextualHintHideAction": {
+    "message": "Hide this hint"
   }
 }
