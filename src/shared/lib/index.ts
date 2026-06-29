@@ -74,3 +74,4 @@ export {
 } from './tab-similarity';
 export { detectBrowserType, isForbiddenUrl } from './url-utils';
 export { cn } from './utils';
+export * from './contextual-hints';
