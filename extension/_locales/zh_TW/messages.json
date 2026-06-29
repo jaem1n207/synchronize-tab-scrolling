@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "無法讀取 URL Sync 設定。未同步 URL 導覽。請檢查擴充功能權限或再試一次。"
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "同步保持開啟時，也能單獨調整頁面"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "同步的頁面長度不同時，捲動位置可能會感覺有偏差。"
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "按住 $SHORTCUT$ 並捲動，只移動目前頁面。",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "放開按鍵後，會從調整後的位置繼續同步。"
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "隱藏此提示"
   }
 }

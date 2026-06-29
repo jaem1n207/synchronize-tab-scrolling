@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "无法读取 URL Sync 设置。未同步 URL 导航。请检查扩展权限或重试。"
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "同步保持开启时，也能单独调整页面"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "同步的页面长度不同时，滚动位置可能会感觉有偏差。"
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "按住 $SHORTCUT$ 并滚动，只移动当前页面。",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "松开按键后，会从调整后的位置继续同步。"
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "隐藏此提示"
   }
 }
