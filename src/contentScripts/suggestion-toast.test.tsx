@@ -17,7 +17,9 @@ describe('showContextualHintToast', () => {
     });
   });
 
-  function mockSuggestionToastDependencies(isContextualHintDismissed = vi.fn().mockResolvedValue(false)) {
+  function mockSuggestionToastDependencies(
+    isContextualHintDismissed = vi.fn().mockResolvedValue(false),
+  ) {
     vi.doMock('~/shared/lib/storage', () => ({
       isContextualHintDismissed,
       saveDismissedContextualHintId: vi.fn(),
@@ -100,9 +102,8 @@ describe('showContextualHintToast', () => {
   it('keeps contextual hints visible when sync start clears suggestion toasts', async () => {
     mockSuggestionToastDependencies();
 
-    const { hideTransientSuggestionToasts, showContextualHintToast } = await import(
-      './suggestion-toast'
-    );
+    const { hideTransientSuggestionToasts, showContextualHintToast } =
+      await import('./suggestion-toast');
 
     const showPromise = showContextualHintToast({
       hintId: 'page-change-synced',
