@@ -33,6 +33,7 @@ import {
   isDomainPermanentlyExcluded,
 } from '../lib/auto-sync-suggestions';
 import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
+import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
@@ -166,6 +167,7 @@ async function findActiveSyncMetadataMatch(
 export function registerTabEventHandlers(): void {
   browser.tabs.onRemoved.addListener(async (tabId) => {
     manualSyncOverriddenTabs.delete(tabId);
+    clearPendingUrlSyncContextualHint(tabId);
 
     if (autoSyncState.enabled) {
       await removeTabFromAllAutoSyncGroups(tabId);
