@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "Could not read the URL Sync setting. URL navigation was not synced. Check extension permissions or try again."
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "Adjust one page while sync stays on"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "When synced pages have different lengths, the scroll position can feel offset."
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "Hold $SHORTCUT$ and scroll to move only the current page.",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "Release the key and sync continues from the adjusted position."
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "Hide this hint"
   }
 }
