@@ -7,8 +7,8 @@ import type {
   ManualAdjustmentHintDecision,
 } from '../types/contextual-hints';
 
-export const MANUAL_HINT_MIN_SCROLLABLE_RATIO = 1.4;
-export const MANUAL_HINT_MIN_SCROLLABLE_DELTA_PX = 600;
+export const MANUAL_HINT_MIN_SCROLLABLE_RATIO = 1.1;
+export const MANUAL_HINT_MIN_SCROLLABLE_DELTA_PX = 100;
 
 export const CONTEXTUAL_HINT_REGISTRY: Record<ContextualHintId, ContextualHintDefinition> = {
   'start-minimum-tabs': {

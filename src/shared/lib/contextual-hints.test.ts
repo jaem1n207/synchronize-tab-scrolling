@@ -34,26 +34,26 @@ describe('contextual hints', () => {
     expect(isContextualHintId('constructor')).toBe(false);
   });
 
-  it('shows manual hint when scrollable heights cross ratio and pixel thresholds', () => {
+  it('shows manual hint when scrollable heights cross the relaxed ratio and pixel thresholds', () => {
     const decision = getManualAdjustmentHintDecision([
       { tabId: 1, scrollHeight: 2000, clientHeight: 1000, scrollableHeight: 1000 },
-      { tabId: 2, scrollHeight: 3400, clientHeight: 1000, scrollableHeight: 2400 },
+      { tabId: 2, scrollHeight: 2120, clientHeight: 1000, scrollableHeight: 1120 },
     ]);
 
     expect(decision).toEqual({
       shouldShow: true,
-      largestScrollableHeight: 2400,
+      largestScrollableHeight: 1120,
       smallestScrollableHeight: 1000,
-      absoluteDifference: 1400,
-      ratio: 2.4,
+      absoluteDifference: 120,
+      ratio: 1.12,
     });
   });
 
   it('skips manual hint when only ratio threshold passes', () => {
     expect(
       getManualAdjustmentHintDecision([
-        { tabId: 1, scrollHeight: 1000, clientHeight: 600, scrollableHeight: 400 },
-        { tabId: 2, scrollHeight: 1560, clientHeight: 900, scrollableHeight: 660 },
+        { tabId: 1, scrollHeight: 1050, clientHeight: 1000, scrollableHeight: 50 },
+        { tabId: 2, scrollHeight: 1056, clientHeight: 1000, scrollableHeight: 56 },
       ]).shouldShow,
     ).toBe(false);
   });
@@ -62,7 +62,7 @@ describe('contextual hints', () => {
     expect(
       getManualAdjustmentHintDecision([
         { tabId: 1, scrollHeight: 3000, clientHeight: 1000, scrollableHeight: 2000 },
-        { tabId: 2, scrollHeight: 3600, clientHeight: 1000, scrollableHeight: 2600 },
+        { tabId: 2, scrollHeight: 3100, clientHeight: 1000, scrollableHeight: 2100 },
       ]).shouldShow,
     ).toBe(false);
   });

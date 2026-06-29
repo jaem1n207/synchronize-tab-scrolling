@@ -425,9 +425,9 @@ describe('registerScrollSyncHandlers', () => {
           tabId: destination.tabId,
           metrics: {
             tabId: destination.tabId,
-            scrollHeight: destination.tabId === 301 ? 2000 : 2500,
+            scrollHeight: destination.tabId === 301 ? 2000 : 2080,
             clientHeight: 1000,
-            scrollableHeight: destination.tabId === 301 ? 1000 : 1500,
+            scrollableHeight: destination.tabId === 301 ? 1000 : 1080,
           },
         }),
       );
