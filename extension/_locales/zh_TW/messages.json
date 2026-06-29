@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "新標籤頁\"$TITLE$\"具有相同的URL。新增至同步嗎？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "要將此分頁加入目前同步嗎？"
   },
   "newTabSameTranslatedPage": {
-    "message": "新標籤頁\"$TITLE$\"是同一翻譯頁面。新增至同步嗎？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "要將此分頁加入目前同步嗎？"
   },
   "newTabMayBeTranslation": {
-    "message": "新標籤頁\"$TITLE$\"可能是已同步頁面的翻譯版本。新增至同步嗎？",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "要將此分頁加入目前同步嗎？"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "加入後，這個分頁也會和目前正在同步的分頁一起捲動。"
   },
   "warningResetScrollOffsets": {
-    "message": "新增此標籤頁將重設您手動調整的捲動位置"
+    "message": "加入後，你調整過的捲動差異會重設。"
   },
   "existingSyncWarning": {
     "message": "目前正在同步$COUNT$個標籤頁。開始此操作將取代目前的同步。",
@@ -623,13 +608,13 @@
     "message": "開始同步"
   },
   "addTabButton": {
-    "message": "新增標籤頁"
+    "message": "加入目前同步"
   },
   "notNowButton": {
     "message": "稍後"
   },
   "skipButton": {
-    "message": "跳過"
+    "message": "稍後再說"
   },
   "manageExcludedDomains": {
     "message": "管理排除網域"
