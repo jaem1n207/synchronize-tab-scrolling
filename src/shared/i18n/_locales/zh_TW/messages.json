@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "隱藏此提示"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "其他分頁已移至同一頁面"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "如果不需要，可以關閉頁面移動同步。"
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "已保留每個分頁的網站"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "可行時只開啟相同路徑。"
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "變更設定"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "稍後查看"
+  },
+  "contextualHintHideAction": {
+    "message": "隱藏此提示"
   }
 }
