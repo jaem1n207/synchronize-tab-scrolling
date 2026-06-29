@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "Nouvel onglet \"$TITLE$\" a la même URL. Ajouter à la synchronisation ?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Ajouter cet onglet à la synchronisation actuelle ?"
   },
   "newTabSameTranslatedPage": {
-    "message": "Le nouvel onglet \"$TITLE$\" correspond à la même page traduite. L'ajouter à la synchronisation ?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Ajouter cet onglet à la synchronisation actuelle ?"
   },
   "newTabMayBeTranslation": {
-    "message": "Le nouvel onglet \"$TITLE$\" peut être une traduction de la page synchronisée. L'ajouter à la synchronisation ?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Ajouter cet onglet à la synchronisation actuelle ?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "Une fois ajouté, cet onglet défilera avec les onglets actuellement synchronisés."
   },
   "warningResetScrollOffsets": {
-    "message": "L'ajout de cet onglet réinitialisera vos ajustements de position de défilement"
+    "message": "L'ajout réinitialisera vos ajustements de défilement."
   },
   "existingSyncWarning": {
     "message": "Vous synchronisez actuellement $COUNT$ onglets. Démarrer remplacera la synchronisation active.",
@@ -623,13 +608,13 @@
     "message": "Démarrer Sync"
   },
   "addTabButton": {
-    "message": "Ajouter Onglet"
+    "message": "Ajouter à la synchro actuelle"
   },
   "notNowButton": {
     "message": "Pas Maintenant"
   },
   "skipButton": {
-    "message": "Passer"
+    "message": "Plus tard"
   },
   "manageExcludedDomains": {
     "message": "Gérer les domaines exclus"
