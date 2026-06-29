@@ -5,6 +5,7 @@
 
 import browser from 'webextension-polyfill';
 
+import type { ContextualHintId } from '~/shared/types/contextual-hints';
 import type { SyncMode } from '~/shared/types/messages';
 import {
   DEFAULT_URL_SYNC_MODE,
@@ -13,6 +14,7 @@ import {
   type UrlSyncNotice,
 } from '~/shared/types/url-sync';
 
+import { isContextualHintId } from './contextual-hints';
 import { ExtensionLogger } from './logger';
 
 const logger = new ExtensionLogger({ scope: 'storage' });
@@ -31,7 +33,29 @@ const STORAGE_KEYS = {
   AUTO_SYNC_EXCLUDED_URLS: 'autoSyncExcludedUrls',
   AUTO_SYNC_EXCLUDED_DOMAINS: 'autoSyncExcludedDomains',
   SUGGESTION_SNOOZE_UNTIL: 'suggestionSnoozeUntil',
+  CONTEXTUAL_HINTS_DISMISSED: 'contextualHintsDismissed',
 } as const;
+
+function sanitizeContextualHintIds(value: unknown): Array<ContextualHintId> {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const hintIds: Array<ContextualHintId> = [];
+
+  for (const item of value) {
+    if (isContextualHintId(item) && !hintIds.includes(item)) {
+      hintIds.push(item);
+    }
+  }
+
+  return hintIds;
+}
+
+async function readDismissedContextualHintIds(): Promise<Array<ContextualHintId>> {
+  const result = await browser.storage.local.get(STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED);
+  return sanitizeContextualHintIds(result[STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED]);
+}
 
 /**
  * Save sync mode preference
@@ -475,6 +499,45 @@ export async function clearAllSnoozes(): Promise<void> {
     });
   } catch (error) {
     await logger.error('Failed to clear all snoozes:', error);
+  }
+}
+
+export async function loadDismissedContextualHintIds(): Promise<Array<ContextualHintId>> {
+  try {
+    return await readDismissedContextualHintIds();
+  } catch (error) {
+    await logger.error('Failed to load dismissed contextual hint IDs:', error);
+    return [];
+  }
+}
+
+export async function saveDismissedContextualHintId(
+  hintId: ContextualHintId,
+): Promise<Array<ContextualHintId>> {
+  try {
+    const dismissedIds = await readDismissedContextualHintIds();
+    const nextDismissedIds = dismissedIds.includes(hintId)
+      ? dismissedIds
+      : [...dismissedIds, hintId];
+
+    await browser.storage.local.set({
+      [STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED]: nextDismissedIds,
+    });
+
+    return nextDismissedIds;
+  } catch (error) {
+    await logger.error('Failed to save dismissed contextual hint ID:', error);
+    return [];
+  }
+}
+
+export async function isContextualHintDismissed(hintId: ContextualHintId): Promise<boolean> {
+  try {
+    const dismissedIds = await readDismissedContextualHintIds();
+    return dismissedIds.includes(hintId);
+  } catch (error) {
+    await logger.error('Failed to check dismissed contextual hint ID:', error);
+    return false;
   }
 }
 
