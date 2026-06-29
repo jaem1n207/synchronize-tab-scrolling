@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "URL Sync 設定を読み取れなかったため、URL 移動は同期されませんでした。拡張機能の権限を確認するか、もう一度お試しください。"
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "同期したままページごとに調整できます"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "同期したページの長さが違うと、スクロール位置がずれて感じられることがあります。"
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "$SHORTCUT$ キーを押したままスクロールすると、現在のページだけが動きます。",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "キーを離すと、調整した位置から同期が続きます。"
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "この案内を非表示にする"
   }
 }
