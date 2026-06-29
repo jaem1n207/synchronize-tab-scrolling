@@ -10,8 +10,8 @@ import browser from 'webextension-polyfill';
 
 import { getContextualHintShortcutLabel } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { saveDismissedContextualHintId } from '~/shared/lib/storage';
-import type { ContextualHintShowMessage } from '~/shared/types/contextual-hints';
+import { isContextualHintDismissed, saveDismissedContextualHintId } from '~/shared/lib/storage';
+import type { ContextualHintId, ContextualHintShowMessage } from '~/shared/types/contextual-hints';
 import type {
   SyncSuggestionMessage,
   AddTabToSyncMessage,
@@ -45,8 +45,20 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-function isSupportedContextualHint(message: ContextualHintShowMessage): boolean {
-  return message.hintId === 'manual-scroll-adjustment' && message.surface === 'webpage-overlay';
+type SupportedWebpageOverlayHintId = Extract<
+  ContextualHintId,
+  'manual-scroll-adjustment' | 'page-change-synced' | 'keep-website-path-synced'
+>;
+
+function isSupportedContextualHint(
+  message: ContextualHintShowMessage,
+): message is ContextualHintShowMessage & { hintId: SupportedWebpageOverlayHintId } {
+  return (
+    message.surface === 'webpage-overlay' &&
+    (message.hintId === 'manual-scroll-adjustment' ||
+      message.hintId === 'page-change-synced' ||
+      message.hintId === 'keep-website-path-synced')
+  );
 }
 
 /**
@@ -540,6 +552,13 @@ function renderToast() {
     renderToast();
   };
 
+  const handleContextualHintOpenSettings = () => {
+    currentContextualHint = null;
+    renderToast();
+
+    window.dispatchEvent(new CustomEvent('scroll-sync-open-url-sync-settings'));
+  };
+
   const handleContextualHintHidePermanently = async () => {
     if (!currentContextualHint) return;
 
@@ -571,16 +590,19 @@ function renderToast() {
           onReject={handleAddTabReject}
         />
       )}
-      {currentContextualHint &&
-        currentContextualHint.hintId === 'manual-scroll-adjustment' &&
-        currentContextualHint.surface === 'webpage-overlay' && (
-          <ContextualHintToast
-            hintId={currentContextualHint.hintId}
-            shortcutLabel={getContextualHintShortcutLabel()}
-            onAutoDismiss={handleContextualHintAutoDismiss}
-            onHidePermanently={handleContextualHintHidePermanently}
-          />
-        )}
+      {currentContextualHint && currentContextualHint.surface === 'webpage-overlay' && (
+        <>
+          {isSupportedContextualHint(currentContextualHint) && (
+            <ContextualHintToast
+              hintId={currentContextualHint.hintId}
+              shortcutLabel={getContextualHintShortcutLabel()}
+              onAutoDismiss={handleContextualHintAutoDismiss}
+              onHidePermanently={handleContextualHintHidePermanently}
+              onOpenSettings={handleContextualHintOpenSettings}
+            />
+          )}
+        </>
+      )}
     </>,
   );
 }
@@ -623,6 +645,14 @@ export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage)
 export async function showContextualHintToast(hint: ContextualHintShowMessage) {
   if (!isSupportedContextualHint(hint)) {
     logger.debug('[SuggestionToast] Ignoring unsupported contextual hint', {
+      hintId: hint.hintId,
+      surface: hint.surface,
+    });
+    return;
+  }
+
+  if (await isContextualHintDismissed(hint.hintId)) {
+    logger.debug('[SuggestionToast] Skipping dismissed contextual hint', {
       hintId: hint.hintId,
       surface: hint.surface,
     });
