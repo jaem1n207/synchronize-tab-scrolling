@@ -56,6 +56,7 @@ import { destroyPanel, hidePanel, showPanel } from './panel';
 import {
   showSyncSuggestionToast,
   showAddTabSuggestionToast,
+  showContextualHintToast,
   hideSuggestionToasts,
 } from './suggestion-toast';
 
@@ -1115,6 +1116,24 @@ export function initScrollSync() {
       hasMatchKind: payload.matchKind !== undefined,
     });
     showAddTabSuggestionToast(payload);
+    return { success: true };
+  });
+
+  onMessage('contextual-hint:show', async ({ data }) => {
+    const payload = data;
+    if (payload.hintId !== 'manual-scroll-adjustment' || payload.surface !== 'webpage-overlay') {
+      logger.debug('Ignoring unsupported contextual hint', {
+        hintId: payload.hintId,
+        surface: payload.surface,
+      });
+      return { success: true };
+    }
+
+    logger.info('Showing contextual hint', {
+      hintId: payload.hintId,
+      surface: payload.surface,
+    });
+    await showContextualHintToast(payload);
     return { success: true };
   });
 }

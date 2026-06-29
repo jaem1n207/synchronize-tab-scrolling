@@ -8,7 +8,10 @@ import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
+import { getContextualHintShortcutLabel } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { saveDismissedContextualHintId } from '~/shared/lib/storage';
+import type { ContextualHintShowMessage } from '~/shared/types/contextual-hints';
 import type {
   SyncSuggestionMessage,
   AddTabToSyncMessage,
@@ -16,6 +19,7 @@ import type {
   DismissSyncSuggestionToastMessage,
 } from '~/shared/types/messages';
 
+import { ContextualHintToast } from './components/contextual-hint-toast';
 import { SyncSuggestionToast, AddTabToSyncToast } from './components/sync-suggestion-toast';
 
 const logger = new ExtensionLogger({ scope: 'suggestion-toast' });
@@ -24,6 +28,7 @@ let toastRoot: ReturnType<typeof createRoot> | null = null;
 let toastContainer: HTMLDivElement | null = null;
 let currentSuggestion: SyncSuggestionMessage | null = null;
 let currentAddTabSuggestion: AddTabToSyncMessage | null = null;
+let currentContextualHint: ContextualHintShowMessage | null = null;
 let cssLoaded = false;
 let cssLoadPromise: Promise<void> | null = null;
 
@@ -38,6 +43,10 @@ let messageHandlersRegistered = false;
  */
 function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function isSupportedContextualHint(message: ContextualHintShowMessage): boolean {
+  return message.hintId === 'manual-scroll-adjustment' && message.surface === 'webpage-overlay';
 }
 
 /**
@@ -526,6 +535,24 @@ function renderToast() {
     renderToast();
   };
 
+  const handleContextualHintAutoDismiss = () => {
+    currentContextualHint = null;
+    renderToast();
+  };
+
+  const handleContextualHintHidePermanently = async () => {
+    if (!currentContextualHint) return;
+
+    try {
+      await saveDismissedContextualHintId(currentContextualHint.hintId);
+    } catch (error) {
+      await logger.error('Failed to save dismissed contextual hint ID', error);
+    }
+
+    currentContextualHint = null;
+    renderToast();
+  };
+
   toastRoot.render(
     <>
       {currentSuggestion && (
@@ -544,6 +571,16 @@ function renderToast() {
           onReject={handleAddTabReject}
         />
       )}
+      {currentContextualHint &&
+        currentContextualHint.hintId === 'manual-scroll-adjustment' &&
+        currentContextualHint.surface === 'webpage-overlay' && (
+          <ContextualHintToast
+            hintId={currentContextualHint.hintId}
+            shortcutLabel={getContextualHintShortcutLabel()}
+            onAutoDismiss={handleContextualHintAutoDismiss}
+            onHidePermanently={handleContextualHintHidePermanently}
+          />
+        )}
     </>,
   );
 }
@@ -583,12 +620,27 @@ export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage)
   renderToast();
 }
 
+export async function showContextualHintToast(hint: ContextualHintShowMessage) {
+  if (!isSupportedContextualHint(hint)) {
+    logger.debug('[SuggestionToast] Ignoring unsupported contextual hint', {
+      hintId: hint.hintId,
+      surface: hint.surface,
+    });
+    return;
+  }
+
+  await ensureToastContainer();
+  currentContextualHint = hint;
+  renderToast();
+}
+
 /**
  * Hide all suggestion toasts
  */
 export function hideSuggestionToasts() {
   currentSuggestion = null;
   currentAddTabSuggestion = null;
+  currentContextualHint = null;
   renderToast();
 }
 
@@ -616,6 +668,7 @@ export function destroySuggestionToast() {
 
   currentSuggestion = null;
   currentAddTabSuggestion = null;
+  currentContextualHint = null;
   cssLoaded = false;
   cssLoadPromise = null;
 }
