@@ -1,7 +1,10 @@
 import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
-import { getManualAdjustmentHintDecision } from '~/shared/lib/contextual-hints';
+import {
+  getManualAdjustmentHintDecision,
+  isPendingUrlSyncContextualHintId,
+} from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { isContextualHintDismissed } from '~/shared/lib/storage';
 import type {
@@ -21,6 +24,10 @@ import {
   pendingSuggestions,
   addTabSuggestedTabs,
 } from '../lib/auto-sync-state';
+import {
+  consumePendingUrlSyncContextualHint,
+  savePendingUrlSyncContextualHint,
+} from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
@@ -37,12 +44,19 @@ function isValidScrollMetrics(
   metrics: StartSyncContentResponse['metrics'],
   tabId: number,
 ): metrics is ContextualHintScrollMetrics {
+  if (metrics === undefined || metrics.tabId !== tabId) {
+    return false;
+  }
+
+  const expectedScrollableHeight = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+
   return (
-    metrics !== undefined &&
-    metrics.tabId === tabId &&
     Number.isFinite(metrics.scrollHeight) &&
     Number.isFinite(metrics.clientHeight) &&
-    Number.isFinite(metrics.scrollableHeight)
+    Number.isFinite(metrics.scrollableHeight) &&
+    metrics.scrollHeight >= 0 &&
+    metrics.clientHeight >= 0 &&
+    metrics.scrollableHeight === expectedScrollableHeight
   );
 }
 
@@ -89,6 +103,26 @@ async function maybeShowManualAdjustmentHint(
 
 export function registerScrollSyncHandlers(): void {
   logger.info('Registering scroll:start handler');
+  onMessage('contextual-hint:save-pending-url-sync', ({ data, sender }) => {
+    if (!sender.tabId || !isPendingUrlSyncContextualHintId(data.hintId)) {
+      return { status: 'failed' as const };
+    }
+
+    savePendingUrlSyncContextualHint(sender.tabId, data.hintId);
+    return { status: 'success' as const };
+  });
+
+  onMessage('contextual-hint:consume-pending-url-sync', ({ sender }) => {
+    if (!sender.tabId) {
+      return { status: 'failed' as const };
+    }
+
+    return {
+      status: 'success' as const,
+      hintId: consumePendingUrlSyncContextualHint(sender.tabId),
+    };
+  });
+
   onMessage('scroll:start', async ({ data: startRequest }) => {
     logger.info('Received scroll:start message', {
       requestedTabCount: startRequest.tabIds.length,

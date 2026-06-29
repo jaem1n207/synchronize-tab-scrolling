@@ -24,6 +24,10 @@ import {
   manualSyncOverriddenTabs,
   pendingSuggestions,
 } from '../lib/auto-sync-state';
+import {
+  consumePendingUrlSyncContextualHint,
+  savePendingUrlSyncContextualHint,
+} from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
@@ -92,6 +96,11 @@ vi.mock('../lib/auto-sync-state', () => ({
   manualSyncOverriddenTabs: new Set<number>(),
   pendingSuggestions: new Set<string>(),
   addTabSuggestedTabs: new Set<number>(),
+}));
+
+vi.mock('../lib/contextual-hint-state', () => ({
+  consumePendingUrlSyncContextualHint: vi.fn(),
+  savePendingUrlSyncContextualHint: vi.fn(),
 }));
 
 vi.mock('../lib/keep-alive', () => ({
@@ -177,8 +186,59 @@ describe('registerScrollSyncHandlers', () => {
     vi.mocked(persistSyncState).mockResolvedValue();
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     isContextualHintDismissedMock.mockResolvedValue(false);
+    vi.mocked(consumePendingUrlSyncContextualHint).mockReset();
+    vi.mocked(consumePendingUrlSyncContextualHint).mockReturnValue(null);
+    vi.mocked(savePendingUrlSyncContextualHint).mockReset();
 
     registerScrollSyncHandlers();
+  });
+
+  describe('contextual-hint:save-pending-url-sync', () => {
+    it('stores pending URL Sync hints by sender tab ID', async () => {
+      const handler = getHandler<{ hintId: 'page-change-synced' }>(
+        'contextual-hint:save-pending-url-sync',
+      );
+
+      const result = await handler({
+        data: { hintId: 'page-change-synced' },
+        sender: { tabId: 7 },
+      });
+
+      expect(result).toEqual({ status: 'success' });
+      expect(savePendingUrlSyncContextualHint).toHaveBeenCalledWith(7, 'page-change-synced');
+    });
+
+    it('rejects pending URL Sync hints without sender tab ID', async () => {
+      const handler = getHandler<{ hintId: 'page-change-synced' }>(
+        'contextual-hint:save-pending-url-sync',
+      );
+
+      const result = await handler({
+        data: { hintId: 'page-change-synced' },
+        sender: {},
+      });
+
+      expect(result).toEqual({ status: 'failed' });
+      expect(savePendingUrlSyncContextualHint).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('contextual-hint:consume-pending-url-sync', () => {
+    it('consumes pending URL Sync hints by sender tab ID', async () => {
+      const handler = getHandler<Record<string, never>>('contextual-hint:consume-pending-url-sync');
+      vi.mocked(consumePendingUrlSyncContextualHint).mockReturnValue('keep-website-path-synced');
+
+      const result = await handler({
+        data: {},
+        sender: { tabId: 12 },
+      });
+
+      expect(result).toEqual({
+        status: 'success',
+        hintId: 'keep-website-path-synced',
+      });
+      expect(consumePendingUrlSyncContextualHint).toHaveBeenCalledWith(12);
+    });
   });
 
   describe('scroll:start', () => {
@@ -438,6 +498,35 @@ describe('registerScrollSyncHandlers', () => {
       });
 
       expect(result).toMatchObject({ success: true, connectedTabs: [301, 302] });
+      expect(isContextualHintDismissedMock).not.toHaveBeenCalled();
+      expect(sendMessage).not.toHaveBeenCalledWith(
+        'contextual-hint:show',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('does not use inconsistent scroll metrics for manual adjustment hints', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (_, __, destination): Promise<StartSyncResponse> => ({
+          success: true,
+          tabId: destination.tabId,
+          metrics: {
+            tabId: destination.tabId,
+            scrollHeight: destination.tabId === 501 ? 2000 : 3400,
+            clientHeight: 1000,
+            scrollableHeight: destination.tabId === 501 ? 1000 : 9999,
+          },
+        }),
+      );
+
+      const result = await handler({
+        data: { tabIds: [501, 502], mode: 'ratio', isAutoSync: true },
+        sender: {},
+      });
+
+      expect(result).toMatchObject({ success: true, connectedTabs: [501, 502] });
       expect(isContextualHintDismissedMock).not.toHaveBeenCalled();
       expect(sendMessage).not.toHaveBeenCalledWith(
         'contextual-hint:show',
