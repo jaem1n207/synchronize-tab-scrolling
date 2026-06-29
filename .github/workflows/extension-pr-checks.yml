@@ -11,6 +11,7 @@ permissions:
 jobs:
   extension-pr-checks:
     name: extension-pr-checks
+    if: ${{ github.event.pull_request.user.login != 'renovate[bot]' }}
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.57.0-noble
