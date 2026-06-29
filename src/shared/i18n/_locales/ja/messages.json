@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "この案内を非表示にする"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "他のタブも同じページへ移動しました"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "不要な場合はページ移動の同期をオフにできます。"
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "各タブのサイトを維持しました"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "可能な場合は同じパスだけを開きました。"
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "設定を変更"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "あとで表示"
+  },
+  "contextualHintHideAction": {
+    "message": "この案内を非表示"
   }
 }
