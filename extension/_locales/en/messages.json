@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "Hide this hint"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "Other tabs moved to the same page"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "Turn off page-change sync if you do not want this."
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "Each tab kept its website"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "Only the matching path was opened when possible."
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "Change setting"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "Show later"
+  },
+  "contextualHintHideAction": {
+    "message": "Hide this hint"
   }
 }
