@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "नया टैब \"$TITLE$\" समान URL है। सिंक में जोड़ें?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "इस टैब को मौजूदा सिंक में जोड़ें?"
   },
   "newTabSameTranslatedPage": {
-    "message": "नया टैब \"$TITLE$\" वही अनुवादित पेज है। सिंक में जोड़ें?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "इस टैब को मौजूदा सिंक में जोड़ें?"
   },
   "newTabMayBeTranslation": {
-    "message": "नया टैब \"$TITLE$\" सिंक किए गए पेज का अनुवाद हो सकता है। सिंक में जोड़ें?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "इस टैब को मौजूदा सिंक में जोड़ें?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "जोड़ने पर यह टैब अभी सिंक हो रहे टैब्स के साथ स्क्रॉल होगा।"
   },
   "warningResetScrollOffsets": {
-    "message": "इस टैब को जोड़ने से आपकी मैन्युअल स्क्रॉल स्थिति समायोजन रीसेट हो जाएंगी"
+    "message": "जोड़ने पर आपके बदले हुए स्क्रॉल अंतर रीसेट हो जाएंगे।"
   },
   "existingSyncWarning": {
     "message": "वर्तमान में $COUNT$ टैब सिंक हो रहे हैं। इसे शुरू करने से सक्रिय सिंक बदल जाएगा।",
@@ -623,13 +608,13 @@
     "message": "सिंक शुरू करें"
   },
   "addTabButton": {
-    "message": "टैब जोड़ें"
+    "message": "मौजूदा सिंक में जोड़ें"
   },
   "notNowButton": {
     "message": "अभी नहीं"
   },
   "skipButton": {
-    "message": "छोड़ें"
+    "message": "बाद में करें"
   },
   "manageExcludedDomains": {
     "message": "बहिष्कृत डोमेन प्रबंधित करें"
