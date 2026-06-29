@@ -19,6 +19,7 @@ Manifest V3 service worker (Chrome/Edge/Brave) / persistent background (Firefox)
 | `handlers/connection-handlers.ts`  | Health checks, reconnection, re-injection                                         |
 | `handlers/auto-sync-handlers.ts`   | Auto-sync toggle, group updates, suggestion responses                             |
 | `handlers/tab-event-handlers.ts`   | Tab close, activate, update, navigation events                                    |
+| `lib/contextual-hint-state.ts`     | Tab-keyed pending URL Sync hint IDs for post-navigation overlays                  |
 
 ## Startup Sequence (CRITICAL ORDER)
 
@@ -56,6 +57,7 @@ Manifest V3 service worker (Chrome/Edge/Brave) / persistent background (Firefox)
 - **ALWAYS** check `syncState` before pinging content scripts (Chrome throttles background tabs)
 - **ALWAYS** send `scroll:stop` to old tabs BEFORE `scroll:start` to new tabs
 - **ALWAYS** remove closed tabs from `manualSyncOverriddenTabs` set
+- **ALWAYS** clear tab-keyed pending contextual hints when tabs close
 - **ALWAYS** model storage failures explicitly. Do not convert read/write failures into a normal default mode if that would make tabs behave differently from what the UI shows.
 
 ## Timing Constants

@@ -12,6 +12,10 @@ background/
 └── lib/                     # Core business logic modules
 ```
 
+`lib/contextual-hint-state.ts` keeps tab-keyed pending URL Sync contextual hints in the background
+so the hint survives cross-origin navigation within the same tab without storing raw URLs or page
+metadata.
+
 ## Entry Point
 
 **`main.ts`** (48 lines) orchestrates startup:
