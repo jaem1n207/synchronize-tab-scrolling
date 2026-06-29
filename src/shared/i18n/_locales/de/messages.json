@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "Diesen Hinweis ausblenden"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "Andere Tabs wurden zur gleichen Seite bewegt"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "Du kannst die Synchronisierung von Seitenwechseln deaktivieren."
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "Jeder Tab hat seine Website behalten"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "Wenn möglich, wurde nur der passende Pfad geöffnet."
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "Einstellung ändern"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "Später anzeigen"
+  },
+  "contextualHintHideAction": {
+    "message": "Diesen Hinweis ausblenden"
   }
 }
