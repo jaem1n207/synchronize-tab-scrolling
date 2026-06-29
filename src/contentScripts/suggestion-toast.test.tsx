@@ -6,6 +6,7 @@ describe('showContextualHintToast', () => {
   beforeEach(() => {
     vi.resetModules();
     document.body.innerHTML = '';
+    document.documentElement.style.fontSize = '';
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -97,6 +98,41 @@ describe('showContextualHintToast', () => {
 
     expect(isContextualHintDismissed).toHaveBeenCalledWith('page-change-synced');
     expect(document.querySelector('#scroll-sync-suggestion-toast-root')).toBeNull();
+  });
+
+  it('injects pixel overrides for toast geometry utilities', async () => {
+    document.documentElement.style.fontSize = '10px';
+    mockSuggestionToastDependencies();
+
+    const { showContextualHintToast } = await import('./suggestion-toast');
+
+    const showPromise = showContextualHintToast({
+      hintId: 'manual-scroll-adjustment',
+      surface: 'webpage-overlay',
+      source: 'sync-start',
+    });
+    const shadowRoot = await finishToastCssLoad();
+
+    await act(async () => {
+      await showPromise;
+    });
+
+    const injectedStyles = Array.from(shadowRoot.querySelectorAll('style'))
+      .map((styleElement) => styleElement.textContent ?? '')
+      .join('\n');
+
+    expect(injectedStyles).toContain(
+      '#scroll-sync-suggestion-app .bottom-6 { bottom: 24px !important; }',
+    );
+    expect(injectedStyles).toContain('#scroll-sync-suggestion-app .text-sm {');
+    expect(injectedStyles).toContain('line-height: 20px !important;');
+    expect(injectedStyles).toContain(
+      '#scroll-sync-suggestion-app .p-4 { padding: 16px !important; }',
+    );
+    expect(injectedStyles).toContain(
+      '#scroll-sync-suggestion-app .h-10 { height: 40px !important; }',
+    );
+    expect(injectedStyles).toContain('--radius: 8px;');
   });
 
   it('keeps contextual hints visible when sync start clears suggestion toasts', async () => {
