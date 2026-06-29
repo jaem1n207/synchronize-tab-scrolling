@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "यह संकेत छिपाएँ"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "दूसरे टैब भी उसी पेज पर गए"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "अगर यह नहीं चाहिए, तो पेज बदलाव सिंक बंद कर सकते हैं।"
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "हर टैब ने अपनी वेबसाइट बनाए रखी"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "जहां संभव था, सिर्फ मिलता-जुलता पाथ खोला गया।"
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "सेटिंग बदलें"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "बाद में दिखाएं"
+  },
+  "contextualHintHideAction": {
+    "message": "यह संकेत छिपाएं"
   }
 }
