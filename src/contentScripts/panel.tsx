@@ -315,6 +315,10 @@ function PanelApp() {
     }
   }, []);
 
+  const handleUrlSyncSettingsTokenHandled = useCallback(() => {
+    setOpenUrlSyncSettingsToken(0);
+  }, []);
+
   return (
     <>
       <SyncControlPanel
@@ -326,6 +330,7 @@ function PanelApp() {
         onReconnect={handleManualReconnect}
         onUrlSyncEnabledChange={handleUrlSyncEnabledChange}
         onUrlSyncModeChange={handleUrlSyncModeChange}
+        onUrlSyncSettingsTokenHandled={handleUrlSyncSettingsTokenHandled}
       />
 
       {/* Sync suggestion toast */}
