@@ -88,7 +88,7 @@ Unknown platform:
 
 ```text
 페이지 길이가 달라 보이나요?
-Alt 또는 Option을 누른 채 이 탭만 스크롤해보세요.
+Alt / Option을 누른 채 이 탭만 스크롤해보세요.
 손을 떼면 지금 차이가 유지돼요.
 ```
 
@@ -139,11 +139,15 @@ The normal flow is:
 User action or sync event
   -> trigger emitter creates a hint candidate
   -> dismissed hint storage checks the hint id
-  -> session cooldown checks repeated hints
+  -> per-session deduplication checks repeated hint ids
   -> matching surface renders the hint
   -> hint auto-dismisses after 8-10 seconds
   -> only "이 안내 숨기기" persists the hint id
 ```
+
+Per-session deduplication is not a time-based cooldown. It prevents the same hint id from appearing
+again in the same browser session after it has already been shown. A later browser session may show
+the hint again if the same situation occurs, unless the user explicitly hid that hint.
 
 ### Manual Adjustment Trigger
 
@@ -154,10 +158,14 @@ path. It should compare scrollable heights:
 scrollableHeight = scrollHeight - clientHeight
 ```
 
+The background should reject metrics where `scrollableHeight` does not equal
+`Math.max(0, scrollHeight - clientHeight)`. Invalid metrics should not feed the manual hint
+threshold.
+
 Show the hint only when both conditions are true:
 
-- the largest scrollable height is at least 1.4x the smallest non-zero scrollable height
-- the absolute difference between those two heights is at least 600px
+- the largest scrollable height is at least 1.1x the smallest non-zero scrollable height
+- the absolute difference between those two heights is at least 100px
 
 Ignore tabs whose scrollable height is 0. If fewer than two connected tabs have non-zero scrollable
 height, skip the hint.
@@ -239,7 +247,7 @@ Add focused tests for:
 - auto-dismiss and `다음에 보기` not persisting a hint id
 - OS-specific manual adjustment key labels
 - manual adjustment trigger threshold
-- per-sync-session cooldown
+- per-session deduplication
 - URL Sync setting CTA opening the popup row or floating panel control
 - i18n parity across both locale trees
 - privacy logging rules for touched files
@@ -259,7 +267,7 @@ Regression checks:
 - Users can hide each hint independently.
 - Auto-dismiss and `다음에 보기` do not permanently hide a hint.
 - Manual scroll adjustment is introduced only when synced pages cross the page-length threshold.
-- Manual scroll adjustment copy shows `⌥ Option`, `Alt`, or `Alt 또는 Option` based on platform.
+- Manual scroll adjustment copy shows `⌥ Option`, `Alt`, or `Alt / Option` based on platform.
 - Settings hints include direct actions instead of telling users to find settings manually.
 - Copy uses concise `해요체`, active voice, and concrete action labels.
 - New contextual hints do not expose raw URLs, tab titles, page titles, or page metadata.

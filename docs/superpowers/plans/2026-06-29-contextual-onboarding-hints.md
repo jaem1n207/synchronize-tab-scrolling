@@ -47,7 +47,7 @@ task below produces a working, testable slice.
   - Covers metric aggregation, threshold triggering, and privacy-safe hint payloads.
 - Create: `src/contentScripts/contextual-hints.tsx`
   - Creates the contextual hint Shadow DOM root, registers message handlers, checks dismissed
-    storage, and applies session cooldown.
+    storage, and applies per-session deduplication.
 - Create: `src/contentScripts/components/contextual-hint-overlay.tsx`
   - Renders the lightweight webpage overlay.
 - Create: `src/contentScripts/components/contextual-hint-overlay.test.tsx`
@@ -167,7 +167,7 @@ describe('contextual hints', () => {
     expect(getContextualHintShortcutLabel('macos')).toBe('⌥ Option');
     expect(getContextualHintShortcutLabel('windows')).toBe('Alt');
     expect(getContextualHintShortcutLabel('linux')).toBe('Alt');
-    expect(getContextualHintShortcutLabel('unknown')).toBe('Alt 또는 Option');
+    expect(getContextualHintShortcutLabel('unknown')).toBe('Alt / Option');
   });
 });
 ```
@@ -250,8 +250,8 @@ import type {
   ManualAdjustmentHintDecision,
 } from '../types/contextual-hints';
 
-export const MANUAL_HINT_MIN_SCROLLABLE_RATIO = 1.4;
-export const MANUAL_HINT_MIN_SCROLLABLE_DELTA_PX = 600;
+export const MANUAL_HINT_MIN_SCROLLABLE_RATIO = 1.1;
+export const MANUAL_HINT_MIN_SCROLLABLE_DELTA_PX = 100;
 
 export const CONTEXTUAL_HINT_REGISTRY: Record<ContextualHintId, ContextualHintDefinition> = {
   'start-minimum-tabs': {
@@ -292,7 +292,10 @@ export const CONTEXTUAL_HINT_REGISTRY: Record<ContextualHintId, ContextualHintDe
 };
 
 export function isContextualHintId(value: unknown): value is ContextualHintId {
-  return typeof value === 'string' && value in CONTEXTUAL_HINT_REGISTRY;
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(CONTEXTUAL_HINT_REGISTRY, value)
+  );
 }
 
 export function getContextualHintShortcutLabel(platform: Platform = getPlatform()): string {
@@ -304,7 +307,7 @@ export function getContextualHintShortcutLabel(platform: Platform = getPlatform(
     return 'Alt';
   }
 
-  return 'Alt 또는 Option';
+  return 'Alt / Option';
 }
 
 export function getManualAdjustmentHintDecision(
@@ -388,68 +391,85 @@ Append these tests to `src/shared/lib/storage.test.ts`:
 describe('contextual hint dismissal storage', () => {
   it('loads only known dismissed contextual hint ids', async () => {
     storageGetMock.mockResolvedValue({
-      dismissedContextualHintIds: [
-        'manual-scroll-adjustment',
-        'unknown-hint',
-        'page-change-synced',
-      ],
+      contextualHintsDismissed: ['manual-scroll-adjustment', 'unknown-hint', 'page-change-synced'],
     });
 
-    await expect(loadDismissedContextualHintIds()).resolves.toEqual(
-      new Set(['manual-scroll-adjustment', 'page-change-synced']),
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([
+      'manual-scroll-adjustment',
+      'page-change-synced',
+    ]);
+    expect(storageGetMock).toHaveBeenCalledWith(
+      expect.arrayContaining(['contextualHintsDismissed']),
     );
-    expect(storageGetMock).toHaveBeenCalledWith('dismissedContextualHintIds');
   });
 
-  it('returns an empty set when no contextual hints are dismissed', async () => {
+  it('loads per-hint dismissed keys without rewriting the legacy array', async () => {
+    storageGetMock.mockResolvedValue({
+      contextualHintsDismissed: ['manual-scroll-adjustment'],
+      'contextualHintsDismissed:page-change-synced': true,
+    });
+
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([
+      'manual-scroll-adjustment',
+      'page-change-synced',
+    ]);
+  });
+
+  it('returns an empty array when no contextual hints are dismissed', async () => {
     storageGetMock.mockResolvedValue({});
 
-    await expect(loadDismissedContextualHintIds()).resolves.toEqual(new Set());
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([]);
   });
 
-  it('returns null when dismissed hint read fails', async () => {
+  it('returns an empty array when dismissed hint read fails', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);
 
-    await expect(loadDismissedContextualHintIds()).resolves.toBeNull();
+    await expect(loadDismissedContextualHintIds()).resolves.toEqual([]);
     expect(loggerErrorMock).toHaveBeenCalledWith(
       'Failed to load dismissed contextual hint IDs:',
       error,
     );
   });
 
-  it('saves a dismissed contextual hint id while preserving previous ids', async () => {
+  it('saves a dismissed contextual hint id under a per-hint key', async () => {
     storageGetMock.mockResolvedValue({
-      dismissedContextualHintIds: ['manual-scroll-adjustment'],
+      contextualHintsDismissed: ['manual-scroll-adjustment'],
+      'contextualHintsDismissed:page-change-synced': true,
     });
     storageSetMock.mockResolvedValue(undefined);
 
-    await expect(saveDismissedContextualHintId('page-change-synced')).resolves.toBe(true);
+    await expect(saveDismissedContextualHintId('page-change-synced')).resolves.toEqual([
+      'manual-scroll-adjustment',
+      'page-change-synced',
+    ]);
 
     expect(storageSetMock).toHaveBeenCalledWith({
-      dismissedContextualHintIds: ['manual-scroll-adjustment', 'page-change-synced'],
+      'contextualHintsDismissed:page-change-synced': true,
     });
   });
 
   it('does not duplicate a dismissed contextual hint id', async () => {
     storageGetMock.mockResolvedValue({
-      dismissedContextualHintIds: ['manual-scroll-adjustment'],
+      contextualHintsDismissed: ['manual-scroll-adjustment'],
     });
     storageSetMock.mockResolvedValue(undefined);
 
-    await expect(saveDismissedContextualHintId('manual-scroll-adjustment')).resolves.toBe(true);
+    await expect(saveDismissedContextualHintId('manual-scroll-adjustment')).resolves.toEqual([
+      'manual-scroll-adjustment',
+    ]);
 
     expect(storageSetMock).toHaveBeenCalledWith({
-      dismissedContextualHintIds: ['manual-scroll-adjustment'],
+      'contextualHintsDismissed:manual-scroll-adjustment': true,
     });
   });
 
-  it('returns false when dismissed hint save fails', async () => {
+  it('returns an empty array when dismissed hint save fails', async () => {
     const error = new Error('set failed');
-    storageGetMock.mockResolvedValue({ dismissedContextualHintIds: [] });
+    storageGetMock.mockResolvedValue({ contextualHintsDismissed: [] });
     storageSetMock.mockRejectedValue(error);
 
-    await expect(saveDismissedContextualHintId('manual-scroll-adjustment')).resolves.toBe(false);
+    await expect(saveDismissedContextualHintId('manual-scroll-adjustment')).resolves.toEqual([]);
     expect(loggerErrorMock).toHaveBeenCalledWith(
       'Failed to save dismissed contextual hint ID:',
       error,
@@ -480,45 +500,44 @@ import { isContextualHintId } from './contextual-hints';
 Add this key to `STORAGE_KEYS`:
 
 ```typescript
-DISMISSED_CONTEXTUAL_HINT_IDS: 'dismissedContextualHintIds',
+CONTEXTUAL_HINTS_DISMISSED: 'contextualHintsDismissed',
 ```
 
 Append these functions near the other storage helpers:
 
 ```typescript
-export async function loadDismissedContextualHintIds(): Promise<Set<ContextualHintId> | null> {
+function getContextualHintDismissedKey(hintId: ContextualHintId): string {
+  return `${STORAGE_KEYS.CONTEXTUAL_HINTS_DISMISSED}:${hintId}`;
+}
+
+export async function loadDismissedContextualHintIds(): Promise<Array<ContextualHintId>> {
   try {
-    const result = await browser.storage.local.get(STORAGE_KEYS.DISMISSED_CONTEXTUAL_HINT_IDS);
-    const stored = result[STORAGE_KEYS.DISMISSED_CONTEXTUAL_HINT_IDS];
-
-    if (!Array.isArray(stored)) {
-      return new Set();
-    }
-
-    return new Set(stored.filter(isContextualHintId));
+    return await readDismissedContextualHintIds();
   } catch (error) {
     await logger.error('Failed to load dismissed contextual hint IDs:', error);
-    return null;
+    return [];
   }
 }
 
-export async function saveDismissedContextualHintId(hintId: ContextualHintId): Promise<boolean> {
+export async function saveDismissedContextualHintId(
+  hintId: ContextualHintId,
+): Promise<Array<ContextualHintId>> {
   try {
-    const dismissedHintIds = await loadDismissedContextualHintIds();
-    const nextHintIds = dismissedHintIds ?? new Set<ContextualHintId>();
-    nextHintIds.add(hintId);
-
     await browser.storage.local.set({
-      [STORAGE_KEYS.DISMISSED_CONTEXTUAL_HINT_IDS]: Array.from(nextHintIds),
+      [getContextualHintDismissedKey(hintId)]: true,
     });
 
-    return true;
+    return await readDismissedContextualHintIds();
   } catch (error) {
     await logger.error('Failed to save dismissed contextual hint ID:', error);
-    return false;
+    return [];
   }
 }
 ```
+
+`readDismissedContextualHintIds()` should merge the legacy `contextualHintsDismissed` array with
+the race-safe per-hint keys. New saves should write only the per-hint key so concurrent dismissals
+from separate extension contexts cannot overwrite each other.
 
 - [ ] **Step 4: Run the storage tests and verify they pass**
 
@@ -957,7 +976,7 @@ function getHintCopy(hintId: ContextualHintId, shortcutLabel?: string) {
     return {
       title: t('contextualHintManualTitle'),
       lines: [
-        t('contextualHintManualInstruction', shortcutLabel ?? 'Alt 또는 Option'),
+        t('contextualHintManualInstruction', shortcutLabel ?? 'Alt / Option'),
         t('contextualHintManualResult'),
       ],
       primaryAction: null,
@@ -1077,7 +1096,7 @@ Append to `src/contentScripts/components/index.ts`:
 export { ContextualHintOverlay } from './contextual-hint-overlay';
 ```
 
-- [ ] **Step 5: Implement the content-script hint root and session cooldown**
+- [ ] **Step 5: Implement the content-script hint root and per-session deduplication**
 
 Create `src/contentScripts/contextual-hints.tsx`:
 
@@ -1387,70 +1406,82 @@ Pass the token:
 
 - [ ] **Step 5: Queue URL Sync hints across navigation**
 
-In `src/contentScripts/scroll-sync.ts`, add helpers near URL sync helpers:
+Create `src/background/lib/contextual-hint-state.ts` for tab-keyed pending URL Sync hints:
 
 ```typescript
-const PENDING_CONTEXTUAL_HINT_KEY = 'scrollSyncPendingContextualHint';
+import type { PendingUrlSyncContextualHintId } from '~/shared/types/contextual-hints';
 
-function savePendingContextualHint(hintId: 'page-change-synced' | 'keep-website-path-synced') {
-  try {
-    sessionStorage.setItem(PENDING_CONTEXTUAL_HINT_KEY, hintId);
-  } catch (error) {
-    logger.warn('Failed to save pending contextual hint', { hintId, error });
-  }
+const pendingUrlSyncContextualHints = new Map<number, PendingUrlSyncContextualHintId>();
+
+export function savePendingUrlSyncContextualHint(
+  tabId: number,
+  hintId: PendingUrlSyncContextualHintId,
+): void {
+  pendingUrlSyncContextualHints.set(tabId, hintId);
 }
 
-function emitPendingContextualHint() {
-  try {
-    const hintId = sessionStorage.getItem(PENDING_CONTEXTUAL_HINT_KEY);
-    if (hintId !== 'page-change-synced' && hintId !== 'keep-website-path-synced') {
-      return;
-    }
-
-    sessionStorage.removeItem(PENDING_CONTEXTUAL_HINT_KEY);
-    window.dispatchEvent(
-      new CustomEvent('scroll-sync-contextual-hint', {
-        detail: {
-          hintId,
-          surface: 'webpage-overlay',
-          source: 'url-sync',
-        },
-      }),
-    );
-  } catch (error) {
-    logger.warn('Failed to emit pending contextual hint', { error });
-  }
+export function consumePendingUrlSyncContextualHint(
+  tabId: number,
+): PendingUrlSyncContextualHintId | null {
+  const hintId = pendingUrlSyncContextualHints.get(tabId) ?? null;
+  pendingUrlSyncContextualHints.delete(tabId);
+  return hintId;
 }
 ```
 
-In `initScrollSync()`, call this after `translated-page:get-metadata` registration:
+Register background messages in `src/background/handlers/scroll-sync-handlers.ts`:
 
 ```typescript
-emitPendingContextualHint();
+onMessage('contextual-hint:save-pending-url-sync', ({ data, sender }) => {
+  if (!sender.tabId || !isPendingUrlSyncContextualHintId(data.hintId)) {
+    return { status: 'failed' as const };
+  }
+
+  savePendingUrlSyncContextualHint(sender.tabId, data.hintId);
+  return { status: 'success' as const };
+});
+
+onMessage('contextual-hint:consume-pending-url-sync', ({ sender }) => {
+  if (!sender.tabId) {
+    return { status: 'failed' as const };
+  }
+
+  return {
+    status: 'success' as const,
+    hintId: consumePendingUrlSyncContextualHint(sender.tabId),
+  };
+});
 ```
 
-Before `navigateToUrl(resolution.url);`, add:
+In `src/contentScripts/scroll-sync.ts`, consume the pending hint after content-script
+initialization and save it before `navigateToUrl(resolution.url);`:
 
 ```typescript
-savePendingContextualHint(
-  modeRepairResult.mode === 'keep-each-tabs-website'
-    ? 'keep-website-path-synced'
-    : 'page-change-synced',
+const consumeResult = await sendMessage(
+  'contextual-hint:consume-pending-url-sync',
+  {},
+  'background',
+);
+
+const pendingHintId = getPendingUrlSyncHintIdForMode(modeRepairResult.mode);
+const saveResult = await sendMessage(
+  'contextual-hint:save-pending-url-sync',
+  { hintId: pendingHintId },
+  'background',
 );
 ```
 
-In `src/contentScripts/contextual-hints.tsx`, register the CustomEvent:
+Do not store this queue in page `sessionStorage`. Page storage is origin-scoped, so a cross-origin
+navigation can save the hint under the old origin and then fail to read it after navigation. The
+background store should be keyed only by tab id and hint id, and closed tabs should clear their
+pending entry.
+
+Keep `src/contentScripts/lib/contextual-hint-navigation-queue.ts` as a pure mapping helper:
 
 ```typescript
-window.addEventListener('scroll-sync-contextual-hint', (event) => {
-  if (!(event instanceof CustomEvent)) {
-    return;
-  }
-
-  maybeShowHint(event.detail).catch((error) => {
-    logger.warn('Failed to show contextual hint from event', { error });
-  });
-});
+export function getPendingUrlSyncHintIdForMode(mode: UrlSyncMode): PendingUrlSyncContextualHintId {
+  return mode === 'keep-each-tabs-website' ? 'keep-website-path-synced' : 'page-change-synced';
+}
 ```
 
 - [ ] **Step 6: Run focused tests**
