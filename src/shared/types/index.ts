@@ -8,6 +8,8 @@ export type {
   ContextualHintShowMessage,
   ContextualHintSurface,
   ManualAdjustmentHintDecision,
+  PendingUrlSyncContextualHintId,
+  WebpageOverlayContextualHintId,
 } from './contextual-hints';
 export * from './url-sync';
 export type {
@@ -19,6 +21,8 @@ export type {
   AutoSyncStatusChangedMessage,
   AutoSyncStatusResponse,
   ConnectionStatus,
+  ConsumePendingUrlSyncContextualHintMessage,
+  ConsumePendingUrlSyncContextualHintResponse,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
@@ -31,7 +35,14 @@ export type {
   ScrollReconnectMessage,
   ScrollRequestReinjectMessage,
   ScrollSyncMessage,
+  SavePendingUrlSyncContextualHintMessage,
+  SavePendingUrlSyncContextualHintResponse,
+  StartSyncBackgroundResponse,
+  StartSyncConnectionResult,
+  StartSyncConnectionResults,
+  StartSyncContentResponse,
   StartSyncMessage,
+  StartSyncResponse,
   StopSyncMessage,
   SyncBaselineUpdateMessage,
   SyncedTabInfo,

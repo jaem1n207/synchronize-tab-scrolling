@@ -4,6 +4,8 @@ import type {
   AddTabToSyncResponseMessage,
   AutoSyncGroupUpdatedMessage,
   AutoSyncStatusChangedMessage,
+  ConsumePendingUrlSyncContextualHintMessage,
+  ConsumePendingUrlSyncContextualHintResponse,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
@@ -14,6 +16,8 @@ import type {
   ScrollReconnectMessage,
   ScrollRequestReinjectMessage,
   ScrollSyncMessage,
+  SavePendingUrlSyncContextualHintMessage,
+  SavePendingUrlSyncContextualHintResponse,
   StartSyncMessage,
   StartSyncResponse,
   StopSyncMessage,
@@ -70,6 +74,14 @@ declare module 'webext-bridge' {
       { domains: Array<string> }
     >;
     'contextual-hint:show': ProtocolWithReturn<ContextualHintShowMessage, unknown>;
+    'contextual-hint:save-pending-url-sync': ProtocolWithReturn<
+      SavePendingUrlSyncContextualHintMessage,
+      SavePendingUrlSyncContextualHintResponse
+    >;
+    'contextual-hint:consume-pending-url-sync': ProtocolWithReturn<
+      ConsumePendingUrlSyncContextualHintMessage,
+      ConsumePendingUrlSyncContextualHintResponse
+    >;
   }
 }
 

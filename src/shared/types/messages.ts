@@ -9,7 +9,11 @@ import type {
   TranslatedPageMetadata,
 } from '~/shared/lib/translated-page-url-utils';
 
-import type { ContextualHintShowMessage, ContextualHintScrollMetrics } from './contextual-hints';
+import type {
+  ContextualHintShowMessage,
+  ContextualHintScrollMetrics,
+  PendingUrlSyncContextualHintId,
+} from './contextual-hints';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
 
 /**
@@ -30,11 +34,15 @@ export interface StartSyncMessage {
   currentTabId?: number;
 }
 
-export type StartSyncConnectionResults = Record<number, { success: boolean; error?: string }>;
+export type StartSyncConnectionResult = {
+  success: boolean;
+  error?: string;
+};
+
+export type StartSyncConnectionResults = Record<number, StartSyncConnectionResult>;
 
 /**
  * Acknowledgement returned by content scripts after scroll sync starts.
- * Type aliases keep responses assignable to JsonValue for messaging helpers.
  */
 export type StartSyncContentResponse = {
   success: boolean;
@@ -321,6 +329,21 @@ export interface ExcludedDomainsResponse {
   domains: Array<string>;
 }
 
+export interface SavePendingUrlSyncContextualHintMessage {
+  hintId: PendingUrlSyncContextualHintId;
+}
+
+export interface SavePendingUrlSyncContextualHintResponse {
+  status: 'success' | 'failed';
+}
+
+export type ConsumePendingUrlSyncContextualHintMessage = Record<string, never>;
+
+export interface ConsumePendingUrlSyncContextualHintResponse {
+  status: 'success' | 'failed';
+  hintId?: PendingUrlSyncContextualHintId | null;
+}
+
 export interface ProtocolMap {
   'scroll:start': StartSyncMessage;
   'scroll:stop': StopSyncMessage;
@@ -349,4 +372,6 @@ export interface ProtocolMap {
   'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
   'auto-sync:get-excluded-domains': ExcludedDomainsResponse;
   'contextual-hint:show': ContextualHintShowMessage;
+  'contextual-hint:save-pending-url-sync': SavePendingUrlSyncContextualHintMessage;
+  'contextual-hint:consume-pending-url-sync': ConsumePendingUrlSyncContextualHintMessage;
 }
