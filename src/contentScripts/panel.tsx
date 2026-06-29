@@ -45,6 +45,7 @@ function PanelApp() {
   const [syncSuggestion, setSyncSuggestion] = useState<SyncSuggestionMessage | null>(null);
   const [addTabSuggestion, setAddTabSuggestion] = useState<AddTabToSyncMessage | null>(null);
   const [isConnectionHealthy, setIsConnectionHealthy] = useState(true);
+  const [openUrlSyncSettingsToken, setOpenUrlSyncSettingsToken] = useState(0);
 
   // Listen for connection status events from scrollSync.ts via CustomEvent
   useEffect(() => {
@@ -135,6 +136,17 @@ function PanelApp() {
       unsubscribeEnabled();
       unsubscribeMode();
       window.removeEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleOpenUrlSyncSettings = () => {
+      setOpenUrlSyncSettingsToken((token) => token + 1);
+    };
+
+    window.addEventListener('scroll-sync-open-url-sync-settings', handleOpenUrlSyncSettings);
+    return () => {
+      window.removeEventListener('scroll-sync-open-url-sync-settings', handleOpenUrlSyncSettings);
     };
   }, []);
 
@@ -307,6 +319,7 @@ function PanelApp() {
     <>
       <SyncControlPanel
         isConnectionHealthy={isConnectionHealthy}
+        openUrlSyncSettingsToken={openUrlSyncSettingsToken}
         urlSyncEnabled={urlSyncEnabled}
         urlSyncMode={urlSyncMode}
         urlSyncNotice={urlSyncNotice}

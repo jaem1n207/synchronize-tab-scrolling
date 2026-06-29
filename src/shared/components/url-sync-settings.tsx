@@ -16,6 +16,7 @@ interface UrlSyncSettingsProps {
   notice?: UrlSyncNotice | null;
   compact?: boolean;
   variant?: UrlSyncSettingsVariant;
+  expandToken?: number;
   onEnabledChange: (enabled: boolean) => void | Promise<void>;
   onModeChange: (mode: UrlSyncMode) => boolean | void | Promise<boolean | void>;
 }
@@ -60,6 +61,7 @@ export function UrlSyncSettings({
   notice,
   compact = false,
   variant,
+  expandToken,
   onEnabledChange,
   onModeChange,
 }: UrlSyncSettingsProps) {
@@ -76,6 +78,14 @@ export function UrlSyncSettings({
   const pendingEnabledRef = React.useRef(false);
   const pendingModeRef = React.useRef<UrlSyncMode | null>(null);
   const [, setPendingUpdateId] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!isInlineCollapsible || !expandToken || expandToken <= 0) {
+      return;
+    }
+
+    setInlineEditorExpanded(true);
+  }, [expandToken, isInlineCollapsible]);
 
   const rerenderPendingState = () => {
     setPendingUpdateId((value) => value + 1);

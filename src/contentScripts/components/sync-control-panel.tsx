@@ -33,6 +33,7 @@ interface SyncControlPanelProps {
   urlSyncNotice: UrlSyncNotice | null;
   onUrlSyncEnabledChange: (enabled: boolean) => void | Promise<void>;
   onUrlSyncModeChange: (mode: UrlSyncMode) => boolean | void | Promise<boolean | void>;
+  openUrlSyncSettingsToken?: number;
   isConnectionHealthy?: boolean;
   onReconnect?: () => void;
   className?: string;
@@ -81,6 +82,7 @@ export const SyncControlPanel = ({
   urlSyncNotice,
   onUrlSyncEnabledChange,
   onUrlSyncModeChange,
+  openUrlSyncSettingsToken,
   isConnectionHealthy = true,
   onReconnect,
   className,
@@ -109,6 +111,14 @@ export const SyncControlPanel = ({
 
   const systemTheme = useSystemTheme();
   const { controlKey } = useModifierKey();
+
+  React.useEffect(() => {
+    if (!openUrlSyncSettingsToken || openUrlSyncSettingsToken <= 0) {
+      return;
+    }
+
+    handleOpenChange(true);
+  }, [handleOpenChange, openUrlSyncSettingsToken]);
 
   const handleTriggerMouseDown = React.useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -239,8 +249,10 @@ export const SyncControlPanel = ({
                 <UrlSyncSettings
                   compact
                   enabled={urlSyncEnabled}
+                  expandToken={openUrlSyncSettingsToken}
                   mode={urlSyncMode}
                   notice={urlSyncNotice}
+                  variant="inline-collapsible"
                   onEnabledChange={onUrlSyncEnabledChange}
                   onModeChange={onUrlSyncModeChange}
                 />
