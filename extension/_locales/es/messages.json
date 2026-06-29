@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "Ocultar este consejo"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "Las otras pestañas abrieron la misma página"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "Puedes desactivar la sincronización de cambios de página si no la quieres."
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "Cada pestaña mantuvo su sitio"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "Solo se abrió la ruta coincidente cuando fue posible."
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "Cambiar ajuste"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "Ver más tarde"
+  },
+  "contextualHintHideAction": {
+    "message": "Ocultar esta ayuda"
   }
 }
