@@ -42,9 +42,9 @@ This design follows Toss-style writing principles:
 
 Use a small contextual hint layer with two surfaces:
 
-| Surface | Use When | Shape |
-| --- | --- | --- |
-| Popup inline hint | The situation starts in the popup and can be solved there. | Thin inline row that does not compete with tab selection. |
+| Surface              | Use When                                                                    | Shape                                                              |
+| -------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Popup inline hint    | The situation starts in the popup and can be solved there.                  | Thin inline row that does not compete with tab selection.          |
 | Webpage overlay hint | The situation happens while the user is viewing or scrolling a synced page. | Small bottom-right overlay that auto-dismisses after 8-10 seconds. |
 
 Every hint has a stable hint id. Only an explicit `이 안내 숨기기` action stores that id. Auto-dismiss
@@ -53,15 +53,15 @@ returns.
 
 ## Hint Trigger Matrix
 
-| Hint | Trigger | Surface | Copy |
-| --- | --- | --- | --- |
-| `start-minimum-tabs` | User tries to start sync with fewer than two selected tabs. | Popup inline or existing button tooltip. | `동기화할 탭을 2개 이상 선택하세요.` |
-| `manual-scroll-adjustment` | Sync starts and connected pages cross the page-length threshold below. | Webpage overlay. | See manual scroll adjustment copy below. |
-| `page-change-synced` | A page change in one synced tab is applied to another synced tab. | Webpage overlay. | `다른 탭도 같은 페이지로 이동했어요` / `원하지 않으면 페이지 이동 동기화를 끌 수 있어요.` |
-| `keep-website-path-synced` | URL Sync is in keep-website mode and a compatible path change is applied while each tab keeps its site. | Webpage overlay. | `각 탭의 사이트를 유지했어요` / `가능한 같은 경로로만 이동했어요.` |
-| `sync-suggestion` | Two or more same-page or translated-page candidates are detected. | Existing suggestion toast. | `함께 볼 수 있는 탭을 찾았어요` / `선택한 탭을 같이 스크롤할 수 있어요.` |
-| `add-tab-to-sync` | A same-page or translated-page tab is detected while a manual sync is active. | Existing add-tab toast. | See add-tab copy below. |
-| `floating-panel` | User first opens or focuses the floating panel while sync is active. | Floating panel inline hint. | `이곳에서 동기화 상태와 페이지 이동 설정을 볼 수 있어요.` |
+| Hint                       | Trigger                                                                                                 | Surface                                  | Copy                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `start-minimum-tabs`       | User tries to start sync with fewer than two selected tabs.                                             | Popup inline or existing button tooltip. | `동기화할 탭을 2개 이상 선택하세요.`                                                      |
+| `manual-scroll-adjustment` | Sync starts and connected pages cross the page-length threshold below.                                  | Webpage overlay.                         | See manual scroll adjustment copy below.                                                  |
+| `page-change-synced`       | A page change in one synced tab is applied to another synced tab.                                       | Webpage overlay.                         | `다른 탭도 같은 페이지로 이동했어요` / `원하지 않으면 페이지 이동 동기화를 끌 수 있어요.` |
+| `keep-website-path-synced` | URL Sync is in keep-website mode and a compatible path change is applied while each tab keeps its site. | Webpage overlay.                         | `각 탭의 사이트를 유지했어요` / `가능한 같은 경로로만 이동했어요.`                        |
+| `sync-suggestion`          | Two or more same-page or translated-page candidates are detected.                                       | Existing suggestion toast.               | `함께 볼 수 있는 탭을 찾았어요` / `선택한 탭을 같이 스크롤할 수 있어요.`                  |
+| `add-tab-to-sync`          | A same-page or translated-page tab is detected while a manual sync is active.                           | Existing add-tab toast.                  | See add-tab copy below.                                                                   |
+| `floating-panel`           | User first opens or focuses the floating panel while sync is active.                                    | Floating panel inline hint.              | `이곳에서 동기화 상태와 페이지 이동 설정을 볼 수 있어요.`                                 |
 
 ### Manual Scroll Adjustment Copy
 
@@ -126,12 +126,12 @@ If adding the tab resets existing manual scroll differences:
 
 The feature should be built from four small pieces.
 
-| Unit | Purpose |
-| --- | --- |
-| Hint registry | Defines stable hint ids, surfaces, copy keys, dismiss behavior, and optional CTA metadata. |
-| Dismissed hint storage | Stores only hint ids that the user explicitly hid. |
-| Hint trigger emitter | Creates hint candidates when sync, page movement, or suggestion events occur. |
-| Hint surfaces | Render popup inline hints and webpage overlay hints. |
+| Unit                   | Purpose                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| Hint registry          | Defines stable hint ids, surfaces, copy keys, dismiss behavior, and optional CTA metadata. |
+| Dismissed hint storage | Stores only hint ids that the user explicitly hid.                                         |
+| Hint trigger emitter   | Creates hint candidates when sync, page movement, or suggestion events occur.              |
+| Hint surfaces          | Render popup inline hints and webpage overlay hints.                                       |
 
 The normal flow is:
 
@@ -181,12 +181,12 @@ available.
 
 ## Interaction Rules
 
-| User Action | Stored? | Future Behavior |
-| --- | --- | --- |
-| Auto-dismiss | No | The hint may appear again in a later matching situation. |
-| `다음에 보기` | No | The hint closes for now. |
-| `설정 바꾸기` | No | The relevant setting opens and the hint closes. |
-| `이 안내 숨기기` | Yes | The same hint id does not appear again. |
+| User Action      | Stored? | Future Behavior                                          |
+| ---------------- | ------- | -------------------------------------------------------- |
+| Auto-dismiss     | No      | The hint may appear again in a later matching situation. |
+| `다음에 보기`    | No      | The hint closes for now.                                 |
+| `설정 바꾸기`    | No      | The relevant setting opens and the hint closes.          |
+| `이 안내 숨기기` | Yes     | The same hint id does not appear again.                  |
 
 The webpage overlay should stay lighter than the existing suggestion toast. It is a situational
 hint, not a feature card. It should use at most two visible action buttons unless a setting CTA is
@@ -221,13 +221,13 @@ logging touched by this work must pass the privacy logging validator.
 
 ## Failure Behavior
 
-| Failure | Behavior |
-| --- | --- |
-| Dismissed hint read fails | Skip the hint. Do not risk noisy repeated guidance. |
-| Dismissed hint write fails | Close the hint for the current surface. It may appear again later. Log only non-sensitive metadata. |
-| Height comparison fails | Skip `manual-scroll-adjustment`. Sync continues. |
-| Setting CTA cannot open the target control | Close the hint and keep the normal UI usable. |
-| i18n key is missing | Treat as a build/test failure. Do not ship fallback English-only copy. |
+| Failure                                    | Behavior                                                                                            |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Dismissed hint read fails                  | Skip the hint. Do not risk noisy repeated guidance.                                                 |
+| Dismissed hint write fails                 | Close the hint for the current surface. It may appear again later. Log only non-sensitive metadata. |
+| Height comparison fails                    | Skip `manual-scroll-adjustment`. Sync continues.                                                    |
+| Setting CTA cannot open the target control | Close the hint and keep the normal UI usable.                                                       |
+| i18n key is missing                        | Treat as a build/test failure. Do not ship fallback English-only copy.                              |
 
 ## Testing
 
