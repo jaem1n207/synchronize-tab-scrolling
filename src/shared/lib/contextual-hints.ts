@@ -5,10 +5,17 @@ import type {
   ContextualHintId,
   ContextualHintScrollMetrics,
   ManualAdjustmentHintDecision,
+  PendingUrlSyncContextualHintId,
+  WebpageOverlayContextualHintId,
 } from '../types/contextual-hints';
 
 export const MANUAL_HINT_MIN_SCROLLABLE_RATIO = 1.1;
 export const MANUAL_HINT_MIN_SCROLLABLE_DELTA_PX = 100;
+export const WEBPAGE_OVERLAY_CONTEXTUAL_HINT_IDS = [
+  'manual-scroll-adjustment',
+  'page-change-synced',
+  'keep-website-path-synced',
+] as const satisfies ReadonlyArray<WebpageOverlayContextualHintId>;
 
 export const CONTEXTUAL_HINT_REGISTRY: Record<ContextualHintId, ContextualHintDefinition> = {
   'start-minimum-tabs': {
@@ -55,6 +62,21 @@ export function isContextualHintId(value: unknown): value is ContextualHintId {
   );
 }
 
+export function isWebpageOverlayContextualHintId(
+  value: unknown,
+): value is WebpageOverlayContextualHintId {
+  return (
+    typeof value === 'string' &&
+    WEBPAGE_OVERLAY_CONTEXTUAL_HINT_IDS.includes(value as WebpageOverlayContextualHintId)
+  );
+}
+
+export function isPendingUrlSyncContextualHintId(
+  value: unknown,
+): value is PendingUrlSyncContextualHintId {
+  return value === 'page-change-synced' || value === 'keep-website-path-synced';
+}
+
 export function getContextualHintShortcutLabel(platform: Platform = getPlatform()): string {
   if (platform === 'macos') {
     return '⌥ Option';
@@ -64,7 +86,7 @@ export function getContextualHintShortcutLabel(platform: Platform = getPlatform(
     return 'Alt';
   }
 
-  return 'Alt 또는 Option';
+  return 'Alt / Option';
 }
 
 export function getManualAdjustmentHintDecision(

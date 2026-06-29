@@ -5,6 +5,8 @@ import {
   getContextualHintShortcutLabel,
   getManualAdjustmentHintDecision,
   isContextualHintId,
+  isPendingUrlSyncContextualHintId,
+  isWebpageOverlayContextualHintId,
 } from './contextual-hints';
 
 describe('contextual hints', () => {
@@ -32,6 +34,19 @@ describe('contextual hints', () => {
     expect(isContextualHintId('unknown-hint')).toBe(false);
     expect(isContextualHintId('toString')).toBe(false);
     expect(isContextualHintId('constructor')).toBe(false);
+  });
+
+  it('validates supported webpage overlay hint ids from one allowlist', () => {
+    expect(isWebpageOverlayContextualHintId('manual-scroll-adjustment')).toBe(true);
+    expect(isWebpageOverlayContextualHintId('page-change-synced')).toBe(true);
+    expect(isWebpageOverlayContextualHintId('keep-website-path-synced')).toBe(true);
+    expect(isWebpageOverlayContextualHintId('floating-panel')).toBe(false);
+  });
+
+  it('validates pending URL Sync contextual hint ids', () => {
+    expect(isPendingUrlSyncContextualHintId('page-change-synced')).toBe(true);
+    expect(isPendingUrlSyncContextualHintId('keep-website-path-synced')).toBe(true);
+    expect(isPendingUrlSyncContextualHintId('manual-scroll-adjustment')).toBe(false);
   });
 
   it('shows manual hint when scrollable heights cross the relaxed ratio and pixel thresholds', () => {
@@ -80,6 +95,6 @@ describe('contextual hints', () => {
     expect(getContextualHintShortcutLabel('macos')).toBe('⌥ Option');
     expect(getContextualHintShortcutLabel('windows')).toBe('Alt');
     expect(getContextualHintShortcutLabel('linux')).toBe('Alt');
-    expect(getContextualHintShortcutLabel('unknown')).toBe('Alt 또는 Option');
+    expect(getContextualHintShortcutLabel('unknown')).toBe('Alt / Option');
   });
 });

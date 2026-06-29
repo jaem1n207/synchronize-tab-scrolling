@@ -21,6 +21,16 @@ export interface ContextualHintDefinition {
   dismissible: boolean;
 }
 
+export type WebpageOverlayContextualHintId = Extract<
+  ContextualHintId,
+  'manual-scroll-adjustment' | 'page-change-synced' | 'keep-website-path-synced'
+>;
+
+export type PendingUrlSyncContextualHintId = Extract<
+  WebpageOverlayContextualHintId,
+  'page-change-synced' | 'keep-website-path-synced'
+>;
+
 export type ContextualHintScrollMetrics = {
   tabId: number;
   scrollHeight: number;
