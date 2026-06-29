@@ -25,6 +25,7 @@ import {
   type ManualScrollOffset,
 } from '~/shared/lib/storage';
 import { resolveUrlSyncTarget } from '~/shared/lib/translated-page-url-utils';
+import type { ContextualHintScrollMetrics } from '~/shared/types/contextual-hints';
 import type {
   UrlSyncMode,
   UrlSyncNotice,
@@ -114,6 +115,17 @@ function getScrollInfo() {
     scrollTop: window.scrollY || document.documentElement.scrollTop,
     scrollHeight: document.documentElement.scrollHeight,
     clientHeight: document.documentElement.clientHeight,
+  };
+}
+
+function getContextualHintScrollMetrics(tabId: number): ContextualHintScrollMetrics {
+  const { scrollHeight, clientHeight } = getScrollInfo();
+
+  return {
+    tabId,
+    scrollHeight,
+    clientHeight,
+    scrollableHeight: Math.max(0, scrollHeight - clientHeight),
   };
 }
 
@@ -802,7 +814,11 @@ export function initScrollSync() {
     // Start visibility change monitoring for idle tab reconnection
     startVisibilityChangeMonitoring();
 
-    return { success: true, tabId: syncState.tabId };
+    return {
+      success: true,
+      tabId: syncState.tabId,
+      metrics: getContextualHintScrollMetrics(syncState.tabId),
+    };
   });
 
   // Listen for stop sync message

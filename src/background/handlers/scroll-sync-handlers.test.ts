@@ -6,6 +6,7 @@ import type {
   ManualScrollMessage,
   ScrollSyncMessage,
   StartSyncMessage,
+  StartSyncResponse,
   StopSyncMessage,
   UrlSyncEnabledChangedMessage,
   UrlSyncModeChangedMessage,
@@ -45,6 +46,10 @@ const { messageHandlers, onMessageMock, sendMessageMock, tabsGetMock, tabsQueryM
   }),
 );
 
+const { isContextualHintDismissedMock } = vi.hoisted(() => ({
+  isContextualHintDismissedMock: vi.fn(),
+}));
+
 vi.mock('webext-bridge/background', () => ({
   onMessage: onMessageMock,
   sendMessage: sendMessageMock,
@@ -66,6 +71,10 @@ vi.mock('~/shared/lib/logger', () => ({
     warn: vi.fn(),
     error: vi.fn(),
   })),
+}));
+
+vi.mock('~/shared/lib/storage', () => ({
+  isContextualHintDismissed: isContextualHintDismissedMock,
 }));
 
 vi.mock('../lib/auto-sync-groups', () => ({
@@ -141,6 +150,12 @@ describe('registerScrollSyncHandlers', () => {
     vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
       success: true,
       tabId: destination.tabId,
+      metrics: {
+        tabId: destination.tabId,
+        scrollHeight: 2000,
+        clientHeight: 1000,
+        scrollableHeight: 1000,
+      },
     }));
     vi.mocked(browser.tabs.get).mockImplementation(
       async (tabId: number) =>
@@ -161,6 +176,7 @@ describe('registerScrollSyncHandlers', () => {
     vi.mocked(updateAutoSyncGroup).mockResolvedValue(null);
     vi.mocked(persistSyncState).mockResolvedValue();
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
+    isContextualHintDismissedMock.mockResolvedValue(false);
 
     registerScrollSyncHandlers();
   });
@@ -322,6 +338,151 @@ describe('registerScrollSyncHandlers', () => {
       expect(manualSyncOverriddenTabs.has(8)).toBe(false);
       expect(manualSyncOverriddenTabs.has(99)).toBe(true);
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
+    });
+
+    it('sends manual adjustment contextual hint when connected tab scroll metrics differ', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      const payload: StartSyncMessage = {
+        tabIds: [101, 102],
+        mode: 'ratio',
+        isAutoSync: true,
+      };
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (_, __, destination): Promise<StartSyncResponse> => {
+          const scrollableHeight = destination.tabId === 101 ? 1000 : 2400;
+
+          return {
+            success: true,
+            tabId: destination.tabId,
+            metrics: {
+              tabId: destination.tabId,
+              scrollHeight: scrollableHeight + 1000,
+              clientHeight: 1000,
+              scrollableHeight,
+            },
+          };
+        },
+      );
+
+      const result = await handler({ data: payload, sender: {} });
+
+      expect(result).toMatchObject({ success: true, connectedTabs: [101, 102] });
+      expect(isContextualHintDismissedMock).toHaveBeenCalledWith('manual-scroll-adjustment');
+      expect(sendMessage).toHaveBeenCalledWith(
+        'contextual-hint:show',
+        {
+          hintId: 'manual-scroll-adjustment',
+          surface: 'webpage-overlay',
+          source: 'sync-start',
+        },
+        { context: 'content-script', tabId: 101 },
+      );
+      expect(sendMessage).toHaveBeenCalledWith(
+        'contextual-hint:show',
+        {
+          hintId: 'manual-scroll-adjustment',
+          surface: 'webpage-overlay',
+          source: 'sync-start',
+        },
+        { context: 'content-script', tabId: 102 },
+      );
+    });
+
+    it('does not send manual adjustment contextual hint when dismissed', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      isContextualHintDismissedMock.mockResolvedValue(true);
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (_, __, destination): Promise<StartSyncResponse> => ({
+          success: true,
+          tabId: destination.tabId,
+          metrics: {
+            tabId: destination.tabId,
+            scrollHeight: destination.tabId === 201 ? 2000 : 3400,
+            clientHeight: 1000,
+            scrollableHeight: destination.tabId === 201 ? 1000 : 2400,
+          },
+        }),
+      );
+
+      const result = await handler({
+        data: { tabIds: [201, 202], mode: 'ratio', isAutoSync: true },
+        sender: {},
+      });
+
+      expect(result).toMatchObject({ success: true, connectedTabs: [201, 202] });
+      expect(sendMessage).not.toHaveBeenCalledWith(
+        'contextual-hint:show',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('does not send manual adjustment contextual hint when scroll metrics are below threshold', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (_, __, destination): Promise<StartSyncResponse> => ({
+          success: true,
+          tabId: destination.tabId,
+          metrics: {
+            tabId: destination.tabId,
+            scrollHeight: destination.tabId === 301 ? 2000 : 2500,
+            clientHeight: 1000,
+            scrollableHeight: destination.tabId === 301 ? 1000 : 1500,
+          },
+        }),
+      );
+
+      const result = await handler({
+        data: { tabIds: [301, 302], mode: 'ratio', isAutoSync: true },
+        sender: {},
+      });
+
+      expect(result).toMatchObject({ success: true, connectedTabs: [301, 302] });
+      expect(isContextualHintDismissedMock).not.toHaveBeenCalled();
+      expect(sendMessage).not.toHaveBeenCalledWith(
+        'contextual-hint:show',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('does not fail sync start when manual adjustment contextual hint send fails', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (_, __, destination): Promise<StartSyncResponse> => ({
+          success: true,
+          tabId: destination.tabId,
+          metrics: {
+            tabId: destination.tabId,
+            scrollHeight: destination.tabId === 401 ? 2000 : 3400,
+            clientHeight: 1000,
+            scrollableHeight: destination.tabId === 401 ? 1000 : 2400,
+          },
+        }),
+      );
+      vi.mocked(sendMessage).mockImplementation(async (messageId) => {
+        if (messageId === 'contextual-hint:show') {
+          throw new Error('receiver not registered');
+        }
+
+        return { success: true };
+      });
+
+      const result = await handler({
+        data: { tabIds: [401, 402], mode: 'ratio', isAutoSync: true },
+        sender: {},
+      });
+
+      expect(result).toEqual({
+        success: true,
+        connectedTabs: [401, 402],
+        connectionResults: {
+          401: { success: true },
+          402: { success: true },
+        },
+      });
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
   });
 

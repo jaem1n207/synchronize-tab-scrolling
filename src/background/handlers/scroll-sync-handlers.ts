@@ -1,7 +1,14 @@
 import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+import { getManualAdjustmentHintDecision } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { isContextualHintDismissed } from '~/shared/lib/storage';
+import type {
+  ContextualHintScrollMetrics,
+  ContextualHintShowMessage,
+} from '~/shared/types/contextual-hints';
+import type { StartSyncContentResponse } from '~/shared/types/messages';
 
 import {
   removeTabFromAllAutoSyncGroups,
@@ -19,6 +26,66 @@ import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/scroll-sync-handlers' });
+const MANUAL_ADJUSTMENT_HINT_ID = 'manual-scroll-adjustment';
+const MANUAL_ADJUSTMENT_HINT_MESSAGE: ContextualHintShowMessage = {
+  hintId: MANUAL_ADJUSTMENT_HINT_ID,
+  surface: 'webpage-overlay',
+  source: 'sync-start',
+};
+
+function isValidScrollMetrics(
+  metrics: StartSyncContentResponse['metrics'],
+  tabId: number,
+): metrics is ContextualHintScrollMetrics {
+  return (
+    metrics !== undefined &&
+    metrics.tabId === tabId &&
+    Number.isFinite(metrics.scrollHeight) &&
+    Number.isFinite(metrics.clientHeight) &&
+    Number.isFinite(metrics.scrollableHeight)
+  );
+}
+
+async function maybeShowManualAdjustmentHint(
+  metrics: ReadonlyArray<ContextualHintScrollMetrics>,
+  connectedTabIds: ReadonlyArray<number>,
+): Promise<void> {
+  const decision = getManualAdjustmentHintDecision(metrics);
+
+  if (!decision.shouldShow) {
+    return;
+  }
+
+  const isDismissed = await isContextualHintDismissed(MANUAL_ADJUSTMENT_HINT_ID);
+
+  if (isDismissed) {
+    logger.debug('Skipping contextual hint because it was dismissed', {
+      hintId: MANUAL_ADJUSTMENT_HINT_ID,
+      connectedTabCount: connectedTabIds.length,
+      reason: 'dismissed',
+    });
+    return;
+  }
+
+  const results = await Promise.allSettled(
+    connectedTabIds.map((tabId) =>
+      sendMessage('contextual-hint:show', MANUAL_ADJUSTMENT_HINT_MESSAGE, {
+        context: 'content-script',
+        tabId,
+      }),
+    ),
+  );
+  const failedCount = results.filter((result) => result.status === 'rejected').length;
+
+  if (failedCount > 0) {
+    logger.debug('Failed to send contextual hint to some tabs', {
+      hintId: MANUAL_ADJUSTMENT_HINT_ID,
+      connectedTabCount: connectedTabIds.length,
+      failedCount,
+      reason: 'send-failed',
+    });
+  }
+}
 
 export function registerScrollSyncHandlers(): void {
   logger.info('Registering scroll:start handler');
@@ -51,6 +118,7 @@ export function registerScrollSyncHandlers(): void {
 
     // Initialize connection statuses as 'connecting'
     const connectionResults: Record<number, { success: boolean; error?: string }> = {};
+    const connectedScrollMetrics: Array<ContextualHintScrollMetrics> = [];
 
     // Attempt to connect to each tab with timeout and acknowledgment validation
     logger.info(`Connecting to ${startRequest.tabIds.length} tabs`, {
@@ -66,7 +134,7 @@ export function registerScrollSyncHandlers(): void {
         logger.debug(`Sending scroll:start to tab ${tabId}`);
 
         // Send message with timeout and capture acknowledgment
-        const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+        const response = await sendMessageWithTimeout<StartSyncContentResponse>(
           'scroll:start',
           { ...startRequest, currentTabId: tabId },
           { context: 'content-script', tabId },
@@ -78,6 +146,15 @@ export function registerScrollSyncHandlers(): void {
           logger.info(`Tab ${tabId} acknowledged connection successfully`);
           connectionResults[tabId] = { success: true };
           syncState.connectionStatuses[tabId] = 'connected';
+
+          if (isValidScrollMetrics(response.metrics, tabId)) {
+            connectedScrollMetrics.push(response.metrics);
+          } else {
+            logger.debug('Tab acknowledged without usable scroll metrics', {
+              tabId,
+              reason: 'invalid-scroll-metrics',
+            });
+          }
         } else {
           logger.error(`Tab ${tabId} returned invalid acknowledgment`);
           connectionResults[tabId] = { success: false, error: 'Invalid acknowledgment' };
@@ -146,6 +223,8 @@ export function registerScrollSyncHandlers(): void {
     logger.info('Broadcasting sync status to connected tabs');
     await broadcastSyncStatus();
     logger.info('Sync status broadcasted');
+
+    await maybeShowManualAdjustmentHint(connectedScrollMetrics, connectedTabIds);
 
     return {
       success: true,

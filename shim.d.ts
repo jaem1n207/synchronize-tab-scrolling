@@ -1,3 +1,4 @@
+import type { ContextualHintShowMessage } from '~/shared/types/contextual-hints';
 import type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
@@ -14,6 +15,7 @@ import type {
   ScrollRequestReinjectMessage,
   ScrollSyncMessage,
   StartSyncMessage,
+  StartSyncResponse,
   StopSyncMessage,
   SyncBaselineUpdateMessage,
   SyncStatusBroadcastMessage,
@@ -35,7 +37,7 @@ declare module 'react' {
 
 declare module 'webext-bridge' {
   export interface ProtocolMap {
-    'scroll:start': ProtocolWithReturn<StartSyncMessage, unknown>;
+    'scroll:start': ProtocolWithReturn<StartSyncMessage, StartSyncResponse>;
     'scroll:stop': ProtocolWithReturn<StopSyncMessage, unknown>;
     'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
     'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
@@ -67,6 +69,7 @@ declare module 'webext-bridge' {
       Record<string, never>,
       { domains: Array<string> }
     >;
+    'contextual-hint:show': ProtocolWithReturn<ContextualHintShowMessage, unknown>;
   }
 }
 

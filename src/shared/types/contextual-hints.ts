@@ -21,12 +21,12 @@ export interface ContextualHintDefinition {
   dismissible: boolean;
 }
 
-export interface ContextualHintScrollMetrics {
+export type ContextualHintScrollMetrics = {
   tabId: number;
   scrollHeight: number;
   clientHeight: number;
   scrollableHeight: number;
-}
+};
 
 export interface ManualAdjustmentHintDecision {
   shouldShow: boolean;

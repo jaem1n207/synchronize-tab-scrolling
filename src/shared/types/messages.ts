@@ -9,6 +9,7 @@ import type {
   TranslatedPageMetadata,
 } from '~/shared/lib/translated-page-url-utils';
 
+import type { ContextualHintShowMessage, ContextualHintScrollMetrics } from './contextual-hints';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
 
 /**
@@ -28,6 +29,27 @@ export interface StartSyncMessage {
   isAutoSync?: boolean;
   currentTabId?: number;
 }
+
+export type StartSyncConnectionResults = Record<number, { success: boolean; error?: string }>;
+
+/**
+ * Acknowledgement returned by content scripts after scroll sync starts.
+ * Type aliases keep responses assignable to JsonValue for messaging helpers.
+ */
+export type StartSyncContentResponse = {
+  success: boolean;
+  tabId: number;
+  metrics?: ContextualHintScrollMetrics;
+};
+
+export type StartSyncBackgroundResponse = {
+  success: boolean;
+  connectedTabs: Array<number>;
+  connectionResults: StartSyncConnectionResults;
+  error?: string;
+};
+
+export type StartSyncResponse = StartSyncContentResponse | StartSyncBackgroundResponse;
 
 /**
  * Message to stop scroll synchronization
@@ -326,4 +348,5 @@ export interface ProtocolMap {
   'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
   'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
   'auto-sync:get-excluded-domains': ExcludedDomainsResponse;
+  'contextual-hint:show': ContextualHintShowMessage;
 }
