@@ -10,6 +10,7 @@ TypeScript interfaces and types shared across all extension components (backgrou
 | `sync-state.ts`      | `SyncState` interface for manual scroll sync state                              |
 | `auto-sync-state.ts` | `AutoSyncGroup` and `AutoSyncState` interfaces for automatic URL-based sync     |
 | `url-sync.ts`        | URL Sync mode, notice, and storage repair result types                          |
+| `contextual-hints.ts` | Contextual onboarding hint IDs, surfaces, messages, and scroll metrics         |
 | `index.ts`           | Barrel file re-exporting all types                                              |
 
 ## Message Type Safety

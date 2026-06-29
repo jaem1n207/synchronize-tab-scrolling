@@ -1,4 +1,14 @@
 export type { AutoSyncGroup, AutoSyncState } from './auto-sync-state';
+export type {
+  ContextualHintAction,
+  ContextualHintActionMessage,
+  ContextualHintDefinition,
+  ContextualHintId,
+  ContextualHintScrollMetrics,
+  ContextualHintShowMessage,
+  ContextualHintSurface,
+  ManualAdjustmentHintDecision,
+} from './contextual-hints';
 export * from './url-sync';
 export type {
   AddTabToSyncMessage,
