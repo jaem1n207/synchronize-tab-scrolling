@@ -578,34 +578,19 @@
     }
   },
   "newTabSameUrl": {
-    "message": "New tab \"$TITLE$\" has same URL. Add to sync?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Add this tab to the current sync?"
   },
   "newTabSameTranslatedPage": {
-    "message": "New tab \"$TITLE$\" is the same translated page. Add to sync?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Add this tab to the current sync?"
   },
   "newTabMayBeTranslation": {
-    "message": "New tab \"$TITLE$\" may be a translation of the synced page. Add to sync?",
-    "placeholders": {
-      "title": {
-        "content": "$1",
-        "example": "Google Docs"
-      }
-    }
+    "message": "Add this tab to the current sync?"
+  },
+  "addTabToCurrentSyncBody": {
+    "message": "Adding it will scroll this tab together with the tabs currently syncing."
   },
   "warningResetScrollOffsets": {
-    "message": "Adding this tab will reset your scroll position adjustments"
+    "message": "Adding it will reset your scroll position adjustments."
   },
   "existingSyncWarning": {
     "message": "You're currently syncing $COUNT$ tabs. Starting this will replace the active sync.",
@@ -623,13 +608,13 @@
     "message": "Start Sync"
   },
   "addTabButton": {
-    "message": "Add Tab"
+    "message": "Add to current sync"
   },
   "notNowButton": {
     "message": "Not Now"
   },
   "skipButton": {
-    "message": "Skip"
+    "message": "Do later"
   },
   "manageExcludedDomains": {
     "message": "Manage Excluded Domains"
