@@ -20,10 +20,11 @@ describe('showContextualHintToast', () => {
 
   function mockSuggestionToastDependencies(
     isContextualHintDismissed = vi.fn().mockResolvedValue(false),
+    saveDismissedContextualHintId = vi.fn().mockResolvedValue(undefined),
   ) {
     vi.doMock('~/shared/lib/storage', () => ({
       isContextualHintDismissed,
-      saveDismissedContextualHintId: vi.fn(),
+      saveDismissedContextualHintId,
     }));
     vi.doMock('~/shared/lib/logger', () => ({
       ExtensionLogger: vi.fn().mockImplementation(() => ({
@@ -58,7 +59,7 @@ describe('showContextualHintToast', () => {
       },
     }));
 
-    return { isContextualHintDismissed };
+    return { isContextualHintDismissed, saveDismissedContextualHintId };
   }
 
   async function finishToastCssLoad(): Promise<ShadowRoot> {
@@ -160,5 +161,65 @@ describe('showContextualHintToast', () => {
     });
 
     expect(shadowRoot.textContent).toContain('Other tabs moved to the same page');
+  });
+
+  it('does not re-render the same hint while permanent dismissal is being saved', async () => {
+    let resolveSave: (() => void) | null = null;
+    const saveDismissedContextualHintId = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const { isContextualHintDismissed } = mockSuggestionToastDependencies(
+      vi.fn().mockResolvedValue(false),
+      saveDismissedContextualHintId,
+    );
+
+    const { showContextualHintToast } = await import('./suggestion-toast');
+
+    const showPromise = showContextualHintToast({
+      hintId: 'page-change-synced',
+      surface: 'webpage-overlay',
+      source: 'url-sync',
+    });
+    const shadowRoot = await finishToastCssLoad();
+
+    await act(async () => {
+      await showPromise;
+    });
+    await waitFor(() => {
+      expect(shadowRoot.textContent).toContain('Other tabs moved to the same page');
+    });
+
+    const hideButton = Array.from(shadowRoot.querySelectorAll('button')).find(
+      (button) => button.textContent === 'Hide this hint',
+    );
+    if (!hideButton) {
+      throw new Error('Expected permanent hide button to exist');
+    }
+
+    act(() => {
+      hideButton.click();
+    });
+
+    await waitFor(() => {
+      expect(saveDismissedContextualHintId).toHaveBeenCalledWith('page-change-synced');
+    });
+
+    await act(async () => {
+      await showContextualHintToast({
+        hintId: 'page-change-synced',
+        surface: 'webpage-overlay',
+        source: 'url-sync',
+      });
+    });
+
+    expect(isContextualHintDismissed).toHaveBeenCalledTimes(1);
+    expect(shadowRoot.textContent).not.toContain('Other tabs moved to the same page');
+
+    await act(async () => {
+      resolveSave?.();
+    });
   });
 });

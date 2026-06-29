@@ -35,6 +35,7 @@ let toastContainer: HTMLDivElement | null = null;
 let currentSuggestion: SyncSuggestionMessage | null = null;
 let currentAddTabSuggestion: AddTabToSyncMessage | null = null;
 let currentContextualHint: ContextualHintShowMessage | null = null;
+const pendingContextualHintDismissals = new Set<WebpageOverlayContextualHintId>();
 let cssLoaded = false;
 let cssLoadPromise: Promise<void> | null = null;
 
@@ -630,13 +631,18 @@ function renderToast() {
       return;
     }
 
-    currentContextualHint = null;
-    renderToast();
-
+    pendingContextualHintDismissals.add(hintId);
     try {
       await saveDismissedContextualHintId(hintId);
     } catch (error) {
       await logger.error('Failed to save dismissed contextual hint ID', error);
+    } finally {
+      pendingContextualHintDismissals.delete(hintId);
+    }
+
+    if (currentContextualHint?.hintId === hintId) {
+      currentContextualHint = null;
+      renderToast();
     }
   };
 
@@ -718,6 +724,14 @@ export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage)
 export async function showContextualHintToast(hint: ContextualHintShowMessage) {
   if (!isSupportedContextualHint(hint)) {
     logger.debug('[SuggestionToast] Ignoring unsupported contextual hint', {
+      hintId: hint.hintId,
+      surface: hint.surface,
+    });
+    return;
+  }
+
+  if (pendingContextualHintDismissals.has(hint.hintId)) {
+    logger.debug('[SuggestionToast] Skipping contextual hint with pending dismissal', {
       hintId: hint.hintId,
       surface: hint.surface,
     });
