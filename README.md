@@ -156,6 +156,10 @@ flowchart TD
     D --> E["Sync continues from new alignment"]
 ```
 
+When the extension detects synced pages with meaningfully different scrollable heights, it may show
+a small contextual hint about this shortcut. The hint appears only in that situation and can be
+hidden from the overlay.
+
 ### URL Navigation Sync
 
 When you click a link in one synced tab, the other synced tabs can follow the page change too. This
