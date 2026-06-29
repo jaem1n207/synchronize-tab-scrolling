@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "이 안내 숨기기"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "다른 탭도 같은 페이지로 이동했어요"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "원하지 않으면 페이지 이동 동기화를 끌 수 있어요."
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "각 탭의 사이트를 유지했어요"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "가능한 같은 경로로만 이동했어요."
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "설정 바꾸기"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "다음에 보기"
+  },
+  "contextualHintHideAction": {
+    "message": "이 안내 숨기기"
   }
 }
