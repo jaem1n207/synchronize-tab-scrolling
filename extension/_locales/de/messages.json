@@ -693,5 +693,26 @@
   },
   "urlSyncSettingReadFailedNotice": {
     "message": "Die URL-Sync-Einstellung konnte nicht gelesen werden. Die URL-Navigation wurde nicht synchronisiert. Prüfen Sie die Erweiterungsberechtigungen oder versuchen Sie es erneut."
+  },
+  "contextualHintManualScrollTitle": {
+    "message": "Eine Seite anpassen, während die Synchronisierung aktiv bleibt"
+  },
+  "contextualHintManualScrollDifferentLengths": {
+    "message": "Wenn synchronisierte Seiten unterschiedlich lang sind, kann sich die Scrollposition versetzt anfühlen."
+  },
+  "contextualHintManualScrollShortcut": {
+    "message": "Halte $SHORTCUT$ gedrückt und scrolle, um nur die aktuelle Seite zu bewegen.",
+    "placeholders": {
+      "shortcut": {
+        "content": "$1",
+        "example": "Alt"
+      }
+    }
+  },
+  "contextualHintManualScrollResume": {
+    "message": "Lässt du die Taste los, läuft die Synchronisierung ab der angepassten Position weiter."
+  },
+  "contextualHintManualScrollHideButton": {
+    "message": "Diesen Hinweis ausblenden"
   }
 }
