@@ -379,10 +379,7 @@ git commit -m "feat: add contextual hint helpers"
 Update the import in `src/shared/lib/storage.test.ts` to include:
 
 ```typescript
-import {
-  loadDismissedContextualHintIds,
-  saveDismissedContextualHintId,
-} from './storage';
+import { loadDismissedContextualHintIds, saveDismissedContextualHintId } from './storage';
 ```
 
 Append these tests to `src/shared/lib/storage.test.ts`:
@@ -505,9 +502,7 @@ export async function loadDismissedContextualHintIds(): Promise<Set<ContextualHi
   }
 }
 
-export async function saveDismissedContextualHintId(
-  hintId: ContextualHintId,
-): Promise<boolean> {
+export async function saveDismissedContextualHintId(hintId: ContextualHintId): Promise<boolean> {
   try {
     const dismissedHintIds = await loadDismissedContextualHintIds();
     const nextHintIds = dismissedHintIds ?? new Set<ContextualHintId>();
