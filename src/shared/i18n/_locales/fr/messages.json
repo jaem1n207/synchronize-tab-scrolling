@@ -714,5 +714,26 @@
   },
   "contextualHintManualScrollHideButton": {
     "message": "Masquer cette astuce"
+  },
+  "contextualHintPageChangeSyncedTitle": {
+    "message": "Les autres onglets ont ouvert la même page"
+  },
+  "contextualHintPageChangeSyncedBody": {
+    "message": "Vous pouvez désactiver la synchronisation des changements de page."
+  },
+  "contextualHintKeepWebsitePathSyncedTitle": {
+    "message": "Chaque onglet a conservé son site"
+  },
+  "contextualHintKeepWebsitePathSyncedBody": {
+    "message": "Seul le chemin correspondant a été ouvert quand c’était possible."
+  },
+  "contextualHintChangeSettingAction": {
+    "message": "Modifier le réglage"
+  },
+  "contextualHintShowLaterAction": {
+    "message": "Afficher plus tard"
+  },
+  "contextualHintHideAction": {
+    "message": "Masquer cette aide"
   }
 }
