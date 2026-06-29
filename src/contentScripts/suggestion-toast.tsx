@@ -547,30 +547,42 @@ function renderToast() {
     renderToast();
   };
 
-  const handleContextualHintAutoDismiss = () => {
+  const handleContextualHintAutoDismiss = (hintId: SupportedWebpageOverlayHintId) => {
+    if (currentContextualHint?.hintId !== hintId) {
+      return;
+    }
+
     currentContextualHint = null;
     renderToast();
   };
 
-  const handleContextualHintOpenSettings = () => {
+  const handleContextualHintOpenSettings = (hintId: SupportedWebpageOverlayHintId) => {
+    if (currentContextualHint?.hintId !== hintId) {
+      return;
+    }
+
     currentContextualHint = null;
     renderToast();
 
     window.dispatchEvent(new CustomEvent('scroll-sync-open-url-sync-settings'));
   };
 
-  const handleContextualHintHidePermanently = async () => {
-    if (!currentContextualHint) return;
-
-    try {
-      await saveDismissedContextualHintId(currentContextualHint.hintId);
-    } catch (error) {
-      await logger.error('Failed to save dismissed contextual hint ID', error);
+  const handleContextualHintHidePermanently = async (hintId: SupportedWebpageOverlayHintId) => {
+    if (currentContextualHint?.hintId !== hintId) {
+      return;
     }
 
     currentContextualHint = null;
     renderToast();
+
+    try {
+      await saveDismissedContextualHintId(hintId);
+    } catch (error) {
+      await logger.error('Failed to save dismissed contextual hint ID', error);
+    }
   };
+
+  const activeContextualHint = currentContextualHint;
 
   toastRoot.render(
     <>
@@ -590,15 +602,18 @@ function renderToast() {
           onReject={handleAddTabReject}
         />
       )}
-      {currentContextualHint && currentContextualHint.surface === 'webpage-overlay' && (
+      {activeContextualHint && activeContextualHint.surface === 'webpage-overlay' && (
         <>
-          {isSupportedContextualHint(currentContextualHint) && (
+          {isSupportedContextualHint(activeContextualHint) && (
             <ContextualHintToast
-              hintId={currentContextualHint.hintId}
+              key={activeContextualHint.hintId}
+              hintId={activeContextualHint.hintId}
               shortcutLabel={getContextualHintShortcutLabel()}
-              onAutoDismiss={handleContextualHintAutoDismiss}
-              onHidePermanently={handleContextualHintHidePermanently}
-              onOpenSettings={handleContextualHintOpenSettings}
+              onAutoDismiss={() => handleContextualHintAutoDismiss(activeContextualHint.hintId)}
+              onHidePermanently={() =>
+                handleContextualHintHidePermanently(activeContextualHint.hintId)
+              }
+              onOpenSettings={() => handleContextualHintOpenSettings(activeContextualHint.hintId)}
             />
           )}
         </>
@@ -671,6 +686,12 @@ export function hideSuggestionToasts() {
   currentSuggestion = null;
   currentAddTabSuggestion = null;
   currentContextualHint = null;
+  renderToast();
+}
+
+export function hideTransientSuggestionToasts() {
+  currentSuggestion = null;
+  currentAddTabSuggestion = null;
   renderToast();
 }
 
