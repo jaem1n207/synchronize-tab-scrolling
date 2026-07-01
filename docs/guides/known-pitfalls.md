@@ -63,6 +63,21 @@ rg -n "logger\\.|tab\\.url|window\\.location\\.href|payload\\.url|normalizedUrl|
 
 검색 결과가 기능 로직이라면 괜찮을 수 있지만, `logger` 호출이나 외부 전송 경로에 raw URL/title이 들어가면 **차단 이슈**입니다.
 
+### Storage 값 검증
+
+`browser.storage.local`에서 읽은 값은 외부 입력처럼 취급하세요. 타입 단언으로 "믿는" 대신 런타임에서 검증해야 합니다.
+
+```typescript
+❌ BAD: 존재 여부만 확인하고 boolean으로 단언
+const enabled = result.autoSyncEnabled !== undefined ? (result.autoSyncEnabled as boolean) : false;
+
+✅ GOOD: 명시적인 boolean만 허용
+const storedValue = result.autoSyncEnabled;
+const enabled = typeof storedValue === 'boolean' ? storedValue : false;
+```
+
+`autoSyncEnabled`는 opt-in 설정입니다. 값이 없거나, boolean이 아니거나, storage read가 실패하면 모두 `false`로 처리해야 합니다.
+
 ---
 
 ## Pitfall 1: Hot Path에서 비동기 I/O 사용 금지

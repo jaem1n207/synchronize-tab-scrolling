@@ -392,17 +392,16 @@ export async function saveAutoSyncEnabled(enabled: boolean): Promise<void> {
 
 /**
  * Load auto-sync enabled state for same-URL tabs
- * @returns Whether auto-sync for same-URL tabs is enabled (default: true)
+ * @returns Whether auto-sync for same-URL tabs is enabled (default: false)
  */
 export async function loadAutoSyncEnabled(): Promise<boolean> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.AUTO_SYNC_ENABLED);
-    return result[STORAGE_KEYS.AUTO_SYNC_ENABLED] !== undefined
-      ? (result[STORAGE_KEYS.AUTO_SYNC_ENABLED] as boolean)
-      : true; // Default to disabled
+    const storedValue = result[STORAGE_KEYS.AUTO_SYNC_ENABLED];
+    return typeof storedValue === 'boolean' ? storedValue : false;
   } catch (error) {
     await logger.error('Failed to load auto-sync enabled state:', error);
-    return true;
+    return false;
   }
 }
 

@@ -576,10 +576,10 @@ describe('saveAutoSyncEnabled', () => {
 });
 
 describe('loadAutoSyncEnabled', () => {
-  it('returns true by default when key is undefined', async () => {
+  it('returns false by default when key is undefined', async () => {
     storageGetMock.mockResolvedValue({});
 
-    await expect(loadAutoSyncEnabled()).resolves.toBe(true);
+    await expect(loadAutoSyncEnabled()).resolves.toBe(false);
     expect(storageGetMock).toHaveBeenCalledWith('autoSyncEnabled');
   });
 
@@ -595,11 +595,17 @@ describe('loadAutoSyncEnabled', () => {
     await expect(loadAutoSyncEnabled()).resolves.toBe(true);
   });
 
-  it('returns true and logs error when load fails', async () => {
+  it('returns false for malformed stored value', async () => {
+    storageGetMock.mockResolvedValue({ autoSyncEnabled: 'true' });
+
+    await expect(loadAutoSyncEnabled()).resolves.toBe(false);
+  });
+
+  it('returns false and logs error when load fails', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);
 
-    await expect(loadAutoSyncEnabled()).resolves.toBe(true);
+    await expect(loadAutoSyncEnabled()).resolves.toBe(false);
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to load auto-sync enabled state:', error);
   });
 });

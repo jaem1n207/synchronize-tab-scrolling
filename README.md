@@ -174,24 +174,26 @@ You can choose how page changes behave:
 
 ### Auto-Sync Suggestion
 
-When the extension finds tabs that appear to be the same page, such as multiple tabs with the same
-URL, a toast notification appears in the bottom-right corner of each tab. This is only a suggestion
-to start scroll sync; it is separate from **"Sync page changes"**, which controls navigation after
-sync starts.
+Auto-sync suggestions are **off by default**. If you enable **"Suggest same-page tabs"** in the
+Actions menu, the extension can look for tabs that appear to be the same page, such as multiple tabs
+with the same URL, and show a toast notification in the bottom-right corner of each tab. This is only
+a suggestion to start scroll sync; it is separate from **"Sync page changes"**, which controls
+navigation after sync starts.
 
 ```mermaid
 flowchart LR
-    A[Open same-page tabs] --> B[Toast appears]
-    B --> C{User choice}
-    C -->|Start Sync| D[Sync begins]
-    C -->|Not Now| E[Dismissed for session]
-    C -->|Never for this site| F[Domain excluded permanently]
-    B --> G[Auto-dismiss after 10s]
+    A[Enable same-page suggestions] --> B[Open same-page tabs]
+    B --> C[Toast appears]
+    C --> D{User choice}
+    D -->|Start Sync| E[Sync begins]
+    D -->|Not Now| F[Dismissed for session]
+    D -->|Never for this site| G[Domain excluded permanently]
+    C --> H[Auto-dismiss after 10s]
 ```
 
-This feature is **enabled by default**. You can:
+You can:
 
-- Disable it globally in the **Actions menu** → **"Suggest same-page tabs"**
+- Enable or disable it globally in the **Actions menu** → **"Suggest same-page tabs"**
 - Exclude specific domains by clicking **"Never show again for this site"** on the toast
 - Manage excluded domains in the **Actions menu** → **"Manage excluded domains"**
 
