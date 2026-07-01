@@ -45,6 +45,8 @@ Manifest V3 service worker (Chrome/Edge/Brave) / persistent background (Firefox)
 ### Auto-Sync (`autoSyncState` — protected by mutex)
 
 - `enabled`, `groups: Map<normalizedUrl, { tabIds, isActive }>`, `excludedUrls`
+- `enabled` is opt-in. `loadAutoSyncEnabled()` must return `true` only for an explicit stored
+  boolean `true`; missing, malformed, or unreadable storage values are disabled.
 - **All writes** must go through `withAutoSyncLock()` to prevent concurrent mutation
 - Auxiliary sets: `manualSyncOverriddenTabs`, `dismissedUrlGroups`, `pendingSuggestions`
 
@@ -59,6 +61,8 @@ Manifest V3 service worker (Chrome/Edge/Brave) / persistent background (Firefox)
 - **ALWAYS** remove closed tabs from `manualSyncOverriddenTabs` set
 - **ALWAYS** clear tab-keyed pending contextual hints when tabs close
 - **ALWAYS** model storage failures explicitly. Do not convert read/write failures into a normal default mode if that would make tabs behave differently from what the UI shows.
+- **ALWAYS** runtime-validate storage values. Do not use type assertions for storage-sourced
+  booleans.
 
 ## Timing Constants
 

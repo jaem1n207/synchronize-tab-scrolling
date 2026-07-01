@@ -30,7 +30,7 @@ metadata.
 
 - **Scroll Sync Orchestration**: Receives scroll positions from one tab and relays to all linked tabs
 - **Connection Management**: Tracks tab connection health, handles reconnection after service worker restarts
-- **Auto-Sync**: Automatically groups tabs with matching URLs and suggests synchronization
+- **Auto-Sync**: Opt-in same-page suggestion flow. When enabled, groups tabs with matching URLs and suggests synchronization
 - **State Persistence**: Survives service worker termination via `browser.storage.local`
 - **Keep-Alive**: Prevents Chromium service worker from terminating during active sync
 
