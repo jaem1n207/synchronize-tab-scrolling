@@ -37,6 +37,11 @@ extension settings URL used by the popup.
 hint allowlist, pending URL Sync hint ID validation, and OS-specific shortcut labels. Keep renderer
 and listener guards pointed at these helpers so supported hint IDs do not drift.
 
+`storage.ts` wraps `browser.storage.local`, so values loaded from storage must be narrowed at runtime.
+Do not use type assertions for storage-sourced values. For `autoSyncEnabled`, only an explicit
+boolean `true` keeps same-page suggestions enabled; missing, malformed, or unreadable values fall
+back to `false`.
+
 ## Testing Strategy
 
 Pure utility functions have 100% test coverage with co-located `*.test.ts` files. Tests use Vitest with descriptive `describe/it` blocks organized by input categories.
@@ -51,7 +56,8 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 ## Design Principles
 
 - **Pure functions**: No side effects, deterministic outputs for given inputs
-- **Type safety**: Strict TypeScript with no `any` or type assertions
+- **Type safety**: Strict TypeScript with no `any` or type assertions; validate external values with
+  guards or `typeof` checks
 - **Independence**: Each module can be tested in isolation without mocking
 - **Cross-platform**: Works in background (service worker), content script, and popup contexts
 - **Privacy**: Local-file helpers inspect URL metadata and browser capability only, never file contents
