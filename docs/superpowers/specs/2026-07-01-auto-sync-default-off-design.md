@@ -2,9 +2,10 @@
 
 ## Context
 
-The extension currently suggests syncing same-page tabs automatically when `autoSyncEnabled` is not
-stored in `browser.storage.local`. The storage loader treats a missing key as enabled, so new
-installations and users without an explicit stored choice see suggestion toasts by default.
+Before this change, the extension suggested syncing same-page tabs automatically when
+`autoSyncEnabled` was not stored in `browser.storage.local`. The storage loader treated a missing key
+as enabled, so new installations and users without an explicit stored choice saw suggestion toasts by
+default.
 
 This creates too much noise. The opt-out control exists in the popup Actions menu, but users who are
 annoyed by repeated suggestions are more likely to remove the extension than discover and disable a
@@ -34,13 +35,14 @@ hidden advanced option.
 
 Change the stored preference default at the storage boundary.
 
-`loadAutoSyncEnabled()` should return:
+`loadAutoSyncEnabled()` now returns:
 
 | Stored Value             | Returned Value |
 | ------------------------ | -------------- |
 | `autoSyncEnabled: true`  | `true`         |
 | `autoSyncEnabled: false` | `false`        |
 | key missing              | `false`        |
+| malformed value          | `false`        |
 | storage read fails       | `false`        |
 
 This makes the behavior opt-in without writing a new value during startup. If the user turns the
@@ -74,16 +76,21 @@ explicit state.
 If reading `autoSyncEnabled` fails, the loader returns `false`. This avoids surprising users with
 noisy suggestions when the extension cannot confirm that the feature was enabled.
 
+### Malformed Stored Value
+
+If storage contains a non-boolean `autoSyncEnabled` value, the loader returns `false`. This keeps the
+feature opt-in: only an explicit stored boolean `true` enables same-page suggestions.
+
 ## Architecture
 
 Only the preference boundary should change.
 
-| Unit                              | Change                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------- |
-| `src/shared/lib/storage.ts`       | Make missing-key and read-failure fallback return `false`.              |
-| `src/shared/lib/storage.test.ts`  | Update default and read-failure tests to expect `false`.                |
-| Background lifecycle              | No logic change. It already skips initialization when enabled is false. |
-| Popup `useAutoSync` and menu item | No logic change. It already initializes local state to false.           |
+| Unit                              | Change                                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/shared/lib/storage.ts`       | Accept only explicit booleans; missing, malformed, and read-failure cases return `false`. |
+| `src/shared/lib/storage.test.ts`  | Cover missing, malformed, stored false, stored true, and read-failure cases.              |
+| Background lifecycle              | No logic change. It already skips initialization when enabled is false.                   |
+| Popup `useAutoSync` and menu item | No logic change. It already initializes local state to false.                             |
 
 No migration function is needed because the absence of the key now represents the new default. This
 keeps the change reversible and avoids a second source of truth.
@@ -101,6 +108,7 @@ keeps the change reversible and avoids a second source of truth.
 Update unit coverage for `loadAutoSyncEnabled()`:
 
 - missing key returns `false`
+- malformed value returns `false`
 - stored `false` returns `false`
 - stored `true` returns `true`
 - read failure returns `false` and logs the error
