@@ -1,3 +1,11 @@
+## [2.13.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.13.0...v2.13.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* default auto-sync suggestions off ([7417acd](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/7417acde734f8ac6d7c23eb2fb7a63051c61f853))
+* validate auto-sync preference type ([cb59957](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/cb5995780f19b9dfb75e9cf2080ba5992e7d3db9))
+
 # [2.13.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.12.0...v2.13.0) (2026-06-29)
 
 
