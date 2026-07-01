@@ -6,7 +6,7 @@
 
 ## 개요
 
-동기화 제안 토스트는 같은 URL의 탭이 2개 이상 열릴 때 나타납니다. 그러나 GitHub처럼 여러 탭을 동시에 열어두는 사이트에서는 노이즈가 됩니다. 도메인 제외 기능은 이 문제를 두 가지 레벨로 해결합니다:
+동기화 제안 토스트는 사용자가 **같은 페이지 탭 자동 제안**을 켠 상태에서 같은 URL의 탭이 2개 이상 열릴 때 나타납니다. 이 기능은 기본값이 꺼져 있으며, `autoSyncEnabled`가 명시적인 `true`일 때만 동작합니다. 그러나 GitHub처럼 여러 탭을 동시에 열어두는 사이트에서는 여전히 노이즈가 될 수 있습니다. 도메인 제외 기능은 이 문제를 두 가지 레벨로 해결합니다:
 
 | 레벨              | 메커니즘                | 지속 시간 | 트리거                                                                     |
 | ----------------- | ----------------------- | --------- | -------------------------------------------------------------------------- |
@@ -47,23 +47,24 @@
 ┌─────────────────────────────────────────────────┐
 │ 제안 가드 (showSyncSuggestion 진입점)              │
 │                                                  │
-│  1. syncState.isActive 확인                       │
-│  2. isDomainSnoozed(domain) 확인 ← 인메모리        │
-│  3. isExcludedDomain(domain) 확인 ← 스토리지       │
-│  4. 모두 통과 시에만 토스트 표시                     │
+│  1. autoSyncEnabled가 명시적 true인지 확인          │
+│  2. syncState.isActive 확인                       │
+│  3. isDomainSnoozed(domain) 확인 ← 인메모리        │
+│  4. isExcludedDomain(domain) 확인 ← 스토리지       │
+│  5. 모두 통과 시에만 토스트 표시                     │
 └─────────────────────────────────────────────────┘
 ```
 
 ### 관련 모듈
 
-| 모듈                                               | 역할                                         |
-| -------------------------------------------------- | -------------------------------------------- |
-| `src/background/lib/auto-sync-suggestions.ts`      | 스누즈 상태 관리, 제안 가드                  |
-| `src/background/handlers/auto-sync-handlers.ts`    | 메시지 핸들러 등록                           |
-| `src/shared/lib/storage.ts`                        | `loadExcludedDomains`, `saveExcludedDomains` |
-| `src/shared/lib/url-utils.ts`                      | `normalizeDomain` — URL에서 도메인 추출      |
-| `src/popup/hooks/use-domain-exclusions.ts`         | 팝업 UI 상태 관리 훅                         |
-| `src/popup/components/excluded-domains-dialog.tsx` | 제외 도메인 관리 다이얼로그                  |
+| 모듈                                               | 역할                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------- |
+| `src/background/lib/auto-sync-suggestions.ts`      | 스누즈 상태 관리, 제안 가드                                         |
+| `src/background/handlers/auto-sync-handlers.ts`    | 메시지 핸들러 등록                                                  |
+| `src/shared/lib/storage.ts`                        | `loadAutoSyncEnabled`, `loadExcludedDomains`, `saveExcludedDomains` |
+| `src/shared/lib/url-utils.ts`                      | `normalizeDomain` — URL에서 도메인 추출                             |
+| `src/popup/hooks/use-domain-exclusions.ts`         | 팝업 UI 상태 관리 훅                                                |
+| `src/popup/components/excluded-domains-dialog.tsx` | 제외 도메인 관리 다이얼로그                                         |
 
 ---
 
