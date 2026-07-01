@@ -595,6 +595,12 @@ describe('loadAutoSyncEnabled', () => {
     await expect(loadAutoSyncEnabled()).resolves.toBe(true);
   });
 
+  it('returns false for malformed stored value', async () => {
+    storageGetMock.mockResolvedValue({ autoSyncEnabled: 'true' });
+
+    await expect(loadAutoSyncEnabled()).resolves.toBe(false);
+  });
+
   it('returns false and logs error when load fails', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);

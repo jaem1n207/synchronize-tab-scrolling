@@ -397,9 +397,8 @@ export async function saveAutoSyncEnabled(enabled: boolean): Promise<void> {
 export async function loadAutoSyncEnabled(): Promise<boolean> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.AUTO_SYNC_ENABLED);
-    return result[STORAGE_KEYS.AUTO_SYNC_ENABLED] !== undefined
-      ? (result[STORAGE_KEYS.AUTO_SYNC_ENABLED] as boolean)
-      : false;
+    const storedValue = result[STORAGE_KEYS.AUTO_SYNC_ENABLED];
+    return typeof storedValue === 'boolean' ? storedValue : false;
   } catch (error) {
     await logger.error('Failed to load auto-sync enabled state:', error);
     return false;
