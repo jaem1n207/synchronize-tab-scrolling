@@ -5,6 +5,9 @@
 **Goal:** Make same-page tab suggestions opt-in by treating a missing or unreadable
 `autoSyncEnabled` preference as disabled.
 
+**Status:** Completed in PR #392. The implementation now treats missing, malformed, and unreadable
+`autoSyncEnabled` values as disabled while preserving explicit stored booleans.
+
 **Architecture:** Keep the change at the shared storage boundary. The background lifecycle and popup
 already consume `loadAutoSyncEnabled()` and already skip auto-sync initialization when it returns
 `false`, so implementation only changes the loader contract and its unit tests.
@@ -55,6 +58,12 @@ describe('loadAutoSyncEnabled', () => {
     await expect(loadAutoSyncEnabled()).resolves.toBe(true);
   });
 
+  it('returns false for malformed stored value', async () => {
+    storageGetMock.mockResolvedValue({ autoSyncEnabled: 'true' });
+
+    await expect(loadAutoSyncEnabled()).resolves.toBe(false);
+  });
+
   it('returns false and logs error when load fails', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);
@@ -73,8 +82,8 @@ Run:
 pnpm test -- src/shared/lib/storage.test.ts -t loadAutoSyncEnabled
 ```
 
-Expected: FAIL. The missing-key and read-failure tests fail because the current implementation still
-returns `true`.
+Expected before the implementation change: FAIL. The missing-key and read-failure tests fail because
+the pre-change implementation still returns `true`.
 
 Expected failure shape:
 
@@ -111,9 +120,8 @@ with:
 export async function loadAutoSyncEnabled(): Promise<boolean> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.AUTO_SYNC_ENABLED);
-    return result[STORAGE_KEYS.AUTO_SYNC_ENABLED] !== undefined
-      ? (result[STORAGE_KEYS.AUTO_SYNC_ENABLED] as boolean)
-      : false;
+    const storedValue = result[STORAGE_KEYS.AUTO_SYNC_ENABLED];
+    return typeof storedValue === 'boolean' ? storedValue : false;
   } catch (error) {
     await logger.error('Failed to load auto-sync enabled state:', error);
     return false;
@@ -221,6 +229,7 @@ git diff -- src/shared/lib/storage.ts src/shared/lib/storage.test.ts
 Expected: Diff only changes:
 
 - `loadAutoSyncEnabled()` missing-key fallback from `true` to `false`
+- `loadAutoSyncEnabled()` malformed-value behavior returns `false`
 - `loadAutoSyncEnabled()` read-failure fallback from `true` to `false`
 - comment text from `default: true` to `default: false`
 - focused storage test expectations and names
@@ -249,10 +258,11 @@ Expected: Skip this step when Task 2 already produced the final passing implemen
 
 ## Self-Review
 
-- Spec coverage: The plan covers missing-key default off, read-failure default off, preservation of
-  stored `true` and `false`, no migration key, no popup/background logic changes, focused tests,
-  typecheck, and privacy logging validation.
+- Spec coverage: The plan covers missing-key default off, malformed-value default off, read-failure
+  default off, preservation of stored `true` and `false`, no migration key, no popup/background logic
+  changes, focused tests, typecheck, and privacy logging validation.
 - Placeholder scan: The plan contains complete code replacements, exact commands, and expected
   outcomes.
-- Type consistency: The implementation keeps `loadAutoSyncEnabled(): Promise<boolean>` unchanged and
-  uses the existing `STORAGE_KEYS.AUTO_SYNC_ENABLED` key.
+- Type consistency: The implementation keeps `loadAutoSyncEnabled(): Promise<boolean>` unchanged,
+  uses the existing `STORAGE_KEYS.AUTO_SYNC_ENABLED` key, and narrows storage values with
+  `typeof storedValue === 'boolean'` instead of a type assertion.
