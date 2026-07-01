@@ -36,12 +36,12 @@ Change the stored preference default at the storage boundary.
 
 `loadAutoSyncEnabled()` should return:
 
-| Stored Value                       | Returned Value |
-| ---------------------------------- | -------------- |
-| `autoSyncEnabled: true`            | `true`         |
-| `autoSyncEnabled: false`           | `false`        |
-| key missing                        | `false`        |
-| storage read fails                 | `false`        |
+| Stored Value             | Returned Value |
+| ------------------------ | -------------- |
+| `autoSyncEnabled: true`  | `true`         |
+| `autoSyncEnabled: false` | `false`        |
+| key missing              | `false`        |
+| storage read fails       | `false`        |
 
 This makes the behavior opt-in without writing a new value during startup. If the user turns the
 feature on from the popup, the existing `saveAutoSyncEnabled(true)` path persists the choice and the
@@ -78,12 +78,12 @@ noisy suggestions when the extension cannot confirm that the feature was enabled
 
 Only the preference boundary should change.
 
-| Unit                               | Change                                                                 |
-| ---------------------------------- | ---------------------------------------------------------------------- |
-| `src/shared/lib/storage.ts`        | Make missing-key and read-failure fallback return `false`.             |
-| `src/shared/lib/storage.test.ts`   | Update default and read-failure tests to expect `false`.               |
-| Background lifecycle               | No logic change. It already skips initialization when enabled is false. |
-| Popup `useAutoSync` and menu item  | No logic change. It already initializes local state to false.          |
+| Unit                              | Change                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `src/shared/lib/storage.ts`       | Make missing-key and read-failure fallback return `false`.              |
+| `src/shared/lib/storage.test.ts`  | Update default and read-failure tests to expect `false`.                |
+| Background lifecycle              | No logic change. It already skips initialization when enabled is false. |
+| Popup `useAutoSync` and menu item | No logic change. It already initializes local state to false.           |
 
 No migration function is needed because the absence of the key now represents the new default. This
 keeps the change reversible and avoids a second source of truth.
