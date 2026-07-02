@@ -30,6 +30,90 @@ export function clampScrollPosition(position: number, maxScroll: number): number
   return Math.max(0, Math.min(maxScroll, position));
 }
 
+export interface ScrollAnchor {
+  logicalRatio: number;
+  localScrollTop: number;
+}
+
+export interface AnchoredScrollTarget {
+  scrollTop: number;
+  wasClamped: boolean;
+}
+
+function normalizeScrollMathValue(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Number(value.toFixed(12));
+}
+
+function clampRatio(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return normalizeScrollMathValue(Math.max(0, Math.min(1, value)));
+}
+
+function getSafeMaxScroll(maxScroll: number): number {
+  if (!Number.isFinite(maxScroll)) return 0;
+  return Math.max(0, maxScroll);
+}
+
+export function calculateAnchoredLogicalRatio(
+  scrollTop: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): number {
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) return 0;
+
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const anchorTop = clampScrollPosition(anchor.localScrollTop, safeMaxScroll);
+  const localTop = clampScrollPosition(scrollTop, safeMaxScroll);
+
+  if (localTop <= anchorTop) {
+    if (anchorTop <= 0 || anchorLogical <= 0) return 0;
+    return clampRatio((localTop / anchorTop) * anchorLogical);
+  }
+
+  const remainingLocal = safeMaxScroll - anchorTop;
+  const remainingLogical = 1 - anchorLogical;
+
+  if (remainingLocal <= 0 || remainingLogical <= 0) return 1;
+
+  const progress = (localTop - anchorTop) / remainingLocal;
+  return clampRatio(anchorLogical + progress * remainingLogical);
+}
+
+export function calculateAnchoredScrollTop(
+  logicalRatio: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): AnchoredScrollTarget {
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) return { scrollTop: 0, wasClamped: anchor.localScrollTop > 0 };
+
+  const sourceRatio = clampRatio(logicalRatio);
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const anchorTop = clampScrollPosition(anchor.localScrollTop, safeMaxScroll);
+
+  let rawTarget: number;
+
+  if (sourceRatio <= anchorLogical) {
+    const progress = anchorLogical > 0 ? sourceRatio / anchorLogical : 0;
+    rawTarget = progress * anchorTop;
+  } else {
+    const remainingLogical = 1 - anchorLogical;
+    const remainingLocal = safeMaxScroll - anchorTop;
+    const progress = remainingLogical > 0 ? (sourceRatio - anchorLogical) / remainingLogical : 1;
+    rawTarget = anchorTop + progress * remainingLocal;
+  }
+
+  const clampedTarget = clampScrollPosition(rawTarget, safeMaxScroll);
+  const scrollTop = normalizeScrollMathValue(clampedTarget);
+
+  return {
+    scrollTop,
+    wasClamped: anchor.localScrollTop > safeMaxScroll || rawTarget !== clampedTarget,
+  };
+}
+
 /**
  * Index of the element whose scrollTop is closest to `currentScroll`.
  *
