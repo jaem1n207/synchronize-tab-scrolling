@@ -63,7 +63,7 @@ Keep the fix in the pure URL utility layer:
   a source-website URL for a target without a locale marker.
 - When the source locale came from query parameters and the target has no locale marker,
   `applyTranslatedPageLocaleSync()` should take an early `sourceLocale?.source === 'query' &&
-  !targetLocale` branch. That branch rebuilds the URL with `buildSourceIdentitySearch(source)`,
+!targetLocale` branch. That branch rebuilds the URL with `buildSourceIdentitySearch(source)`,
   stripping locale-valued query carriers such as `lang` and `hl` while preserving source identity
   query parameters.
 - The generic `!targetLocale` fallback should keep returning `sourceUrl` for path/subdomain source
