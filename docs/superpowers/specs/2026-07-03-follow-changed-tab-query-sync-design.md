@@ -59,12 +59,20 @@ Keep the fix in the pure URL utility layer:
 
 - `resolveUrlSyncTarget(sourceUrl, targetUrl, 'follow-changed-tab')` continues to delegate to
   `applyTranslatedPageLocaleSync(sourceUrl, targetUrl)`.
-- `applyTranslatedPageLocaleSync()` should use the existing `getIdentityQueryParams()` path when it
-  rebuilds a source-website URL for a target without a locale marker.
+- `applyTranslatedPageLocaleSync()` should use `buildSourceIdentitySearch(source)` when it rebuilds
+  a source-website URL for a target without a locale marker.
+- When the source locale came from query parameters and the target has no locale marker,
+  `applyTranslatedPageLocaleSync()` should take an early `sourceLocale?.source === 'query' &&
+  !targetLocale` branch. That branch rebuilds the URL with `buildSourceIdentitySearch(source)`,
+  stripping locale-valued query carriers such as `lang` and `hl` while preserving source identity
+  query parameters.
+- The generic `!targetLocale` fallback should keep returning `sourceUrl` for path/subdomain source
+  locales. If neither side has a locale marker, it should rebuild from the source protocol, host,
+  path, source identity query, and target hash.
 - The existing path/query/subdomain locale branches should stay on the same helper path they already
   use, because those branches already apply source identity query while preserving target language.
 
-The changed no-target-locale branch should build:
+The changed no-target-locale rebuild path should build:
 
 ```text
 source protocol + source host + source path + source identity query + target hash

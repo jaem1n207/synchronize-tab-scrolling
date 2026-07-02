@@ -167,7 +167,9 @@ function buildPathOrSubdomainLocaleSearch(source: URL, target: URL): string {
 
 - [ ] **Step 2: Use source identity search for targets without locale markers**
 
-In `src/shared/lib/translated-page-url-utils.ts`, replace the `if (!targetLocale)` branch inside `applyTranslatedPageLocaleSync()`:
+In `src/shared/lib/translated-page-url-utils.ts`, update the no-target-locale flow inside
+`applyTranslatedPageLocaleSync()` to handle query-sourced locales before the generic fallback.
+Replace the old branch:
 
 ```typescript
 if (!targetLocale) {
@@ -185,7 +187,22 @@ if (!targetLocale) {
 with:
 
 ```typescript
+if (sourceLocale?.source === 'query' && !targetLocale) {
+  return buildUrlFromParts(
+    source.protocol,
+    source.hostname,
+    source.port,
+    source.pathname,
+    buildSourceIdentitySearch(source),
+    target.hash,
+  );
+}
+
 if (!targetLocale) {
+  if (sourceLocale) {
+    return sourceUrl;
+  }
+
   return buildUrlFromParts(
     source.protocol,
     source.hostname,
@@ -196,6 +213,11 @@ if (!targetLocale) {
   );
 }
 ```
+
+The early query-source branch strips locale-valued query carriers such as `lang` and `hl` via
+`buildSourceIdentitySearch(source)`. The generic fallback still returns `sourceUrl` for path or
+subdomain source locales when the target has no locale marker, and otherwise rebuilds the URL with
+the source identity query and target hash.
 
 - [ ] **Step 3: Run the focused utility tests**
 
