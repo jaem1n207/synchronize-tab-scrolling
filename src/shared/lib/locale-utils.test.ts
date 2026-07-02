@@ -97,10 +97,10 @@ describe('applyLocalePreservingSync', () => {
     expect(result).toBe('https://example.com/en-US/docs/install');
   });
 
-  it('should use source pathname when neither has locale', () => {
+  it('should use source pathname and identity query when neither has locale', () => {
     const result = applyLocalePreservingSync(
-      'https://example.com/docs/install',
-      'https://example.com/docs/next?foo=bar',
+      'https://example.com/docs/install?foo=bar',
+      'https://example.com/docs/next?stale=true',
     );
     expect(result).toBe('https://example.com/docs/install?foo=bar');
   });
