@@ -185,6 +185,12 @@ This mode follows the source website and page, preserves the target language car
 source page-identifying query, and preserves the target hash according to the existing
 locale-preserving behavior.
 
+When the target URL has no language carrier, the mode still follows the source website and page with
+the source page-identifying query. If the source language carrier is query-based, language-only
+query values such as `lang` or `hl` are stripped before rebuilding the navigation URL. If the source
+language carrier is path- or subdomain-based and the target has no language carrier, the source URL
+can be used as-is because the language remains part of the source path or host.
+
 ### Keep Each Tab's Website
 
 Use the target tab's website boundary and apply the source page movement inside it.
