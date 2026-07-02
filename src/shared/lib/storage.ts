@@ -159,9 +159,58 @@ export async function loadSelectedTabIds(): Promise<Array<number>> {
 /**
  * Manual scroll offset data structure
  */
+export interface ManualScrollAnchor {
+  logicalRatio: number;
+  localScrollTop: number;
+  localMaxScrollAtCapture: number;
+}
+
 export interface ManualScrollOffset {
   ratio: number; // -1 to 1, where 0 means no offset
   pixels: number; // actual pixel offset value
+  anchor?: ManualScrollAnchor;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function readManualScrollAnchor(value: unknown): ManualScrollAnchor | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const { logicalRatio, localScrollTop, localMaxScrollAtCapture } = value;
+
+  if (
+    !isFiniteNumber(logicalRatio) ||
+    !isFiniteNumber(localScrollTop) ||
+    !isFiniteNumber(localMaxScrollAtCapture)
+  ) {
+    return undefined;
+  }
+
+  return { logicalRatio, localScrollTop, localMaxScrollAtCapture };
+}
+
+function readManualScrollOffset(value: unknown): ManualScrollOffset | null {
+  if (isFiniteNumber(value)) {
+    return { ratio: value, pixels: 0 };
+  }
+
+  if (!isRecord(value)) return null;
+
+  const { ratio, pixels, anchor } = value;
+
+  if (!isFiniteNumber(ratio) || !isFiniteNumber(pixels)) {
+    return null;
+  }
+
+  const parsedAnchor = readManualScrollAnchor(anchor);
+
+  return parsedAnchor ? { ratio, pixels, anchor: parsedAnchor } : { ratio, pixels };
 }
 
 /**
@@ -171,20 +220,18 @@ export interface ManualScrollOffset {
 export async function loadManualScrollOffsets(): Promise<Record<number, ManualScrollOffset>> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.MANUAL_SCROLL_OFFSETS);
-    const stored = result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS] as
-      | Record<number, number | ManualScrollOffset>
-      | undefined;
+    const stored = result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS];
 
-    if (!stored) return {};
+    if (!isRecord(stored)) return {};
 
-    // Convert legacy format (number) to new format (object)
     const converted: Record<number, ManualScrollOffset> = {};
     for (const [tabId, value] of Object.entries(stored)) {
-      if (typeof value === 'number') {
-        // Legacy format: just ratio, no pixel info
-        converted[Number(tabId)] = { ratio: value, pixels: 0 };
-      } else {
-        converted[Number(tabId)] = value;
+      const numericTabId = Number(tabId);
+      if (!Number.isFinite(numericTabId)) continue;
+
+      const parsedOffset = readManualScrollOffset(value);
+      if (parsedOffset) {
+        converted[numericTabId] = parsedOffset;
       }
     }
     return converted;
@@ -204,10 +251,11 @@ export async function saveManualScrollOffset(
   tabId: number,
   ratio: number,
   pixels: number,
+  anchor?: ManualScrollAnchor,
 ): Promise<void> {
   try {
     const offsets = await loadManualScrollOffsets();
-    offsets[tabId] = { ratio, pixels };
+    offsets[tabId] = anchor ? { ratio, pixels, anchor } : { ratio, pixels };
     await browser.storage.local.set({
       [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
     });

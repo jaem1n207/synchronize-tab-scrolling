@@ -205,6 +205,34 @@ describe('loadManualScrollOffsets', () => {
     expect(storageGetMock).toHaveBeenCalledWith('manualScrollOffsets');
   });
 
+  it('returns stored manual scroll offsets with valid anchor data', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        1: {
+          ratio: 0.25,
+          pixels: 120,
+          anchor: {
+            logicalRatio: 0.3,
+            localScrollTop: 600,
+            localMaxScrollAtCapture: 1200,
+          },
+        },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      1: {
+        ratio: 0.25,
+        pixels: 120,
+        anchor: {
+          logicalRatio: 0.3,
+          localScrollTop: 600,
+          localMaxScrollAtCapture: 1200,
+        },
+      },
+    });
+  });
+
   it('migrates legacy numeric offsets to object format', async () => {
     storageGetMock.mockResolvedValue({
       manualScrollOffsets: {
@@ -230,6 +258,40 @@ describe('loadManualScrollOffsets', () => {
     await expect(loadManualScrollOffsets()).resolves.toEqual({
       5: { ratio: 0.4, pixels: 0 },
       9: { ratio: -0.2, pixels: -88 },
+    });
+  });
+
+  it('drops invalid anchor data while preserving a valid legacy offset object', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        7: {
+          ratio: 0.2,
+          pixels: 88,
+          anchor: {
+            logicalRatio: 'bad',
+            localScrollTop: 600,
+            localMaxScrollAtCapture: 1200,
+          },
+        },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      7: { ratio: 0.2, pixels: 88 },
+    });
+  });
+
+  it('skips invalid manual offset objects', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        8: { ratio: 'bad', pixels: 88 },
+        9: { ratio: 0.1, pixels: Number.NaN },
+        10: { ratio: 0.15, pixels: 30 },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      10: { ratio: 0.15, pixels: 30 },
     });
   });
 
@@ -263,6 +325,31 @@ describe('saveManualScrollOffset', () => {
       manualScrollOffsets: {
         1: { ratio: 0.1, pixels: 10 },
         2: { ratio: 0.35, pixels: 140 },
+      },
+    });
+  });
+
+  it('saves offset anchor data for a tab', async () => {
+    storageGetMock.mockResolvedValue({ manualScrollOffsets: {} });
+    storageSetMock.mockResolvedValue(undefined);
+
+    await saveManualScrollOffset(2, 0.35, 140, {
+      logicalRatio: 0.3,
+      localScrollTop: 600,
+      localMaxScrollAtCapture: 1200,
+    });
+
+    expect(storageSetMock).toHaveBeenCalledWith({
+      manualScrollOffsets: {
+        2: {
+          ratio: 0.35,
+          pixels: 140,
+          anchor: {
+            logicalRatio: 0.3,
+            localScrollTop: 600,
+            localMaxScrollAtCapture: 1200,
+          },
+        },
       },
     });
   });
