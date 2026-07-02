@@ -277,6 +277,24 @@ describe('applyTranslatedPageLocaleSync', () => {
     ).toBe('https://example.com/tr/docs/install?page=setup#target');
   });
 
+  it('uses source identity query when target has no locale marker', () => {
+    expect(
+      applyTranslatedPageLocaleSync(
+        'https://search.example.com/results?query=hello&page=2&utm_source=mail',
+        'https://search.example.com/',
+      ),
+    ).toBe('https://search.example.com/results?page=2&query=hello');
+  });
+
+  it('does not copy locale-valued query carriers as identity query without target locale', () => {
+    expect(
+      applyTranslatedPageLocaleSync(
+        'https://example.com/docs/search?lang=en&query=hello&hl=ko',
+        'https://example.com/docs',
+      ),
+    ).toBe('https://example.com/docs/search?query=hello');
+  });
+
   it('falls back to source URL when parsing fails', () => {
     expect(applyTranslatedPageLocaleSync('not-a-url', 'https://example.com/tr/docs')).toBe(
       'not-a-url',
@@ -295,6 +313,19 @@ describe('resolveUrlSyncTarget', () => {
     ).toEqual({
       status: 'navigate',
       url: 'https://example.com/ko/about?tab=pricing#intro',
+    });
+  });
+
+  it('syncs Naver-shaped source query parameters in follow-changed-tab mode', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=hello&ackey=0eid74s6',
+        'https://www.naver.com/#home',
+        'follow-changed-tab',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://search.naver.com/search.naver?ackey=0eid74s6&fbm=0&ie=utf8&query=hello&sm=top_hty&where=nexearch#home',
     });
   });
 
