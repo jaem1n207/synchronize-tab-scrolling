@@ -304,8 +304,12 @@ function buildTargetQuerySearch(source: URL, targetLocale: LocaleDescriptor): st
 }
 
 function buildPathOrSubdomainLocaleSearch(source: URL, target: URL): string {
+  return buildSourceIdentitySearch(source) || target.search;
+}
+
+function buildSourceIdentitySearch(source: URL): string {
   const identityQuery = stringifyQueryParams(getIdentityQueryParams(source.searchParams));
-  return identityQuery ? `?${identityQuery}` : target.search;
+  return identityQuery ? `?${identityQuery}` : '';
 }
 
 function buildPathLocaleUrl(
@@ -503,17 +507,31 @@ export function applyTranslatedPageLocaleSync(sourceUrl: string, targetUrl: stri
   const sourceLocale = getLocaleDescriptor(source);
   const targetLocale = getLocaleDescriptor(target);
 
-  if (sourceLocale && !targetLocale) {
-    return sourceUrl;
-  }
-
-  if (!targetLocale) {
+  // Query-sourced locales are page-language markers, so strip them while keeping
+  // source identity query. Path/subdomain locales can keep the source URL as-is
+  // when the target has no locale marker to preserve their URL-carried language.
+  if (sourceLocale?.source === 'query' && !targetLocale) {
     return buildUrlFromParts(
       source.protocol,
       source.hostname,
       source.port,
       source.pathname,
-      target.search,
+      buildSourceIdentitySearch(source),
+      target.hash,
+    );
+  }
+
+  if (!targetLocale) {
+    if (sourceLocale) {
+      return sourceUrl;
+    }
+
+    return buildUrlFromParts(
+      source.protocol,
+      source.hostname,
+      source.port,
+      source.pathname,
+      buildSourceIdentitySearch(source),
       target.hash,
     );
   }

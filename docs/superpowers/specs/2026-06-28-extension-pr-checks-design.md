@@ -208,6 +208,7 @@ enough URL variety to exercise the product behavior:
 - different website boundary, same matching page
 - path movement
 - query-language carrier
+- source page-identifying query parameters in `Follow changed tab`
 - hash preservation when applicable
 
 Different websites can be represented with local origins, such as different loopback hosts or ports,
@@ -220,6 +221,7 @@ The required smoke suite should cover these cases:
 1. `Follow changed tab`
    - Another tab follows the changed tab's website.
    - The target tab's language is preserved when possible.
+   - Source page-identifying query parameters are applied when the target has no language carrier.
 2. `Keep each tab's website`
    - Another tab stays on its own website.
    - The changed page movement is applied within that website.

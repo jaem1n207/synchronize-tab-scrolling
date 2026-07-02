@@ -390,6 +390,22 @@ describe('Scenario: URL sync toggle behavior', () => {
     expect(window.location.href).toBe(targetUrl);
   });
 
+  it('when follow-changed-tab is active, url:sync receiver keeps source query params', async () => {
+    await startContentSync(27);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('follow-changed-tab');
+    setWindowUrl('https://www.naver.com/#target');
+
+    await invokeContentMessage('url:sync', {
+      url: 'https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=hello&ackey=0eid74s6',
+      sourceTabId: 99,
+    });
+
+    expect(window.location.href).toBe(
+      'https://search.naver.com/search.naver?ackey=0eid74s6&fbm=0&ie=utf8&query=hello&sm=top_hty&where=nexearch#target',
+    );
+  });
+
   it('preserves target query locale when relaying URL sync', async () => {
     await startContentSync(23);
     await saveUrlSyncEnabled(true);
