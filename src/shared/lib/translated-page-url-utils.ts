@@ -507,6 +507,9 @@ export function applyTranslatedPageLocaleSync(sourceUrl: string, targetUrl: stri
   const sourceLocale = getLocaleDescriptor(source);
   const targetLocale = getLocaleDescriptor(target);
 
+  // Query-sourced locales are page-language markers, so strip them while keeping
+  // source identity query. Path/subdomain locales can keep the source URL as-is
+  // when the target has no locale marker to preserve their URL-carried language.
   if (sourceLocale?.source === 'query' && !targetLocale) {
     return buildUrlFromParts(
       source.protocol,
