@@ -12,8 +12,9 @@ import { isWebpageOverlayContextualHintId } from '~/shared/lib/contextual-hints'
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
+  calculateAnchoredLogicalRatio,
+  calculateAnchoredScrollTop,
   calculateScrollRatio,
-  clampScrollOffset,
   clampScrollPosition,
   findNearestIndex,
 } from '~/shared/lib/scroll-math';
@@ -44,6 +45,7 @@ import {
   createLatestProgrammaticScrollScheduler,
   type ProgrammaticScrollTarget,
 } from './lib/instant-programmatic-scroll';
+import { createManualScrollOffset } from './lib/manual-scroll-offset';
 import {
   createInitialSyncState,
   createInitialWheelModeState,
@@ -182,6 +184,10 @@ function getScrollRatio(): number {
   return calculateScrollRatio(scrollTop, scrollHeight, clientHeight);
 }
 
+function getScrollableHeight(scrollHeight: number, clientHeight: number): number {
+  return Math.max(0, scrollHeight - clientHeight);
+}
+
 /**
  * Cleanup mousemove listener for wheel manual mode
  */
@@ -199,31 +205,27 @@ async function exitWheelManualMode() {
   if (!wheelState.isActive) return;
 
   // Calculate and save offset
-  const currentRatio = getScrollRatio();
-  const offsetRatio = currentRatio - wheelState.baselineSnapshot;
-
-  const clampedOffsetRatio = clampScrollOffset(offsetRatio);
-
-  // Calculate pixel offset for display
-  const { scrollHeight, clientHeight } = getScrollInfo();
-  const maxScroll = scrollHeight - clientHeight;
-  const offsetPixels = Math.round(clampedOffsetRatio * maxScroll);
-
-  logger.debug('Wheel manual mode exiting, saving offset', {
-    currentRatio,
-    wheelBaselineSnapshot: wheelState.baselineSnapshot,
-    offsetRatio,
-    clampedOffsetRatio,
-    offsetPixels,
+  const { scrollTop, scrollHeight, clientHeight } = getScrollInfo();
+  const maxScroll = getScrollableHeight(scrollHeight, clientHeight);
+  const offset = createManualScrollOffset({
+    baselineLogicalRatio: wheelState.baselineSnapshot,
+    currentScrollTop: scrollTop,
+    maxScroll,
   });
 
-  await saveManualScrollOffset(syncState.tabId, clampedOffsetRatio, offsetPixels);
-  cachedManualOffset = { ratio: clampedOffsetRatio, pixels: offsetPixels };
+  logger.debug('Wheel manual mode exiting, saving offset', {
+    wheelBaselineSnapshot: wheelState.baselineSnapshot,
+    offsetRatio: offset.ratio,
+    offsetPixels: offset.pixels,
+  });
+
+  cachedManualOffset = offset;
+  await saveManualScrollOffset(syncState.tabId, offset.ratio, offset.pixels, offset.anchor);
 
   logger.info('Wheel manual scroll offset saved', {
     tabId: syncState.tabId,
-    offsetRatio: clampedOffsetRatio,
-    offsetPixels,
+    offsetRatio: offset.ratio,
+    offsetPixels: offset.pixels,
   });
 
   // Reset state
@@ -359,7 +361,7 @@ async function handleScrollCore() {
   // Remove offset ratio from current ratio before broadcasting
   // This ensures we send the "pure" scroll ratio without offset applied
   const offsetData = cachedManualOffset;
-  const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
+  const myMaxScroll = getScrollableHeight(scrollInfo.scrollHeight, scrollInfo.clientHeight);
 
   const currentRatio = calculateScrollRatio(
     scrollInfo.scrollTop,
@@ -367,8 +369,9 @@ async function handleScrollCore() {
     scrollInfo.clientHeight,
   );
 
-  // Calculate pure ratio by removing this tab's offset
-  const pureRatio = currentRatio - offsetData.ratio;
+  const pureRatio = offsetData.anchor
+    ? calculateAnchoredLogicalRatio(scrollInfo.scrollTop, myMaxScroll, offsetData.anchor)
+    : currentRatio - offsetData.ratio;
 
   // Update syncState.lastSyncedRatio to track the pure baseline we're broadcasting
   // This ensures manual mode snapshots an accurate baseline even when this tab is the active scroller
@@ -389,6 +392,7 @@ async function handleScrollCore() {
     actualScrollTop: scrollInfo.scrollTop,
     currentRatio,
     offsetRatio: offsetData.ratio,
+    hasManualAnchor: Boolean(offsetData.anchor),
     pureRatio,
     pureScrollTop,
   });
@@ -940,7 +944,11 @@ export function initScrollSync() {
     });
 
     // Calculate the synced ratio from source tab
-    const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
+    const sourceRatio = calculateScrollRatio(
+      payload.scrollTop,
+      payload.scrollHeight,
+      payload.clientHeight,
+    );
 
     // If in manual mode, ignore sync messages completely (baseline is frozen)
     if (syncState.isManualScrollEnabled) {
@@ -953,21 +961,24 @@ export function initScrollSync() {
 
     // Get my document dimensions
     const myScrollInfo = getScrollInfo();
-    const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
+    const myMaxScroll = getScrollableHeight(myScrollInfo.scrollHeight, myScrollInfo.clientHeight);
 
     const offsetData = cachedManualOffset;
 
-    // Apply offset ratio to source ratio to get target ratio for this tab
-    const targetRatio = sourceRatio + offsetData.ratio;
+    const anchoredTarget = offsetData.anchor
+      ? calculateAnchoredScrollTop(sourceRatio, myMaxScroll, offsetData.anchor)
+      : null;
 
-    // Convert target ratio to pixel position for this document
-    const targetScrollTop = targetRatio * myMaxScroll;
+    // Apply offset ratio to source ratio for legacy offsets without anchor metadata.
+    const targetRatio = sourceRatio + offsetData.ratio;
+    const targetScrollTop = anchoredTarget?.scrollTop ?? targetRatio * myMaxScroll;
 
     const clampedScrollTop = clampScrollPosition(targetScrollTop, myMaxScroll);
 
     logger.debug('Applying scroll with offset ratio', {
       sourceRatio,
       offsetRatio: offsetData.ratio,
+      hasManualAnchor: Boolean(offsetData.anchor),
       targetRatio,
       targetScrollTop,
       clampedScrollTop,
@@ -975,7 +986,7 @@ export function initScrollSync() {
 
     let nextScrollTop = clampedScrollTop;
 
-    if (payload.mode === 'element') {
+    if (payload.mode === 'element' && !offsetData.anchor) {
       // Element-based sync (P1) - not commonly used with manual offsets
       const nearest = findNearestElement();
       if (nearest) {

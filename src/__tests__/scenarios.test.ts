@@ -134,7 +134,11 @@ import {
 } from '~/background/lib/auto-sync-state';
 import { syncState } from '~/background/lib/sync-state';
 import { initScrollSync } from '~/contentScripts/scroll-sync';
-import { calculateScrollRatio, clampScrollOffset } from '~/shared/lib/scroll-math';
+import {
+  calculateAnchoredLogicalRatio,
+  calculateAnchoredScrollTop,
+  clampScrollOffset,
+} from '~/shared/lib/scroll-math';
 import {
   clearAllManualScrollOffsets,
   clearManualScrollOffset,
@@ -255,6 +259,22 @@ function setDocumentScrollMetrics(scrollHeight: number, clientHeight: number): v
   });
 }
 
+function setWindowScrollTop(scrollTop: number): void {
+  Object.defineProperty(window, 'scrollY', {
+    configurable: true,
+    value: scrollTop,
+  });
+  document.documentElement.scrollTop = scrollTop;
+}
+
+function installImmediateAnimationFrame(): void {
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -266,6 +286,7 @@ beforeEach(() => {
 
   setWindowUrl('http://localhost/start');
   history.replaceState({}, '', '/start');
+  setWindowScrollTop(0);
 
   autoSyncState.enabled = false;
   autoSyncState.groups.clear();
@@ -722,12 +743,161 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await expect(getManualScrollOffset(1)).resolves.toEqual({ ratio: 0.1, pixels: 50 });
   });
 
-  it('offset math applies source ratio plus offset ratio correctly', () => {
-    const sourceRatio = calculateScrollRatio(500, 2000, 1000);
-    const targetRatio = sourceRatio + 0.1;
+  it('anchor math preserves post-anchor pixel deltas when page structures differ before anchor', () => {
+    const logicalRatio = calculateAnchoredLogicalRatio(342, 1000, {
+      logicalRatio: 0.3,
+      localScrollTop: 300,
+    });
+    const target = calculateAnchoredScrollTop(logicalRatio, 1100, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+    });
 
-    expect(sourceRatio).toBe(0.5);
-    expect(targetRatio).toBe(0.6);
+    expect(logicalRatio).toBe(0.342);
+    expect(target.scrollTop).toBe(442);
+  });
+
+  it('source scroll broadcasts anchored logical progress from the cached manual offset', async () => {
+    setDocumentScrollMetrics(2100, 1000);
+    await saveManualScrollOffset(6, 0.0636, 70, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+      localMaxScrollAtCapture: 1100,
+    });
+    await startContentSync(6);
+    mocks.sendMessageContentMock.mockClear();
+
+    setWindowScrollTop(442);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+      'scroll:sync',
+      expect.objectContaining({
+        sourceTabId: 6,
+        scrollHeight: 2100,
+        clientHeight: 1000,
+      }),
+      'background',
+    );
+    const scrollSyncCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'scroll:sync',
+    );
+    expect(scrollSyncCall).toBeDefined();
+    const payload = scrollSyncCall?.[1];
+    expect(payload).toEqual(
+      expect.objectContaining({
+        sourceTabId: 6,
+        mode: 'ratio',
+      }),
+    );
+    expect(payload).toEqual(expect.objectContaining({ scrollTop: expect.any(Number) }));
+    if (!payload || typeof payload !== 'object' || !('scrollTop' in payload)) {
+      throw new Error('Expected scroll:sync payload with scrollTop');
+    }
+    const { scrollTop } = payload;
+    if (typeof scrollTop !== 'number') {
+      throw new Error('Expected numeric scrollTop');
+    }
+    expect(scrollTop).toBeCloseTo(376.2);
+  });
+
+  it('receiver scroll:sync applies cached anchor mapping to the local scroll position', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2100, 1000);
+    await saveManualScrollOffset(7, 0.0909, 100, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+      localMaxScrollAtCapture: 1100,
+    });
+    await startContentSync(7);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+
+    expect(document.documentElement.scrollTop).toBe(442);
+  });
+
+  it('element mode keeps anchored receiver mapping instead of overriding with semantic elements', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2100, 1000);
+    setWindowScrollTop(0);
+    document.body.innerHTML = '<h1>Nearby heading</h1>';
+    const heading = document.querySelector('h1');
+    if (!heading) {
+      throw new Error('Expected heading fixture');
+    }
+    heading.getBoundingClientRect = () => {
+      const rect = {
+        top: 900,
+        left: 0,
+        bottom: 940,
+        right: 100,
+        width: 100,
+        height: 40,
+        x: 0,
+        y: 900,
+        toJSON: () => ({}),
+      } satisfies DOMRect;
+      return rect;
+    };
+
+    await saveManualScrollOffset(8, 0.0909, 100, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+      localMaxScrollAtCapture: 1100,
+    });
+    await startContentSync(8);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'element',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+
+    expect(document.documentElement.scrollTop).toBe(442);
+  });
+
+  it('wheel manual mode saves anchor metadata and updates the cached receiver path', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    setWindowScrollTop(300);
+    await startContentSync(9);
+
+    window.dispatchEvent(new WheelEvent('wheel', { altKey: true }));
+    setWindowScrollTop(600);
+    window.dispatchEvent(new WheelEvent('wheel', { altKey: false }));
+    await flushAsync();
+
+    await expect(getManualScrollOffset(9)).resolves.toEqual({
+      ratio: 0.3,
+      pixels: 300,
+      anchor: {
+        logicalRatio: 0.3,
+        localScrollTop: 600,
+        localMaxScrollAtCapture: 1000,
+      },
+    });
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+
+    expect(document.documentElement.scrollTop).toBe(800);
   });
 
   it('clampScrollOffset clamps values to +/-0.5', () => {
