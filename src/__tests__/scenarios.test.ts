@@ -268,11 +268,19 @@ function setWindowScrollTop(scrollTop: number): void {
 }
 
 function installImmediateAnimationFrame(): void {
-  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-    callback(0);
-    return 1;
+  Object.defineProperty(window, 'requestAnimationFrame', {
+    configurable: true,
+    value: (callback: FrameRequestCallback) => {
+      queueMicrotask(() => {
+        callback(0);
+      });
+      return 1;
+    },
   });
-  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  Object.defineProperty(window, 'cancelAnimationFrame', {
+    configurable: true,
+    value: vi.fn(),
+  });
 }
 
 beforeEach(() => {
@@ -337,6 +345,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   await stopContentSync();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -820,8 +829,164 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
       clientHeight: 1000,
       timestamp: Date.now(),
     });
+    await flushAsync();
 
     expect(document.documentElement.scrollTop).toBe(442);
+  });
+
+  it('retries anchored receiver mapping when lazy-loaded content grows after a clamped sync', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(1500, 1000);
+    await saveManualScrollOffset(10, 0.4, 400, {
+      logicalRatio: 0.3,
+      localScrollTop: 700,
+      localMaxScrollAtCapture: 1000,
+    });
+    await startContentSync(10);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(500);
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying scroll with offset ratio',
+      expect.objectContaining({
+        hasManualAnchor: true,
+        clampedScrollTop: 500,
+      }),
+    );
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Scheduling lazy-load anchor catch-up',
+      expect.objectContaining({
+        sourceTabId: 99,
+        attempt: 1,
+      }),
+    );
+
+    setDocumentScrollMetrics(2200, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying lazy-load anchor catch-up',
+      expect.objectContaining({
+        sourceTabId: 99,
+        attempt: 1,
+        targetScrollTop: 950,
+      }),
+    );
+    expect(document.documentElement.scrollTop).toBe(950);
+  });
+
+  it('keeps bounded catch-up alive across chunked lazy-loaded growth', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(1500, 1000);
+    await saveManualScrollOffset(11, 0.4, 400, {
+      logicalRatio: 0.3,
+      localScrollTop: 700,
+      localMaxScrollAtCapture: 1000,
+    });
+    await startContentSync(11);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(500);
+
+    setDocumentScrollMetrics(1800, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(750);
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying lazy-load anchor catch-up',
+      expect.objectContaining({
+        attempt: 1,
+        targetScrollTop: 750,
+        wasClamped: false,
+      }),
+    );
+
+    setDocumentScrollMetrics(2200, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying lazy-load anchor catch-up',
+      expect.objectContaining({
+        attempt: 2,
+        targetScrollTop: 950,
+      }),
+    );
+    expect(document.documentElement.scrollTop).toBe(950);
+  });
+
+  it('cancels pending lazy-load catch-up when local user scroll becomes the source', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(1500, 1000);
+    await saveManualScrollOffset(12, 0.4, 400, {
+      logicalRatio: 0.3,
+      localScrollTop: 700,
+      localMaxScrollAtCapture: 1000,
+    });
+    await startContentSync(12);
+    mocks.sendMessageContentMock.mockClear();
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(500);
+
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 210);
+    });
+    await flushAsync();
+
+    setWindowScrollTop(450);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    setDocumentScrollMetrics(2200, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(450);
+    expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+      'scroll:sync',
+      expect.objectContaining({
+        sourceTabId: 12,
+      }),
+      'background',
+    );
   });
 
   it('element mode keeps anchored receiver mapping instead of overriding with semantic elements', async () => {
@@ -863,6 +1028,7 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
       clientHeight: 1000,
       timestamp: Date.now(),
     });
+    await flushAsync();
 
     expect(document.documentElement.scrollTop).toBe(442);
   });
@@ -896,6 +1062,7 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
       clientHeight: 1000,
       timestamp: Date.now(),
     });
+    await flushAsync();
 
     expect(document.documentElement.scrollTop).toBe(800);
   });

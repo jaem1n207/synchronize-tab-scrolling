@@ -75,7 +75,12 @@ const wheelState = createInitialWheelModeState();
 const connectionState = createInitialConnectionState();
 const urlMonitorState = createInitialUrlMonitorState();
 
+const LAZY_LOAD_CATCH_UP_DELAY_MS = 120;
+const LAZY_LOAD_CATCH_UP_MAX_ATTEMPTS = 3;
+
 let cachedManualOffset: ManualScrollOffset = { ratio: 0, pixels: 0 };
+let lazyLoadCatchUpTimeoutId: number | null = null;
+let lazyLoadCatchUpGeneration = 0;
 
 const programmaticScrollScheduler = createLatestProgrammaticScrollScheduler({
   requestFrame: (callback) => window.requestAnimationFrame(callback),
@@ -112,8 +117,20 @@ function scheduleProgrammaticScroll(target: ProgrammaticScrollTarget): void {
   programmaticScrollScheduler.schedule(target);
 }
 
+function cancelLazyLoadCatchUp(): void {
+  lazyLoadCatchUpGeneration += 1;
+
+  if (lazyLoadCatchUpTimeoutId === null) {
+    return;
+  }
+
+  window.clearTimeout(lazyLoadCatchUpTimeoutId);
+  lazyLoadCatchUpTimeoutId = null;
+}
+
 function cancelPendingProgrammaticScroll(): void {
   programmaticScrollScheduler.cancel();
+  cancelLazyLoadCatchUp();
 }
 
 function isSupportedWebpageOverlayContextualHint(
@@ -186,6 +203,68 @@ function getScrollRatio(): number {
 
 function getScrollableHeight(scrollHeight: number, clientHeight: number): number {
   return Math.max(0, scrollHeight - clientHeight);
+}
+
+function scheduleLazyLoadAnchorCatchUp({
+  sourceRatio,
+  mode,
+  sourceTabId,
+  attempt,
+}: {
+  sourceRatio: number;
+  mode: ProgrammaticScrollTarget['mode'];
+  sourceTabId: number;
+  attempt: number;
+}): void {
+  const generation = lazyLoadCatchUpGeneration;
+  logger.debug('Scheduling lazy-load anchor catch-up', {
+    sourceRatio,
+    sourceTabId,
+    attempt,
+  });
+
+  lazyLoadCatchUpTimeoutId = window.setTimeout(() => {
+    lazyLoadCatchUpTimeoutId = null;
+
+    if (
+      generation !== lazyLoadCatchUpGeneration ||
+      !syncState.isActive ||
+      syncState.isManualScrollEnabled ||
+      !cachedManualOffset.anchor
+    ) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = getScrollInfo();
+    const maxScroll = getScrollableHeight(scrollHeight, clientHeight);
+    const target = calculateAnchoredScrollTop(sourceRatio, maxScroll, cachedManualOffset.anchor);
+    const shouldApply = Math.abs(target.scrollTop - scrollTop) > 1;
+
+    if (shouldApply) {
+      logger.debug('Applying lazy-load anchor catch-up', {
+        sourceRatio,
+        sourceTabId,
+        attempt,
+        targetScrollTop: target.scrollTop,
+        wasClamped: target.wasClamped,
+      });
+      scheduleProgrammaticScroll({
+        top: target.scrollTop,
+        sourceRatio,
+        mode,
+        sourceTabId,
+      });
+    }
+
+    if (attempt < LAZY_LOAD_CATCH_UP_MAX_ATTEMPTS) {
+      scheduleLazyLoadAnchorCatchUp({
+        sourceRatio,
+        mode,
+        sourceTabId,
+        attempt: attempt + 1,
+      });
+    }
+  }, LAZY_LOAD_CATCH_UP_DELAY_MS);
 }
 
 /**
@@ -357,6 +436,7 @@ async function handleScrollCore() {
   }
 
   const scrollInfo = getScrollInfo();
+  cancelLazyLoadCatchUp();
 
   // Remove offset ratio from current ratio before broadcasting
   // This ensures we send the "pure" scroll ratio without offset applied
@@ -935,6 +1015,8 @@ export function initScrollSync() {
     // Don't sync if this is the source tab
     if (payload.sourceTabId === syncState.tabId) return;
 
+    cancelLazyLoadCatchUp();
+
     // Update last successful sync time for connection health monitoring
     connectionState.lastSuccessfulSync = Date.now();
 
@@ -1003,6 +1085,15 @@ export function initScrollSync() {
       mode: payload.mode,
       sourceTabId: payload.sourceTabId,
     });
+
+    if (anchoredTarget?.wasClamped) {
+      scheduleLazyLoadAnchorCatchUp({
+        sourceRatio,
+        mode: payload.mode,
+        sourceTabId: payload.sourceTabId,
+        attempt: 1,
+      });
+    }
   });
 
   // Listen for manual scroll toggle (P1)
