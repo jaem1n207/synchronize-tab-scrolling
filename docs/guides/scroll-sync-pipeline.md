@@ -21,7 +21,7 @@
 │  ├─ grace period 확인 (< 200ms since 프로그래밍적 스크롤?)         │
 │  │   └─ YES → return (피드백 루프 방지)                           │
 │  ├─ cachedManualOffset 읽기 (동기, 메모리)                        │
-│  ├─ 순수 비율 계산: (scrollTop / maxScroll) - offsetRatio          │
+│  ├─ logical ratio 계산: anchor 역매핑 또는 legacy offset fallback │
 │  └─ sendMessage('scroll:sync', ...) → fire-and-forget             │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
@@ -43,8 +43,8 @@
 │  ├─ sourceRatio 계산                                             │
 │  ├─ manual mode 확인 → YES면 무시                                │
 │  ├─ cachedManualOffset 읽기 (동기, 메모리)                        │
-│  ├─ targetRatio = sourceRatio + offsetRatio                      │
-│  ├─ pixel 변환 & clamp                                           │
+│  ├─ local target 계산: anchor 매핑 또는 legacy offset fallback    │
+│  ├─ pixel clamp 및 필요 시 bounded lazy-load catch-up 예약        │
 │  ├─ latest pending target으로 저장                                │
 │  ├─ requestAnimationFrame에서 최신 target만 적용                   │
 │  ├─ lastSyncedRatio = sourceRatio (실제 적용 시점)                 │
@@ -79,7 +79,7 @@ baseline을 오염시키지 않도록 합니다.
 | ------------------------------ | --------------------------------------------------------------- |
 | 새 `scroll:start` 초기화 전    | 이전 sync session의 target이 새 session에 적용되는 것 방지      |
 | `scroll:stop` 처리             | 동기화 종료 후 예약된 프로그램 스크롤 적용 방지                 |
-| Option/Alt manual baseline 전  | 아직 적용되지 않은 미래 위치를 manual offset 기준으로 저장 방지 |
+| Option/Alt manual baseline 전  | 아직 적용되지 않은 미래 위치를 manual anchor 기준으로 저장 방지 |
 | Wheel 기반 manual mode 진입 전 | unfocused tab 수동 조정에서도 같은 baseline 오염 방지           |
 | `scroll:manual` 활성화 처리 전 | background-origin manual 전환과 local manual 전환의 기준 통일   |
 
@@ -109,26 +109,40 @@ PROGRAMMATIC_SCROLL_GRACE_PERIOD > 파이프라인 최대 지연
   → 현재 최악 케이스: ~135ms → grace period 200ms로 안전
 ```
 
-## 수동 오프셋 (Manual Scroll Offset)
+## 수동 앵커 (Manual Scroll Anchor)
 
 사용자가 Alt/Option 키를 누르고 스크롤하면 개별 탭의 위치를 조정할 수 있습니다.
 
-### 오프셋 생명주기
+### 앵커 생명주기
 
 ```
 Alt keydown
   → syncState.isManualScrollEnabled = true (동기화 메시지 무시)
-  → baseline ratio 스냅샷
+  → 공통 logical ratio 스냅샷
 
 Alt keyup
-  → 현재 ratio - baseline = offsetRatio
-  → storage에 저장 + cachedManualOffset 갱신
+  → logicalRatio <-> localScrollTop 앵커 생성
+  → legacy ratio/pixels도 panel 표시와 fallback용으로 계산
+  → cachedManualOffset을 먼저 갱신
+  → storage에 anchor + legacy 값 저장
   → syncState.isManualScrollEnabled = false
 
 이후 스크롤 동기화:
-  발신: pureRatio = currentRatio - cachedManualOffset.ratio
-  수신: targetRatio = sourceRatio + cachedManualOffset.ratio
+  발신: anchor가 있으면 local scrollTop → logical ratio로 역변환
+        anchor가 없으면 기존 currentRatio - offsetRatio fallback
+  수신: anchor가 있으면 logical ratio → local scrollTop으로 piecewise 매핑
+        anchor가 없으면 기존 sourceRatio + offsetRatio fallback
 ```
+
+앵커 매핑은 저장 당시의 문서 길이를 고정하지 않고, 항상 현재 `scrollHeight - clientHeight`를
+사용합니다. 따라서 anchor 아래에 lazy-loaded content가 추가되면 다음 계산은 새 길이를
+반영합니다. target이 현재 짧은 문서 길이에 clamp된 경우에는 receiver가 짧은 bounded catch-up
+retry를 예약합니다. retry는 120ms 간격으로 최대 3회만 실행되고, 새 `scroll:sync`, manual mode,
+`scroll:start`, `scroll:stop`, 또는 사용자의 local scroll이 현재 탭을 source로 바꾸면 취소됩니다.
+
+`localMaxScrollAtCapture`는 저장 시점 검증/디버깅용 metadata입니다. 실제 매핑은 현재 문서의
+scrollable height를 기준으로 하므로, append형 lazy loading에는 대응하지만 anchor 위에 새 콘텐츠가
+삽입되어 anchor 자체의 문맥이 밀리는 경우에는 사용자가 다시 수동 조정해야 합니다.
 
 ### 캐시 동기화 지점
 

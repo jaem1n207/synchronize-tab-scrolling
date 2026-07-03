@@ -188,21 +188,26 @@ PROGRAMMATIC_SCROLL_GRACE_PERIOD = 200ms → ~65-132ms 여유
 
 `saveManualScrollOffset()`을 호출하는 곳을 추가할 때:
 
-- [ ] 호출 직후 `cachedManualOffset = { ratio, pixels }` 갱신
-- [ ] 다른 모듈(예: keyboard-handler)에서 호출한다면, 콜백으로 캐시 갱신
+- [ ] 호출 전 또는 직후 `cachedManualOffset`을 전체 `ManualScrollOffset` 객체로 갱신
+- [ ] anchor가 있는 새 값이면 `{ ratio, pixels, anchor }`를 cache와 storage에 모두 반영
+- [ ] 다른 모듈(예: keyboard-handler)에서 호출한다면, 콜백으로 전체 offset 객체를 전달
+- [ ] sync를 다시 열기 전에 cache를 먼저 갱신. storage save를 기다리는 동안 stale cache로
+      scroll event가 broadcast되면 logical ratio가 틀어질 수 있음
 
 `clearManualScrollOffset()`을 호출하는 곳을 추가할 때:
 
 - [ ] 호출 직후 `cachedManualOffset = { ratio: 0, pixels: 0 }` 초기화
+- [ ] `scroll:stop`처럼 clear 직후 sync를 종료하는 경로에서는 in-flight manual save가 clear 이후
+      다시 저장하지 않도록 cleanup/pending promise를 먼저 정리
 
 현재 갱신 지점 (scroll-sync.ts):
 
 - `scroll:start` handler — 스토리지에서 로드
-- `exitWheelManualMode()` — 새 값 갱신
+- `exitWheelManualMode()` — anchor 포함 새 값 갱신
 - `broadcastUrlChange()` — 초기화
 - `scroll:stop` handler — 초기화
 - `url:sync` handler — 초기화
-- keyboard-handler.ts → `updateOffsetCache` 콜백 — 새 값 갱신
+- keyboard-handler.ts → `updateOffsetCache` 콜백 — anchor 포함 새 값 갱신
 
 ---
 
