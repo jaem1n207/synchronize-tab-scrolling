@@ -16,7 +16,7 @@ export function createManualScrollOffset({
   baselineLogicalRatio,
   currentScrollTop,
   maxScroll,
-  maxReasonableOffset = 0.5,
+  maxReasonableOffset,
 }: CreateManualScrollOffsetInput): ManualScrollOffset {
   const safeMaxScroll = Number.isFinite(maxScroll) ? Math.max(0, maxScroll) : 0;
   const safeCurrentScrollTop = Number.isFinite(currentScrollTop) ? currentScrollTop : 0;
@@ -24,7 +24,11 @@ export function createManualScrollOffset({
     ? Math.max(0, Math.min(1, baselineLogicalRatio))
     : 0;
   const safeMaxReasonableOffset =
-    Number.isFinite(maxReasonableOffset) && maxReasonableOffset >= 0 ? maxReasonableOffset : 0.5;
+    typeof maxReasonableOffset === 'number' &&
+    Number.isFinite(maxReasonableOffset) &&
+    maxReasonableOffset >= 0
+      ? maxReasonableOffset
+      : 0.5;
   const currentRatio = safeMaxScroll > 0 ? safeCurrentScrollTop / safeMaxScroll : 0;
   const offsetRatio = currentRatio - safeBaselineLogicalRatio;
   const clampedOffsetRatio = canonicalizeZero(

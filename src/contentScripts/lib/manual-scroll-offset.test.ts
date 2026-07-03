@@ -94,6 +94,32 @@ describe('createManualScrollOffset', () => {
     });
   });
 
+  it('falls back to the default max reasonable offset for invalid custom limits', () => {
+    expect(
+      createManualScrollOffset({
+        baselineLogicalRatio: 0,
+        currentScrollTop: 950,
+        maxScroll: 1000,
+        maxReasonableOffset: Number.POSITIVE_INFINITY,
+      }),
+    ).toMatchObject({
+      ratio: 0.5,
+      pixels: 500,
+    });
+
+    expect(
+      createManualScrollOffset({
+        baselineLogicalRatio: 0,
+        currentScrollTop: 950,
+        maxScroll: 1000,
+        maxReasonableOffset: -0.1,
+      }),
+    ).toMatchObject({
+      ratio: 0.5,
+      pixels: 500,
+    });
+  });
+
   it('clamps out-of-range baseline ratios to the anchor range', () => {
     expect(
       createManualScrollOffset({
