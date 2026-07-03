@@ -179,16 +179,19 @@ describe('keyboard-handler', () => {
           currentScrollTop: 100,
           lastSyncedRatio: 0.3,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 600,
           lastSyncedRatio: 0.3,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 600,
           lastSyncedRatio: 0.3,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         });
 
       setDocumentScrollState(2000, 1000, 600);
@@ -198,7 +201,11 @@ describe('keyboard-handler', () => {
       window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
       await flushAsyncHandlers();
 
-      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(13, 0.3, 300);
+      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(13, 0.3, 300, {
+        logicalRatio: 0.3,
+        localScrollTop: 600,
+        localMaxScrollAtCapture: 1000,
+      });
     });
 
     it('still activates and sends message when getScrollInfo is not provided', () => {
@@ -278,22 +285,26 @@ describe('keyboard-handler', () => {
 
     it('calculates offsetRatio as currentRatio minus baseline', async () => {
       const setManualModeActive = vi.fn();
+      const updateOffsetCache = vi.fn();
       const getScrollInfo = vi
         .fn()
         .mockReturnValueOnce({
           currentScrollTop: 200,
           lastSyncedRatio: 0.1,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 450,
           lastSyncedRatio: 0.1,
           setManualModeActive,
+          updateOffsetCache,
         })
         .mockReturnValueOnce({
           currentScrollTop: 450,
           lastSyncedRatio: 0.1,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         });
 
       setDocumentScrollState(2000, 1000, 450);
@@ -303,8 +314,74 @@ describe('keyboard-handler', () => {
       window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
       await flushAsyncHandlers();
 
-      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(23, 0.35, 350);
+      const expectedOffset = {
+        ratio: 0.35,
+        pixels: 350,
+        anchor: {
+          logicalRatio: 0.1,
+          localScrollTop: 450,
+          localMaxScrollAtCapture: 1000,
+        },
+      };
+      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(
+        23,
+        expectedOffset.ratio,
+        expectedOffset.pixels,
+        expectedOffset.anchor,
+      );
+      expect(updateOffsetCache).toHaveBeenCalledWith(expectedOffset);
       expect(document.documentElement.classList.contains('scroll-sync-manual-mode')).toBe(false);
+    });
+
+    it('updates the offset cache before reopening sync while storage save is pending', async () => {
+      const callOrder: Array<string> = [];
+      let resolveSave: (() => void) | undefined;
+      mocks.saveManualScrollOffsetMock.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+      );
+
+      const setManualModeActive = vi.fn((active: boolean) => {
+        callOrder.push(active ? 'manual:on' : 'manual:off');
+      });
+      const updateOffsetCache = vi.fn(() => {
+        callOrder.push('cache:update');
+      });
+      const getScrollInfo = vi
+        .fn()
+        .mockReturnValueOnce({
+          currentScrollTop: 200,
+          lastSyncedRatio: 0.1,
+          setManualModeActive,
+          updateOffsetCache: vi.fn(),
+        })
+        .mockReturnValueOnce({
+          currentScrollTop: 450,
+          lastSyncedRatio: 0.1,
+          setManualModeActive,
+          updateOffsetCache,
+        });
+
+      setDocumentScrollState(2000, 1000, 450);
+      initKeyboardHandler(28, getScrollInfo);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
+
+      expect(updateOffsetCache).toHaveBeenCalledWith({
+        ratio: 0.35,
+        pixels: 350,
+        anchor: {
+          logicalRatio: 0.1,
+          localScrollTop: 450,
+          localMaxScrollAtCapture: 1000,
+        },
+      });
+      expect(callOrder).toEqual(['manual:on', 'cache:update', 'manual:off']);
+
+      resolveSave?.();
+      await flushAsyncHandlers();
     });
 
     it('clamps positive offset to +0.5 before saving', async () => {
@@ -315,16 +392,19 @@ describe('keyboard-handler', () => {
           currentScrollTop: 0,
           lastSyncedRatio: 0,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 950,
           lastSyncedRatio: 0,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 950,
           lastSyncedRatio: 0,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         });
 
       setDocumentScrollState(2000, 1000, 950);
@@ -334,7 +414,11 @@ describe('keyboard-handler', () => {
       window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
       await flushAsyncHandlers();
 
-      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(24, 0.5, 500);
+      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(24, 0.5, 500, {
+        logicalRatio: 0,
+        localScrollTop: 950,
+        localMaxScrollAtCapture: 1000,
+      });
     });
 
     it('clamps negative offset to -0.5 before saving', async () => {
@@ -345,16 +429,19 @@ describe('keyboard-handler', () => {
           currentScrollTop: 900,
           lastSyncedRatio: 0.9,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 100,
           lastSyncedRatio: 0.9,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 100,
           lastSyncedRatio: 0.9,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         });
 
       setDocumentScrollState(2000, 1000, 100);
@@ -364,7 +451,11 @@ describe('keyboard-handler', () => {
       window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
       await flushAsyncHandlers();
 
-      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(25, -0.5, -500);
+      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(25, -0.5, -500, {
+        logicalRatio: 0.9,
+        localScrollTop: 100,
+        localMaxScrollAtCapture: 1000,
+      });
     });
 
     it('uses currentRatio=0 when maxScroll is 0', async () => {
@@ -375,16 +466,19 @@ describe('keyboard-handler', () => {
           currentScrollTop: 0,
           lastSyncedRatio: 0.3,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 250,
           lastSyncedRatio: 0.3,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         })
         .mockReturnValueOnce({
           currentScrollTop: 250,
           lastSyncedRatio: 0.3,
           setManualModeActive,
+          updateOffsetCache: vi.fn(),
         });
 
       setDocumentScrollState(900, 900, 250);
@@ -395,10 +489,65 @@ describe('keyboard-handler', () => {
       await flushAsyncHandlers();
 
       expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledTimes(1);
-      const [savedTabId, savedRatio, savedPixels] = mocks.saveManualScrollOffsetMock.mock.calls[0];
+      const [savedTabId, savedRatio, savedPixels, savedAnchor] =
+        mocks.saveManualScrollOffsetMock.mock.calls[0];
       expect(savedTabId).toBe(26);
       expect(savedRatio).toBe(-0.3);
       expect(Math.abs(savedPixels)).toBe(0);
+      expect(savedAnchor).toEqual({
+        logicalRatio: 0.3,
+        localScrollTop: 250,
+        localMaxScrollAtCapture: 0,
+      });
+    });
+
+    it('preserves the callback current scroll top in the saved anchor', async () => {
+      const setManualModeActive = vi.fn();
+      const updateOffsetCache = vi.fn();
+      const getScrollInfo = vi
+        .fn()
+        .mockReturnValueOnce({
+          currentScrollTop: 200,
+          lastSyncedRatio: 0.25,
+          setManualModeActive,
+          updateOffsetCache: vi.fn(),
+        })
+        .mockReturnValueOnce({
+          currentScrollTop: 312.5,
+          lastSyncedRatio: 0.25,
+          setManualModeActive,
+          updateOffsetCache,
+        })
+        .mockReturnValueOnce({
+          currentScrollTop: 312.5,
+          lastSyncedRatio: 0.25,
+          setManualModeActive,
+          updateOffsetCache: vi.fn(),
+        });
+
+      setDocumentScrollState(2000, 1000, 777);
+      initKeyboardHandler(27, getScrollInfo);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
+      await flushAsyncHandlers();
+
+      const expectedOffset = {
+        ratio: 0.0625,
+        pixels: 63,
+        anchor: {
+          logicalRatio: 0.25,
+          localScrollTop: 312.5,
+          localMaxScrollAtCapture: 1000,
+        },
+      };
+      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(
+        27,
+        expectedOffset.ratio,
+        expectedOffset.pixels,
+        expectedOffset.anchor,
+      );
+      expect(updateOffsetCache).toHaveBeenCalledWith(expectedOffset);
     });
   });
 
@@ -471,6 +620,89 @@ describe('keyboard-handler', () => {
         'background',
       );
       expect(document.documentElement.classList.contains('scroll-sync-manual-mode')).toBe(false);
+    });
+
+    it('can deactivate active manual mode during cleanup without saving an offset', async () => {
+      const setManualModeActive = vi.fn();
+      const updateOffsetCache = vi.fn();
+
+      initKeyboardHandler(43, () => ({
+        currentScrollTop: 600,
+        lastSyncedRatio: 0.3,
+        setManualModeActive,
+        updateOffsetCache,
+      }));
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+      await cleanupKeyboardHandler({ persistManualOffset: false });
+      await flushAsyncHandlers();
+
+      expect(setManualModeActive).toHaveBeenNthCalledWith(1, true);
+      expect(setManualModeActive).toHaveBeenNthCalledWith(2, false);
+      expect(updateOffsetCache).not.toHaveBeenCalled();
+      expect(mocks.saveManualScrollOffsetMock).not.toHaveBeenCalled();
+      expect(mocks.sendMessageMock).toHaveBeenLastCalledWith(
+        'scroll:manual',
+        { tabId: 43, enabled: false },
+        'background',
+      );
+    });
+
+    it('waits for an in-flight manual offset save before cleanup completes', async () => {
+      let resolveSave: (() => void) | undefined;
+      mocks.saveManualScrollOffsetMock.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+      );
+
+      const setManualModeActive = vi.fn();
+      const updateOffsetCache = vi.fn();
+      const getScrollInfo = vi
+        .fn()
+        .mockReturnValueOnce({
+          currentScrollTop: 200,
+          lastSyncedRatio: 0.1,
+          setManualModeActive,
+          updateOffsetCache: vi.fn(),
+        })
+        .mockReturnValueOnce({
+          currentScrollTop: 450,
+          lastSyncedRatio: 0.1,
+          setManualModeActive,
+          updateOffsetCache,
+        });
+
+      setDocumentScrollState(2000, 1000, 450);
+      initKeyboardHandler(44, getScrollInfo);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { altKey: false }));
+
+      let cleanupResolved = false;
+      const cleanupPromise = cleanupKeyboardHandler({ persistManualOffset: false }).then(() => {
+        cleanupResolved = true;
+      });
+
+      await flushAsyncHandlers();
+
+      expect(cleanupResolved).toBe(false);
+      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledTimes(1);
+      expect(updateOffsetCache).toHaveBeenCalledWith({
+        ratio: 0.35,
+        pixels: 350,
+        anchor: {
+          logicalRatio: 0.1,
+          localScrollTop: 450,
+          localMaxScrollAtCapture: 1000,
+        },
+      });
+
+      resolveSave?.();
+      await cleanupPromise;
+
+      expect(cleanupResolved).toBe(true);
+      expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledTimes(1);
     });
 
     it('does not deactivate when cleanup is called while inactive', async () => {

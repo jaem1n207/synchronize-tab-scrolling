@@ -771,8 +771,8 @@ export function initScrollSync() {
       // Stop old URL monitoring
       stopUrlMonitoring();
 
-      // Cleanup old keyboard handler
-      cleanupKeyboardHandler();
+      // Cleanup old keyboard handler without persisting offsets from the previous sync session.
+      await cleanupKeyboardHandler({ persistManualOffset: false });
 
       // Stop old connection health check
       stopConnectionHealthCheck();
@@ -839,8 +839,8 @@ export function initScrollSync() {
           syncState.isManualScrollEnabled = active;
           logger.debug('Manual mode flag set synchronously via callback', { active });
         },
-        updateOffsetCache: (ratio: number, pixels: number) => {
-          cachedManualOffset = { ratio, pixels };
+        updateOffsetCache: (offset: ManualScrollOffset) => {
+          cachedManualOffset = offset;
         },
       };
     });
@@ -909,8 +909,8 @@ export function initScrollSync() {
     // Stop URL monitoring (P1)
     stopUrlMonitoring();
 
-    // Cleanup keyboard handler
-    cleanupKeyboardHandler();
+    // Cleanup keyboard handler without re-saving an offset that sync stop is about to clear.
+    await cleanupKeyboardHandler({ persistManualOffset: false });
 
     await clearManualScrollOffset(syncState.tabId);
     cachedManualOffset = { ratio: 0, pixels: 0 };
