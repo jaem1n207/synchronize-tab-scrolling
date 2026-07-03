@@ -1,3 +1,10 @@
+## [2.13.2](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.13.1...v2.13.2) (2026-07-03)
+
+
+### Bug Fixes
+
+* sync follow changed tab query params ([6c0afec](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/6c0afec8f4e34ecf635fba125a9ded8ea44c4e1e))
+
 ## [2.13.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.13.0...v2.13.1) (2026-07-01)
 
 
