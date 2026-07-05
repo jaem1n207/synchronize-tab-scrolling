@@ -130,10 +130,10 @@ Alt keyup
 
 이후 스크롤 동기화:
   발신: pixel-delta anchor가 있으면 local scrollTop → logical scrollTop으로 역변환
-        mode가 없는 legacy anchor는 piecewise ratio 역매핑
+        mode가 없거나 piecewise-ratio인 legacy anchor는 piecewise ratio 역매핑
         anchor가 없으면 기존 currentRatio - offsetRatio fallback
   수신: pixel-delta anchor가 있으면 source logical scrollTop의 anchor 기준 signed pixel delta를 유지
-        mode가 없는 legacy anchor는 piecewise ratio 매핑
+        mode가 없거나 piecewise-ratio인 legacy anchor는 piecewise ratio 매핑
         anchor가 없으면 기존 sourceRatio + offsetRatio fallback
 ```
 
@@ -142,9 +142,9 @@ source 문서에서 anchor보다 42px 아래에 있다면 receiver도 자신의 
 anchor보다 20px 위에 있다면 receiver도 자신의 anchor보다 20px 위로 이동합니다. 이 방식은 목차,
 배너, 광고처럼 anchor 위쪽 구조가 다른 페이지에서도 같은 문맥을 더 안정적으로 유지합니다.
 
-mode가 없는 저장값은 이전 버전에서 만들어진 anchor입니다. 이 값은 기존 piecewise ratio 매핑으로
-처리해 저장된 수동 조정값을 깨지 않도록 합니다. anchor 자체가 없을 때만 마지막 fallback인
-`offsetRatio` 기반 계산을 사용합니다.
+mode가 없거나 `piecewise-ratio`인 저장값은 legacy anchor입니다. 이 값은 기존 piecewise ratio
+매핑으로 처리해 저장된 수동 조정값을 깨지 않도록 합니다. anchor 자체가 없을 때만 마지막
+fallback인 `offsetRatio` 기반 계산을 사용합니다.
 
 `pixel-delta` receiver 매핑은 현재 문서의 `scrollHeight - clientHeight`로 최종 target을 clamp합니다.
 따라서 target이 현재 짧은 문서 길이에 clamp된 경우에는 receiver가 짧은 bounded catch-up retry를
