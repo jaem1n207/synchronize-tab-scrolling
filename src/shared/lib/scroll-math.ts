@@ -55,6 +55,13 @@ function getSafeMaxScroll(maxScroll: number): number {
   return Math.max(0, maxScroll);
 }
 
+/**
+ * Maps a local source scrollTop to a shared logical ratio using legacy piecewise anchoring.
+ *
+ * `scrollTop`, `maxScroll`, and `anchor.localScrollTop` are source-tab pixel coordinates.
+ * Pre-anchor and post-anchor source segments are scaled independently into the shared logical
+ * ratio space around `anchor.logicalRatio`.
+ */
 export function calculateAnchoredLogicalRatio(
   scrollTop: number,
   maxScroll: number,
@@ -81,6 +88,14 @@ export function calculateAnchoredLogicalRatio(
   return clampRatio(anchorLogical + progress * remainingLogical);
 }
 
+/**
+ * Maps a logical ratio back to a local target scrollTop using legacy piecewise anchoring.
+ *
+ * The logical ratio is in the shared source coordinate space. `maxScroll` and
+ * `anchor.localScrollTop` are local receiver pixels. Pre-anchor and post-anchor segments are
+ * scaled independently around `anchor.logicalRatio`. `wasClamped` reports whether the saved anchor
+ * or computed target was outside the receiver's current scrollable range.
+ */
 export function calculateAnchoredScrollTop(
   logicalRatio: number,
   maxScroll: number,
@@ -114,6 +129,13 @@ export function calculateAnchoredScrollTop(
   };
 }
 
+/**
+ * Maps a local source scrollTop to a shared logical ratio using pixel-delta anchoring.
+ *
+ * `scrollTop`, `maxScroll`, and `anchor.localScrollTop` are source-tab pixel coordinates. The
+ * returned ratio represents the logical anchor position plus the signed local pixel delta from the
+ * captured source anchor, clamped to the source document bounds.
+ */
 export function calculatePixelDeltaLogicalRatio(
   scrollTop: number,
   maxScroll: number,
@@ -134,6 +156,14 @@ export function calculatePixelDeltaLogicalRatio(
   return clampRatio(logicalScrollTop / safeMaxScroll);
 }
 
+/**
+ * Maps a shared logical source scrollTop to a local receiver target using pixel-delta anchoring.
+ *
+ * `logicalScrollTop` and `logicalMaxScroll` describe the source payload's logical pixel space.
+ * `maxScroll` and `anchor.localScrollTop` describe the receiver's local pixel space. The function
+ * recovers the source's signed delta from `anchor.logicalRatio` and applies it to the receiver
+ * anchor. `wasClamped` reports whether that target fell outside the receiver's current range.
+ */
 export function calculatePixelDeltaScrollTop(
   logicalScrollTop: number,
   logicalMaxScroll: number,
