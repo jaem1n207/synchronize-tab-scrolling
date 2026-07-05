@@ -29,19 +29,26 @@ import {
   saveUrlSyncMode,
 } from './storage';
 
-const { storageGetMock, storageSetMock, storageClearMock, loggerErrorMock, extensionLoggerMock } =
-  vi.hoisted(() => ({
-    storageGetMock: vi.fn(),
-    storageSetMock: vi.fn(),
-    storageClearMock: vi.fn(),
-    loggerErrorMock: vi.fn(),
-    extensionLoggerMock: vi.fn().mockImplementation(() => ({
-      info: vi.fn(),
-      debug: vi.fn(),
-      warn: vi.fn(),
-      error: loggerErrorMock,
-    })),
-  }));
+const {
+  storageGetMock,
+  storageSetMock,
+  storageClearMock,
+  loggerErrorMock,
+  loggerWarnMock,
+  extensionLoggerMock,
+} = vi.hoisted(() => ({
+  storageGetMock: vi.fn(),
+  storageSetMock: vi.fn(),
+  storageClearMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+  extensionLoggerMock: vi.fn().mockImplementation(() => ({
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: loggerWarnMock,
+    error: loggerErrorMock,
+  })),
+}));
 
 vi.mock('webextension-polyfill', () => ({
   default: {
@@ -96,6 +103,12 @@ describe('loadSyncMode', () => {
     await expect(loadSyncMode()).resolves.toBe('ratio');
   });
 
+  it('returns default ratio when stored sync mode is invalid', async () => {
+    storageGetMock.mockResolvedValue({ syncMode: 'unknown' });
+
+    await expect(loadSyncMode()).resolves.toBe('ratio');
+  });
+
   it('returns default ratio and logs error on rejection', async () => {
     const error = new Error('get failed');
     storageGetMock.mockRejectedValue(error);
@@ -134,6 +147,12 @@ describe('loadPanelMinimized', () => {
 
   it('returns false by default when key is missing', async () => {
     storageGetMock.mockResolvedValue({});
+
+    await expect(loadPanelMinimized()).resolves.toBe(false);
+  });
+
+  it('returns false when stored panel minimized state is invalid', async () => {
+    storageGetMock.mockResolvedValue({ isPanelMinimized: 'true' });
 
     await expect(loadPanelMinimized()).resolves.toBe(false);
   });
@@ -415,6 +434,26 @@ describe('loadManualScrollOffsets', () => {
     });
   });
 
+  it('drops out-of-range anchor numbers while preserving a valid legacy offset object', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        7: {
+          ratio: 0.2,
+          pixels: 88,
+          anchor: {
+            logicalRatio: 1.2,
+            localScrollTop: -1,
+            localMaxScrollAtCapture: 1200,
+          },
+        },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      7: { ratio: 0.2, pixels: 88 },
+    });
+  });
+
   it('skips invalid manual offset objects', async () => {
     storageGetMock.mockResolvedValue({
       manualScrollOffsets: {
@@ -426,6 +465,27 @@ describe('loadManualScrollOffsets', () => {
 
     await expect(loadManualScrollOffsets()).resolves.toEqual({
       10: { ratio: 0.15, pixels: 30 },
+    });
+  });
+
+  it('logs sanitized warnings for invalid stored manual offset entries', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        invalid: { ratio: 0.1, pixels: 20 },
+        8: { ratio: 'bad', pixels: 88 },
+        10: { ratio: 0.15, pixels: 30 },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      10: { ratio: 0.15, pixels: 30 },
+    });
+    expect(loggerWarnMock).toHaveBeenCalledWith('Skipping invalid manual scroll offset entry', {
+      reason: 'invalid-tab-id',
+    });
+    expect(loggerWarnMock).toHaveBeenCalledWith('Skipping invalid manual scroll offset entry', {
+      reason: 'invalid-offset',
+      tabId: 8,
     });
   });
 
@@ -526,6 +586,27 @@ describe('saveManualScrollOffset', () => {
     await saveManualScrollOffset(4, 0.2, 40);
 
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to save manual scroll offset:', error);
+  });
+
+  it('serializes concurrent saves so different tab offsets are not lost', async () => {
+    let storedOffsets: Record<string, unknown> = {};
+    storageGetMock.mockImplementation(async () => ({
+      manualScrollOffsets: { ...storedOffsets },
+    }));
+    storageSetMock.mockImplementation(
+      async (data: { manualScrollOffsets?: Record<string, unknown> }) => {
+        if (data.manualScrollOffsets) {
+          storedOffsets = data.manualScrollOffsets;
+        }
+      },
+    );
+
+    await Promise.all([saveManualScrollOffset(1, 0.1, 10), saveManualScrollOffset(2, 0.2, 20)]);
+
+    expect(storedOffsets).toEqual({
+      1: { ratio: 0.1, pixels: 10 },
+      2: { ratio: 0.2, pixels: 20 },
+    });
   });
 });
 
