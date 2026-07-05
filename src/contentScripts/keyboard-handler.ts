@@ -6,7 +6,11 @@
 import { sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { saveManualScrollOffset, type ManualScrollOffset } from '~/shared/lib/storage';
+import {
+  clearManualScrollOffset,
+  saveManualScrollOffset,
+  type ManualScrollOffset,
+} from '~/shared/lib/storage';
 
 import { createManualScrollOffset } from './lib/manual-scroll-offset';
 
@@ -32,6 +36,8 @@ let currentTabId = 0;
 let manualModeBaselineSnapshot = 0;
 let getScrollInfoCallback: (() => KeyboardScrollInfo) | null = null;
 let pendingManualModeExit: Promise<void> | null = null;
+let pendingManualModeExitAllowsPersistence = true;
+let pendingManualModeExitNeedsPersistedClear = false;
 
 /**
  * Initialize keyboard handler
@@ -111,12 +117,22 @@ function handleBlur() {
 }
 
 function startManualModeExit(options?: DisableManualModeOptions): Promise<void> {
+  const persistOffset = options?.persistOffset ?? true;
+
   if (pendingManualModeExit) {
+    if (!persistOffset) {
+      pendingManualModeExitAllowsPersistence = false;
+      pendingManualModeExitNeedsPersistedClear = true;
+    }
     return pendingManualModeExit;
   }
 
-  pendingManualModeExit = disableManualMode(options).finally(() => {
+  pendingManualModeExitAllowsPersistence = persistOffset;
+  pendingManualModeExitNeedsPersistedClear = false;
+  pendingManualModeExit = disableManualMode().finally(() => {
     pendingManualModeExit = null;
+    pendingManualModeExitAllowsPersistence = true;
+    pendingManualModeExitNeedsPersistedClear = false;
   });
 
   return pendingManualModeExit;
@@ -125,7 +141,7 @@ function startManualModeExit(options?: DisableManualModeOptions): Promise<void> 
 /**
  * Disable manual scroll mode
  */
-async function disableManualMode({ persistOffset = true }: DisableManualModeOptions = {}) {
+async function disableManualMode() {
   isManualModeActive = false;
 
   const scrollInfo = getScrollInfoCallback?.() ?? null;
@@ -133,6 +149,11 @@ async function disableManualMode({ persistOffset = true }: DisableManualModeOpti
   logger.debug('Manual scroll mode disabled');
 
   let reopenedScrollSync = false;
+
+  // Give cleanupKeyboardHandler({ persistManualOffset: false }) a chance to override a keyup/blur
+  // exit that was started just before sync re-initialization or stop cleanup.
+  await Promise.resolve();
+  const persistOffset = pendingManualModeExitAllowsPersistence;
 
   // Calculate and save manual scroll offset using snapshot from Alt PRESS
   if (persistOffset && scrollInfo) {
@@ -173,6 +194,12 @@ async function disableManualMode({ persistOffset = true }: DisableManualModeOpti
         offsetRatio: offset.ratio,
         offsetPixels: offset.pixels,
       });
+      if (pendingManualModeExitNeedsPersistedClear) {
+        await clearManualScrollOffset(currentTabId);
+        logger.debug('Cleared manual scroll offset after non-persisting cleanup override', {
+          tabId: currentTabId,
+        });
+      }
     } catch (error) {
       logger.error('Failed to save manual scroll offset', { error });
     }
@@ -209,10 +236,8 @@ export async function cleanupKeyboardHandler({
   window.removeEventListener('keyup', handleKeyUp);
   window.removeEventListener('blur', handleBlur);
 
-  if (isManualModeActive) {
+  if (pendingManualModeExit || isManualModeActive) {
     await startManualModeExit({ persistOffset: persistManualOffset });
-  } else if (pendingManualModeExit) {
-    await pendingManualModeExit;
   }
 
   logger.info('Keyboard handler cleaned up');
