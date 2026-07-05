@@ -45,6 +45,7 @@ export function createManualScrollOffset({
       logicalRatio: safeBaselineLogicalRatio,
       localScrollTop: safeCurrentScrollTop,
       localMaxScrollAtCapture: safeMaxScroll,
+      mode: 'pixel-delta',
     },
   };
 }

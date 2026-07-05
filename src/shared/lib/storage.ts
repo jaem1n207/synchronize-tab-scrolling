@@ -159,10 +159,20 @@ export async function loadSelectedTabIds(): Promise<Array<number>> {
 /**
  * Manual scroll offset data structure
  */
+export type ManualScrollAnchorMode = 'piecewise-ratio' | 'pixel-delta';
+
+export interface ManualScrollSemanticHint {
+  kind: 'figure' | 'figcaption' | 'heading' | 'paragraph';
+  localTopAtCapture: number;
+  viewportOffsetAtCapture: number;
+}
+
 export interface ManualScrollAnchor {
   logicalRatio: number;
   localScrollTop: number;
   localMaxScrollAtCapture: number;
+  mode?: ManualScrollAnchorMode;
+  semanticHint?: ManualScrollSemanticHint;
 }
 
 export interface ManualScrollOffset {
@@ -179,6 +189,47 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function readManualScrollAnchorMode(value: unknown): ManualScrollAnchorMode | undefined {
+  if (value === 'piecewise-ratio' || value === 'pixel-delta') return value;
+  return undefined;
+}
+
+function readManualScrollSemanticKind(
+  value: unknown,
+): ManualScrollSemanticHint['kind'] | undefined {
+  if (
+    value === 'figure' ||
+    value === 'figcaption' ||
+    value === 'heading' ||
+    value === 'paragraph'
+  ) {
+    return value;
+  }
+
+  return undefined;
+}
+
+function readManualScrollSemanticHint(value: unknown): ManualScrollSemanticHint | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const { kind, localTopAtCapture, viewportOffsetAtCapture } = value;
+  const parsedKind = readManualScrollSemanticKind(kind);
+
+  if (
+    !parsedKind ||
+    !isFiniteNumber(localTopAtCapture) ||
+    !isFiniteNumber(viewportOffsetAtCapture)
+  ) {
+    return undefined;
+  }
+
+  return {
+    kind: parsedKind,
+    localTopAtCapture,
+    viewportOffsetAtCapture,
+  };
+}
+
 function readManualScrollAnchor(value: unknown): ManualScrollAnchor | undefined {
   if (!isRecord(value)) return undefined;
 
@@ -192,7 +243,16 @@ function readManualScrollAnchor(value: unknown): ManualScrollAnchor | undefined 
     return undefined;
   }
 
-  return { logicalRatio, localScrollTop, localMaxScrollAtCapture };
+  const parsedMode = readManualScrollAnchorMode(value.mode);
+  const parsedSemanticHint = readManualScrollSemanticHint(value.semanticHint);
+
+  return {
+    logicalRatio,
+    localScrollTop,
+    localMaxScrollAtCapture,
+    ...(parsedMode ? { mode: parsedMode } : {}),
+    ...(parsedSemanticHint ? { semanticHint: parsedSemanticHint } : {}),
+  };
 }
 
 function readManualScrollOffset(value: unknown): ManualScrollOffset | null {

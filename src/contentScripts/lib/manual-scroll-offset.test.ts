@@ -17,6 +17,7 @@ describe('createManualScrollOffset', () => {
         logicalRatio: 0.3,
         localScrollTop: 600,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       },
     });
   });
@@ -35,6 +36,7 @@ describe('createManualScrollOffset', () => {
         logicalRatio: 0,
         localScrollTop: 950,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       },
     });
   });
@@ -53,6 +55,7 @@ describe('createManualScrollOffset', () => {
         logicalRatio: 0.3,
         localScrollTop: 250,
         localMaxScrollAtCapture: 0,
+        mode: 'pixel-delta',
       },
     });
   });
@@ -71,6 +74,7 @@ describe('createManualScrollOffset', () => {
         logicalRatio: 0.3,
         localScrollTop: 0,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       },
     });
   });
@@ -90,6 +94,7 @@ describe('createManualScrollOffset', () => {
         logicalRatio: 0,
         localScrollTop: 950,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       },
     });
   });
@@ -134,6 +139,7 @@ describe('createManualScrollOffset', () => {
         logicalRatio: 1,
         localScrollTop: 300,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       },
     });
 
@@ -150,6 +156,7 @@ describe('createManualScrollOffset', () => {
         logicalRatio: 0,
         localScrollTop: 300,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       },
     });
   });

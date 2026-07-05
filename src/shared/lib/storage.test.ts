@@ -233,6 +233,140 @@ describe('loadManualScrollOffsets', () => {
     });
   });
 
+  it('returns stored manual scroll offsets with pixel-delta anchor mode', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        1: {
+          ratio: 0.25,
+          pixels: 120,
+          anchor: {
+            logicalRatio: 0.3,
+            localScrollTop: 600,
+            localMaxScrollAtCapture: 1200,
+            mode: 'pixel-delta',
+          },
+        },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      1: {
+        ratio: 0.25,
+        pixels: 120,
+        anchor: {
+          logicalRatio: 0.3,
+          localScrollTop: 600,
+          localMaxScrollAtCapture: 1200,
+          mode: 'pixel-delta',
+        },
+      },
+    });
+  });
+
+  it('drops invalid manual anchor mode while preserving valid anchor numbers', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        1: {
+          ratio: 0.25,
+          pixels: 120,
+          anchor: {
+            logicalRatio: 0.3,
+            localScrollTop: 600,
+            localMaxScrollAtCapture: 1200,
+            mode: 'semantic-every-scroll',
+          },
+        },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      1: {
+        ratio: 0.25,
+        pixels: 120,
+        anchor: {
+          logicalRatio: 0.3,
+          localScrollTop: 600,
+          localMaxScrollAtCapture: 1200,
+        },
+      },
+    });
+  });
+
+  it('keeps valid semantic hint metadata on manual anchors', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        1: {
+          ratio: 0.25,
+          pixels: 120,
+          anchor: {
+            logicalRatio: 0.3,
+            localScrollTop: 600,
+            localMaxScrollAtCapture: 1200,
+            mode: 'pixel-delta',
+            semanticHint: {
+              kind: 'figcaption',
+              localTopAtCapture: 590,
+              viewportOffsetAtCapture: 300,
+            },
+          },
+        },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      1: {
+        ratio: 0.25,
+        pixels: 120,
+        anchor: {
+          logicalRatio: 0.3,
+          localScrollTop: 600,
+          localMaxScrollAtCapture: 1200,
+          mode: 'pixel-delta',
+          semanticHint: {
+            kind: 'figcaption',
+            localTopAtCapture: 590,
+            viewportOffsetAtCapture: 300,
+          },
+        },
+      },
+    });
+  });
+
+  it('drops invalid semantic hint metadata without dropping the anchor', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        1: {
+          ratio: 0.25,
+          pixels: 120,
+          anchor: {
+            logicalRatio: 0.3,
+            localScrollTop: 600,
+            localMaxScrollAtCapture: 1200,
+            mode: 'pixel-delta',
+            semanticHint: {
+              kind: 'script',
+              localTopAtCapture: 590,
+              viewportOffsetAtCapture: 300,
+            },
+          },
+        },
+      },
+    });
+
+    await expect(loadManualScrollOffsets()).resolves.toEqual({
+      1: {
+        ratio: 0.25,
+        pixels: 120,
+        anchor: {
+          logicalRatio: 0.3,
+          localScrollTop: 600,
+          localMaxScrollAtCapture: 1200,
+          mode: 'pixel-delta',
+        },
+      },
+    });
+  });
+
   it('migrates legacy numeric offsets to object format', async () => {
     storageGetMock.mockResolvedValue({
       manualScrollOffsets: {

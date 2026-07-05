@@ -1051,6 +1051,7 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
         logicalRatio: 0.3,
         localScrollTop: 600,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       },
     });
 

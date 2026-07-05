@@ -205,6 +205,7 @@ describe('keyboard-handler', () => {
         logicalRatio: 0.3,
         localScrollTop: 600,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       });
     });
 
@@ -321,6 +322,7 @@ describe('keyboard-handler', () => {
           logicalRatio: 0.1,
           localScrollTop: 450,
           localMaxScrollAtCapture: 1000,
+          mode: 'pixel-delta',
         },
       };
       expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(
@@ -376,6 +378,7 @@ describe('keyboard-handler', () => {
           logicalRatio: 0.1,
           localScrollTop: 450,
           localMaxScrollAtCapture: 1000,
+          mode: 'pixel-delta',
         },
       });
       expect(callOrder).toEqual(['manual:on', 'cache:update', 'manual:off']);
@@ -418,6 +421,7 @@ describe('keyboard-handler', () => {
         logicalRatio: 0,
         localScrollTop: 950,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       });
     });
 
@@ -455,6 +459,7 @@ describe('keyboard-handler', () => {
         logicalRatio: 0.9,
         localScrollTop: 100,
         localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
       });
     });
 
@@ -498,6 +503,7 @@ describe('keyboard-handler', () => {
         logicalRatio: 0.3,
         localScrollTop: 250,
         localMaxScrollAtCapture: 0,
+        mode: 'pixel-delta',
       });
     });
 
@@ -539,6 +545,7 @@ describe('keyboard-handler', () => {
           logicalRatio: 0.25,
           localScrollTop: 312.5,
           localMaxScrollAtCapture: 1000,
+          mode: 'pixel-delta',
         },
       };
       expect(mocks.saveManualScrollOffsetMock).toHaveBeenCalledWith(
@@ -695,6 +702,7 @@ describe('keyboard-handler', () => {
           logicalRatio: 0.1,
           localScrollTop: 450,
           localMaxScrollAtCapture: 1000,
+          mode: 'pixel-delta',
         },
       });
 
