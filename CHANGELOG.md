@@ -1,3 +1,25 @@
+# [2.14.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.13.2...v2.14.0) (2026-07-05)
+
+
+### Bug Fixes
+
+* sanitize manual scroll anchor inputs ([07f94a7](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/07f94a7085bd3184e70a2ab58941d97b38b53a69))
+* serialize manual offset storage writes ([52553c0](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/52553c04e353e01e58b770de1f1740cb9b0b7e9e))
+* suppress stale manual cleanup persistence ([5e0309c](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/5e0309c1143a747c7dbad0db67dc56a872987ac6))
+
+
+### Features
+
+* add manual scroll anchor math ([b8396d8](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b8396d87f496e0d059a644f5e95f0855a6bb9e56))
+* add pixel delta scroll math ([ec8660a](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/ec8660a27601613be9e1fa83c7c90ebd6a0d4a39))
+* apply manual scroll anchors ([899da52](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/899da5297edb3ce8faec594d78eb95b383c004b4))
+* apply pixel delta manual anchors ([6462955](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/64629557bf9b3be17ee0a57f8d8489e039a84dea))
+* build manual scroll anchor offsets ([2d2657d](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/2d2657d9e8710182fe0f1a572d96f134e0d80774))
+* retry clamped manual anchors ([0840683](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/0840683e1d1edd444b171a0b89bef608524351f4))
+* save keyboard manual scroll anchors ([8af4adc](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/8af4adc782df8769560ed4c53359f682da9b7c73))
+* validate manual scroll anchors ([1bc1c53](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/1bc1c53060cc7a641330a9d34b4f80092263f3af))
+* version manual scroll anchors ([f66246e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/f66246e915d2a6d91d33ae380ba9082f7aa4f1c8))
+
 ## [2.13.2](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.13.1...v2.13.2) (2026-07-03)
 
 
