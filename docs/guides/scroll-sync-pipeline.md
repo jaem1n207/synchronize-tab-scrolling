@@ -21,7 +21,7 @@
 │  ├─ grace period 확인 (< 200ms since 프로그래밍적 스크롤?)         │
 │  │   └─ YES → return (피드백 루프 방지)                           │
 │  ├─ cachedManualOffset 읽기 (동기, 메모리)                        │
-│  ├─ logical ratio 계산: anchor 역매핑 또는 legacy offset fallback │
+│  ├─ logical position 계산: pixel-delta anchor 또는 legacy fallback │
 │  └─ sendMessage('scroll:sync', ...) → fire-and-forget             │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
@@ -40,10 +40,10 @@
 │                                                                  │
 │  onMessage('scroll:sync')                                        │
 │  ├─ lastSuccessfulSync 갱신 (health check용)                     │
-│  ├─ sourceRatio 계산                                             │
+│  ├─ source logical position 계산                                  │
 │  ├─ manual mode 확인 → YES면 무시                                │
 │  ├─ cachedManualOffset 읽기 (동기, 메모리)                        │
-│  ├─ local target 계산: anchor 매핑 또는 legacy offset fallback    │
+│  ├─ local target 계산: pixel-delta anchor 또는 legacy fallback    │
 │  ├─ pixel clamp 및 필요 시 bounded lazy-load catch-up 예약        │
 │  ├─ latest pending target으로 저장                                │
 │  ├─ requestAnimationFrame에서 최신 target만 적용                   │
@@ -122,27 +122,43 @@ Alt keydown
 
 Alt keyup
   → logicalRatio <-> localScrollTop 앵커 생성
+  → 새 앵커는 mode: 'pixel-delta'로 저장
   → legacy ratio/pixels도 panel 표시와 fallback용으로 계산
   → cachedManualOffset을 먼저 갱신
   → storage에 anchor + legacy 값 저장
   → syncState.isManualScrollEnabled = false
 
 이후 스크롤 동기화:
-  발신: anchor가 있으면 local scrollTop → logical ratio로 역변환
+  발신: pixel-delta anchor가 있으면 local scrollTop → logical scrollTop으로 역변환
+        mode가 없는 legacy anchor는 piecewise ratio 역매핑
         anchor가 없으면 기존 currentRatio - offsetRatio fallback
-  수신: anchor가 있으면 logical ratio → local scrollTop으로 piecewise 매핑
+  수신: pixel-delta anchor가 있으면 source logical scrollTop의 anchor 기준 signed pixel delta를 유지
+        mode가 없는 legacy anchor는 piecewise ratio 매핑
         anchor가 없으면 기존 sourceRatio + offsetRatio fallback
 ```
 
-앵커 매핑은 저장 당시의 문서 길이를 고정하지 않고, 항상 현재 `scrollHeight - clientHeight`를
-사용합니다. 따라서 anchor 아래에 lazy-loaded content가 추가되면 다음 계산은 새 길이를
-반영합니다. target이 현재 짧은 문서 길이에 clamp된 경우에는 receiver가 짧은 bounded catch-up
-retry를 예약합니다. retry는 120ms 간격으로 최대 3회만 실행되고, 새 `scroll:sync`, manual mode,
+`pixel-delta` 모드는 사용자가 맞춘 anchor 기준의 signed pixel 차이를 유지합니다. 예를 들어
+source 문서에서 anchor보다 42px 아래에 있다면 receiver도 자신의 anchor보다 42px 아래로 이동하고,
+anchor보다 20px 위에 있다면 receiver도 자신의 anchor보다 20px 위로 이동합니다. 이 방식은 목차,
+배너, 광고처럼 anchor 위쪽 구조가 다른 페이지에서도 같은 문맥을 더 안정적으로 유지합니다.
+
+mode가 없는 저장값은 이전 버전에서 만들어진 anchor입니다. 이 값은 기존 piecewise ratio 매핑으로
+처리해 저장된 수동 조정값을 깨지 않도록 합니다. anchor 자체가 없을 때만 마지막 fallback인
+`offsetRatio` 기반 계산을 사용합니다.
+
+`pixel-delta` receiver 매핑은 현재 문서의 `scrollHeight - clientHeight`로 최종 target을 clamp합니다.
+따라서 target이 현재 짧은 문서 길이에 clamp된 경우에는 receiver가 짧은 bounded catch-up retry를
+예약합니다. retry는 120ms 간격으로 최대 3회만 실행되고, 새 `scroll:sync`, manual mode,
 `scroll:start`, `scroll:stop`, 또는 사용자의 local scroll이 현재 탭을 source로 바꾸면 취소됩니다.
 
 `localMaxScrollAtCapture`는 저장 시점 검증/디버깅용 metadata입니다. 실제 매핑은 현재 문서의
-scrollable height를 기준으로 하므로, append형 lazy loading에는 대응하지만 anchor 위에 새 콘텐츠가
-삽입되어 anchor 자체의 문맥이 밀리는 경우에는 사용자가 다시 수동 조정해야 합니다.
+scrollable height로 clamp하므로, append형 lazy loading에는 bounded catch-up으로 대응합니다. 다만
+anchor 위에 새 콘텐츠가 삽입되어 anchor 자체의 문맥이 밀리는 경우에는 사용자가 다시 수동 조정해야
+합니다.
+
+현재 저장되는 semantic hint는 active scroll 처리에 연결하지 않습니다. `handleScrollCore()`와
+`scroll:sync` handler는 `cachedManualOffset`과 숫자 scroll metrics만 사용해야 하며, storage read,
+DOM scan, text matching을 추가하면 안 됩니다.
 
 ### 캐시 동기화 지점
 

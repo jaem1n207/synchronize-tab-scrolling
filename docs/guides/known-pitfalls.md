@@ -98,7 +98,7 @@ async function handleScrollCore() {
   // ... 이 시점에서 스크롤 위치가 이미 바뀌었을 수 있음
 }
 
-✅ GOOD: 인메모리 캐시 사용
+✅ GOOD: 인메모리 캐시와 숫자 scroll metrics만 사용
 async function handleScrollCore() {
   const offset = cachedManualOffset;  // 0ms, 결정적
   // ... 즉시 계산 가능
@@ -116,6 +116,9 @@ async function handleScrollCore() {
 - 값이 **드물게 변경**되는 데이터 → 인메모리 캐시 + 변경 시 갱신
 - 값이 **자주 변경**되는 데이터 → 메모리에 유지, 필요 시에만 스토리지에 영속화
 - `handleScrollCore`와 `scroll:sync` handler 내부에는 `await` 금지
+- manual anchor 보정은 active scroll 중 storage read, DOM scan, text matching 없이
+  `cachedManualOffset`과 숫자 scroll metrics만으로 계산
+- semantic hint 기반 보정이 필요해져도 active scroll handler 밖에서 bounded하게 수행
 
 ---
 
@@ -190,6 +193,8 @@ PROGRAMMATIC_SCROLL_GRACE_PERIOD = 200ms → ~65-132ms 여유
 
 - [ ] 호출 전 또는 직후 `cachedManualOffset`을 전체 `ManualScrollOffset` 객체로 갱신
 - [ ] anchor가 있는 새 값이면 `{ ratio, pixels, anchor }`를 cache와 storage에 모두 반영
+- [ ] 새 manual anchor는 `mode: 'pixel-delta'`를 포함. mode가 없는 anchor는 legacy
+      piecewise ratio fallback으로 유지
 - [ ] 다른 모듈(예: keyboard-handler)에서 호출한다면, 콜백으로 전체 offset 객체를 전달
 - [ ] sync를 다시 열기 전에 cache를 먼저 갱신. storage save를 기다리는 동안 stale cache로
       scroll event가 broadcast되면 logical ratio가 틀어질 수 있음
@@ -396,7 +401,10 @@ computed `scroll-behavior`를 따라 부드러운 스크롤 애니메이션을 �
 스크롤 동기화 관련 PR을 리뷰할 때 확인해야 할 항목:
 
 - [ ] `handleScrollCore()` 또는 `scroll:sync` handler에 새로운 `await`가 추가되지 않았는가?
+- [ ] active scroll 처리 중 manual offset을 storage에서 다시 읽거나 DOM/text를 scan하지 않는가?
 - [ ] `cachedManualOffset`이 모든 save/clear 경로에서 동기화되는가?
+- [ ] 새 수동 앵커는 `pixel-delta` mode를 저장하고, mode-less legacy anchor는 기존
+      piecewise ratio 매핑으로 처리되는가?
 - [ ] 타이밍 상수 변경 시 불변 조건이 유지되는가?
 - [ ] 새 메시지 핸들러가 `lastSuccessfulSync`를 적절히 갱신하는가?
 - [ ] `PROGRAMMATIC_SCROLL_GRACE_PERIOD`가 파이프라인 최대 지연보다 큰가?
