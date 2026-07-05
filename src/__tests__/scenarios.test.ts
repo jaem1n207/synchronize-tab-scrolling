@@ -834,6 +834,53 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     expect(document.documentElement.scrollTop).toBe(442);
   });
 
+  it('keeps the receiver at the same pixel delta from anchor when post-anchor lengths differ', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(3300, 1000);
+    await saveManualScrollOffset(31, 0.2, 600, {
+      logicalRatio: 0.3,
+      localScrollTop: 900,
+      localMaxScrollAtCapture: 1600,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(31);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(942);
+  });
+
+  it('keeps missing-mode anchors on the legacy piecewise-ratio mapping', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(3300, 1000);
+    await saveManualScrollOffset(32, 0.2, 600, {
+      logicalRatio: 0.3,
+      localScrollTop: 900,
+      localMaxScrollAtCapture: 1600,
+    });
+    await startContentSync(32);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(984);
+  });
+
   it('retries anchored receiver mapping when lazy-loaded content grows after a clamped sync', async () => {
     installImmediateAnimationFrame();
     setDocumentScrollMetrics(1500, 1000);
@@ -1065,7 +1112,7 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     });
     await flushAsync();
 
-    expect(document.documentElement.scrollTop).toBe(800);
+    expect(document.documentElement.scrollTop).toBe(950);
   });
 
   it('clampScrollOffset clamps values to +/-0.5', () => {

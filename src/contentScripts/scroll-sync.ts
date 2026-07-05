@@ -14,6 +14,8 @@ import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
   calculateAnchoredLogicalRatio,
   calculateAnchoredScrollTop,
+  calculatePixelDeltaLogicalRatio,
+  calculatePixelDeltaScrollTop,
   calculateScrollRatio,
   clampScrollPosition,
   findNearestIndex,
@@ -205,13 +207,41 @@ function getScrollableHeight(scrollHeight: number, clientHeight: number): number
   return Math.max(0, scrollHeight - clientHeight);
 }
 
+function isPixelDeltaManualAnchor(anchor: ManualScrollOffset['anchor']): boolean {
+  return anchor?.mode === 'pixel-delta';
+}
+
+function calculateManualAnchorReceiverTarget({
+  anchor,
+  sourceRatio,
+  sourceScrollTop,
+  sourceMaxScroll,
+  targetMaxScroll,
+}: {
+  anchor: NonNullable<ManualScrollOffset['anchor']>;
+  sourceRatio: number;
+  sourceScrollTop: number;
+  sourceMaxScroll: number;
+  targetMaxScroll: number;
+}) {
+  if (isPixelDeltaManualAnchor(anchor)) {
+    return calculatePixelDeltaScrollTop(sourceScrollTop, sourceMaxScroll, targetMaxScroll, anchor);
+  }
+
+  return calculateAnchoredScrollTop(sourceRatio, targetMaxScroll, anchor);
+}
+
 function scheduleLazyLoadAnchorCatchUp({
   sourceRatio,
+  sourceScrollTop,
+  sourceMaxScroll,
   mode,
   sourceTabId,
   attempt,
 }: {
   sourceRatio: number;
+  sourceScrollTop: number;
+  sourceMaxScroll: number;
   mode: ProgrammaticScrollTarget['mode'];
   sourceTabId: number;
   attempt: number;
@@ -237,7 +267,13 @@ function scheduleLazyLoadAnchorCatchUp({
 
     const { scrollTop, scrollHeight, clientHeight } = getScrollInfo();
     const maxScroll = getScrollableHeight(scrollHeight, clientHeight);
-    const target = calculateAnchoredScrollTop(sourceRatio, maxScroll, cachedManualOffset.anchor);
+    const target = calculateManualAnchorReceiverTarget({
+      anchor: cachedManualOffset.anchor,
+      sourceRatio,
+      sourceScrollTop,
+      sourceMaxScroll,
+      targetMaxScroll: maxScroll,
+    });
     const shouldApply = Math.abs(target.scrollTop - scrollTop) > 1;
 
     if (shouldApply) {
@@ -259,6 +295,8 @@ function scheduleLazyLoadAnchorCatchUp({
     if (attempt < LAZY_LOAD_CATCH_UP_MAX_ATTEMPTS) {
       scheduleLazyLoadAnchorCatchUp({
         sourceRatio,
+        sourceScrollTop,
+        sourceMaxScroll,
         mode,
         sourceTabId,
         attempt: attempt + 1,
@@ -450,7 +488,9 @@ async function handleScrollCore() {
   );
 
   const pureRatio = offsetData.anchor
-    ? calculateAnchoredLogicalRatio(scrollInfo.scrollTop, myMaxScroll, offsetData.anchor)
+    ? isPixelDeltaManualAnchor(offsetData.anchor)
+      ? calculatePixelDeltaLogicalRatio(scrollInfo.scrollTop, myMaxScroll, offsetData.anchor)
+      : calculateAnchoredLogicalRatio(scrollInfo.scrollTop, myMaxScroll, offsetData.anchor)
     : currentRatio - offsetData.ratio;
 
   // Update syncState.lastSyncedRatio to track the pure baseline we're broadcasting
@@ -1031,6 +1071,8 @@ export function initScrollSync() {
       payload.scrollHeight,
       payload.clientHeight,
     );
+    const sourceMaxScroll = getScrollableHeight(payload.scrollHeight, payload.clientHeight);
+    const sourceScrollTop = clampScrollPosition(payload.scrollTop, sourceMaxScroll);
 
     // If in manual mode, ignore sync messages completely (baseline is frozen)
     if (syncState.isManualScrollEnabled) {
@@ -1048,7 +1090,13 @@ export function initScrollSync() {
     const offsetData = cachedManualOffset;
 
     const anchoredTarget = offsetData.anchor
-      ? calculateAnchoredScrollTop(sourceRatio, myMaxScroll, offsetData.anchor)
+      ? calculateManualAnchorReceiverTarget({
+          anchor: offsetData.anchor,
+          sourceRatio,
+          sourceScrollTop,
+          sourceMaxScroll,
+          targetMaxScroll: myMaxScroll,
+        })
       : null;
 
     // Apply offset ratio to source ratio for legacy offsets without anchor metadata.
@@ -1061,6 +1109,8 @@ export function initScrollSync() {
       sourceRatio,
       offsetRatio: offsetData.ratio,
       hasManualAnchor: Boolean(offsetData.anchor),
+      manualAnchorMode: offsetData.anchor?.mode ?? 'legacy-piecewise-ratio',
+      sourceMaxScroll,
       targetRatio,
       targetScrollTop,
       clampedScrollTop,
@@ -1089,6 +1139,8 @@ export function initScrollSync() {
     if (anchoredTarget?.wasClamped) {
       scheduleLazyLoadAnchorCatchUp({
         sourceRatio,
+        sourceScrollTop,
+        sourceMaxScroll,
         mode: payload.mode,
         sourceTabId: payload.sourceTabId,
         attempt: 1,
