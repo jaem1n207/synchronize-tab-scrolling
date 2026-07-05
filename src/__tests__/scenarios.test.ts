@@ -8,10 +8,16 @@ const mocks = vi.hoisted(() => {
     string,
     (payload: { data: unknown }) => Promise<unknown> | unknown
   >();
+  const storageGetMock = vi.fn();
+  const storageSetMock = vi.fn();
+  const storageClearMock = vi.fn();
 
   return {
     storageData,
     contentHandlers,
+    storageGetMock,
+    storageSetMock,
+    storageClearMock,
     sendMessageContentMock: vi.fn(),
     sendMessageBackgroundMock: vi.fn(),
     tabsGetMock: vi.fn(),
@@ -28,47 +34,9 @@ vi.mock('webextension-polyfill', () => ({
   default: {
     storage: {
       local: {
-        get: vi.fn(async (key?: unknown) => {
-          if (typeof key === 'string') {
-            const value = mocks.storageData.get(key);
-            return value !== undefined ? { [key]: value } : {};
-          }
-
-          if (Array.isArray(key)) {
-            const result: Record<string, unknown> = {};
-            for (const item of key) {
-              if (typeof item === 'string' && mocks.storageData.has(item)) {
-                result[item] = mocks.storageData.get(item);
-              }
-            }
-            return result;
-          }
-
-          if (key && typeof key === 'object') {
-            const defaults = key as Record<string, unknown>;
-            const result: Record<string, unknown> = {};
-            for (const [entryKey, entryValue] of Object.entries(defaults)) {
-              result[entryKey] = mocks.storageData.has(entryKey)
-                ? mocks.storageData.get(entryKey)
-                : entryValue;
-            }
-            return result;
-          }
-
-          const result: Record<string, unknown> = {};
-          for (const [entryKey, entryValue] of mocks.storageData.entries()) {
-            result[entryKey] = entryValue;
-          }
-          return result;
-        }),
-        set: vi.fn(async (data: Record<string, unknown>) => {
-          for (const [key, value] of Object.entries(data)) {
-            mocks.storageData.set(key, value);
-          }
-        }),
-        clear: vi.fn(async () => {
-          mocks.storageData.clear();
-        }),
+        get: mocks.storageGetMock,
+        set: mocks.storageSetMock,
+        clear: mocks.storageClearMock,
       },
     },
     tabs: {
@@ -188,6 +156,12 @@ async function flushAsync(): Promise<void> {
   await Promise.resolve();
 }
 
+async function waitForScrollThrottleWindow(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 60);
+  });
+}
+
 async function invokeContentMessage(messageId: string, data: unknown): Promise<unknown> {
   const handler = mocks.contentHandlers.get(messageId);
   if (!handler) {
@@ -291,6 +265,46 @@ beforeEach(() => {
   mutationObservers.length = 0;
   mocks.storageData.clear();
   mocks.contentHandlers.clear();
+  mocks.storageGetMock.mockImplementation(async (key?: unknown) => {
+    if (typeof key === 'string') {
+      const value = mocks.storageData.get(key);
+      return value !== undefined ? { [key]: value } : {};
+    }
+
+    if (Array.isArray(key)) {
+      const result: Record<string, unknown> = {};
+      for (const item of key) {
+        if (typeof item === 'string' && mocks.storageData.has(item)) {
+          result[item] = mocks.storageData.get(item);
+        }
+      }
+      return result;
+    }
+
+    if (key && typeof key === 'object') {
+      const result: Record<string, unknown> = {};
+      for (const [entryKey, entryValue] of Object.entries(key)) {
+        result[entryKey] = mocks.storageData.has(entryKey)
+          ? mocks.storageData.get(entryKey)
+          : entryValue;
+      }
+      return result;
+    }
+
+    const result: Record<string, unknown> = {};
+    for (const [entryKey, entryValue] of mocks.storageData.entries()) {
+      result[entryKey] = entryValue;
+    }
+    return result;
+  });
+  mocks.storageSetMock.mockImplementation(async (data: Record<string, unknown>) => {
+    for (const [key, value] of Object.entries(data)) {
+      mocks.storageData.set(key, value);
+    }
+  });
+  mocks.storageClearMock.mockImplementation(async () => {
+    mocks.storageData.clear();
+  });
 
   setWindowUrl('http://localhost/start');
   history.replaceState({}, '', '/start');
@@ -811,6 +825,63 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     expect(scrollTop).toBeCloseTo(376.2);
   });
 
+  it('source scroll broadcasts pixel-delta logical progress from a pixel-delta anchor', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await saveManualScrollOffset(34, 0.3, 300, {
+      logicalRatio: 0.3,
+      localScrollTop: 600,
+      localMaxScrollAtCapture: 1000,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(34);
+    await waitForScrollThrottleWindow();
+    mocks.sendMessageContentMock.mockClear();
+
+    setWindowScrollTop(642);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    const scrollSyncCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'scroll:sync',
+    );
+    expect(scrollSyncCall).toBeDefined();
+    const payload = scrollSyncCall?.[1];
+    if (!payload || typeof payload !== 'object' || !('scrollTop' in payload)) {
+      throw new Error('Expected scroll:sync payload with scrollTop');
+    }
+    const { scrollTop } = payload;
+    if (typeof scrollTop !== 'number') {
+      throw new Error('Expected numeric scrollTop');
+    }
+    expect(scrollTop).toBe(342);
+  });
+
+  // Semantic anchor repair is intentionally not wired into active scroll handling.
+  // The hot path must stay limited to cached state and numeric scroll metrics.
+  it('does not read manual offset storage while handling active source scroll', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await saveManualScrollOffset(33, 0.3, 300, {
+      logicalRatio: 0.3,
+      localScrollTop: 600,
+      localMaxScrollAtCapture: 1000,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(33);
+    await waitForScrollThrottleWindow();
+    mocks.sendMessageContentMock.mockClear();
+    mocks.storageGetMock.mockClear();
+
+    setWindowScrollTop(642);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    const scrollSyncCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'scroll:sync',
+    );
+    expect(scrollSyncCall).toBeDefined();
+    expect(mocks.storageGetMock).not.toHaveBeenCalled();
+  });
+
   it('receiver scroll:sync applies cached anchor mapping to the local scroll position', async () => {
     installImmediateAnimationFrame();
     setDocumentScrollMetrics(2100, 1000);
@@ -856,6 +927,32 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await flushAsync();
 
     expect(document.documentElement.scrollTop).toBe(942);
+  });
+
+  it('does not read manual offset storage while applying receiver pixel-delta mapping', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(3300, 1000);
+    await saveManualScrollOffset(35, 0.2, 600, {
+      logicalRatio: 0.3,
+      localScrollTop: 900,
+      localMaxScrollAtCapture: 1600,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(35);
+    mocks.storageGetMock.mockClear();
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(942);
+    expect(mocks.storageGetMock).not.toHaveBeenCalled();
   });
 
   it('keeps missing-mode anchors on the legacy piecewise-ratio mapping', async () => {
