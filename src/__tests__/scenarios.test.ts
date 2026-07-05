@@ -152,8 +152,9 @@ function createGroup(tabIds: Array<number>, isActive = false): AutoSyncGroup {
 }
 
 async function flushAsync(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 5; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 async function waitForScrollThrottleWindow(): Promise<void> {
@@ -242,19 +243,13 @@ function setWindowScrollTop(scrollTop: number): void {
 }
 
 function installImmediateAnimationFrame(): void {
-  Object.defineProperty(window, 'requestAnimationFrame', {
-    configurable: true,
-    value: (callback: FrameRequestCallback) => {
-      queueMicrotask(() => {
-        callback(0);
-      });
-      return 1;
-    },
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    queueMicrotask(() => {
+      callback(0);
+    });
+    return 1;
   });
-  Object.defineProperty(window, 'cancelAnimationFrame', {
-    configurable: true,
-    value: vi.fn(),
-  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
 }
 
 beforeEach(() => {
