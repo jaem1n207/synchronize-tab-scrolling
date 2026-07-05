@@ -44,9 +44,9 @@ back to `false`.
 
 Manual scroll offsets store legacy `{ ratio, pixels }` data plus optional anchor metadata. Newly
 captured anchors use `mode: 'pixel-delta'` so scroll sync preserves signed pixel distance from the
-aligned point. Stored anchors without a mode are compatibility data and must keep the legacy
-`piecewise-ratio` mapping. Semantic hint metadata is validated and persisted when present, but
-active scroll handlers must not use it for DOM/text repair.
+aligned point. Stored anchors without a mode, or with `mode: 'piecewise-ratio'`, are compatibility
+data and must keep the legacy mapping. Semantic hint metadata is validated and persisted when
+present, but active scroll handlers must not use it for DOM/text repair.
 
 ## Testing Strategy
 

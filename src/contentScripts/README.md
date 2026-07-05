@@ -57,8 +57,8 @@ target cannot pollute the saved offset.
 Newly captured manual anchors are stored with `mode: 'pixel-delta'`. Source tabs convert local
 movement into a logical scroll position by preserving the signed pixel distance from the aligned
 anchor; receiver tabs apply that same signed delta to their own local anchor and clamp to the
-current scrollable range. Mode-less persisted anchors are treated as legacy `piecewise-ratio`
-anchors for compatibility.
+current scrollable range. Mode-less persisted anchors and explicit `piecewise-ratio` anchors are
+treated as legacy anchors for compatibility.
 
 The active source and receiver paths must stay cache-only and numeric: use `cachedManualOffset`,
 `scrollTop`, `scrollHeight`, and `clientHeight`; do not read storage, scan the DOM, or run semantic

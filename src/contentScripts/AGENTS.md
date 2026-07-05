@@ -39,8 +39,8 @@ User scrolls in Tab A
 
 **Key**: Default sync is ratio-based (`scrollTop / (scrollHeight - clientHeight)`), but manual
 anchors change the mapping. Newly captured manual anchors use `mode: 'pixel-delta'` and preserve the
-signed pixel distance from the aligned point; mode-less anchors keep the legacy `piecewise-ratio`
-mapping for compatibility.
+signed pixel distance from the aligned point; mode-less anchors and explicit `piecewise-ratio`
+anchors keep the legacy mapping for compatibility.
 Receiver-side sync targets are latest-wins per animation frame so pages do not replay stale scroll
 positions during rapid source scrolling. `lastSyncedRatio` is updated only when the scheduled target
 actually applies.
@@ -99,7 +99,7 @@ Reconnection triggers: visibility change (tab becomes visible), message send fai
 - **NEVER** reduce `PROGRAMMATIC_SCROLL_GRACE_PERIOD` below 200ms — causes feedback loops
 - **NEVER** use page-native smooth scrolling for receiver sync. Use `applyInstantProgrammaticScroll()` and keep the `scrollBehavior` override scoped to the actual programmatic assignment.
 - **ALWAYS** update `cachedManualOffset` at ALL save/clear points — mismatch causes misaligned scrolling
-- **ALWAYS** store newly captured manual anchors with `mode: 'pixel-delta'`. Only mode-less stored anchors should use legacy `piecewise-ratio` mapping.
+- **ALWAYS** store newly captured manual anchors with `mode: 'pixel-delta'`. Only mode-less or explicit `piecewise-ratio` stored anchors should use legacy mapping.
 - **ALWAYS** coalesce incoming receiver targets with latest-wins rAF scheduling and update `lastSyncedRatio` only when a target actually applies.
 - **ALWAYS** check for orphaned containers before creating Shadow DOM roots
 - **ALWAYS** use `passive: true` on scroll event listeners
