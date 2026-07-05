@@ -35,10 +35,12 @@ Make manual adjustment preserve the user's immediate visual alignment by default
 Accepted behavior:
 
 - When the user manually aligns a point, that point becomes the local anchor.
-- Continued scrolling near that anchor should preserve pixel delta from the anchor, not remaining
-  document ratio.
+- Continued scrolling near that anchor should preserve signed pixel delta from the anchor, not
+  remaining document ratio.
 - If the source moves 40px below the aligned point, anchored receivers should also move 40px below
   their aligned point, subject to normal clamping.
+- If the source moves above the aligned point, anchored receivers should preserve that negative
+  delta as well.
 - The hot scroll path must stay cheap enough for low-end machines: no storage I/O, DOM scan, layout
   scan, or text matching during active scroll handling.
 - Limited semantic assistance is allowed only outside the hot path, and only as a bounded,
@@ -66,11 +68,12 @@ same logical ratio after the anchor
 to:
 
 ```text
-same pixel delta from the manually aligned anchor
+same signed pixel delta from the manually aligned anchor
 ```
 
-This means the nearest visible context stays stable after a small or medium scroll, which matches
-the manual adjustment use case better than proportional post-anchor mapping.
+This means the nearest visible context stays stable after a small or medium scroll above or below
+the anchor, which matches the manual adjustment use case better than proportional post-anchor
+mapping.
 
 ## Data Model
 
@@ -105,7 +108,7 @@ Compatibility rules:
 ### Anchored Source to Outgoing Logical Payload
 
 When the anchored tab is the source, convert its local movement into a logical payload by preserving
-pixel delta from the captured anchor.
+signed pixel delta from the captured anchor.
 
 ```text
 sourceAnchorScrollTop = anchor.logicalRatio * currentSourceMaxScroll
@@ -119,7 +122,7 @@ document dimensions. No protocol change is required.
 
 ### Incoming Logical Payload to Anchored Receiver
 
-When an anchored tab receives sync, recover the source pixel delta from the incoming payload and
+When an anchored tab receives sync, recover the signed source pixel delta from the incoming payload and
 apply that delta to the receiver's captured local anchor.
 
 ```text
@@ -223,4 +226,4 @@ Performance tests or guards:
 
 This is a revision to the open manual anchor PR, not a new feature surface. The implementation should
 update the existing PR branch and explain that the first anchor model preserved post-anchor ratio,
-while this revision preserves post-anchor pixel delta to match manual visual alignment.
+while this revision preserves signed pixel delta around the anchor to match manual visual alignment.

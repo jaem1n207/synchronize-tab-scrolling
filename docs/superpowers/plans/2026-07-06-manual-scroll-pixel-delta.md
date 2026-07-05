@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace manual anchor post-anchor proportional mapping with pixel-delta preservation so manually aligned content remains at the same viewport height during nearby scrolling.
+**Goal:** Replace manual anchor post-anchor proportional mapping with signed pixel-delta preservation so manually aligned content remains at the same viewport height during nearby scrolling above or below the anchor.
 
 **Architecture:** Keep the existing manual offset storage and scroll-sync pipeline, but add a versioned anchor mode. Newly captured anchors use `pixel-delta`; old anchors without a mode keep the existing `piecewise-ratio` behavior. Scroll hot paths stay O(1) arithmetic over cached state and current scroll metrics.
 
@@ -34,7 +34,7 @@
   - Keep existing piecewise mapping for missing-mode anchors.
   - Carry source scroll pixel information through bounded lazy-load catch-up.
 - Modify `src/__tests__/scenarios.test.ts`
-  - Add the reported class of regression: post-anchor lengths differ, small scroll preserves pixel delta.
+  - Add the reported class of regression: post-anchor lengths differ, small scroll preserves signed pixel delta.
   - Update existing anchor expectations that newly saved anchors are pixel-delta.
   - Add a guard that semantic helpers are not called from active scroll paths if a helper is introduced.
 - Modify `docs/guides/scroll-sync-pipeline.md`
@@ -945,10 +945,9 @@ post-anchor piecewise ratio by default with:
 
 ```markdown
 새로 저장되는 manual anchor는 기본적으로 `pixel-delta` 모드입니다. 사용자가 Option/Alt로
-맞춘 지점 이후에는 문서 끝까지의 남은 비율을 다시 계산하지 않고, anchor에서 이동한 픽셀
-delta를 다른 탭의 local anchor에 적용합니다. 이 덕분에 번역문처럼 anchor 이후 문단 높이가
-달라도 방금 맞춘 figure, caption, paragraph는 가까운 스크롤에서 같은 viewport 높이를
-유지합니다.
+맞춘 지점 기준의 signed pixel delta를 다른 탭의 local anchor에 적용합니다. 이 덕분에 번역문처럼
+anchor 주변 문단 높이가 달라도 방금 맞춘 figure, caption, paragraph는 가까운 스크롤에서 같은
+viewport 높이를 유지합니다.
 
 기존 저장값처럼 `mode`가 없는 anchor는 compatibility를 위해 `piecewise-ratio`로 처리합니다.
 이 값은 anchor 위/아래 구간을 문서 길이에 비례 매핑하므로, 오래된 저장값을 유지하되 새 수동
@@ -964,7 +963,7 @@ In `docs/guides/known-pitfalls.md`, add this pitfall near the manual offset cach
 
 수동 조정의 핵심은 사용자가 방금 맞춘 문맥의 viewport 위치를 보존하는 것입니다. 새 manual
 anchor는 `pixel-delta` 모드로 저장되어야 하며, active scroll path에서는 `scrollTop -
-anchor.localScrollTop`만큼의 delta를 다른 탭 anchor에 적용해야 합니다.
+anchor.localScrollTop`만큼의 signed delta를 다른 탭 anchor에 적용해야 합니다.
 
 `currentMaxScroll - anchorTop`으로 post-anchor 남은 구간을 다시 비례 매핑하면 번역문,
 figcaption, 이미지 간격처럼 anchor 이후 길이가 다른 문서에서 다시 drift가 생깁니다.
@@ -1094,7 +1093,7 @@ verification results:
 ```markdown
 ## Summary
 
-- replace post-anchor proportional manual mapping with pixel-delta anchor preservation
+- replace post-anchor proportional manual mapping with signed pixel-delta anchor preservation
 - keep missing-mode anchors on legacy piecewise mapping for compatibility
 - keep scroll hot paths free of storage I/O, DOM scans, layout reads, and text matching
 - document the pixel-delta manual anchor invariant
