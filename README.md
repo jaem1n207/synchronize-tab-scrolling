@@ -71,6 +71,9 @@ Open two or more tabs with the content you want to compare.
 as generated HTML reports, Markdown, JSON, text, CSV, and log files. In Chromium browsers, enable
 **"Allow access to file URLs"** for this extension if the popup asks you to.
 
+Local files are manual-sync only; auto-sync suggestions intentionally do not group `file://` tabs.
+PDF and Word files remain unsupported.
+
 ### Step 3: Start syncing
 
 1. Click the extension icon in your browser toolbar
@@ -92,6 +95,10 @@ When comparing documents like originals and translations, content lengths often 
 
 **Hold Option (Mac) or Alt (Windows)** while scrolling to adjust a specific tab's position without affecting others. Release the key, and sync continues from the new alignment.
 
+After you release the key, the extension keeps the signed pixel distance from that manually aligned
+point. This helps figures, captions, and nearby paragraphs stay visually aligned even when the two
+pages have different headers, tables of contents, ads, or translation lengths.
+
 ### Step 5: Stop syncing
 
 Click the extension icon again and select **"Stop Sync"**, or simply close the synced tabs.
@@ -100,19 +107,27 @@ Click the extension icon again and select **"Stop Sync"**, or simply close the s
 
 ## Pages That Don't Work
 
-Due to browser security restrictions, the extension cannot sync these pages:
+Most regular `http(s)` pages and browser-readable `file://` documents can be selected. Some tabs are
+unavailable because browsers block extension access, the page cannot accept a content script, or the
+extension intentionally avoids noisy or private contexts:
 
-- Browser internal pages (`chrome://`, `edge://`, `about:`)
-- Extension stores
-- Google services (Docs, Drive, Gmail, Sheets, etc.)
-- Some web apps (Figma, JIRA, Microsoft Office Online, Notion, etc.)
-- Search engine results (Google Search, Naver, Bing, DuckDuckGo, etc.)
-- PDF files and PDF viewers
+- Browser/internal/extension pages (`chrome://`, `edge://`, `about:`, `devtools://`,
+  `chrome-extension://`, `moz-extension://`)
+- Browser extension stores (Chrome Web Store, Edge Add-ons, Firefox Add-ons)
+- Google Workspace, account, and console services (Docs, Drive, Gmail, Sheets, Slides, Calendar,
+  Meet, Photos, Accounts, Cloud Console, etc.)
+- Search result pages (Google Search, Naver Search, Bing, DuckDuckGo, Yahoo, Baidu, Daum, etc.)
+- Known incompatible app surfaces (Figma, Notion, YouTube Music, Atlassian Jira/Confluence)
+- PDF files and PDF viewer routes, including local `.pdf` files
 - Local Word documents (`file://` `.doc` / `.docx`)
-- Login/authentication pages
-- Special URLs (`view-source:`, `data:`, `blob:`)
+- Login/authentication pages, including common `login.`, `auth.`, `sso.`, `/login`, `/auth`, and
+  `/oauth` patterns
+- Special URL schemes (`view-source:`, `data:`, `blob:`, `filesystem:`, `javascript:`,
+  `vbscript:`, `ftp:`, `ws:`, `wss:`)
 
-These tabs will appear disabled in the selection list.
+These tabs appear disabled in the selection list. Browser-readable local files are the exception:
+they can be selected for manual sync when file URL access is allowed. In Chromium browsers, if file
+access is off, the popup shows a settings action so you can enable **"Allow access to file URLs"**.
 
 ---
 
@@ -160,6 +175,10 @@ When the extension detects synced pages with meaningfully different scrollable h
 a small contextual hint about this shortcut. The hint appears only in that situation and can be
 hidden from the overlay.
 
+New manual alignments preserve the signed pixel delta from the point you just matched, rather than
+scaling the rest of the document by remaining page length. Older saved alignments still use the
+legacy proportional mapping for compatibility.
+
 ### URL Navigation Sync
 
 When you click a link in one synced tab, the other synced tabs can follow the page change too. This
@@ -168,9 +187,11 @@ button.
 
 You can choose how page changes behave:
 
-- **Follow changed tab**: other tabs move to the website/page opened by the tab you changed.
+- **Follow changed tab**: other tabs move to the website/page opened by the tab you changed,
+  including page-identifying query parameters such as search/result queries. If a target tab carries
+  its language in the URL, that language marker is preserved.
 - **Keep each tab's website**: each tab stays on its own website and opens the matching page path
-  when possible.
+  and page-identifying query when possible.
 
 ### Auto-Sync Suggestion
 
