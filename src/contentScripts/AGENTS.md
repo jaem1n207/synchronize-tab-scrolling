@@ -25,11 +25,11 @@ Injected into all web pages. Core scroll synchronization engine (1114 lines), Sh
 User scrolls in Tab A
   → handleScroll() (throttled 50ms, passive listener)
   → getScrollInfo() → {scrollTop, scrollHeight, clientHeight}
-  → calculateScrollRatio() → ratio 0-1
-  → Subtract manual offset from ratio
-  → sendMessage('scroll:sync', {ratio, sourceTabId, ...})
+  → calculateScrollRatio() / pixel-delta anchor mapping
+  → derive logical scroll position from cached manual offset
+  → sendMessage('scroll:sync', {scrollTop, sourceTabId, ...})
   → [Background] relays to all other synced tabs
-  → [Tab B] receives → apply own manual offset
+  → [Tab B] receives → map logical scroll position through own manual anchor
   → Store latest pending receiver target
   → requestAnimationFrame applies newest target only
   → applyInstantProgrammaticScroll(targetPosition)
@@ -37,7 +37,10 @@ User scrolls in Tab A
   → Grace period (200ms) suppresses scroll event from programmatic scroll
 ```
 
-**Key**: Ratio-based positioning — `scrollTop / (scrollHeight - clientHeight)`. Proportional sync across documents of different heights.
+**Key**: Default sync is ratio-based (`scrollTop / (scrollHeight - clientHeight)`), but manual
+anchors change the mapping. Newly captured manual anchors use `mode: 'pixel-delta'` and preserve the
+signed pixel distance from the aligned point; mode-less anchors keep the legacy `piecewise-ratio`
+mapping for compatibility.
 Receiver-side sync targets are latest-wins per animation frame so pages do not replay stale scroll
 positions during rapid source scrolling. `lastSyncedRatio` is updated only when the scheduled target
 actually applies.
@@ -59,9 +62,9 @@ actually applies.
 
 1. User holds **Option** (Mac) / **Alt** (Win) → snapshot baseline ratio synchronously
 2. Scroll freely — incoming sync messages ignored during manual mode
-3. Release key → `offsetRatio = currentRatio - baselineSnapshot`
-4. Clamp to ±0.5 → save to `browser.storage.local`
-5. Resume sync with offset applied to all future scroll calculations
+3. Release key → save `{ ratio, pixels, anchor }` and set `anchor.mode = 'pixel-delta'`
+4. Update `cachedManualOffset` before sync resumes, then persist to `browser.storage.local`
+5. Resume sync with signed pixel delta preserved from the aligned anchor
 
 **Wheel mode** (unfocused tabs — Arc/Dia split view): Detect Alt via `wheel.altKey` property. Release detection via `mousemove` event throttling since `keyup` doesn't fire in unfocused tabs.
 
@@ -92,9 +95,11 @@ Reconnection triggers: visibility change (tab becomes visible), message send fai
 
 - **NEVER** log raw URLs, tab titles, page titles, canonical URLs, alternate links, or full message payloads. `window.location.href`, `payload.url`, `sourceUrl`, `targetUrl`, and `normalizedUrl` may contain tokens, emails, private document IDs, search terms, or workspace paths. Log only `tabId`, `sourceTabId`, `mode`, `reason`, counts, booleans, or enum states.
 - **NEVER** `await` in `handleScrollCore()` — scroll fires 20x/sec, async adds variable delay
+- **NEVER** read storage, scan the DOM, or do text/semantic matching in active manual anchor scroll paths. `handleScrollCore()` and `scroll:sync` use cached state plus numeric scroll metrics only.
 - **NEVER** reduce `PROGRAMMATIC_SCROLL_GRACE_PERIOD` below 200ms — causes feedback loops
 - **NEVER** use page-native smooth scrolling for receiver sync. Use `applyInstantProgrammaticScroll()` and keep the `scrollBehavior` override scoped to the actual programmatic assignment.
 - **ALWAYS** update `cachedManualOffset` at ALL save/clear points — mismatch causes misaligned scrolling
+- **ALWAYS** store newly captured manual anchors with `mode: 'pixel-delta'`. Only mode-less stored anchors should use legacy `piecewise-ratio` mapping.
 - **ALWAYS** coalesce incoming receiver targets with latest-wins rAF scheduling and update `lastSyncedRatio` only when a target actually applies.
 - **ALWAYS** check for orphaned containers before creating Shadow DOM roots
 - **ALWAYS** use `passive: true` on scroll event listeners

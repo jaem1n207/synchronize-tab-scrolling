@@ -9,7 +9,7 @@ Pure utility functions and cross-cutting services used by background, content sc
 | `auto-sync-url-utils.ts`       | —     | URL normalization and exclusion for auto-sync grouping    | Yes   |
 | `url-utils.ts`                 | 306   | URL eligibility, local-file/PDF/special-scheme detection  | Yes   |
 | `file-scheme-access.ts`        | 62    | Chromium file URL access probing and settings URLs        | Yes   |
-| `scroll-math.ts`               | —     | Scroll position calculations, ratio-based positioning     | Yes   |
+| `scroll-math.ts`               | —     | Scroll ratio, legacy anchor, and pixel-delta anchor math  | Yes   |
 | `tab-similarity.ts`            | —     | Tab title/URL similarity scoring for matching             | Yes   |
 | `korean-search.ts`             | —     | Korean text search with Hangul decomposition (초성 검색)  | Yes   |
 | `korean-josa.ts`               | —     | Korean particle formatting for localized UI placeholders  | Yes   |
@@ -41,6 +41,12 @@ and listener guards pointed at these helpers so supported hint IDs do not drift.
 Do not use type assertions for storage-sourced values. For `autoSyncEnabled`, only an explicit
 boolean `true` keeps same-page suggestions enabled; missing, malformed, or unreadable values fall
 back to `false`.
+
+Manual scroll offsets store legacy `{ ratio, pixels }` data plus optional anchor metadata. Newly
+captured anchors use `mode: 'pixel-delta'` so scroll sync preserves signed pixel distance from the
+aligned point. Stored anchors without a mode are compatibility data and must keep the legacy
+`piecewise-ratio` mapping. Semantic hint metadata is validated and persisted when present, but
+active scroll handlers must not use it for DOM/text repair.
 
 ## Testing Strategy
 

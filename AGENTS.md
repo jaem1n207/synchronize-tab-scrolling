@@ -80,9 +80,11 @@ pnpm start:firefox      # Launch in Firefox
 1. **No async I/O in scroll handlers** — Never `await` in `handleScrollCore()`. Scroll fires 20x/sec
 2. **Grace period invariant** — `PROGRAMMATIC_SCROLL_GRACE_PERIOD` (200ms) must exceed pipeline max (~135ms, including receiver rAF coalescing)
 3. **Cache sync at ALL points** — `cachedManualOffset` must update at every save/clear. Mismatch → misaligned scrolling
-4. **Startup ordering** — `restoreSyncState()` before `initializeAutoSync()`. Wrong order → race conditions
-5. **Cleanup before new sync** — `scroll:stop` to old tabs BEFORE `scroll:start` to new. Prevents orphaned DOM
-6. **Instant receiver scrolls** — `scroll:sync` receivers must use latest-wins scheduling and `applyInstantProgrammaticScroll()` so page `scroll-behavior: smooth` cannot animate extension-driven sync.
+4. **Manual anchors default to pixel-delta** — New manual anchors must save `mode: 'pixel-delta'` and preserve signed pixel distance from the aligned point. Mode-less anchors are legacy `piecewise-ratio` only.
+5. **Manual anchor hot path stays numeric** — `handleScrollCore()` and `scroll:sync` may use only cached manual offset state and numeric scroll metrics. No storage reads, DOM scans, text matching, or semantic repair in active scroll handlers.
+6. **Startup ordering** — `restoreSyncState()` before `initializeAutoSync()`. Wrong order → race conditions
+7. **Cleanup before new sync** — `scroll:stop` to old tabs BEFORE `scroll:start` to new. Prevents orphaned DOM
+8. **Instant receiver scrolls** — `scroll:sync` receivers must use latest-wins scheduling and `applyInstantProgrammaticScroll()` so page `scroll-behavior: smooth` cannot animate extension-driven sync.
 
 ### P1: Storage & State (will cause leaks)
 
