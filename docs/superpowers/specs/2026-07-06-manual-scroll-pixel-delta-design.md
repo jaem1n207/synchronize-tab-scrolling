@@ -92,13 +92,12 @@ interface ManualScrollSemanticHint {
   kind: 'figure' | 'figcaption' | 'heading' | 'paragraph';
   localTopAtCapture: number;
   viewportOffsetAtCapture: number;
-  textFingerprint?: string;
 }
 ```
 
 Compatibility rules:
 
-- Missing `mode` means legacy `piecewise-ratio` for already-persisted anchor objects.
+- Missing `mode` or explicit `piecewise-ratio` means legacy behavior for already-persisted anchor objects.
 - Newly captured anchors use `mode: 'pixel-delta'`.
 - Invalid optional fields are ignored during storage load.
 - The existing `ratio` and `pixels` fields stay as legacy fallback and UI display data.
@@ -203,7 +202,7 @@ Unit tests:
 - Pixel-delta source mapping preserves local delta from anchor.
 - Pixel-delta receiver mapping applies incoming source delta to local anchor.
 - Target clamping works at top and bottom.
-- Missing `mode` keeps legacy piecewise-ratio behavior for old saved anchors.
+- Missing `mode` or explicit `piecewise-ratio` keeps legacy behavior for old saved anchors.
 - Malformed semantic hints are ignored without dropping the valid anchor.
 
 Scenario tests:

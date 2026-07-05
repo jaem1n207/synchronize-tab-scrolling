@@ -4,7 +4,7 @@
 
 **Goal:** Replace manual anchor post-anchor proportional mapping with signed pixel-delta preservation so manually aligned content remains at the same viewport height during nearby scrolling above or below the anchor.
 
-**Architecture:** Keep the existing manual offset storage and scroll-sync pipeline, but add a versioned anchor mode. Newly captured anchors use `pixel-delta`; old anchors without a mode keep the existing `piecewise-ratio` behavior. Scroll hot paths stay O(1) arithmetic over cached state and current scroll metrics.
+**Architecture:** Keep the existing manual offset storage and scroll-sync pipeline, but add a versioned anchor mode. Newly captured anchors use `pixel-delta`; old anchors without a mode or with explicit `piecewise-ratio` keep the existing legacy behavior. Scroll hot paths stay O(1) arithmetic over cached state and current scroll metrics.
 
 **Tech Stack:** React 19, TypeScript, Vite, Vitest, webext-bridge, webextension-polyfill.
 
@@ -1094,7 +1094,7 @@ verification results:
 ## Summary
 
 - replace post-anchor proportional manual mapping with signed pixel-delta anchor preservation
-- keep missing-mode anchors on legacy piecewise mapping for compatibility
+- keep missing-mode or explicit piecewise-ratio anchors on legacy mapping for compatibility
 - keep scroll hot paths free of storage I/O, DOM scans, layout reads, and text matching
 - document the pixel-delta manual anchor invariant
 

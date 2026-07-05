@@ -103,7 +103,8 @@ Field meanings:
 
 Storage values are untrusted. When loading offsets, the implementation should accept an anchor only
 when all anchor fields are finite numbers and the main `ratio` and `pixels` fields are valid
-numbers. Invalid anchor data falls back to the legacy ratio behavior or to `{ ratio: 0, pixels: 0 }`.
+numbers. Invalid anchor data is ignored while the valid legacy ratio data remains available.
+Malformed offset objects are skipped instead of being normalized to `{ ratio: 0, pixels: 0 }`.
 
 ## Mapping Math
 
