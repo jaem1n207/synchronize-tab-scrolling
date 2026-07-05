@@ -114,6 +114,51 @@ export function calculateAnchoredScrollTop(
   };
 }
 
+export function calculatePixelDeltaLogicalRatio(
+  scrollTop: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): number {
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) return 0;
+
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const localAnchorTop = clampScrollPosition(anchor.localScrollTop, safeMaxScroll);
+  const localTop = clampScrollPosition(scrollTop, safeMaxScroll);
+  const logicalAnchorTop = anchorLogical * safeMaxScroll;
+  const logicalScrollTop = clampScrollPosition(
+    logicalAnchorTop + (localTop - localAnchorTop),
+    safeMaxScroll,
+  );
+
+  return clampRatio(logicalScrollTop / safeMaxScroll);
+}
+
+export function calculatePixelDeltaScrollTop(
+  logicalScrollTop: number,
+  logicalMaxScroll: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): AnchoredScrollTarget {
+  const safeLogicalMaxScroll = getSafeMaxScroll(logicalMaxScroll);
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) {
+    return { scrollTop: 0, wasClamped: anchor.localScrollTop > 0 || logicalScrollTop > 0 };
+  }
+
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const safeLogicalScrollTop = clampScrollPosition(logicalScrollTop, safeLogicalMaxScroll);
+  const logicalAnchorTop = anchorLogical * safeLogicalMaxScroll;
+  const sourceDeltaPx = safeLogicalScrollTop - logicalAnchorTop;
+  const rawTarget = anchor.localScrollTop + sourceDeltaPx;
+  const clampedTarget = clampScrollPosition(rawTarget, safeMaxScroll);
+
+  return {
+    scrollTop: normalizeScrollMathValue(clampedTarget),
+    wasClamped: rawTarget !== clampedTarget,
+  };
+}
+
 /**
  * Index of the element whose scrollTop is closest to `currentScroll`.
  *

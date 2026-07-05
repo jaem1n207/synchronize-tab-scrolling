@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateAnchoredLogicalRatio,
   calculateAnchoredScrollTop,
+  calculatePixelDeltaLogicalRatio,
+  calculatePixelDeltaScrollTop,
   calculateScrollRatio,
   clampScrollOffset,
   clampScrollPosition,
@@ -213,6 +215,89 @@ describe('calculateAnchoredLogicalRatio', () => {
         localScrollTop: 300,
       }),
     ).toBe(0);
+  });
+});
+
+describe('calculatePixelDeltaLogicalRatio', () => {
+  it('maps local source movement to the same pixel delta from the logical anchor', () => {
+    expect(
+      calculatePixelDeltaLogicalRatio(642, 1000, {
+        logicalRatio: 0.3,
+        localScrollTop: 600,
+      }),
+    ).toBe(0.342);
+  });
+
+  it('uses the current source max scroll while preserving local pixel delta', () => {
+    expect(
+      calculatePixelDeltaLogicalRatio(642, 2000, {
+        logicalRatio: 0.3,
+        localScrollTop: 600,
+      }),
+    ).toBe(0.321);
+  });
+
+  it('clamps pixel-delta logical ratio at document boundaries', () => {
+    expect(
+      calculatePixelDeltaLogicalRatio(-100, 1000, {
+        logicalRatio: 0.3,
+        localScrollTop: 600,
+      }),
+    ).toBe(0);
+
+    expect(
+      calculatePixelDeltaLogicalRatio(2000, 1000, {
+        logicalRatio: 0.3,
+        localScrollTop: 600,
+      }),
+    ).toBe(0.7);
+  });
+
+  it('clamps source scroll top before calculating pixel delta', () => {
+    expect(
+      calculatePixelDeltaLogicalRatio(-100, 1000, {
+        logicalRatio: 0.9,
+        localScrollTop: 0,
+      }),
+    ).toBe(0.9);
+  });
+});
+
+describe('calculatePixelDeltaScrollTop', () => {
+  it('applies source pixel delta to the receiver local anchor', () => {
+    expect(
+      calculatePixelDeltaScrollTop(342, 1000, 1600, {
+        logicalRatio: 0.3,
+        localScrollTop: 800,
+      }),
+    ).toEqual({ scrollTop: 842, wasClamped: false });
+  });
+
+  it('does not scale source delta by receiver remaining document length', () => {
+    expect(
+      calculatePixelDeltaScrollTop(342, 1000, 3000, {
+        logicalRatio: 0.3,
+        localScrollTop: 1200,
+      }),
+    ).toEqual({ scrollTop: 1242, wasClamped: false });
+  });
+
+  it('clamps receiver target when pixel delta points outside the valid range', () => {
+    expect(
+      calculatePixelDeltaScrollTop(950, 1000, 900, {
+        logicalRatio: 0.3,
+        localScrollTop: 700,
+      }),
+    ).toEqual({ scrollTop: 900, wasClamped: true });
+  });
+
+  it('clamps receiver target when negative pixel delta points above the valid range', () => {
+    expect(
+      calculatePixelDeltaScrollTop(0, 1000, 900, {
+        logicalRatio: 0.8,
+        localScrollTop: 100,
+      }),
+    ).toEqual({ scrollTop: 0, wasClamped: true });
   });
 });
 
