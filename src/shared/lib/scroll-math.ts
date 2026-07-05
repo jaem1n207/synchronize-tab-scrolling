@@ -30,6 +30,165 @@ export function clampScrollPosition(position: number, maxScroll: number): number
   return Math.max(0, Math.min(maxScroll, position));
 }
 
+export interface ScrollAnchor {
+  logicalRatio: number;
+  localScrollTop: number;
+}
+
+export interface AnchoredScrollTarget {
+  scrollTop: number;
+  wasClamped: boolean;
+}
+
+function normalizeScrollMathValue(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Number(value.toFixed(12));
+}
+
+function clampRatio(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return normalizeScrollMathValue(Math.max(0, Math.min(1, value)));
+}
+
+function getSafeMaxScroll(maxScroll: number): number {
+  if (!Number.isFinite(maxScroll)) return 0;
+  return Math.max(0, maxScroll);
+}
+
+/**
+ * Maps a local source scrollTop to a shared logical ratio using legacy piecewise anchoring.
+ *
+ * `scrollTop`, `maxScroll`, and `anchor.localScrollTop` are source-tab pixel coordinates.
+ * Pre-anchor and post-anchor source segments are scaled independently into the shared logical
+ * ratio space around `anchor.logicalRatio`.
+ */
+export function calculateAnchoredLogicalRatio(
+  scrollTop: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): number {
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) return 0;
+
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const anchorTop = clampScrollPosition(anchor.localScrollTop, safeMaxScroll);
+  const localTop = clampScrollPosition(scrollTop, safeMaxScroll);
+
+  if (localTop <= anchorTop) {
+    if (anchorTop <= 0 || anchorLogical <= 0) return 0;
+    return clampRatio((localTop / anchorTop) * anchorLogical);
+  }
+
+  const remainingLocal = safeMaxScroll - anchorTop;
+  const remainingLogical = 1 - anchorLogical;
+
+  if (remainingLocal <= 0 || remainingLogical <= 0) return 1;
+
+  const progress = (localTop - anchorTop) / remainingLocal;
+  return clampRatio(anchorLogical + progress * remainingLogical);
+}
+
+/**
+ * Maps a logical ratio back to a local target scrollTop using legacy piecewise anchoring.
+ *
+ * The logical ratio is in the shared source coordinate space. `maxScroll` and
+ * `anchor.localScrollTop` are local receiver pixels. Pre-anchor and post-anchor segments are
+ * scaled independently around `anchor.logicalRatio`. `wasClamped` reports whether the saved anchor
+ * or computed target was outside the receiver's current scrollable range.
+ */
+export function calculateAnchoredScrollTop(
+  logicalRatio: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): AnchoredScrollTarget {
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) return { scrollTop: 0, wasClamped: anchor.localScrollTop > 0 };
+
+  const sourceRatio = clampRatio(logicalRatio);
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const anchorTop = clampScrollPosition(anchor.localScrollTop, safeMaxScroll);
+
+  let rawTarget: number;
+
+  if (sourceRatio <= anchorLogical) {
+    const progress = anchorLogical > 0 ? sourceRatio / anchorLogical : 0;
+    rawTarget = progress * anchorTop;
+  } else {
+    const remainingLogical = 1 - anchorLogical;
+    const remainingLocal = safeMaxScroll - anchorTop;
+    const progress = remainingLogical > 0 ? (sourceRatio - anchorLogical) / remainingLogical : 1;
+    rawTarget = anchorTop + progress * remainingLocal;
+  }
+
+  const clampedTarget = clampScrollPosition(rawTarget, safeMaxScroll);
+  const scrollTop = normalizeScrollMathValue(clampedTarget);
+
+  return {
+    scrollTop,
+    wasClamped: anchor.localScrollTop > safeMaxScroll || rawTarget !== clampedTarget,
+  };
+}
+
+/**
+ * Maps a local source scrollTop to a shared logical ratio using pixel-delta anchoring.
+ *
+ * `scrollTop`, `maxScroll`, and `anchor.localScrollTop` are source-tab pixel coordinates. The
+ * returned ratio represents the logical anchor position plus the signed local pixel delta from the
+ * captured source anchor, clamped to the source document bounds.
+ */
+export function calculatePixelDeltaLogicalRatio(
+  scrollTop: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): number {
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) return 0;
+
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const localAnchorTop = clampScrollPosition(anchor.localScrollTop, safeMaxScroll);
+  const localTop = clampScrollPosition(scrollTop, safeMaxScroll);
+  const logicalAnchorTop = anchorLogical * safeMaxScroll;
+  const logicalScrollTop = clampScrollPosition(
+    logicalAnchorTop + (localTop - localAnchorTop),
+    safeMaxScroll,
+  );
+
+  return clampRatio(logicalScrollTop / safeMaxScroll);
+}
+
+/**
+ * Maps a shared logical source scrollTop to a local receiver target using pixel-delta anchoring.
+ *
+ * `logicalScrollTop` and `logicalMaxScroll` describe the source payload's logical pixel space.
+ * `maxScroll` and `anchor.localScrollTop` describe the receiver's local pixel space. The function
+ * recovers the source's signed delta from `anchor.logicalRatio` and applies it to the receiver
+ * anchor. `wasClamped` reports whether that target fell outside the receiver's current range.
+ */
+export function calculatePixelDeltaScrollTop(
+  logicalScrollTop: number,
+  logicalMaxScroll: number,
+  maxScroll: number,
+  anchor: ScrollAnchor,
+): AnchoredScrollTarget {
+  const safeLogicalMaxScroll = getSafeMaxScroll(logicalMaxScroll);
+  const safeMaxScroll = getSafeMaxScroll(maxScroll);
+  if (safeMaxScroll <= 0) {
+    return { scrollTop: 0, wasClamped: anchor.localScrollTop > 0 || logicalScrollTop > 0 };
+  }
+
+  const anchorLogical = clampRatio(anchor.logicalRatio);
+  const safeLogicalScrollTop = clampScrollPosition(logicalScrollTop, safeLogicalMaxScroll);
+  const logicalAnchorTop = anchorLogical * safeLogicalMaxScroll;
+  const sourceDeltaPx = safeLogicalScrollTop - logicalAnchorTop;
+  const rawTarget = anchor.localScrollTop + sourceDeltaPx;
+  const clampedTarget = clampScrollPosition(rawTarget, safeMaxScroll);
+
+  return {
+    scrollTop: normalizeScrollMathValue(clampedTarget),
+    wasClamped: rawTarget !== clampedTarget,
+  };
+}
+
 /**
  * Index of the element whose scrollTop is closest to `currentScroll`.
  *

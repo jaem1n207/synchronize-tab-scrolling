@@ -24,9 +24,9 @@ contentScripts/
 1. **Injection**: Background script injects `index.global.js` into eligible tabs
 2. **Initialization**: `scroll-sync.ts` sets up scroll event listeners and message handlers
 3. **Scroll Capture**: When user scrolls, captures position (scrollTop, scrollHeight, clientHeight)
-4. **Position Relay**: Sends scroll data to background via `webext-bridge`
+4. **Position Relay**: Sends logical scroll data to background via `webext-bridge`
 5. **Position Apply**: Receives scroll data from other tabs, keeps only the latest pending target per
-   animation frame, and applies proportional positioning instantly
+   animation frame, and applies the mapped target instantly
 6. **UI Rendering**: Mounts React components inside Shadow DOM for sync controls and toast notifications
 
 ## Receiver-Side Scroll Application
@@ -53,6 +53,16 @@ All UI components render inside a Shadow DOM to prevent style conflicts with the
 Users hold **Option** (Mac) / **Alt** (Windows) while scrolling to adjust individual tab positions without affecting sync. This is handled by `keyboard-handler.ts` which tracks modifier key state.
 Pending receiver targets are cancelled before capturing a manual baseline so an unapplied future
 target cannot pollute the saved offset.
+
+Newly captured manual anchors are stored with `mode: 'pixel-delta'`. Source tabs convert local
+movement into a logical scroll position by preserving the signed pixel distance from the aligned
+anchor; receiver tabs apply that same signed delta to their own local anchor and clamp to the
+current scrollable range. Mode-less persisted anchors and explicit `piecewise-ratio` anchors are
+treated as legacy anchors for compatibility.
+
+The active source and receiver paths must stay cache-only and numeric: use `cachedManualOffset`,
+`scrollTop`, `scrollHeight`, and `clientHeight`; do not read storage, scan the DOM, or run semantic
+matching from `handleScrollCore()` or the `scroll:sync` handler.
 
 ## Key Message Handlers (in scroll-sync.ts)
 

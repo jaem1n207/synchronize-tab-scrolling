@@ -8,10 +8,16 @@ const mocks = vi.hoisted(() => {
     string,
     (payload: { data: unknown }) => Promise<unknown> | unknown
   >();
+  const storageGetMock = vi.fn();
+  const storageSetMock = vi.fn();
+  const storageClearMock = vi.fn();
 
   return {
     storageData,
     contentHandlers,
+    storageGetMock,
+    storageSetMock,
+    storageClearMock,
     sendMessageContentMock: vi.fn(),
     sendMessageBackgroundMock: vi.fn(),
     tabsGetMock: vi.fn(),
@@ -28,47 +34,9 @@ vi.mock('webextension-polyfill', () => ({
   default: {
     storage: {
       local: {
-        get: vi.fn(async (key?: unknown) => {
-          if (typeof key === 'string') {
-            const value = mocks.storageData.get(key);
-            return value !== undefined ? { [key]: value } : {};
-          }
-
-          if (Array.isArray(key)) {
-            const result: Record<string, unknown> = {};
-            for (const item of key) {
-              if (typeof item === 'string' && mocks.storageData.has(item)) {
-                result[item] = mocks.storageData.get(item);
-              }
-            }
-            return result;
-          }
-
-          if (key && typeof key === 'object') {
-            const defaults = key as Record<string, unknown>;
-            const result: Record<string, unknown> = {};
-            for (const [entryKey, entryValue] of Object.entries(defaults)) {
-              result[entryKey] = mocks.storageData.has(entryKey)
-                ? mocks.storageData.get(entryKey)
-                : entryValue;
-            }
-            return result;
-          }
-
-          const result: Record<string, unknown> = {};
-          for (const [entryKey, entryValue] of mocks.storageData.entries()) {
-            result[entryKey] = entryValue;
-          }
-          return result;
-        }),
-        set: vi.fn(async (data: Record<string, unknown>) => {
-          for (const [key, value] of Object.entries(data)) {
-            mocks.storageData.set(key, value);
-          }
-        }),
-        clear: vi.fn(async () => {
-          mocks.storageData.clear();
-        }),
+        get: mocks.storageGetMock,
+        set: mocks.storageSetMock,
+        clear: mocks.storageClearMock,
       },
     },
     tabs: {
@@ -134,7 +102,11 @@ import {
 } from '~/background/lib/auto-sync-state';
 import { syncState } from '~/background/lib/sync-state';
 import { initScrollSync } from '~/contentScripts/scroll-sync';
-import { calculateScrollRatio, clampScrollOffset } from '~/shared/lib/scroll-math';
+import {
+  calculateAnchoredLogicalRatio,
+  calculateAnchoredScrollTop,
+  clampScrollOffset,
+} from '~/shared/lib/scroll-math';
 import {
   clearAllManualScrollOffsets,
   clearManualScrollOffset,
@@ -180,8 +152,15 @@ function createGroup(tabIds: Array<number>, isActive = false): AutoSyncGroup {
 }
 
 async function flushAsync(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 5; index += 1) {
+    await Promise.resolve();
+  }
+}
+
+async function waitForScrollThrottleWindow(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 60);
+  });
 }
 
 async function invokeContentMessage(messageId: string, data: unknown): Promise<unknown> {
@@ -255,6 +234,24 @@ function setDocumentScrollMetrics(scrollHeight: number, clientHeight: number): v
   });
 }
 
+function setWindowScrollTop(scrollTop: number): void {
+  Object.defineProperty(window, 'scrollY', {
+    configurable: true,
+    value: scrollTop,
+  });
+  document.documentElement.scrollTop = scrollTop;
+}
+
+function installImmediateAnimationFrame(): void {
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    queueMicrotask(() => {
+      callback(0);
+    });
+    return 1;
+  });
+  vi.stubGlobal('cancelAnimationFrame', vi.fn());
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -263,9 +260,50 @@ beforeEach(() => {
   mutationObservers.length = 0;
   mocks.storageData.clear();
   mocks.contentHandlers.clear();
+  mocks.storageGetMock.mockImplementation(async (key?: unknown) => {
+    if (typeof key === 'string') {
+      const value = mocks.storageData.get(key);
+      return value !== undefined ? { [key]: value } : {};
+    }
+
+    if (Array.isArray(key)) {
+      const result: Record<string, unknown> = {};
+      for (const item of key) {
+        if (typeof item === 'string' && mocks.storageData.has(item)) {
+          result[item] = mocks.storageData.get(item);
+        }
+      }
+      return result;
+    }
+
+    if (key && typeof key === 'object') {
+      const result: Record<string, unknown> = {};
+      for (const [entryKey, entryValue] of Object.entries(key)) {
+        result[entryKey] = mocks.storageData.has(entryKey)
+          ? mocks.storageData.get(entryKey)
+          : entryValue;
+      }
+      return result;
+    }
+
+    const result: Record<string, unknown> = {};
+    for (const [entryKey, entryValue] of mocks.storageData.entries()) {
+      result[entryKey] = entryValue;
+    }
+    return result;
+  });
+  mocks.storageSetMock.mockImplementation(async (data: Record<string, unknown>) => {
+    for (const [key, value] of Object.entries(data)) {
+      mocks.storageData.set(key, value);
+    }
+  });
+  mocks.storageClearMock.mockImplementation(async () => {
+    mocks.storageData.clear();
+  });
 
   setWindowUrl('http://localhost/start');
   history.replaceState({}, '', '/start');
+  setWindowScrollTop(0);
 
   autoSyncState.enabled = false;
   autoSyncState.groups.clear();
@@ -316,6 +354,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   await stopContentSync();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -722,12 +761,450 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await expect(getManualScrollOffset(1)).resolves.toEqual({ ratio: 0.1, pixels: 50 });
   });
 
-  it('offset math applies source ratio plus offset ratio correctly', () => {
-    const sourceRatio = calculateScrollRatio(500, 2000, 1000);
-    const targetRatio = sourceRatio + 0.1;
+  it('anchor math preserves post-anchor pixel deltas when page structures differ before anchor', () => {
+    const logicalRatio = calculateAnchoredLogicalRatio(342, 1000, {
+      logicalRatio: 0.3,
+      localScrollTop: 300,
+    });
+    const target = calculateAnchoredScrollTop(logicalRatio, 1100, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+    });
 
-    expect(sourceRatio).toBe(0.5);
-    expect(targetRatio).toBe(0.6);
+    expect(logicalRatio).toBe(0.342);
+    expect(target.scrollTop).toBe(442);
+  });
+
+  it('source scroll broadcasts anchored logical progress from the cached manual offset', async () => {
+    setDocumentScrollMetrics(2100, 1000);
+    await saveManualScrollOffset(6, 0.0636, 70, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+      localMaxScrollAtCapture: 1100,
+    });
+    await startContentSync(6);
+    mocks.sendMessageContentMock.mockClear();
+
+    setWindowScrollTop(442);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+      'scroll:sync',
+      expect.objectContaining({
+        sourceTabId: 6,
+        scrollHeight: 2100,
+        clientHeight: 1000,
+      }),
+      'background',
+    );
+    const scrollSyncCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'scroll:sync',
+    );
+    expect(scrollSyncCall).toBeDefined();
+    const payload = scrollSyncCall?.[1];
+    expect(payload).toEqual(
+      expect.objectContaining({
+        sourceTabId: 6,
+        mode: 'ratio',
+      }),
+    );
+    expect(payload).toEqual(expect.objectContaining({ scrollTop: expect.any(Number) }));
+    if (!payload || typeof payload !== 'object' || !('scrollTop' in payload)) {
+      throw new Error('Expected scroll:sync payload with scrollTop');
+    }
+    const { scrollTop } = payload;
+    if (typeof scrollTop !== 'number') {
+      throw new Error('Expected numeric scrollTop');
+    }
+    expect(scrollTop).toBeCloseTo(376.2);
+  });
+
+  it('source scroll broadcasts pixel-delta logical progress from a pixel-delta anchor', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await saveManualScrollOffset(34, 0.3, 300, {
+      logicalRatio: 0.3,
+      localScrollTop: 600,
+      localMaxScrollAtCapture: 1000,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(34);
+    await waitForScrollThrottleWindow();
+    mocks.sendMessageContentMock.mockClear();
+
+    setWindowScrollTop(642);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    const scrollSyncCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'scroll:sync',
+    );
+    expect(scrollSyncCall).toBeDefined();
+    const payload = scrollSyncCall?.[1];
+    if (!payload || typeof payload !== 'object' || !('scrollTop' in payload)) {
+      throw new Error('Expected scroll:sync payload with scrollTop');
+    }
+    const { scrollTop } = payload;
+    if (typeof scrollTop !== 'number') {
+      throw new Error('Expected numeric scrollTop');
+    }
+    expect(scrollTop).toBe(342);
+  });
+
+  // Semantic anchor repair is intentionally not wired into active scroll handling.
+  // The hot path must stay limited to cached state and numeric scroll metrics.
+  it('does not read manual offset storage while handling active source scroll', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await saveManualScrollOffset(33, 0.3, 300, {
+      logicalRatio: 0.3,
+      localScrollTop: 600,
+      localMaxScrollAtCapture: 1000,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(33);
+    await waitForScrollThrottleWindow();
+    mocks.sendMessageContentMock.mockClear();
+    mocks.storageGetMock.mockClear();
+
+    setWindowScrollTop(642);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    const scrollSyncCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'scroll:sync',
+    );
+    expect(scrollSyncCall).toBeDefined();
+    expect(mocks.storageGetMock).not.toHaveBeenCalled();
+  });
+
+  it('receiver scroll:sync applies cached anchor mapping to the local scroll position', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2100, 1000);
+    await saveManualScrollOffset(7, 0.0909, 100, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+      localMaxScrollAtCapture: 1100,
+    });
+    await startContentSync(7);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(442);
+  });
+
+  it('keeps the receiver at the same pixel delta from anchor when post-anchor lengths differ', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(3300, 1000);
+    await saveManualScrollOffset(31, 0.2, 600, {
+      logicalRatio: 0.3,
+      localScrollTop: 900,
+      localMaxScrollAtCapture: 1600,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(31);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(942);
+  });
+
+  it('does not read manual offset storage while applying receiver pixel-delta mapping', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(3300, 1000);
+    await saveManualScrollOffset(35, 0.2, 600, {
+      logicalRatio: 0.3,
+      localScrollTop: 900,
+      localMaxScrollAtCapture: 1600,
+      mode: 'pixel-delta',
+    });
+    await startContentSync(35);
+    mocks.storageGetMock.mockClear();
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(942);
+    expect(mocks.storageGetMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps missing-mode anchors on the legacy piecewise-ratio mapping', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(3300, 1000);
+    await saveManualScrollOffset(32, 0.2, 600, {
+      logicalRatio: 0.3,
+      localScrollTop: 900,
+      localMaxScrollAtCapture: 1600,
+    });
+    await startContentSync(32);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(984);
+  });
+
+  it('retries anchored receiver mapping when lazy-loaded content grows after a clamped sync', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(1500, 1000);
+    await saveManualScrollOffset(10, 0.4, 400, {
+      logicalRatio: 0.3,
+      localScrollTop: 700,
+      localMaxScrollAtCapture: 1000,
+    });
+    await startContentSync(10);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(500);
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying scroll with offset ratio',
+      expect.objectContaining({
+        hasManualAnchor: true,
+        clampedScrollTop: 500,
+      }),
+    );
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Scheduling lazy-load anchor catch-up',
+      expect.objectContaining({
+        sourceTabId: 99,
+        attempt: 1,
+      }),
+    );
+
+    setDocumentScrollMetrics(2200, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying lazy-load anchor catch-up',
+      expect.objectContaining({
+        sourceTabId: 99,
+        attempt: 1,
+        targetScrollTop: 950,
+      }),
+    );
+    expect(document.documentElement.scrollTop).toBe(950);
+  });
+
+  it('keeps bounded catch-up alive across chunked lazy-loaded growth', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(1500, 1000);
+    await saveManualScrollOffset(11, 0.4, 400, {
+      logicalRatio: 0.3,
+      localScrollTop: 700,
+      localMaxScrollAtCapture: 1000,
+    });
+    await startContentSync(11);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(500);
+
+    setDocumentScrollMetrics(1800, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(750);
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying lazy-load anchor catch-up',
+      expect.objectContaining({
+        attempt: 1,
+        targetScrollTop: 750,
+        wasClamped: false,
+      }),
+    );
+
+    setDocumentScrollMetrics(2200, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(mocks.loggerDebugMock).toHaveBeenCalledWith(
+      'Applying lazy-load anchor catch-up',
+      expect.objectContaining({
+        attempt: 2,
+        targetScrollTop: 950,
+      }),
+    );
+    expect(document.documentElement.scrollTop).toBe(950);
+  });
+
+  it('cancels pending lazy-load catch-up when local user scroll becomes the source', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(1500, 1000);
+    await saveManualScrollOffset(12, 0.4, 400, {
+      logicalRatio: 0.3,
+      localScrollTop: 700,
+      localMaxScrollAtCapture: 1000,
+    });
+    await startContentSync(12);
+    mocks.sendMessageContentMock.mockClear();
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(500);
+
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 210);
+    });
+    await flushAsync();
+
+    setWindowScrollTop(450);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+
+    setDocumentScrollMetrics(2200, 1000);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(450);
+    expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+      'scroll:sync',
+      expect.objectContaining({
+        sourceTabId: 12,
+      }),
+      'background',
+    );
+  });
+
+  it('element mode keeps anchored receiver mapping instead of overriding with semantic elements', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2100, 1000);
+    setWindowScrollTop(0);
+    document.body.innerHTML = '<h1>Nearby heading</h1>';
+    const heading = document.querySelector('h1');
+    if (!heading) {
+      throw new Error('Expected heading fixture');
+    }
+    heading.getBoundingClientRect = () => {
+      const rect = {
+        top: 900,
+        left: 0,
+        bottom: 940,
+        right: 100,
+        width: 100,
+        height: 40,
+        x: 0,
+        y: 900,
+        toJSON: () => ({}),
+      } satisfies DOMRect;
+      return rect;
+    };
+
+    await saveManualScrollOffset(8, 0.0909, 100, {
+      logicalRatio: 0.3,
+      localScrollTop: 400,
+      localMaxScrollAtCapture: 1100,
+    });
+    await startContentSync(8);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'element',
+      scrollTop: 342,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(442);
+  });
+
+  it('wheel manual mode saves anchor metadata and updates the cached receiver path', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    setWindowScrollTop(300);
+    await startContentSync(9);
+
+    window.dispatchEvent(new WheelEvent('wheel', { altKey: true }));
+    setWindowScrollTop(600);
+    window.dispatchEvent(new WheelEvent('wheel', { altKey: false }));
+    await flushAsync();
+
+    await expect(getManualScrollOffset(9)).resolves.toEqual({
+      ratio: 0.3,
+      pixels: 300,
+      anchor: {
+        logicalRatio: 0.3,
+        localScrollTop: 600,
+        localMaxScrollAtCapture: 1000,
+        mode: 'pixel-delta',
+      },
+    });
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(950);
   });
 
   it('clampScrollOffset clamps values to +/-0.5', () => {

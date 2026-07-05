@@ -18,6 +18,7 @@ import { CONTEXTUAL_HINT_REGISTRY, isContextualHintId } from './contextual-hints
 import { ExtensionLogger } from './logger';
 
 const logger = new ExtensionLogger({ scope: 'storage' });
+let manualScrollOffsetWriteQueue: Promise<void> = Promise.resolve();
 
 /**
  * Storage keys
@@ -35,6 +36,10 @@ const STORAGE_KEYS = {
   SUGGESTION_SNOOZE_UNTIL: 'suggestionSnoozeUntil',
   CONTEXTUAL_HINTS_DISMISSED: 'contextualHintsDismissed',
 } as const;
+
+function isSyncMode(value: unknown): value is SyncMode {
+  return value === 'ratio' || value === 'element';
+}
 
 function sanitizeContextualHintIds(value: unknown): Array<ContextualHintId> {
   if (!Array.isArray(value)) {
@@ -97,7 +102,8 @@ export async function saveSyncMode(mode: SyncMode): Promise<void> {
 export async function loadSyncMode(): Promise<SyncMode> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.SYNC_MODE);
-    return (result[STORAGE_KEYS.SYNC_MODE] as SyncMode) || 'ratio';
+    const storedMode = result[STORAGE_KEYS.SYNC_MODE];
+    return isSyncMode(storedMode) ? storedMode : 'ratio';
   } catch (error) {
     await logger.error('Failed to load sync mode:', error);
     return 'ratio';
@@ -123,7 +129,7 @@ export async function savePanelMinimized(isMinimized: boolean): Promise<void> {
 export async function loadPanelMinimized(): Promise<boolean> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.IS_PANEL_MINIMIZED);
-    return (result[STORAGE_KEYS.IS_PANEL_MINIMIZED] as boolean) || false;
+    return result[STORAGE_KEYS.IS_PANEL_MINIMIZED] === true;
   } catch (error) {
     await logger.error('Failed to load panel minimized state:', error);
     return false;
@@ -159,9 +165,135 @@ export async function loadSelectedTabIds(): Promise<Array<number>> {
 /**
  * Manual scroll offset data structure
  */
+export type ManualScrollAnchorMode = 'piecewise-ratio' | 'pixel-delta';
+
+export interface ManualScrollSemanticHint {
+  kind: 'figure' | 'figcaption' | 'heading' | 'paragraph';
+  localTopAtCapture: number;
+  viewportOffsetAtCapture: number;
+}
+
+export interface ManualScrollAnchor {
+  logicalRatio: number;
+  localScrollTop: number;
+  localMaxScrollAtCapture: number;
+  mode?: ManualScrollAnchorMode;
+  semanticHint?: ManualScrollSemanticHint;
+}
+
 export interface ManualScrollOffset {
   ratio: number; // -1 to 1, where 0 means no offset
   pixels: number; // actual pixel offset value
+  anchor?: ManualScrollAnchor;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isRatioInRange(value: number): boolean {
+  return value >= 0 && value <= 1;
+}
+
+function isNonNegativeFiniteNumber(value: number): boolean {
+  return Number.isFinite(value) && value >= 0;
+}
+
+function enqueueManualScrollOffsetWrite(operation: () => Promise<void>): Promise<void> {
+  const writeOperation = manualScrollOffsetWriteQueue.then(operation, operation);
+  manualScrollOffsetWriteQueue = writeOperation.catch(() => undefined);
+  return writeOperation;
+}
+
+function readManualScrollAnchorMode(value: unknown): ManualScrollAnchorMode | undefined {
+  if (value === 'piecewise-ratio' || value === 'pixel-delta') return value;
+  return undefined;
+}
+
+function readManualScrollSemanticKind(
+  value: unknown,
+): ManualScrollSemanticHint['kind'] | undefined {
+  if (
+    value === 'figure' ||
+    value === 'figcaption' ||
+    value === 'heading' ||
+    value === 'paragraph'
+  ) {
+    return value;
+  }
+
+  return undefined;
+}
+
+function readManualScrollSemanticHint(value: unknown): ManualScrollSemanticHint | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const { kind, localTopAtCapture, viewportOffsetAtCapture } = value;
+  const parsedKind = readManualScrollSemanticKind(kind);
+
+  if (
+    !parsedKind ||
+    !isFiniteNumber(localTopAtCapture) ||
+    !isFiniteNumber(viewportOffsetAtCapture)
+  ) {
+    return undefined;
+  }
+
+  return {
+    kind: parsedKind,
+    localTopAtCapture,
+    viewportOffsetAtCapture,
+  };
+}
+
+function readManualScrollAnchor(value: unknown): ManualScrollAnchor | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const { logicalRatio, localScrollTop, localMaxScrollAtCapture } = value;
+
+  if (
+    !isFiniteNumber(logicalRatio) ||
+    !isFiniteNumber(localScrollTop) ||
+    !isFiniteNumber(localMaxScrollAtCapture) ||
+    !isRatioInRange(logicalRatio) ||
+    !isNonNegativeFiniteNumber(localScrollTop) ||
+    !isNonNegativeFiniteNumber(localMaxScrollAtCapture)
+  ) {
+    return undefined;
+  }
+
+  const parsedMode = readManualScrollAnchorMode(value.mode);
+  const parsedSemanticHint = readManualScrollSemanticHint(value.semanticHint);
+
+  return {
+    logicalRatio,
+    localScrollTop,
+    localMaxScrollAtCapture,
+    ...(parsedMode ? { mode: parsedMode } : {}),
+    ...(parsedSemanticHint ? { semanticHint: parsedSemanticHint } : {}),
+  };
+}
+
+function readManualScrollOffset(value: unknown): ManualScrollOffset | null {
+  if (isFiniteNumber(value)) {
+    return { ratio: value, pixels: 0 };
+  }
+
+  if (!isRecord(value)) return null;
+
+  const { ratio, pixels, anchor } = value;
+
+  if (!isFiniteNumber(ratio) || !isFiniteNumber(pixels)) {
+    return null;
+  }
+
+  const parsedAnchor = readManualScrollAnchor(anchor);
+
+  return parsedAnchor ? { ratio, pixels, anchor: parsedAnchor } : { ratio, pixels };
 }
 
 /**
@@ -171,20 +303,28 @@ export interface ManualScrollOffset {
 export async function loadManualScrollOffsets(): Promise<Record<number, ManualScrollOffset>> {
   try {
     const result = await browser.storage.local.get(STORAGE_KEYS.MANUAL_SCROLL_OFFSETS);
-    const stored = result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS] as
-      | Record<number, number | ManualScrollOffset>
-      | undefined;
+    const stored = result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS];
 
-    if (!stored) return {};
+    if (!isRecord(stored)) return {};
 
-    // Convert legacy format (number) to new format (object)
     const converted: Record<number, ManualScrollOffset> = {};
     for (const [tabId, value] of Object.entries(stored)) {
-      if (typeof value === 'number') {
-        // Legacy format: just ratio, no pixel info
-        converted[Number(tabId)] = { ratio: value, pixels: 0 };
+      const numericTabId = Number(tabId);
+      if (!Number.isFinite(numericTabId)) {
+        await logger.warn('Skipping invalid manual scroll offset entry', {
+          reason: 'invalid-tab-id',
+        });
+        continue;
+      }
+
+      const parsedOffset = readManualScrollOffset(value);
+      if (parsedOffset) {
+        converted[numericTabId] = parsedOffset;
       } else {
-        converted[Number(tabId)] = value;
+        await logger.warn('Skipping invalid manual scroll offset entry', {
+          reason: 'invalid-offset',
+          tabId: numericTabId,
+        });
       }
     }
     return converted;
@@ -204,16 +344,19 @@ export async function saveManualScrollOffset(
   tabId: number,
   ratio: number,
   pixels: number,
+  anchor?: ManualScrollAnchor,
 ): Promise<void> {
-  try {
-    const offsets = await loadManualScrollOffsets();
-    offsets[tabId] = { ratio, pixels };
-    await browser.storage.local.set({
-      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
-    });
-  } catch (error) {
-    await logger.error('Failed to save manual scroll offset:', error);
-  }
+  await enqueueManualScrollOffsetWrite(async () => {
+    try {
+      const offsets = await loadManualScrollOffsets();
+      offsets[tabId] = anchor ? { ratio, pixels, anchor } : { ratio, pixels };
+      await browser.storage.local.set({
+        [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
+      });
+    } catch (error) {
+      await logger.error('Failed to save manual scroll offset:', error);
+    }
+  });
 }
 
 /**
@@ -236,28 +379,32 @@ export async function getManualScrollOffset(tabId: number): Promise<ManualScroll
  * @param tabId - The tab ID
  */
 export async function clearManualScrollOffset(tabId: number): Promise<void> {
-  try {
-    const offsets = await loadManualScrollOffsets();
-    delete offsets[tabId];
-    await browser.storage.local.set({
-      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
-    });
-  } catch (error) {
-    await logger.error('Failed to clear manual scroll offset:', error);
-  }
+  await enqueueManualScrollOffsetWrite(async () => {
+    try {
+      const offsets = await loadManualScrollOffsets();
+      delete offsets[tabId];
+      await browser.storage.local.set({
+        [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
+      });
+    } catch (error) {
+      await logger.error('Failed to clear manual scroll offset:', error);
+    }
+  });
 }
 
 /**
  * Clear all manual scroll offsets
  */
 export async function clearAllManualScrollOffsets(): Promise<void> {
-  try {
-    await browser.storage.local.set({
-      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: {},
-    });
-  } catch (error) {
-    await logger.error('Failed to clear all manual scroll offsets:', error);
-  }
+  await enqueueManualScrollOffsetWrite(async () => {
+    try {
+      await browser.storage.local.set({
+        [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: {},
+      });
+    } catch (error) {
+      await logger.error('Failed to clear all manual scroll offsets:', error);
+    }
+  });
 }
 
 /**

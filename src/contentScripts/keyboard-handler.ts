@@ -6,36 +6,45 @@
 import { sendMessage } from 'webext-bridge/content-script';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import { saveManualScrollOffset } from '~/shared/lib/storage';
+import {
+  clearManualScrollOffset,
+  saveManualScrollOffset,
+  type ManualScrollOffset,
+} from '~/shared/lib/storage';
+
+import { createManualScrollOffset } from './lib/manual-scroll-offset';
 
 const logger = new ExtensionLogger({ scope: 'keyboard-handler' });
+
+interface KeyboardScrollInfo {
+  currentScrollTop: number;
+  lastSyncedRatio: number;
+  setManualModeActive: (active: boolean) => void;
+  updateOffsetCache: (offset: ManualScrollOffset) => void;
+}
+
+interface DisableManualModeOptions {
+  persistOffset?: boolean;
+}
+
+interface CleanupKeyboardHandlerOptions {
+  persistManualOffset?: boolean;
+}
 
 let isManualModeActive = false;
 let currentTabId = 0;
 let manualModeBaselineSnapshot = 0;
-let getScrollInfoCallback:
-  | (() => {
-      currentScrollTop: number;
-      lastSyncedRatio: number;
-      setManualModeActive: (active: boolean) => void;
-      updateOffsetCache: (ratio: number, pixels: number) => void;
-    })
-  | null = null;
+let getScrollInfoCallback: (() => KeyboardScrollInfo) | null = null;
+let pendingManualModeExit: Promise<void> | null = null;
+let pendingManualModeExitAllowsPersistence = true;
+let pendingManualModeExitNeedsPersistedClear = false;
 
 /**
  * Initialize keyboard handler
  * @param tabId - Current tab ID
  * @param getScrollInfo - Callback to get current scroll position and last synced ratio
  */
-export function initKeyboardHandler(
-  tabId: number,
-  getScrollInfo?: () => {
-    currentScrollTop: number;
-    lastSyncedRatio: number;
-    setManualModeActive: (active: boolean) => void;
-    updateOffsetCache: (ratio: number, pixels: number) => void;
-  },
-) {
+export function initKeyboardHandler(tabId: number, getScrollInfo?: () => KeyboardScrollInfo) {
   currentTabId = tabId;
   getScrollInfoCallback = getScrollInfo || null;
 
@@ -94,7 +103,7 @@ function handleKeyDown(event: KeyboardEvent) {
 function handleKeyUp(event: KeyboardEvent) {
   // Check if Option/Alt key was released
   if (!event.altKey && !event.metaKey && isManualModeActive) {
-    disableManualMode();
+    void startManualModeExit();
   }
 }
 
@@ -103,8 +112,30 @@ function handleKeyUp(event: KeyboardEvent) {
  */
 function handleBlur() {
   if (isManualModeActive) {
-    disableManualMode();
+    void startManualModeExit();
   }
+}
+
+function startManualModeExit(options?: DisableManualModeOptions): Promise<void> {
+  const persistOffset = options?.persistOffset ?? true;
+
+  if (pendingManualModeExit) {
+    if (!persistOffset) {
+      pendingManualModeExitAllowsPersistence = false;
+      pendingManualModeExitNeedsPersistedClear = true;
+    }
+    return pendingManualModeExit;
+  }
+
+  pendingManualModeExitAllowsPersistence = persistOffset;
+  pendingManualModeExitNeedsPersistedClear = false;
+  pendingManualModeExit = disableManualMode().finally(() => {
+    pendingManualModeExit = null;
+    pendingManualModeExitAllowsPersistence = true;
+    pendingManualModeExitNeedsPersistedClear = false;
+  });
+
+  return pendingManualModeExit;
 }
 
 /**
@@ -113,61 +144,70 @@ function handleBlur() {
 async function disableManualMode() {
   isManualModeActive = false;
 
-  // Set manual mode flag SYNCHRONOUSLY to prevent race condition
-  if (getScrollInfoCallback) {
-    const { setManualModeActive } = getScrollInfoCallback();
-    setManualModeActive(false);
-  }
+  const scrollInfo = getScrollInfoCallback?.() ?? null;
 
   logger.debug('Manual scroll mode disabled');
 
-  // Calculate and save manual scroll offset as RATIO using snapshot from Alt PRESS
-  if (getScrollInfoCallback) {
-    try {
-      const { currentScrollTop, updateOffsetCache } = getScrollInfoCallback();
+  let reopenedScrollSync = false;
 
-      const myMaxScroll =
-        document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const currentRatio = myMaxScroll > 0 ? currentScrollTop / myMaxScroll : 0;
+  // Give cleanupKeyboardHandler({ persistManualOffset: false }) a chance to override a keyup/blur
+  // exit that was started just before sync re-initialization or stop cleanup.
+  await Promise.resolve();
+  const persistOffset = pendingManualModeExitAllowsPersistence;
 
-      const offsetRatio = currentRatio - manualModeBaselineSnapshot;
+  // Calculate and save manual scroll offset using snapshot from Alt PRESS
+  if (persistOffset && scrollInfo) {
+    const { currentScrollTop, updateOffsetCache } = scrollInfo;
+    const maxScroll = document.documentElement.scrollHeight - document.documentElement.clientHeight;
 
-      const maxReasonableOffset = 0.5;
+    const offset = createManualScrollOffset({
+      baselineLogicalRatio: manualModeBaselineSnapshot,
+      currentScrollTop,
+      maxScroll,
+    });
 
-      if (Math.abs(offsetRatio) > maxReasonableOffset) {
-        logger.warn('Offset ratio exceeds reasonable range, clamping', {
-          offsetRatio,
-          maxReasonableOffset,
-          currentRatio,
-          lastSyncedRatio: manualModeBaselineSnapshot,
-        });
-      }
+    const maxReasonableOffset = 0.5;
 
-      const clampedOffsetRatio = Math.max(
-        -maxReasonableOffset,
-        Math.min(maxReasonableOffset, offsetRatio),
-      );
-
-      const offsetPixels = Math.round(clampedOffsetRatio * myMaxScroll);
-
-      logger.debug('Calculating manual scroll offset as ratio', {
-        currentRatio,
+    if (Math.abs(offset.ratio) >= maxReasonableOffset) {
+      logger.warn('Offset ratio exceeds reasonable range, clamping', {
+        maxReasonableOffset,
+        offsetRatio: offset.ratio,
         lastSyncedRatio: manualModeBaselineSnapshot,
-        offsetRatio,
-        clampedOffsetRatio,
-        offsetPixels,
       });
+    }
 
-      await saveManualScrollOffset(currentTabId, clampedOffsetRatio, offsetPixels);
-      updateOffsetCache(clampedOffsetRatio, offsetPixels);
+    logger.debug('Calculating manual scroll offset', {
+      lastSyncedRatio: manualModeBaselineSnapshot,
+      offsetRatio: offset.ratio,
+      offsetPixels: offset.pixels,
+    });
+
+    // Keep the hot scroll path coherent before reopening sync.
+    updateOffsetCache(offset);
+    scrollInfo.setManualModeActive(false);
+    reopenedScrollSync = true;
+
+    try {
+      await saveManualScrollOffset(currentTabId, offset.ratio, offset.pixels, offset.anchor);
       logger.info('Manual scroll offset saved', {
         tabId: currentTabId,
-        offsetRatio: clampedOffsetRatio,
-        offsetPixels,
+        offsetRatio: offset.ratio,
+        offsetPixels: offset.pixels,
       });
+      if (pendingManualModeExitNeedsPersistedClear) {
+        await clearManualScrollOffset(currentTabId);
+        logger.debug('Cleared manual scroll offset after non-persisting cleanup override', {
+          tabId: currentTabId,
+        });
+      }
     } catch (error) {
       logger.error('Failed to save manual scroll offset', { error });
     }
+  }
+
+  // Reopen scroll sync only after cachedManualOffset has the newly captured value.
+  if (!reopenedScrollSync) {
+    scrollInfo?.setManualModeActive(false);
   }
 
   // Notify content script to re-enable scroll sync
@@ -189,13 +229,15 @@ async function disableManualMode() {
 /**
  * Cleanup keyboard handler
  */
-export function cleanupKeyboardHandler() {
+export async function cleanupKeyboardHandler({
+  persistManualOffset = true,
+}: CleanupKeyboardHandlerOptions = {}) {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
   window.removeEventListener('blur', handleBlur);
 
-  if (isManualModeActive) {
-    disableManualMode();
+  if (pendingManualModeExit || isManualModeActive) {
+    await startManualModeExit({ persistOffset: persistManualOffset });
   }
 
   logger.info('Keyboard handler cleaned up');

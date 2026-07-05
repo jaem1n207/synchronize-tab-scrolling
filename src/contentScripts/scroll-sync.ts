@@ -12,8 +12,11 @@ import { isWebpageOverlayContextualHintId } from '~/shared/lib/contextual-hints'
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
 import {
+  calculateAnchoredLogicalRatio,
+  calculateAnchoredScrollTop,
+  calculatePixelDeltaLogicalRatio,
+  calculatePixelDeltaScrollTop,
   calculateScrollRatio,
-  clampScrollOffset,
   clampScrollPosition,
   findNearestIndex,
 } from '~/shared/lib/scroll-math';
@@ -44,6 +47,7 @@ import {
   createLatestProgrammaticScrollScheduler,
   type ProgrammaticScrollTarget,
 } from './lib/instant-programmatic-scroll';
+import { createManualScrollOffset } from './lib/manual-scroll-offset';
 import {
   createInitialSyncState,
   createInitialWheelModeState,
@@ -73,7 +77,12 @@ const wheelState = createInitialWheelModeState();
 const connectionState = createInitialConnectionState();
 const urlMonitorState = createInitialUrlMonitorState();
 
+const LAZY_LOAD_CATCH_UP_DELAY_MS = 120;
+const LAZY_LOAD_CATCH_UP_MAX_ATTEMPTS = 3;
+
 let cachedManualOffset: ManualScrollOffset = { ratio: 0, pixels: 0 };
+let lazyLoadCatchUpTimeoutId: number | null = null;
+let lazyLoadCatchUpGeneration = 0;
 
 const programmaticScrollScheduler = createLatestProgrammaticScrollScheduler({
   requestFrame: (callback) => window.requestAnimationFrame(callback),
@@ -110,8 +119,20 @@ function scheduleProgrammaticScroll(target: ProgrammaticScrollTarget): void {
   programmaticScrollScheduler.schedule(target);
 }
 
+function cancelLazyLoadCatchUp(): void {
+  lazyLoadCatchUpGeneration += 1;
+
+  if (lazyLoadCatchUpTimeoutId === null) {
+    return;
+  }
+
+  window.clearTimeout(lazyLoadCatchUpTimeoutId);
+  lazyLoadCatchUpTimeoutId = null;
+}
+
 function cancelPendingProgrammaticScroll(): void {
   programmaticScrollScheduler.cancel();
+  cancelLazyLoadCatchUp();
 }
 
 function isSupportedWebpageOverlayContextualHint(
@@ -182,6 +203,108 @@ function getScrollRatio(): number {
   return calculateScrollRatio(scrollTop, scrollHeight, clientHeight);
 }
 
+function getScrollableHeight(scrollHeight: number, clientHeight: number): number {
+  return Math.max(0, scrollHeight - clientHeight);
+}
+
+function isPixelDeltaManualAnchor(anchor: ManualScrollOffset['anchor']): boolean {
+  return anchor?.mode === 'pixel-delta';
+}
+
+function calculateManualAnchorReceiverTarget({
+  anchor,
+  sourceRatio,
+  sourceScrollTop,
+  sourceMaxScroll,
+  targetMaxScroll,
+}: {
+  anchor: NonNullable<ManualScrollOffset['anchor']>;
+  sourceRatio: number;
+  sourceScrollTop: number;
+  sourceMaxScroll: number;
+  targetMaxScroll: number;
+}) {
+  if (isPixelDeltaManualAnchor(anchor)) {
+    return calculatePixelDeltaScrollTop(sourceScrollTop, sourceMaxScroll, targetMaxScroll, anchor);
+  }
+
+  return calculateAnchoredScrollTop(sourceRatio, targetMaxScroll, anchor);
+}
+
+function scheduleLazyLoadAnchorCatchUp({
+  sourceRatio,
+  sourceScrollTop,
+  sourceMaxScroll,
+  mode,
+  sourceTabId,
+  attempt,
+}: {
+  sourceRatio: number;
+  sourceScrollTop: number;
+  sourceMaxScroll: number;
+  mode: ProgrammaticScrollTarget['mode'];
+  sourceTabId: number;
+  attempt: number;
+}): void {
+  const generation = lazyLoadCatchUpGeneration;
+  logger.debug('Scheduling lazy-load anchor catch-up', {
+    sourceRatio,
+    sourceTabId,
+    attempt,
+  });
+
+  lazyLoadCatchUpTimeoutId = window.setTimeout(() => {
+    lazyLoadCatchUpTimeoutId = null;
+
+    if (
+      generation !== lazyLoadCatchUpGeneration ||
+      !syncState.isActive ||
+      syncState.isManualScrollEnabled ||
+      !cachedManualOffset.anchor
+    ) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = getScrollInfo();
+    const maxScroll = getScrollableHeight(scrollHeight, clientHeight);
+    const target = calculateManualAnchorReceiverTarget({
+      anchor: cachedManualOffset.anchor,
+      sourceRatio,
+      sourceScrollTop,
+      sourceMaxScroll,
+      targetMaxScroll: maxScroll,
+    });
+    const shouldApply = Math.abs(target.scrollTop - scrollTop) > 1;
+
+    if (shouldApply) {
+      logger.debug('Applying lazy-load anchor catch-up', {
+        sourceRatio,
+        sourceTabId,
+        attempt,
+        targetScrollTop: target.scrollTop,
+        wasClamped: target.wasClamped,
+      });
+      scheduleProgrammaticScroll({
+        top: target.scrollTop,
+        sourceRatio,
+        mode,
+        sourceTabId,
+      });
+    }
+
+    if (attempt < LAZY_LOAD_CATCH_UP_MAX_ATTEMPTS) {
+      scheduleLazyLoadAnchorCatchUp({
+        sourceRatio,
+        sourceScrollTop,
+        sourceMaxScroll,
+        mode,
+        sourceTabId,
+        attempt: attempt + 1,
+      });
+    }
+  }, LAZY_LOAD_CATCH_UP_DELAY_MS);
+}
+
 /**
  * Cleanup mousemove listener for wheel manual mode
  */
@@ -199,31 +322,27 @@ async function exitWheelManualMode() {
   if (!wheelState.isActive) return;
 
   // Calculate and save offset
-  const currentRatio = getScrollRatio();
-  const offsetRatio = currentRatio - wheelState.baselineSnapshot;
-
-  const clampedOffsetRatio = clampScrollOffset(offsetRatio);
-
-  // Calculate pixel offset for display
-  const { scrollHeight, clientHeight } = getScrollInfo();
-  const maxScroll = scrollHeight - clientHeight;
-  const offsetPixels = Math.round(clampedOffsetRatio * maxScroll);
-
-  logger.debug('Wheel manual mode exiting, saving offset', {
-    currentRatio,
-    wheelBaselineSnapshot: wheelState.baselineSnapshot,
-    offsetRatio,
-    clampedOffsetRatio,
-    offsetPixels,
+  const { scrollTop, scrollHeight, clientHeight } = getScrollInfo();
+  const maxScroll = getScrollableHeight(scrollHeight, clientHeight);
+  const offset = createManualScrollOffset({
+    baselineLogicalRatio: wheelState.baselineSnapshot,
+    currentScrollTop: scrollTop,
+    maxScroll,
   });
 
-  await saveManualScrollOffset(syncState.tabId, clampedOffsetRatio, offsetPixels);
-  cachedManualOffset = { ratio: clampedOffsetRatio, pixels: offsetPixels };
+  logger.debug('Wheel manual mode exiting, saving offset', {
+    wheelBaselineSnapshot: wheelState.baselineSnapshot,
+    offsetRatio: offset.ratio,
+    offsetPixels: offset.pixels,
+  });
+
+  cachedManualOffset = offset;
+  await saveManualScrollOffset(syncState.tabId, offset.ratio, offset.pixels, offset.anchor);
 
   logger.info('Wheel manual scroll offset saved', {
     tabId: syncState.tabId,
-    offsetRatio: clampedOffsetRatio,
-    offsetPixels,
+    offsetRatio: offset.ratio,
+    offsetPixels: offset.pixels,
   });
 
   // Reset state
@@ -355,11 +474,12 @@ async function handleScrollCore() {
   }
 
   const scrollInfo = getScrollInfo();
+  cancelLazyLoadCatchUp();
 
   // Remove offset ratio from current ratio before broadcasting
   // This ensures we send the "pure" scroll ratio without offset applied
   const offsetData = cachedManualOffset;
-  const myMaxScroll = scrollInfo.scrollHeight - scrollInfo.clientHeight;
+  const myMaxScroll = getScrollableHeight(scrollInfo.scrollHeight, scrollInfo.clientHeight);
 
   const currentRatio = calculateScrollRatio(
     scrollInfo.scrollTop,
@@ -367,8 +487,11 @@ async function handleScrollCore() {
     scrollInfo.clientHeight,
   );
 
-  // Calculate pure ratio by removing this tab's offset
-  const pureRatio = currentRatio - offsetData.ratio;
+  const pureRatio = offsetData.anchor
+    ? isPixelDeltaManualAnchor(offsetData.anchor)
+      ? calculatePixelDeltaLogicalRatio(scrollInfo.scrollTop, myMaxScroll, offsetData.anchor)
+      : calculateAnchoredLogicalRatio(scrollInfo.scrollTop, myMaxScroll, offsetData.anchor)
+    : currentRatio - offsetData.ratio;
 
   // Update syncState.lastSyncedRatio to track the pure baseline we're broadcasting
   // This ensures manual mode snapshots an accurate baseline even when this tab is the active scroller
@@ -389,6 +512,7 @@ async function handleScrollCore() {
     actualScrollTop: scrollInfo.scrollTop,
     currentRatio,
     offsetRatio: offsetData.ratio,
+    hasManualAnchor: Boolean(offsetData.anchor),
     pureRatio,
     pureScrollTop,
   });
@@ -771,8 +895,8 @@ export function initScrollSync() {
       // Stop old URL monitoring
       stopUrlMonitoring();
 
-      // Cleanup old keyboard handler
-      cleanupKeyboardHandler();
+      // Cleanup old keyboard handler without persisting offsets from the previous sync session.
+      await cleanupKeyboardHandler({ persistManualOffset: false });
 
       // Stop old connection health check
       stopConnectionHealthCheck();
@@ -839,8 +963,8 @@ export function initScrollSync() {
           syncState.isManualScrollEnabled = active;
           logger.debug('Manual mode flag set synchronously via callback', { active });
         },
-        updateOffsetCache: (ratio: number, pixels: number) => {
-          cachedManualOffset = { ratio, pixels };
+        updateOffsetCache: (offset: ManualScrollOffset) => {
+          cachedManualOffset = offset;
         },
       };
     });
@@ -909,8 +1033,8 @@ export function initScrollSync() {
     // Stop URL monitoring (P1)
     stopUrlMonitoring();
 
-    // Cleanup keyboard handler
-    cleanupKeyboardHandler();
+    // Cleanup keyboard handler without re-saving an offset that sync stop is about to clear.
+    await cleanupKeyboardHandler({ persistManualOffset: false });
 
     await clearManualScrollOffset(syncState.tabId);
     cachedManualOffset = { ratio: 0, pixels: 0 };
@@ -931,6 +1055,8 @@ export function initScrollSync() {
     // Don't sync if this is the source tab
     if (payload.sourceTabId === syncState.tabId) return;
 
+    cancelLazyLoadCatchUp();
+
     // Update last successful sync time for connection health monitoring
     connectionState.lastSuccessfulSync = Date.now();
 
@@ -940,7 +1066,13 @@ export function initScrollSync() {
     });
 
     // Calculate the synced ratio from source tab
-    const sourceRatio = payload.scrollTop / (payload.scrollHeight - payload.clientHeight);
+    const sourceRatio = calculateScrollRatio(
+      payload.scrollTop,
+      payload.scrollHeight,
+      payload.clientHeight,
+    );
+    const sourceMaxScroll = getScrollableHeight(payload.scrollHeight, payload.clientHeight);
+    const sourceScrollTop = clampScrollPosition(payload.scrollTop, sourceMaxScroll);
 
     // If in manual mode, ignore sync messages completely (baseline is frozen)
     if (syncState.isManualScrollEnabled) {
@@ -953,21 +1085,32 @@ export function initScrollSync() {
 
     // Get my document dimensions
     const myScrollInfo = getScrollInfo();
-    const myMaxScroll = myScrollInfo.scrollHeight - myScrollInfo.clientHeight;
+    const myMaxScroll = getScrollableHeight(myScrollInfo.scrollHeight, myScrollInfo.clientHeight);
 
     const offsetData = cachedManualOffset;
 
-    // Apply offset ratio to source ratio to get target ratio for this tab
-    const targetRatio = sourceRatio + offsetData.ratio;
+    const anchoredTarget = offsetData.anchor
+      ? calculateManualAnchorReceiverTarget({
+          anchor: offsetData.anchor,
+          sourceRatio,
+          sourceScrollTop,
+          sourceMaxScroll,
+          targetMaxScroll: myMaxScroll,
+        })
+      : null;
 
-    // Convert target ratio to pixel position for this document
-    const targetScrollTop = targetRatio * myMaxScroll;
+    // Apply offset ratio to source ratio for legacy offsets without anchor metadata.
+    const targetRatio = sourceRatio + offsetData.ratio;
+    const targetScrollTop = anchoredTarget?.scrollTop ?? targetRatio * myMaxScroll;
 
     const clampedScrollTop = clampScrollPosition(targetScrollTop, myMaxScroll);
 
     logger.debug('Applying scroll with offset ratio', {
       sourceRatio,
       offsetRatio: offsetData.ratio,
+      hasManualAnchor: Boolean(offsetData.anchor),
+      manualAnchorMode: offsetData.anchor?.mode ?? 'legacy-piecewise-ratio',
+      sourceMaxScroll,
       targetRatio,
       targetScrollTop,
       clampedScrollTop,
@@ -975,7 +1118,7 @@ export function initScrollSync() {
 
     let nextScrollTop = clampedScrollTop;
 
-    if (payload.mode === 'element') {
+    if (payload.mode === 'element' && !offsetData.anchor) {
       // Element-based sync (P1) - not commonly used with manual offsets
       const nearest = findNearestElement();
       if (nearest) {
@@ -992,6 +1135,17 @@ export function initScrollSync() {
       mode: payload.mode,
       sourceTabId: payload.sourceTabId,
     });
+
+    if (anchoredTarget?.wasClamped) {
+      scheduleLazyLoadAnchorCatchUp({
+        sourceRatio,
+        sourceScrollTop,
+        sourceMaxScroll,
+        mode: payload.mode,
+        sourceTabId: payload.sourceTabId,
+        attempt: 1,
+      });
+    }
   });
 
   // Listen for manual scroll toggle (P1)

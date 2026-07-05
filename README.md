@@ -92,6 +92,10 @@ When comparing documents like originals and translations, content lengths often 
 
 **Hold Option (Mac) or Alt (Windows)** while scrolling to adjust a specific tab's position without affecting others. Release the key, and sync continues from the new alignment.
 
+After you release the key, the extension keeps the signed pixel distance from that manually aligned
+point. This helps figures, captions, and nearby paragraphs stay visually aligned even when the two
+pages have different headers, tables of contents, ads, or translation lengths.
+
 ### Step 5: Stop syncing
 
 Click the extension icon again and select **"Stop Sync"**, or simply close the synced tabs.
@@ -159,6 +163,10 @@ flowchart TD
 When the extension detects synced pages with meaningfully different scrollable heights, it may show
 a small contextual hint about this shortcut. The hint appears only in that situation and can be
 hidden from the overlay.
+
+New manual alignments preserve the signed pixel delta from the point you just matched, rather than
+scaling the rest of the document by remaining page length. Older saved alignments still use the
+legacy proportional mapping for compatibility.
 
 ### URL Navigation Sync
 
