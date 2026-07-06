@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Impossible de garder cet onglet sur son site actuel pour ce changement de page. Aucune navigation n'a été synchronisée."
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "Les changements de page n'ont pas été synchronisés pour cette combinaison de sites. La synchronisation du défilement reste active."
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "La langue n'a pas pu être conservée pour ce changement de page."
   },

@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Dieser Tab konnte für diese Seitenänderung nicht auf seiner aktuellen Website bleiben. Es wurde keine Navigation synchronisiert."
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "Seitenwechsel wurden für diese Website-Kombination nicht synchronisiert. Die Scroll-Synchronisierung bleibt aktiv."
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "Die Sprache konnte für diese Seitenänderung nicht beibehalten werden."
   },

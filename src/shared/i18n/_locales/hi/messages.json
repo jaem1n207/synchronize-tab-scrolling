@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "इस पेज बदलाव के लिए यह टैब अपनी मौजूदा वेबसाइट पर नहीं रह सका। कोई नेविगेशन सिंक नहीं किया गया।"
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "इस साइट संयोजन के लिए पेज बदलाव सिंक नहीं किए गए। स्क्रॉल सिंक अभी भी चालू है।"
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "इस पेज बदलाव के लिए भाषा सेटिंग बनाए नहीं रखी जा सकी।"
   },

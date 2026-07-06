@@ -32,6 +32,19 @@ export interface TranslatedPageMetadata {
 
 const LOCALE_QUERY_KEYS = new Set(['lang', 'locale', 'hl', 'language', 'lng', 'ui', 'culture']);
 const TRACKING_QUERY_KEYS = new Set(['ref', 'source', 'fbclid', 'gclid']);
+const ENVIRONMENT_HOST_LABELS = new Set([
+  'dev',
+  'development',
+  'staging',
+  'stage',
+  'preview',
+  'test',
+  'testing',
+  'qa',
+  'beta',
+  'canary',
+  'sandbox',
+]);
 
 // prettier-ignore
 const BASE_LOCALE_CODES = new Set([
@@ -87,6 +100,59 @@ function getHostnameWithoutLocale(hostname: string, locale?: LocaleDescriptor): 
 
 function getHostWithPort(hostname: string, port: string): string {
   return port ? `${hostname}:${port}` : hostname;
+}
+
+function removeLeadingWwwLabel(hostname: string): string {
+  return hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+}
+
+function removeLeadingEnvironmentLabel(hostname: string): string {
+  const labels = hostname.split('.');
+  const firstLabel = labels[0];
+
+  if (!firstLabel || !ENVIRONMENT_HOST_LABELS.has(firstLabel) || labels.length < 3) {
+    return hostname;
+  }
+
+  return labels.slice(1).join('.');
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '::1' ||
+    hostname === '[::1]' ||
+    hostname.startsWith('127.')
+  );
+}
+
+function normalizeHostForUrlSyncBoundary(url: URL): string {
+  const locale = getLocaleDescriptor(url);
+  const hostname = getHostnameWithoutLocale(url.hostname, locale);
+
+  return removeLeadingWwwLabel(hostname);
+}
+
+function areUrlSyncSiteBoundariesCompatible(source: URL, target: URL): boolean {
+  const sourceHost = normalizeHostForUrlSyncBoundary(source);
+  const targetHost = normalizeHostForUrlSyncBoundary(target);
+
+  if (sourceHost === targetHost) {
+    return true;
+  }
+
+  if (isLoopbackHostname(sourceHost) || isLoopbackHostname(targetHost)) {
+    return true;
+  }
+
+  const sourceWithoutEnvironment = removeLeadingEnvironmentLabel(sourceHost);
+  const targetWithoutEnvironment = removeLeadingEnvironmentLabel(targetHost);
+
+  return (
+    sourceWithoutEnvironment === targetHost ||
+    sourceHost === targetWithoutEnvironment ||
+    sourceWithoutEnvironment === targetWithoutEnvironment
+  );
 }
 
 function isNoiseQueryParam(key: string, value: string): boolean {
@@ -574,6 +640,14 @@ export function resolveUrlSyncTarget(
       status: 'blocked',
       reason: 'invalid-target-url',
       notice: { key: 'urlSyncKeepWebsiteBlockedNotice', severity: 'warning' },
+    };
+  }
+
+  if (!areUrlSyncSiteBoundariesCompatible(source, target)) {
+    return {
+      status: 'blocked',
+      reason: 'incompatible-site-boundary',
+      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
     };
   }
 
