@@ -342,6 +342,113 @@ describe('resolveUrlSyncTarget', () => {
     });
   });
 
+  it('keeps target website for same-host query locale pages', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://developer.chrome.com/blog/inside-browser-part3?hl=en&utm_source=mail',
+        'https://developer.chrome.com/blog/inside-browser-part4?hl=ko#reading',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://developer.chrome.com/blog/inside-browser-part3?hl=ko#reading',
+    });
+  });
+
+  it('keeps target website for locale subdomain variants', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://en.example.com/docs/config?page=setup',
+        'https://ko.example.com/docs/install#current',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://ko.example.com/docs/config?page=setup#current',
+    });
+  });
+
+  it('keeps target website for environment host variants', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://example.com/en/pricing?tab=teams',
+        'https://staging.example.com/ko/home#current',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://staging.example.com/ko/pricing?tab=teams#current',
+    });
+  });
+
+  it('keeps target website for nested environment host variants', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://docs.example.com/en/pricing?tab=teams',
+        'https://preview.docs.example.com/ko/home#current',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://preview.docs.example.com/ko/pricing?tab=teams#current',
+    });
+  });
+
+  it('blocks keep-each-tabs-website for unrelated translated article hosts', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://developer.chrome.com/blog/inside-browser-part3?hl=en',
+        'https://d2.naver.com/helloworld/6204533',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'incompatible-site-boundary',
+      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+    });
+  });
+
+  it('blocks keep-each-tabs-website for sibling product hosts', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://docs.example.com/en/install',
+        'https://app.example.com/ko/home',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'incompatible-site-boundary',
+      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+    });
+  });
+
+  it('blocks keep-each-tabs-website for shared-suffix hosted sites', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://one.github.io/en/docs',
+        'https://two.github.io/ko/docs',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'incompatible-site-boundary',
+      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+    });
+  });
+
+  it('keeps follow-changed-tab behavior for unrelated hosts', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://developer.chrome.com/blog/inside-browser-part3?hl=en',
+        'https://d2.naver.com/helloworld/6204533#target',
+        'follow-changed-tab',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://developer.chrome.com/blog/inside-browser-part3#target',
+    });
+  });
+
   it('preserves target port in keep-each-tabs-website mode', () => {
     expect(
       resolveUrlSyncTarget(
