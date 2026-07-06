@@ -181,6 +181,7 @@ test.describe('URL Sync modes', () => {
     );
   });
 
+  // eslint-disable-next-line playwright/expect-expect -- expectNoNavigation asserts URL stability.
   test('URL Sync off prevents target navigation', async ({
     extensionContext,
     fixtureSites,
@@ -200,7 +201,6 @@ test.describe('URL Sync modes', () => {
     await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
 
     await expectNoNavigation(target, targetInitialUrl);
-    await expect(target).toHaveURL(targetInitialUrl);
   });
 
   test('selected mode remains visible and persisted when popup is reopened', async ({
