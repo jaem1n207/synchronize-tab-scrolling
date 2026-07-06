@@ -228,7 +228,7 @@ export type UrlSyncNoticeKey =
 In the same file, replace `UrlSyncBlockedResult.reason` with:
 
 ```typescript
-  reason: 'invalid-source-url' | 'invalid-target-url' | 'incompatible-site-boundary';
+reason: 'invalid-source-url' | 'invalid-target-url' | 'incompatible-site-boundary';
 ```
 
 In the same file, update `isUrlSyncNoticeKey()` to include the new key:
@@ -364,16 +364,16 @@ These helpers do not log, store, or expose raw hostnames.
 In `src/shared/lib/translated-page-url-utils.ts`, inside `resolveUrlSyncTarget()`, add the compatibility check after both source and target URLs have parsed and before locale descriptors are read:
 
 ```typescript
-  if (!areUrlSyncSiteBoundariesCompatible(source, target)) {
-    return {
-      status: 'blocked',
-      reason: 'incompatible-site-boundary',
-      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
-    };
-  }
+if (!areUrlSyncSiteBoundariesCompatible(source, target)) {
+  return {
+    status: 'blocked',
+    reason: 'incompatible-site-boundary',
+    notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+  };
+}
 
-  const sourceLocale = getLocaleDescriptor(source);
-  const targetLocale = getLocaleDescriptor(target);
+const sourceLocale = getLocaleDescriptor(source);
+const targetLocale = getLocaleDescriptor(target);
 ```
 
 The final `keep-each-tabs-website` branch should parse source, parse target, run compatibility, then build the target-site URL only when compatibility passes.
@@ -526,11 +526,11 @@ git commit -m "test: cover blocked url sync navigation"
 In `e2e/extension/fixtures.ts`, update the `ExtensionFixtures.fixtureSites` interface:
 
 ```typescript
-  fixtureSites: {
-    primary: FixtureSite;
-    comparison: FixtureSite;
-    unrelated: FixtureSite;
-  };
+fixtureSites: {
+  primary: FixtureSite;
+  comparison: FixtureSite;
+  unrelated: FixtureSite;
+}
 ```
 
 Add this interface after `ExtensionFixtures`:
@@ -639,35 +639,35 @@ await expectNoNavigation(target, targetInitialUrl);
 In `e2e/extension/url-sync-modes.spec.ts`, inside `test.describe('URL Sync modes')`, add this test after the existing `Keep each tab's website keeps target origin while applying changed page` test:
 
 ```typescript
-  test("Keep each tab's website skips unrelated target navigation and keeps scroll sync active", async ({
-    extensionContext,
-    fixtureSites,
-    openPopup,
-  }) => {
-    const source = await extensionContext.newPage();
-    const target = await extensionContext.newPage();
-    const targetInitialUrl = fixtureSites.unrelated.url('/ko/home#unrelated-home');
+test("Keep each tab's website skips unrelated target navigation and keeps scroll sync active", async ({
+  extensionContext,
+  fixtureSites,
+  openPopup,
+}) => {
+  const source = await extensionContext.newPage();
+  const target = await extensionContext.newPage();
+  const targetInitialUrl = fixtureSites.unrelated.url('/ko/home#unrelated-home');
 
-    await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
-    await target.goto(targetInitialUrl);
+  await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
+  await target.goto(targetInitialUrl);
 
-    const popup = await openPopup();
-    await chooseKeepEachTabsWebsiteMode(popup);
-    await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
+  const popup = await openPopup();
+  await chooseKeepEachTabsWebsiteMode(popup);
+  await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
 
-    await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
+  await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
 
-    await expectNoNavigation(target, targetInitialUrl);
+  await expectNoNavigation(target, targetInitialUrl);
 
-    await source.evaluate(() => {
-      window.scrollTo(0, 900);
-    });
-
-    await expect
-      .poll(async () => target.evaluate(() => window.scrollY), { timeout: 3_000 })
-      .toBeGreaterThan(100);
-    await expect(target).toHaveURL(targetInitialUrl);
+  await source.evaluate(() => {
+    window.scrollTo(0, 900);
   });
+
+  await expect
+    .poll(async () => target.evaluate(() => window.scrollY), { timeout: 3_000 })
+    .toBeGreaterThan(100);
+  await expect(target).toHaveURL(targetInitialUrl);
+});
 ```
 
 This test first proves no URL navigation happened, then proves scroll sync remains active by checking the target scroll position moves.
@@ -677,27 +677,25 @@ This test first proves no URL navigation happened, then proves scroll sync remai
 In `e2e/extension/url-sync-modes.spec.ts`, add this test after the blocked keep-website E2E test:
 
 ```typescript
-  test('Follow changed tab still moves unrelated target to source website', async ({
-    extensionContext,
-    fixtureSites,
-    openPopup,
-  }) => {
-    const source = await extensionContext.newPage();
-    const target = await extensionContext.newPage();
+test('Follow changed tab still moves unrelated target to source website', async ({
+  extensionContext,
+  fixtureSites,
+  openPopup,
+}) => {
+  const source = await extensionContext.newPage();
+  const target = await extensionContext.newPage();
 
-    await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
-    await target.goto(fixtureSites.unrelated.url('/ko/home?view=compact#unrelated-home'));
+  await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
+  await target.goto(fixtureSites.unrelated.url('/ko/home?view=compact#unrelated-home'));
 
-    const popup = await openPopup();
-    await expectFollowChangedTabMode(popup);
-    await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
+  const popup = await openPopup();
+  await expectFollowChangedTabMode(popup);
+  await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
 
-    await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
+  await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
 
-    await expect(target).toHaveURL(
-      fixtureSites.primary.url('/ko/about?tab=pricing#unrelated-home'),
-    );
-  });
+  await expect(target).toHaveURL(fixtureSites.primary.url('/ko/about?tab=pricing#unrelated-home'));
+});
 ```
 
 - [ ] **Step 5: Build the extension for E2E**
