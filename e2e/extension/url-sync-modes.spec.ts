@@ -1,6 +1,6 @@
-import { test, expect } from './fixtures';
+import { errors, type Page } from '@playwright/test';
 
-import type { Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 const FOLLOW_CHANGED_TAB_NAME = /Follow changed tab|변경한 탭 따라가기/i;
 const KEEP_EACH_TABS_WEBSITE_NAME = /Keep each tab's website|각 탭의 웹사이트 유지/i;
@@ -74,10 +74,16 @@ async function turnUrlSyncOff(popup: Page): Promise<void> {
 }
 
 async function expectNoNavigation(page: Page, initialUrl: string): Promise<void> {
-  const didNavigate = await page
-    .waitForURL((url) => url.href !== initialUrl, { timeout: 1_000 })
-    .then(() => true)
-    .catch(() => false);
+  let didNavigate = false;
+
+  try {
+    await page.waitForURL((url) => url.href !== initialUrl, { timeout: 1_000 });
+    didNavigate = true;
+  } catch (error) {
+    if (!(error instanceof errors.TimeoutError)) {
+      throw error;
+    }
+  }
 
   expect(didNavigate).toBe(false);
   await expect(page).toHaveURL(initialUrl);
@@ -181,7 +187,6 @@ test.describe('URL Sync modes', () => {
     );
   });
 
-  // eslint-disable-next-line playwright/expect-expect -- expectNoNavigation asserts URL stability.
   test('URL Sync off prevents target navigation', async ({
     extensionContext,
     fixtureSites,
