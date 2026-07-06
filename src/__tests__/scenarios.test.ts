@@ -163,6 +163,11 @@ async function waitForScrollThrottleWindow(): Promise<void> {
   });
 }
 
+async function flushAnimationFrame(): Promise<void> {
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await flushAsync();
+}
+
 async function invokeContentMessage(messageId: string, data: unknown): Promise<unknown> {
   const handler = mocks.contentHandlers.get(messageId);
   if (!handler) {
@@ -1310,10 +1315,12 @@ describe('Scenario: manual offset reset when URL changes', () => {
   });
 
   it('blocked incompatible keep-each-tabs-website navigation does not clear target offset', async () => {
+    await saveManualScrollOffset(206, 0.25, 75);
     await startContentSync(206);
     await saveUrlSyncEnabled(true);
     await saveUrlSyncMode('keep-each-tabs-website');
-    await saveManualScrollOffset(206, 0.25, 75);
+    setDocumentScrollMetrics(2000, 1000);
+    document.documentElement.scrollTop = 0;
     setWindowUrl('https://d2.naver.com/helloworld/6204533');
     const { notices, cleanup } = collectUrlSyncNotices();
 
@@ -1330,6 +1337,16 @@ describe('Scenario: manual offset reset when URL changes', () => {
         },
       });
       expect(window.location.href).toBe('https://d2.naver.com/helloworld/6204533');
+      await invokeContentMessage('scroll:sync', {
+        scrollTop: 500,
+        scrollHeight: 2000,
+        clientHeight: 1000,
+        sourceTabId: 999,
+        mode: 'ratio',
+      });
+      await flushAnimationFrame();
+
+      expect(document.documentElement.scrollTop).toBe(750);
       await expect(getManualScrollOffset(206)).resolves.toEqual({ ratio: 0.25, pixels: 75 });
     } finally {
       cleanup();
@@ -1337,10 +1354,12 @@ describe('Scenario: manual offset reset when URL changes', () => {
   });
 
   it('compatible keep-each-tabs-website navigation still clears target offset', async () => {
+    await saveManualScrollOffset(207, -0.2, -70);
     await startContentSync(207);
     await saveUrlSyncEnabled(true);
     await saveUrlSyncMode('keep-each-tabs-website');
-    await saveManualScrollOffset(207, -0.2, -70);
+    setDocumentScrollMetrics(2000, 1000);
+    document.documentElement.scrollTop = 0;
     setWindowUrl('https://staging.example.com/ko/home#intro');
 
     await invokeContentMessage('url:sync', {
@@ -1349,6 +1368,16 @@ describe('Scenario: manual offset reset when URL changes', () => {
     });
 
     expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
+    await invokeContentMessage('scroll:sync', {
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      sourceTabId: 999,
+      mode: 'ratio',
+    });
+    await flushAnimationFrame();
+
+    expect(document.documentElement.scrollTop).toBe(500);
     await expect(getManualScrollOffset(207)).resolves.toEqual({ ratio: 0, pixels: 0 });
   });
 
