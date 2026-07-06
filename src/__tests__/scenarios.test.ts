@@ -485,6 +485,31 @@ describe('Scenario: URL sync toggle behavior', () => {
     expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
   });
 
+  it('keep-each-tabs-website blocks unrelated site page movement while keeping the current page', async () => {
+    await startContentSync(28);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('keep-each-tabs-website');
+    setWindowUrl('https://d2.naver.com/helloworld/6204533');
+    const { notices, cleanup } = collectUrlSyncNotices();
+
+    try {
+      await invokeContentMessage('url:sync', {
+        url: 'https://developer.chrome.com/blog/inside-browser-part3?hl=en',
+        sourceTabId: 99,
+      });
+
+      expect(window.location.href).toBe('https://d2.naver.com/helloworld/6204533');
+      expect(notices).toContainEqual({
+        notice: {
+          key: 'urlSyncIncompatibleSiteNotice',
+          severity: 'warning',
+        },
+      });
+    } finally {
+      cleanup();
+    }
+  });
+
   it('invalid stored URL sync mode is repaired before navigation', async () => {
     await startContentSync(26);
     await saveUrlSyncEnabled(true);
@@ -1282,6 +1307,49 @@ describe('Scenario: manual offset reset when URL changes', () => {
     } finally {
       cleanup();
     }
+  });
+
+  it('blocked incompatible keep-each-tabs-website navigation does not clear target offset', async () => {
+    await startContentSync(206);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('keep-each-tabs-website');
+    await saveManualScrollOffset(206, 0.25, 75);
+    setWindowUrl('https://d2.naver.com/helloworld/6204533');
+    const { notices, cleanup } = collectUrlSyncNotices();
+
+    try {
+      await invokeContentMessage('url:sync', {
+        url: 'https://developer.chrome.com/blog/inside-browser-part3?hl=en',
+        sourceTabId: 999,
+      });
+
+      expect(notices).toContainEqual({
+        notice: {
+          key: 'urlSyncIncompatibleSiteNotice',
+          severity: 'warning',
+        },
+      });
+      expect(window.location.href).toBe('https://d2.naver.com/helloworld/6204533');
+      await expect(getManualScrollOffset(206)).resolves.toEqual({ ratio: 0.25, pixels: 75 });
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('compatible keep-each-tabs-website navigation still clears target offset', async () => {
+    await startContentSync(207);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('keep-each-tabs-website');
+    await saveManualScrollOffset(207, -0.2, -70);
+    setWindowUrl('https://staging.example.com/ko/home#intro');
+
+    await invokeContentMessage('url:sync', {
+      url: 'https://example.com/en/about?tab=pricing',
+      sourceTabId: 999,
+    });
+
+    expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
+    await expect(getManualScrollOffset(207)).resolves.toEqual({ ratio: 0, pixels: 0 });
   });
 
   it('same-url resolution does not clear target offset', async () => {
