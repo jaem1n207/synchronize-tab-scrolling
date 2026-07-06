@@ -452,7 +452,7 @@ describe('resolveUrlSyncTarget', () => {
   it('preserves target port in keep-each-tabs-website mode', () => {
     expect(
       resolveUrlSyncTarget(
-        'https://example.com/en/about',
+        'http://localhost/en/about',
         'http://localhost:5173/ko/home',
         'keep-each-tabs-website',
       ),
