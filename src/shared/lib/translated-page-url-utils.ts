@@ -117,15 +117,6 @@ function removeLeadingEnvironmentLabel(hostname: string): string {
   return labels.slice(1).join('.');
 }
 
-function isLoopbackHostname(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname === '::1' ||
-    hostname === '[::1]' ||
-    hostname.startsWith('127.')
-  );
-}
-
 function normalizeHostForUrlSyncBoundary(url: URL): string {
   const locale = getLocaleDescriptor(url);
   const hostname = getHostnameWithoutLocale(url.hostname, locale);
@@ -138,10 +129,6 @@ function areUrlSyncSiteBoundariesCompatible(source: URL, target: URL): boolean {
   const targetHost = normalizeHostForUrlSyncBoundary(target);
 
   if (sourceHost === targetHost) {
-    return true;
-  }
-
-  if (isLoopbackHostname(sourceHost) || isLoopbackHostname(targetHost)) {
     return true;
   }
 
