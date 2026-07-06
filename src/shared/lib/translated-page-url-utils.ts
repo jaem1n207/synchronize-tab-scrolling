@@ -45,6 +45,7 @@ const ENVIRONMENT_HOST_LABELS = new Set([
   'canary',
   'sandbox',
 ]);
+const HOSTED_PUBLIC_SUFFIXES = new Set(['github.io', 'pages.dev', 'vercel.app', 'netlify.app']);
 
 // prettier-ignore
 const BASE_LOCALE_CODES = new Set([
@@ -95,7 +96,13 @@ function getHostnameWithoutLocale(hostname: string, locale?: LocaleDescriptor): 
   }
 
   const labels = normalizedHostname.split('.');
-  return labels.slice(1).join('.');
+  const baseHostname = labels.slice(1).join('.');
+
+  if (HOSTED_PUBLIC_SUFFIXES.has(baseHostname)) {
+    return normalizedHostname;
+  }
+
+  return baseHostname;
 }
 
 function getHostWithPort(hostname: string, port: string): string {

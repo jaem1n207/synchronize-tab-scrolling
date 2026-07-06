@@ -436,6 +436,36 @@ describe('resolveUrlSyncTarget', () => {
     });
   });
 
+  it.each(['github.io', 'pages.dev', 'vercel.app', 'netlify.app'])(
+    'blocks keep-each-tabs-website for locale-looking tenants on %s',
+    (hostedSuffix) => {
+      expect(
+        resolveUrlSyncTarget(
+          `https://en.${hostedSuffix}/docs/install`,
+          `https://ko.${hostedSuffix}/docs/home`,
+          'keep-each-tabs-website',
+        ),
+      ).toEqual({
+        status: 'blocked',
+        reason: 'incompatible-site-boundary',
+        notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+      });
+    },
+  );
+
+  it('keeps locale subdomains compatible outside hosted public suffixes', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://en.example.com/docs/install',
+        'https://ko.example.com/docs/home',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://ko.example.com/docs/install',
+    });
+  });
+
   it('keeps follow-changed-tab behavior for unrelated hosts', () => {
     expect(
       resolveUrlSyncTarget(
