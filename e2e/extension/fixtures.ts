@@ -18,8 +18,14 @@ interface ExtensionFixtures {
   fixtureSites: {
     primary: FixtureSite;
     comparison: FixtureSite;
+    unrelated: FixtureSite;
   };
   openPopup: () => Promise<Page>;
+}
+
+interface FixtureSiteOptions {
+  listenHost?: string;
+  publicHost?: string;
 }
 
 const URL_SYNC_SWITCH_NAME = /Sync page changes|페이지 이동도 동기화/i;
@@ -44,7 +50,10 @@ async function closeServer(server: Server): Promise<void> {
   });
 }
 
-async function startFixtureSite(name: string): Promise<FixtureSite> {
+async function startFixtureSite(
+  name: string,
+  options: FixtureSiteOptions = {},
+): Promise<FixtureSite> {
   const server = createServer((request, response) => {
     const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
     const title = titleFor(name, requestUrl.pathname);
@@ -66,8 +75,10 @@ async function startFixtureSite(name: string): Promise<FixtureSite> {
 </html>`);
   });
 
+  const listenHost = options.listenHost ?? '127.0.0.1';
+
   await new Promise<void>((resolveListen) => {
-    server.listen(0, '127.0.0.1', resolveListen);
+    server.listen(0, listenHost, resolveListen);
   });
 
   const address = server.address();
@@ -75,7 +86,8 @@ async function startFixtureSite(name: string): Promise<FixtureSite> {
     throw new Error(`Fixture site ${name} did not expose a TCP address`);
   }
 
-  const origin = `http://127.0.0.1:${address.port}`;
+  const publicHost = options.publicHost ?? listenHost;
+  const origin = `http://${publicHost}:${address.port}`;
 
   return {
     name,
@@ -105,10 +117,13 @@ export const test = base.extend<ExtensionFixtures>({
   fixtureSites: async ({}, run) => {
     const primary = await startFixtureSite('Primary');
     const comparison = await startFixtureSite('Comparison');
+    const unrelated = await startFixtureSite('Unrelated', {
+      publicHost: 'localhost',
+    });
 
-    await run({ primary, comparison });
+    await run({ primary, comparison, unrelated });
 
-    await Promise.all([primary.close(), comparison.close()]);
+    await Promise.all([primary.close(), comparison.close(), unrelated.close()]);
   },
 
   extensionContext: async ({}, run) => {
