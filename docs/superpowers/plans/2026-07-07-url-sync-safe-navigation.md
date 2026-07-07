@@ -37,13 +37,13 @@
 The current workspace has a design-doc commit on `main`. Keep it, but do implementation work on a feature branch:
 
 ```bash
-git switch -c codex/url-sync-safe-navigation
+git switch -c url-sync-safe-navigation
 ```
 
 Expected:
 
 ```text
-Switched to a new branch 'codex/url-sync-safe-navigation'
+Switched to a new branch 'url-sync-safe-navigation'
 ```
 
 - [ ] **Step 2: Confirm unrelated untracked files are not staged**
@@ -161,6 +161,40 @@ it('blocks keep-each-tabs-website for shared-suffix hosted sites', () => {
     notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
   });
 });
+
+it.each(['github.io', 'pages.dev', 'vercel.app', 'netlify.app'])(
+  'blocks keep-each-tabs-website for locale-looking tenants on %s',
+  (hostedSuffix) => {
+    expect(
+      resolveUrlSyncTarget(
+        `https://en.${hostedSuffix}/docs/install`,
+        `https://ko.${hostedSuffix}/docs/home`,
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'incompatible-site-boundary',
+      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+    });
+  },
+);
+
+it.each(['github.io', 'pages.dev', 'vercel.app', 'netlify.app'])(
+  'blocks keep-each-tabs-website for environment-looking tenants on %s',
+  (hostedSuffix) => {
+    expect(
+      resolveUrlSyncTarget(
+        `https://dev.${hostedSuffix}/docs/install`,
+        `https://staging.${hostedSuffix}/docs/home`,
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'incompatible-site-boundary',
+      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+    });
+  },
+);
 
 it('keeps follow-changed-tab behavior for unrelated hosts', () => {
   expect(
@@ -311,9 +345,32 @@ const ENVIRONMENT_HOST_LABELS = new Set([
   'canary',
   'sandbox',
 ]);
+const HOSTED_PUBLIC_SUFFIXES = new Set(['github.io', 'pages.dev', 'vercel.app', 'netlify.app']);
 ```
 
-In the same file, add these helpers after `getHostWithPort()`:
+In the same file, update `getHostnameWithoutLocale()` so locale-looking hosted public suffix tenants
+are preserved:
+
+```typescript
+function getHostnameWithoutLocale(hostname: string, locale?: LocaleDescriptor): string {
+  const normalizedHostname = normalizeHostname(hostname);
+
+  if (locale?.source !== 'subdomain') {
+    return normalizedHostname;
+  }
+
+  const labels = normalizedHostname.split('.');
+  const baseHostname = labels.slice(1).join('.');
+
+  if (HOSTED_PUBLIC_SUFFIXES.has(baseHostname)) {
+    return normalizedHostname;
+  }
+
+  return baseHostname;
+}
+```
+
+Then add these helpers after `getHostWithPort()`:
 
 ```typescript
 function removeLeadingWwwLabel(hostname: string): string {
@@ -328,7 +385,13 @@ function removeLeadingEnvironmentLabel(hostname: string): string {
     return hostname;
   }
 
-  return labels.slice(1).join('.');
+  const baseHostname = labels.slice(1).join('.');
+
+  if (HOSTED_PUBLIC_SUFFIXES.has(baseHostname)) {
+    return hostname;
+  }
+
+  return baseHostname;
 }
 
 function normalizeHostForUrlSyncBoundary(url: URL): string {
@@ -600,8 +663,8 @@ Then replace the `fixtureSites` fixture body with:
     const primary = await startFixtureSite('Primary');
     const comparison = await startFixtureSite('Comparison');
     const unrelated = await startFixtureSite('Unrelated', {
-      listenHost: '0.0.0.0',
-      publicHost: '127.0.0.2',
+      listenHost: '::',
+      publicHost: 'localhost',
     });
 
     await run({ primary, comparison, unrelated });
@@ -610,18 +673,32 @@ Then replace the `fixtureSites` fixture body with:
   },
 ```
 
-This gives E2E tests two compatible sites with the same hostname and different ports, plus one unrelated site with a different loopback hostname.
+This gives E2E tests two compatible sites with the same hostname and different ports, plus one
+unrelated site with a different browser-visible hostname. The unrelated server listens on `::`
+because `localhost` may resolve to IPv4 or IPv6 depending on the local resolver.
 
 - [ ] **Step 2: Add an E2E helper for no-navigation assertions**
 
-In `e2e/extension/url-sync-modes.spec.ts`, add this helper after `turnUrlSyncOff()`:
+In `e2e/extension/url-sync-modes.spec.ts`, import Playwright `errors` with `Page`:
+
+```typescript
+import { errors, type Page } from '@playwright/test';
+```
+
+Then add this helper after `turnUrlSyncOff()`:
 
 ```typescript
 async function expectNoNavigation(page: Page, initialUrl: string): Promise<void> {
-  const didNavigate = await page
-    .waitForURL((url) => url.href !== initialUrl, { timeout: 1_000 })
-    .then(() => true)
-    .catch(() => false);
+  let didNavigate = false;
+
+  try {
+    await page.waitForURL((url) => url.href !== initialUrl, { timeout: 1_000 });
+    didNavigate = true;
+  } catch (error) {
+    if (!(error instanceof errors.TimeoutError)) {
+      throw error;
+    }
+  }
 
   expect(didNavigate).toBe(false);
   await expect(page).toHaveURL(initialUrl);

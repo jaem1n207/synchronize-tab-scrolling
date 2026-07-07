@@ -78,6 +78,8 @@ Host normalization:
 2. lower-case hostnames
 3. ignore a leading `www.` label
 4. remove a locale subdomain when the existing locale detector identifies one
+5. keep locale-looking or environment-looking labels when removing them would leave a hosted public
+   suffix tenant such as `github.io`, `pages.dev`, `vercel.app`, or `netlify.app`
 
 Compatible cases:
 
@@ -123,6 +125,12 @@ docs.example.com <-> app.example.com
 
 one.github.io <-> two.github.io
 => incompatible
+
+en.github.io <-> ko.github.io
+=> incompatible because the first label is a hosted-site tenant, not a removable locale
+
+dev.pages.dev <-> staging.pages.dev
+=> incompatible because the first label is a hosted-site tenant, not a removable environment
 ```
 
 This deliberately avoids a broad registrable-domain or "last two labels" match. That heuristic
@@ -239,6 +247,10 @@ Add focused tests around the host-compatibility guard and `resolveUrlSyncTarget(
   `app.example.com`.
 - `keep-each-tabs-website` blocks shared-suffix hosted sites such as `one.github.io` and
   `two.github.io`.
+- `keep-each-tabs-website` blocks locale-looking hosted public suffix tenants such as
+  `en.github.io` and `ko.github.io`.
+- `keep-each-tabs-website` blocks environment-looking hosted public suffix tenants such as
+  `dev.pages.dev` and `staging.pages.dev`.
 - blocked incompatible hosts return `reason: 'incompatible-site-boundary'`.
 - invalid source and target URL cases keep their existing blocked reasons.
 - `follow-changed-tab` remains unchanged for unrelated hosts.
@@ -272,8 +284,12 @@ Required E2E cases:
   existing mode contract.
 
 The E2E should not depend on public websites. Use local fixture origins or routed fixture pages that
-exercise the same browser-visible URL shapes. If synthetic hostnames are needed, keep them local and
-deterministic.
+exercise the same browser-visible URL shapes. The final fixture set uses `127.0.0.1` for compatible
+sites and `localhost` for the unrelated site. Because `localhost` may resolve to IPv4 or IPv6,
+the unrelated fixture listens on `::` while exposing `localhost` as the public host.
+
+No-navigation helpers should treat only Playwright `TimeoutError` as the expected "no navigation"
+result. Unexpected errors must fail the test.
 
 ### Validation Commands
 
