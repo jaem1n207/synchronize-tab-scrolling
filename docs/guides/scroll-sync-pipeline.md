@@ -170,8 +170,13 @@ cachedManualOffset은 다음 시점에 갱신됩니다:
 | Alt+스크롤 종료      | 새 값으로 갱신                     | `keyboard-handler.ts` → `updateOffsetCache` 콜백 |
 | Wheel 수동 모드 종료 | 새 값으로 갱신                     | `exitWheelManualMode()`                          |
 | URL 변경 (발신)      | `{ratio: 0, pixels: 0}`으로 초기화 | `broadcastUrlChange()`                           |
-| URL 변경 (수신)      | `{ratio: 0, pixels: 0}`으로 초기화 | `url:sync` handler                               |
+| URL 변경 (수신)      | 실제 navigation 직전에 초기화      | `url:sync` handler                               |
 | 동기화 중지          | `{ratio: 0, pixels: 0}`으로 초기화 | `scroll:stop` handler                            |
+
+`keep-each-tabs-website`에서 site boundary가 호환되지 않아 `url:sync`가 차단되면 URL 변경으로
+취급하지 않습니다. 이 경우 target tab은 현재 URL에 그대로 남고, `cachedManualOffset`과 storage의
+manual offset도 그대로 유지합니다. 이후 들어오는 `scroll:sync`는 기존 offset을 계속 적용해야 합니다.
+호환되는 URL로 실제 navigation이 발생할 때만 offset을 clear합니다.
 
 ## 연결 상태 모니터링
 

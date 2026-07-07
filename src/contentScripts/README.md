@@ -27,7 +27,9 @@ contentScripts/
 4. **Position Relay**: Sends logical scroll data to background via `webext-bridge`
 5. **Position Apply**: Receives scroll data from other tabs, keeps only the latest pending target per
    animation frame, and applies the mapped target instantly
-6. **UI Rendering**: Mounts React components inside Shadow DOM for sync controls and toast notifications
+6. **URL Navigation Apply**: Receives `url:sync`, resolves the active URL Sync mode, and navigates
+   only when the shared resolver returns a safe target URL
+7. **UI Rendering**: Mounts React components inside Shadow DOM for sync controls and toast notifications
 
 ## Receiver-Side Scroll Application
 
@@ -63,6 +65,16 @@ treated as legacy anchors for compatibility.
 The active source and receiver paths must stay cache-only and numeric: use `cachedManualOffset`,
 `scrollTop`, `scrollHeight`, and `clientHeight`; do not read storage, scan the DOM, or run semantic
 matching from `handleScrollCore()` or the `scroll:sync` handler.
+
+## URL Sync Receiver
+
+The `url:sync` handler uses `resolveUrlSyncTarget()` from `translated-page-url-utils.ts`.
+`follow-changed-tab` may move a target to the source website. `keep-each-tabs-website` navigates
+only after the resolver confirms the source and target site boundaries are compatible.
+
+When URL Sync resolution is blocked, the handler emits a notice, logs only non-sensitive metadata,
+keeps `window.location.href` unchanged, and does not clear `cachedManualOffset` or the persisted
+manual offset. Scroll sync remains active after the skipped navigation.
 
 ## Key Message Handlers (in scroll-sync.ts)
 

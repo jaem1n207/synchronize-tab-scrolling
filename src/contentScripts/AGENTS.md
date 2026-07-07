@@ -3,6 +3,7 @@
 Injected into all web pages. Core scroll synchronization engine (1114 lines), Shadow DOM UI (panel + toast), keyboard handler for manual position offset. Two independent React roots in Shadow DOM.
 
 **Read `docs/guides/scroll-sync-pipeline.md` before modifying `scroll-sync.ts`.**
+For URL Sync navigation changes, also read `docs/guides/url-sync-safe-navigation.md`.
 
 ## Key Files
 
@@ -105,3 +106,4 @@ Reconnection triggers: visibility change (tab becomes visible), message send fai
 - **ALWAYS** use `passive: true` on scroll event listeners
 - **ALWAYS** use CustomEvent (not webext-bridge) for same-context communication between scroll-sync.ts and panel.tsx
 - **ALWAYS** keep visible URL Sync mode aligned with actual behavior. If storage read/write/repair fails, emit an explicit failure notice and skip unsafe navigation instead of silently falling back to another mode.
+- **ALWAYS** keep `keep-each-tabs-website` fail-closed. Incompatible site boundaries must emit a notice and return before `clearManualScrollOffset()` or navigation so the target URL, cached offset, and scroll sync session remain intact.
