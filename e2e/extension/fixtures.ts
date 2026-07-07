@@ -118,6 +118,7 @@ export const test = base.extend<ExtensionFixtures>({
     const primary = await startFixtureSite('Primary');
     const comparison = await startFixtureSite('Comparison');
     const unrelated = await startFixtureSite('Unrelated', {
+      listenHost: '::',
       publicHost: 'localhost',
     });
 

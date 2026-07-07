@@ -121,7 +121,13 @@ function removeLeadingEnvironmentLabel(hostname: string): string {
     return hostname;
   }
 
-  return labels.slice(1).join('.');
+  const baseHostname = labels.slice(1).join('.');
+
+  if (HOSTED_PUBLIC_SUFFIXES.has(baseHostname)) {
+    return hostname;
+  }
+
+  return baseHostname;
 }
 
 function normalizeHostForUrlSyncBoundary(url: URL): string {

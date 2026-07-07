@@ -453,6 +453,23 @@ describe('resolveUrlSyncTarget', () => {
     },
   );
 
+  it.each(['github.io', 'pages.dev', 'vercel.app', 'netlify.app'])(
+    'blocks keep-each-tabs-website for environment-looking tenants on %s',
+    (hostedSuffix) => {
+      expect(
+        resolveUrlSyncTarget(
+          `https://dev.${hostedSuffix}/docs/install`,
+          `https://staging.${hostedSuffix}/docs/home`,
+          'keep-each-tabs-website',
+        ),
+      ).toEqual({
+        status: 'blocked',
+        reason: 'incompatible-site-boundary',
+        notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+      });
+    },
+  );
+
   it('keeps locale subdomains compatible outside hosted public suffixes', () => {
     expect(
       resolveUrlSyncTarget(
