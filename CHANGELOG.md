@@ -1,3 +1,13 @@
+## [2.14.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.14.0...v2.14.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* address url sync review feedback ([01e1927](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/01e1927b42590ff55140586074928b1118e8b51e))
+* block hosted suffix url sync boundaries ([b89b89a](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b89b89a88e449fe6fabd6165d32e38092411cb47))
+* block unsafe url sync target navigation ([31b6177](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/31b6177084a933c3fa409594b001d16dfb8fa286))
+* restrict url sync loopback boundary matching ([8fe3c43](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/8fe3c43fce1e207be3a3c70b3ce9637f35b3eb0d))
+
 # [2.14.0](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.13.2...v2.14.0) (2026-07-05)
 
 
