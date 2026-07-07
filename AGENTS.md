@@ -19,21 +19,22 @@ docs/guides/             # Domain guides (Korean). Required reading before modif
 
 ## Where to Look
 
-| Task                    | Location                                                     | Notes                                                                     |
-| ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Scroll sync logic       | `src/contentScripts/scroll-sync.ts`                          | 1114-line state machine. Read `docs/guides/scroll-sync-pipeline.md` first |
-| Add message type        | `src/shared/types/messages.ts` + `shim.d.ts`                 | Must update ProtocolMap augmentation in both                              |
-| Add shared utility      | `src/shared/lib/`                                            | Export via barrel `index.ts`                                              |
-| Add popup feature       | `src/popup/components/` + `src/popup/hooks/`                 | See `src/popup/README.md`                                                 |
-| Add i18n key            | `extension/_locales/` + `src/shared/i18n/_locales/`          | Must exist in BOTH. Run `pnpm i18n:validate`                              |
-| Modify background state | `src/background/lib/sync-state.ts` or `auto-sync-state.ts`   | Mutable objects. Persist via storage                                      |
-| Add background handler  | `src/background/handlers/`                                   | Register in `main.ts` startup sequence                                    |
-| Add content script UI   | `src/contentScripts/panel.tsx` or `suggestion-toast.tsx`     | Shadow DOM. z-index 2147483647                                            |
-| Add shadcn component    | `src/shared/components/ui/`                                  | Re-export in barrel. Uses UnoCSS                                          |
-| Modify manifest         | `src/manifest.ts`                                            | Check Firefox vs Chromium branches                                        |
-| Add extension page      | `src/manifest.ts` + `vite.config.mts` + `scripts/prepare.ts` | Must update all three                                                     |
-| Landing page work       | `src/landing/`                                               | Separate build. ALWAYS use `(landing)` commit scope                       |
-| CI/CD changes           | `.github/workflows/`                                         | Two isolated pipelines. See CI Isolation Rules below                      |
+| Task                    | Location                                                         | Notes                                                                     |
+| ----------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Scroll sync logic       | `src/contentScripts/scroll-sync.ts`                              | 1114-line state machine. Read `docs/guides/scroll-sync-pipeline.md` first |
+| URL Sync resolution     | `src/shared/lib/translated-page-url-utils.ts` + `scroll-sync.ts` | Read `docs/guides/url-sync-safe-navigation.md` first                      |
+| Add message type        | `src/shared/types/messages.ts` + `shim.d.ts`                     | Must update ProtocolMap augmentation in both                              |
+| Add shared utility      | `src/shared/lib/`                                                | Export via barrel `index.ts`                                              |
+| Add popup feature       | `src/popup/components/` + `src/popup/hooks/`                     | See `src/popup/README.md`                                                 |
+| Add i18n key            | `extension/_locales/` + `src/shared/i18n/_locales/`              | Must exist in BOTH. Run `pnpm i18n:validate`                              |
+| Modify background state | `src/background/lib/sync-state.ts` or `auto-sync-state.ts`       | Mutable objects. Persist via storage                                      |
+| Add background handler  | `src/background/handlers/`                                       | Register in `main.ts` startup sequence                                    |
+| Add content script UI   | `src/contentScripts/panel.tsx` or `suggestion-toast.tsx`         | Shadow DOM. z-index 2147483647                                            |
+| Add shadcn component    | `src/shared/components/ui/`                                      | Re-export in barrel. Uses UnoCSS                                          |
+| Modify manifest         | `src/manifest.ts`                                                | Check Firefox vs Chromium branches                                        |
+| Add extension page      | `src/manifest.ts` + `vite.config.mts` + `scripts/prepare.ts`     | Must update all three                                                     |
+| Landing page work       | `src/landing/`                                                   | Separate build. ALWAYS use `(landing)` commit scope                       |
+| CI/CD changes           | `.github/workflows/`                                             | Two isolated pipelines. See CI Isolation Rules below                      |
 
 ## Commands
 
@@ -85,6 +86,7 @@ pnpm start:firefox      # Launch in Firefox
 6. **Startup ordering** — `restoreSyncState()` before `initializeAutoSync()`. Wrong order → race conditions
 7. **Cleanup before new sync** — `scroll:stop` to old tabs BEFORE `scroll:start` to new. Prevents orphaned DOM
 8. **Instant receiver scrolls** — `scroll:sync` receivers must use latest-wins scheduling and `applyInstantProgrammaticScroll()` so page `scroll-behavior: smooth` cannot animate extension-driven sync.
+9. **Keep-website URL Sync fails closed** — `keep-each-tabs-website` must block incompatible site boundaries before `navigateToUrl()` and before `clearManualScrollOffset()`. The target URL and cached manual offset stay unchanged, and scroll sync remains active.
 
 ### P1: Storage & State (will cause leaks)
 
@@ -126,7 +128,7 @@ pnpm start:firefox      # Launch in Firefox
 - **Extension release**: semantic-release → Chrome Web Store + Firefox AMO + Edge Add-ons. Dual build (Chrome + Firefox). Edge API key expires — manual renewal
 - **Extension PR checks**: required `extension-pr-checks` status. Extension-impacting PRs run
   privacy logging validation, i18n validation, typecheck, lint check, unit tests, Chrome/Firefox
-  builds, and the URL Sync mode smoke E2E.
+  builds, and the URL Sync mode plus safe-navigation smoke E2E.
 - **Landing deploy**: Build → Playwright prerender → GitHub Pages. `LANDING_BASE=/synchronize-tab-scrolling/`
 - **Store stats**: Weekly cron fetches CWS + AMO ratings. Commits with `(landing)` scope
 
@@ -136,7 +138,10 @@ pnpm start:firefox      # Launch in Firefox
 - **State**: No Redux/Zustand. Mutable module-level objects + `withAutoSyncLock()` mutex. Persisted to `browser.storage.local`
 - **Content script UI**: Two independent React roots in Shadow DOM (`panel.tsx`, `suggestion-toast.tsx`). z-index 2147483647
 - **URL Sync settings**: persisted enabled state plus mode in `browser.storage.local`. UI must show
-  the actual active mode: `follow-changed-tab` or `keep-each-tabs-website`.
+  the actual active mode: `follow-changed-tab` or `keep-each-tabs-website`. `follow-changed-tab`
+  follows the source website. `keep-each-tabs-website` keeps the target website only after the
+  shared resolver confirms a compatible site boundary; otherwise it emits a warning notice and skips
+  only that target navigation.
 - **Auto-sync suggestions**: opt-in. `autoSyncEnabled` defaults to `false`; only stored booleans are
   honored, and malformed storage values fall back to disabled.
 - **Build**: 4 Vite configs — popup (HTML+JS), background (IIFE), content (IIFE), landing (HTML+JS). `mangle: false` for CWS readability
@@ -149,7 +154,8 @@ pnpm start:firefox      # Launch in Firefox
 | Feature                     | Guide                                              |
 | --------------------------- | -------------------------------------------------- |
 | Scroll sync engine          | `docs/guides/scroll-sync-pipeline.md`              |
-| Critical pitfalls (10)      | `docs/guides/known-pitfalls.md`                    |
+| URL Sync safe navigation    | `docs/guides/url-sync-safe-navigation.md`          |
+| Critical pitfalls           | `docs/guides/known-pitfalls.md`                    |
 | Domain exclusion            | `docs/guides/domain-exclusion.md`                  |
 | Local file manual sync      | `docs/guides/local-file-sync.md`                   |
 | Sync suggestion replacement | `docs/guides/sync-suggestion-replacement.md`       |

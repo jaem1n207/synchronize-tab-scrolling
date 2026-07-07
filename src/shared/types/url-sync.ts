@@ -5,6 +5,7 @@ export type UrlSyncMode = 'follow-changed-tab' | 'keep-each-tabs-website';
 export type UrlSyncNoticeKey =
   | 'urlSyncModeResetNotice'
   | 'urlSyncKeepWebsiteBlockedNotice'
+  | 'urlSyncIncompatibleSiteNotice'
   | 'urlSyncLanguagePreservationNotice'
   | 'urlSyncSettingSaveFailedNotice'
   | 'urlSyncSettingReadFailedNotice';
@@ -29,7 +30,7 @@ export interface UrlSyncNavigationResult {
 
 export interface UrlSyncBlockedResult {
   status: 'blocked';
-  reason: 'invalid-source-url' | 'invalid-target-url';
+  reason: 'invalid-source-url' | 'invalid-target-url' | 'incompatible-site-boundary';
   notice: UrlSyncNotice;
 }
 
@@ -51,6 +52,7 @@ function isUrlSyncNoticeKey(value: unknown): value is UrlSyncNoticeKey {
   return (
     value === 'urlSyncModeResetNotice' ||
     value === 'urlSyncKeepWebsiteBlockedNotice' ||
+    value === 'urlSyncIncompatibleSiteNotice' ||
     value === 'urlSyncLanguagePreservationNotice' ||
     value === 'urlSyncSettingSaveFailedNotice' ||
     value === 'urlSyncSettingReadFailedNotice'

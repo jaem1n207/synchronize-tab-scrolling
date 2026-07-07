@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "这次页面变化无法让该标签页保留在当前网站，因此未同步导航。"
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "此网站组合未同步页面跳转。滚动同步仍保持开启。"
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "这次页面变化无法保留语言设置。"
   },

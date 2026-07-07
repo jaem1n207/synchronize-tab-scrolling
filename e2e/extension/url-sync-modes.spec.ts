@@ -1,6 +1,6 @@
-import { test, expect } from './fixtures';
+import { errors, type Page } from '@playwright/test';
 
-import type { Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 const FOLLOW_CHANGED_TAB_NAME = /Follow changed tab|변경한 탭 따라가기/i;
 const KEEP_EACH_TABS_WEBSITE_NAME = /Keep each tab's website|각 탭의 웹사이트 유지/i;
@@ -73,6 +73,22 @@ async function turnUrlSyncOff(popup: Page): Promise<void> {
   await expect(urlSyncSwitch).not.toBeChecked();
 }
 
+async function expectNoNavigation(page: Page, initialUrl: string): Promise<void> {
+  let didNavigate = false;
+
+  try {
+    await page.waitForURL((url) => url.href !== initialUrl, { timeout: 1_000 });
+    didNavigate = true;
+  } catch (error) {
+    if (!(error instanceof errors.TimeoutError)) {
+      throw error;
+    }
+  }
+
+  expect(didNavigate).toBe(false);
+  await expect(page).toHaveURL(initialUrl);
+}
+
 test.describe('URL Sync modes', () => {
   test('default Follow changed tab moves target to source website while preserving target language and hash', async ({
     extensionContext,
@@ -119,6 +135,58 @@ test.describe('URL Sync modes', () => {
     );
   });
 
+  test("Keep each tab's website skips unrelated target navigation and keeps scroll sync active", async ({
+    extensionContext,
+    fixtureSites,
+    openPopup,
+  }) => {
+    const source = await extensionContext.newPage();
+    const target = await extensionContext.newPage();
+    const targetInitialUrl = fixtureSites.unrelated.url('/ko/home#unrelated-home');
+
+    await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
+    await target.goto(targetInitialUrl);
+
+    const popup = await openPopup();
+    await chooseKeepEachTabsWebsiteMode(popup);
+    await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
+
+    await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
+
+    await expectNoNavigation(target, targetInitialUrl);
+
+    await source.evaluate(() => {
+      window.scrollTo(0, 900);
+    });
+
+    await expect
+      .poll(async () => target.evaluate(() => window.scrollY), { timeout: 3_000 })
+      .toBeGreaterThan(100);
+    await expect(target).toHaveURL(targetInitialUrl);
+  });
+
+  test('Follow changed tab still moves unrelated target to source website', async ({
+    extensionContext,
+    fixtureSites,
+    openPopup,
+  }) => {
+    const source = await extensionContext.newPage();
+    const target = await extensionContext.newPage();
+
+    await source.goto(fixtureSites.primary.url('/en/home?view=compact#primary-home'));
+    await target.goto(fixtureSites.unrelated.url('/ko/home?view=compact#unrelated-home'));
+
+    const popup = await openPopup();
+    await expectFollowChangedTabMode(popup);
+    await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
+
+    await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
+
+    await expect(target).toHaveURL(
+      fixtureSites.primary.url('/ko/about?tab=pricing#unrelated-home'),
+    );
+  });
+
   test('URL Sync off prevents target navigation', async ({
     extensionContext,
     fixtureSites,
@@ -137,13 +205,7 @@ test.describe('URL Sync modes', () => {
 
     await source.goto(fixtureSites.primary.url('/en/about?tab=pricing#plans'));
 
-    const didNavigate = await target
-      .waitForURL((url) => url.href !== targetInitialUrl, { timeout: 1_000 })
-      .then(() => true)
-      .catch(() => false);
-
-    expect(didNavigate).toBe(false);
-    await expect(target).toHaveURL(targetInitialUrl);
+    await expectNoNavigation(target, targetInitialUrl);
   });
 
   test('selected mode remains visible and persisted when popup is reopened', async ({

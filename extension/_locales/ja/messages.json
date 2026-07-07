@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "このページ変更では現在のウェブサイトを維持できなかったため、URL 移動は同期されませんでした。"
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "このサイトの組み合わせではページ移動を同期しませんでした。スクロール同期は引き続き有効です。"
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "このページ変更では言語設定を維持できませんでした。"
   },

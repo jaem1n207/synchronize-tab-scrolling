@@ -31,7 +31,10 @@ wraps Chromium's `chrome.extension.isAllowedFileSchemeAccess()` API and returns 
 extension settings URL used by the popup.
 
 `locale-utils.ts` keeps the legacy locale API, but URL sync locale preservation delegates to
-`translated-page-url-utils.ts` so path, query, and subdomain locale carriers use one implementation.
+`translated-page-url-utils.ts` so path, query, subdomain locale carriers, page-identifying query
+parameters, and `keep-each-tabs-website` site-boundary checks use one implementation. The resolver
+must fail closed for incompatible target-site navigation and must not log or expose raw URLs,
+hostnames, paths, queries, or hashes.
 
 `contextual-hints.ts` owns the contextual onboarding hint registry, the supported webpage-overlay
 hint allowlist, pending URL Sync hint ID validation, and OS-specific shortcut labels. Keep renderer

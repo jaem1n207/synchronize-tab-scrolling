@@ -1284,12 +1284,13 @@ prints no output after all intended files are committed.
 
 - [ ] Every pull request gets a required status check named `extension-pr-checks`.
 - [ ] Landing-only PRs finish `extension-pr-checks` successfully without running the full gate.
-- [ ] Extension-impacting PRs run privacy logging validation, i18n validation, typecheck, lint, unit tests, Chromium build, Firefox build, and URL Sync smoke E2E.
+- [ ] Extension-impacting PRs run privacy logging validation, i18n validation, typecheck, lint, unit tests, Chromium build, Firefox build, and URL Sync mode plus safe-navigation smoke E2E.
 - [ ] CI uses `pull_request`, not `pull_request_target`.
 - [ ] CI permissions remain `contents: read`.
 - [ ] CI does not use repository admin tokens or modify rulesets.
 - [ ] Raw URL, title, payload, full tab, and full sync state logging fails the static validator.
 - [ ] Existing source logs pass the privacy validator.
 - [ ] `Follow changed tab` and `Keep each tab's website` behavior is covered in a real extension context.
+- [ ] `Keep each tab's website` incompatible site-boundary blocking and post-block scroll sync continuity are covered in a real extension context.
 - [ ] URL Sync off prevents navigation in the smoke test.
 - [ ] Popup mode visibility and persistence are covered.

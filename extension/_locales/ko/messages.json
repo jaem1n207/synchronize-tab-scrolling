@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "이 페이지 변경에서는 현재 웹사이트를 유지할 수 없어 URL 이동을 동기화하지 않았습니다."
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "이 사이트 조합에서는 페이지 이동을 동기화하지 않았어요. 스크롤 동기화는 계속 유지돼요."
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "이 페이지 변경에서는 언어 설정을 유지할 수 없었습니다."
   },

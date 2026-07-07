@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "這次頁面變更無法讓此分頁保留在目前網站，因此未同步導覽。"
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "此網站組合未同步頁面跳轉。捲動同步仍保持開啟。"
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "這次頁面變更無法保留語言設定。"
   },

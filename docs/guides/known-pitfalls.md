@@ -80,6 +80,49 @@ const enabled = typeof storedValue === 'boolean' ? storedValue : false;
 
 ---
 
+## Pitfall 0.5: Keep-Website URL Sync의 site boundary를 넓게 잡는 문제
+
+### 규칙
+
+> `keep-each-tabs-website`는 host boundary가 호환될 때만 target-site URL을 합성해야 합니다.
+
+### 배경
+
+`follow-changed-tab`은 source tab이 실제로 연 URL을 target tab도 따라가는 모드입니다. 반대로
+`keep-each-tabs-website`는 target tab의 웹사이트 위에 source path/query를 얹는 모드입니다.
+서로 다른 URL 체계를 가진 사이트에서 이 합성을 수행하면 target tab이 404나 엉뚱한 페이지로
+이동할 수 있습니다.
+
+```text
+developer.chrome.com/blog/inside-browser-part4?hl=en
+d2.naver.com/helloworld/6204533
+```
+
+두 페이지가 같은 글을 다루더라도 D2의 다음 글 URL은 source path와 호환되지 않을 수 있습니다.
+이 경우 URL Sync를 켜 둔 사용자에게는 "이동하지 않음"이 "잘못 이동함"보다 덜 불편합니다.
+
+### 적용 원칙
+
+- `keep-each-tabs-website`는 shared resolver에서 먼저 site boundary를 검사합니다.
+- unrelated host와 sibling product host는 차단합니다.
+- broad registrable-domain 또는 last-two-label heuristic을 쓰지 않습니다.
+- `www.`는 무시할 수 있고, 일반 site host의 locale/environment label은 제거할 수 있습니다.
+- `github.io`, `pages.dev`, `vercel.app`, `netlify.app` 바로 앞 label은 tenant일 수 있으므로
+  locale/environment label처럼 제거하지 않습니다.
+- 차단 시 `urlSyncIncompatibleSiteNotice`를 emit하고, target URL과 manual offset을 유지합니다.
+- 차단은 해당 target navigation만 건너뜁니다. scroll sync session과 URL Sync 설정은 유지합니다.
+
+### 리뷰 체크리스트
+
+- [ ] `resolveUrlSyncTarget()`의 `keep-each-tabs-website` branch가 incompatible boundary를
+      `reason: 'incompatible-site-boundary'`로 차단하는가?
+- [ ] 차단 경로에서 `clearManualScrollOffset()`과 `navigateToUrl()`가 호출되지 않는가?
+- [ ] hosted public suffix tenant 테스트가 locale-looking, environment-looking label 모두를 막는가?
+- [ ] E2E no-navigation helper가 Playwright `TimeoutError`만 삼키고 다른 예외는 다시 throw하는가?
+- [ ] 차단 후에도 target tab이 `scroll:sync`를 계속 받아 scroll 위치가 바뀌는가?
+
+---
+
 ## Pitfall 1: Hot Path에서 비동기 I/O 사용 금지
 
 ### 규칙
@@ -415,5 +458,6 @@ computed `scroll-behavior`를 따라 부드러운 스크롤 애니메이션을 �
 - [ ] 새 상태를 저장할 때, 탭별 독립 데이터가 `browser.storage.local`에 저장되고 있지 않은가?
 - [ ] 새로운 인메모리 `Set`/`Map`이 서비스 워커 재시작 후 복원되는가?
 - [ ] content script ping 전에 `syncState` 기반 사전 체크가 있는가?
+- [ ] `keep-each-tabs-website`가 incompatible site boundary에서 target URL과 manual offset을 보존하는가?
 - [ ] `DialogContent` 내부의 Grid 항목에 `min-w-0`이 있는가? (`truncate` 사용 시 필수)
 - [ ] Dialog 내부에서 Radix `ScrollArea`를 사용하고 있지 않은가? (네이티브 `overflow-y-auto` 사용)

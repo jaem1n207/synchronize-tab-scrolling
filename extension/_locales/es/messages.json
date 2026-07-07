@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "No se pudo mantener esta pestaña en su sitio web actual para este cambio de página. No se sincronizó ninguna navegación."
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "Los cambios de página no se sincronizaron para esta combinación de sitios. La sincronización de desplazamiento sigue activa."
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "No se pudo conservar el idioma para este cambio de página."
   },

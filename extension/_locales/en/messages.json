@@ -323,6 +323,9 @@
   "urlSyncKeepWebsiteBlockedNotice": {
     "message": "Could not keep this tab on its current website for that page change. No navigation was synced."
   },
+  "urlSyncIncompatibleSiteNotice": {
+    "message": "Page changes were not synced for this site combination. Scroll sync is still active."
+  },
   "urlSyncLanguagePreservationNotice": {
     "message": "Language could not be preserved for this page change."
   },
