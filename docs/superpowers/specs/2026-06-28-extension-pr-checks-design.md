@@ -133,7 +133,7 @@ When extension-impacting files changed, run the gate in this order:
 13. Run `pnpm build-firefox`.
 14. Run in the Playwright Docker image that matches the lockfile Playwright version, so Chromium is
     already present and CI does not download browsers during the job.
-15. Run the extension URL Sync smoke E2E test.
+15. Run the extension URL Sync mode plus safe-navigation smoke E2E test.
 
 Add missing package scripts instead of embedding long commands in the workflow. At minimum, add:
 
@@ -209,6 +209,8 @@ enough URL variety to exercise the product behavior:
 - path movement
 - query-language carrier
 - source page-identifying query parameters in `Follow changed tab`
+- incompatible site-boundary blocking in `Keep each tab's website`
+- scroll sync continuity after blocked URL navigation
 - hash preservation when applicable
 
 Different websites can be represented with local origins, such as different loopback hosts or ports,
@@ -226,6 +228,8 @@ The required smoke suite should cover these cases:
    - Another tab stays on its own website.
    - The changed page movement is applied within that website.
    - The target tab's language is preserved when possible.
+   - An unrelated target site is not navigated.
+   - Scroll sync still works after the skipped navigation.
 3. URL Sync off
    - The other tab does not navigate when the source tab changes URL.
 4. Mode visibility
@@ -293,9 +297,11 @@ Check that pnpm build completed and the manifest is present.
 - A landing-only pull request gets a successful `extension-pr-checks` result without running the full
   extension gate.
 - An extension-impacting pull request runs install, privacy logging validation, i18n validation,
-  typecheck, lint check, unit tests, Chromium build, Firefox build, and URL Sync smoke E2E.
+  typecheck, lint check, unit tests, Chromium build, Firefox build, and URL Sync mode plus
+  safe-navigation smoke E2E.
 - Introducing `logger.info(..., { url: tab.url })` or equivalent raw URL metadata fails CI.
 - Regressing `Keep each tab's website` into `Follow changed tab` behavior fails CI.
+- Regressing incompatible site-boundary blocking or post-block scroll sync continuity fails CI.
 - Regressing mode UI visibility or persisted/effective mode truthfulness fails CI.
 - The workflow uses `pull_request`, not `pull_request_target`.
 - The workflow has read-only repository permissions.
