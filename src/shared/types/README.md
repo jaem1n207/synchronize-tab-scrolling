@@ -31,6 +31,9 @@ declare module 'webext-bridge' {
 - **`StartSyncMessage`**: Payload for initiating sync (tabIds, mode, isAutoSync flag)
 - **`ScrollSyncMessage`**: Scroll position data relayed between tabs
 - **`UrlSyncMode`**: `'follow-changed-tab' | 'keep-each-tabs-website'` — page-change behavior for synced tabs
+- **`UrlSyncBlockedResult`**: Typed URL Sync block result. `incompatible-site-boundary` means
+  `keep-each-tabs-website` refused to synthesize a target-site URL, while invalid URL reasons keep
+  the existing malformed-input behavior.
 - **`PendingUrlSyncContextualHintId`**: URL Sync overlay hints queued across navigation by tab ID
 - **`AutoSyncGroup`**: Internal group using `Set<number>` for O(1) tab lookups
 - **`AutoSyncGroupInfo`**: Serialized group using `Array<number>` for message passing
