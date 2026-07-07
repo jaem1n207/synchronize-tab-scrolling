@@ -191,7 +191,10 @@ You can choose how page changes behave:
   including page-identifying query parameters such as search/result queries. If a target tab carries
   its language in the URL, that language marker is preserved.
 - **Keep each tab's website**: each tab stays on its own website and opens the matching page path
-  and page-identifying query when possible.
+  and page-identifying query when possible. Before navigating, the extension checks whether the
+  source and target site boundaries are compatible. If they are unrelated, such as an original
+  article and an independently translated article on another website, the target page stays where it
+  is, a notice is shown, and scroll sync keeps running.
 
 ### Auto-Sync Suggestion
 
