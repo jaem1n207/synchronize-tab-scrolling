@@ -208,12 +208,9 @@ describe('sortTabsWithDomainGrouping', () => {
     const sorted = sortTabsWithDomainGrouping(tabs, 1);
     expect(sorted[0].id).toBe(1); // Reference
     // example.com group should come before other.com and another.com
-    const exampleComIndices = sorted
-      .slice(1)
-      .map((tab, idx) => (tab.url.includes('example.com') ? idx + 1 : -1))
-      .filter((idx) => idx !== -1);
-    const otherComIndex = sorted.findIndex((tab) => tab.url.includes('other.com'));
-    expect(exampleComIndices[exampleComIndices.length - 1]).toBeLessThan(otherComIndex);
+    const sameDomainIndex = sorted.findIndex((tab) => tab.id === 2);
+    const otherDomainIndex = sorted.findIndex((tab) => tab.id === 3);
+    expect(sameDomainIndex).toBeLessThan(otherDomainIndex);
   });
 
   it('should return original order when no reference tab ID provided', () => {
@@ -318,8 +315,7 @@ describe('filterTabsBySameDomain', () => {
       createTab({ id: 3, url: 'https://example.com/api' }),
     ];
     const filtered = filterTabsBySameDomain(tabs, 1);
-    expect(filtered.length).toBe(2);
-    expect(filtered.every((tab) => tab.url.includes('example.com'))).toBe(true);
+    expect(filtered.map((tab) => tab.id)).toEqual([1, 3]);
   });
 
   it('should return all tabs when no reference tab ID provided', () => {
@@ -370,8 +366,7 @@ describe('filterTabsBySameDomain', () => {
       createTab({ id: 4, url: 'https://other.com' }),
     ];
     const filtered = filterTabsBySameDomain(tabs, 1);
-    expect(filtered.length).toBe(3);
-    expect(filtered.every((tab) => tab.url.includes('example.com'))).toBe(true);
+    expect(filtered.map((tab) => tab.id)).toEqual([1, 2, 3]);
   });
 
   it('should handle case-insensitive domain matching', () => {
