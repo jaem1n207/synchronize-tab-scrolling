@@ -1,3 +1,16 @@
+## [2.14.2](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.14.1...v2.14.2) (2026-08-02)
+
+
+### Bug Fixes
+
+* escape auto-sync exclusion patterns ([b668138](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b668138d88d7dfba7fb1282edcf9b53d0b2386f2))
+* **landing:** confine prerender requests to build output ([22aae1f](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/22aae1f17ca9a073f40a65459f7423d06dc0f341))
+* match auto-sync exclusions without regex ([7d86c7d](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/7d86c7da2379e092f675fda9b0ac94f3ac8888b2))
+* resolve repository security alerts ([#399](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/399)) ([eaba839](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/eaba839c7178a037968ed670d2f49042395dd21f))
+* restore semantic release lodash runtime ([b2afca5](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/b2afca54babdb347c6c37eb00c238c090eade43c))
+* restore semantic release lodash runtime ([#402](https://github.com/jaem1n207/synchronize-tab-scrolling/issues/402)) ([0ce7ee4](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/0ce7ee4e3836a2f60f6f6199ad27446da225ebce))
+* validate browser store URL boundaries ([35a808e](https://github.com/jaem1n207/synchronize-tab-scrolling/commit/35a808e37753118070a656ceaa6f41bca94aa0af))
+
 ## [2.14.1](https://github.com/jaem1n207/synchronize-tab-scrolling/compare/v2.14.0...v2.14.1) (2026-07-07)
 
 
