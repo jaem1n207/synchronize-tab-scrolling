@@ -3,31 +3,39 @@
  * 브라우저 보안 정책에 의해 콘텐츠 스크립트 주입이 불가능한 URL들
  */
 
+interface UrlRule {
+  hostname: string;
+  pathPrefix?: string;
+}
+
 // Google 서비스 URL 목록
 const GOOGLE_SERVICES = [
-  'https://accounts.google.com',
-  'https://analytics.google.com',
-  'https://search.google.com/search-console',
-  'https://chromewebstore.google.com',
-  'https://chrome.google.com/webstore',
-  'https://docs.google.com',
-  'https://drive.google.com',
-  'https://mail.google.com',
-  'https://sheets.google.com',
-  'https://slides.google.com',
-  'https://calendar.google.com',
-  'https://meet.google.com',
-  'https://photos.google.com',
-  'https://myaccount.google.com',
-  'https://play.google.com',
-  'https://console.cloud.google.com',
-  'https://console.developers.google.com',
-  'https://developers.google.com',
-  'https://support.google.com',
-  'https://workspace.google.com',
-  'https://one.google.com',
-  'https://admin.google.com',
-];
+  { hostname: 'accounts.google.com' },
+  { hostname: 'analytics.google.com' },
+  { hostname: 'search.google.com', pathPrefix: '/search-console' },
+  { hostname: 'docs.google.com' },
+  { hostname: 'drive.google.com' },
+  { hostname: 'mail.google.com' },
+  { hostname: 'sheets.google.com' },
+  { hostname: 'slides.google.com' },
+  { hostname: 'calendar.google.com' },
+  { hostname: 'meet.google.com' },
+  { hostname: 'photos.google.com' },
+  { hostname: 'myaccount.google.com' },
+  { hostname: 'play.google.com' },
+  { hostname: 'console.cloud.google.com' },
+  { hostname: 'console.developers.google.com' },
+  { hostname: 'developers.google.com' },
+  { hostname: 'support.google.com' },
+  { hostname: 'workspace.google.com' },
+  { hostname: 'one.google.com' },
+  { hostname: 'admin.google.com' },
+] satisfies Array<UrlRule>;
+
+const CHROME_WEB_STORE_RULES = [
+  { hostname: 'chromewebstore.google.com' },
+  { hostname: 'chrome.google.com', pathPrefix: '/webstore' },
+] satisfies Array<UrlRule>;
 
 // 브라우저별 제한된 URL 패턴
 const BROWSER_RESTRICTED_PATTERNS = {
@@ -157,6 +165,42 @@ function parseUrl(url: string | null | undefined): URL | null {
   }
 }
 
+function matchesUrlRule(url: URL, rule: UrlRule): boolean {
+  if (url.hostname !== rule.hostname) {
+    return false;
+  }
+
+  if (!rule.pathPrefix) {
+    return true;
+  }
+
+  return url.pathname === rule.pathPrefix || url.pathname.startsWith(`${rule.pathPrefix}/`);
+}
+
+function isEdgeAddonStoreUrl(url: URL): boolean {
+  return matchesUrlRule(url, {
+    hostname: 'microsoftedge.microsoft.com',
+    pathPrefix: '/addons',
+  });
+}
+
+function isFirefoxAddonStoreUrl(url: URL): boolean {
+  return url.hostname === 'addons.mozilla.org';
+}
+
+export function isBrowserStoreUrl(url: string | null | undefined): boolean {
+  const parsedUrl = parseUrl(url);
+  if (!parsedUrl) {
+    return false;
+  }
+
+  return (
+    CHROME_WEB_STORE_RULES.some((rule) => matchesUrlRule(parsedUrl, rule)) ||
+    isEdgeAddonStoreUrl(parsedUrl) ||
+    isFirefoxAddonStoreUrl(parsedUrl)
+  );
+}
+
 export function isFileUrl(url: string | null | undefined): boolean {
   return parseUrl(url)?.protocol === FILE_PROTOCOL;
 }
@@ -213,11 +257,6 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
   const normalizedUrl = url.toLowerCase();
   const browserType = detectBrowserType();
 
-  // Google 서비스 확인
-  if (GOOGLE_SERVICES.some((service) => normalizedUrl.startsWith(service))) {
-    return true;
-  }
-
   // 공통 제한 프로토콜 확인
   if (isUnsupportedSpecialScheme(normalizedUrl)) {
     return true;
@@ -235,6 +274,14 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
   try {
     const urlObj = new URL(normalizedUrl);
 
+    // Google 서비스 확인
+    if (
+      GOOGLE_SERVICES.some((service) => matchesUrlRule(urlObj, service)) ||
+      CHROME_WEB_STORE_RULES.some((rule) => matchesUrlRule(urlObj, rule))
+    ) {
+      return true;
+    }
+
     if (isUnsupportedLocalDocumentUrl(normalizedUrl)) {
       return true;
     }
@@ -251,7 +298,8 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
     // 특수 경로 패턴 확인 (JIRA, Confluence 등)
     for (const pattern of SPECIAL_PATH_PATTERNS) {
       if (
-        urlObj.hostname.endsWith(pattern.domainSuffix) &&
+        (urlObj.hostname === pattern.domainSuffix ||
+          urlObj.hostname.endsWith(`.${pattern.domainSuffix}`)) &&
         urlObj.pathname.startsWith(pattern.pathPrefix)
       ) {
         return true;
@@ -287,18 +335,16 @@ export function isForbiddenUrl(url: string | null | undefined): boolean {
     if (AUTH_PATH_PATTERNS.some((pattern) => urlObj.pathname.startsWith(pattern))) {
       return true;
     }
+
+    if (browserType === 'edge' && isEdgeAddonStoreUrl(urlObj)) {
+      return true;
+    }
+
+    if (browserType === 'firefox' && isFirefoxAddonStoreUrl(urlObj)) {
+      return true;
+    }
   } catch {
     // URL 파싱 실패 시 제한된 것으로 간주
-    return true;
-  }
-
-  // 추가 Edge 스토어 확인
-  if (browserType === 'edge' && normalizedUrl.includes('microsoftedge.microsoft.com/addons')) {
-    return true;
-  }
-
-  // Firefox 애드온 스토어 확인
-  if (browserType === 'firefox' && normalizedUrl.includes('addons.mozilla.org')) {
     return true;
   }
 
