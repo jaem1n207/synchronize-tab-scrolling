@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
 import {
   detectBrowserType,
+  isBrowserStoreUrl,
   isFileUrl,
   isForbiddenUrl,
   isPdfUrl,
@@ -379,6 +380,15 @@ describe('isForbiddenUrl', () => {
   });
 
   describe('browser-specific addon stores', () => {
+    it('should identify supported browser stores for ineligible tab messaging', () => {
+      expect(isBrowserStoreUrl('https://chromewebstore.google.com/detail/example')).toBe(true);
+      expect(isBrowserStoreUrl('https://chrome.google.com/webstore/detail/example')).toBe(true);
+      expect(isBrowserStoreUrl('https://microsoftedge.microsoft.com/addons/detail/example')).toBe(
+        true,
+      );
+      expect(isBrowserStoreUrl('https://addons.mozilla.org/firefox/addon/example')).toBe(true);
+    });
+
     it('should forbid Firefox addon store', () => {
       Object.defineProperty(navigator, 'userAgent', {
         value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
@@ -395,6 +405,24 @@ describe('isForbiddenUrl', () => {
         configurable: true,
       });
       expect(isForbiddenUrl('https://microsoftedge.microsoft.com/addons')).toBe(true);
+    });
+
+    it('should not treat lookalike hosts as addon stores', () => {
+      expect(isBrowserStoreUrl('https://addons.mozilla.org.evil.example/firefox/addon/test')).toBe(
+        false,
+      );
+      expect(isBrowserStoreUrl('https://evil.example/?next=https://addons.mozilla.org')).toBe(
+        false,
+      );
+      expect(isBrowserStoreUrl('https://microsoftedge.microsoft.com.evil.example/addons')).toBe(
+        false,
+      );
+      expect(isBrowserStoreUrl('https://chromewebstore.google.com.evil.example')).toBe(false);
+    });
+
+    it('should not classify other Google services as browser stores', () => {
+      expect(isBrowserStoreUrl('https://docs.google.com/document/d/123')).toBe(false);
+      expect(isBrowserStoreUrl('https://drive.google.com/drive/folders/123')).toBe(false);
     });
   });
 

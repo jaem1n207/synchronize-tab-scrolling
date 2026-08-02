@@ -234,6 +234,26 @@ describe('isUrlExcluded', () => {
     it('should escape forward slashes for regex matching', () => {
       expect(isUrlExcluded('https://example.com/api/v1/users', ['*/api/v1/*'])).toBe(true);
     });
+
+    it('should treat regex metacharacters as literal text', () => {
+      expect(isUrlExcluded('https://exampleXcom/admin', ['https://example.com/admin'])).toBe(false);
+      expect(isUrlExcluded('https://example.com/file[1]', ['*file[1]'])).toBe(true);
+      expect(isUrlExcluded('https://example.com/file1', ['*file[1]'])).toBe(false);
+    });
+
+    it('should treat backslashes as literal text', () => {
+      expect(
+        isUrlExcluded(String.raw`https://example.com/folder\file`, [String.raw`*folder\file`]),
+      ).toBe(true);
+      expect(isUrlExcluded('https://example.com/folder/file', [String.raw`*folder\file`])).toBe(
+        false,
+      );
+    });
+
+    it('should reject adversarial wildcard chains without regex backtracking', () => {
+      const longNonMatchingUrl = `${'z'.repeat(8_000)}a`;
+      expect(isUrlExcluded(longNonMatchingUrl, ['*a*a*a*a*a*b'])).toBe(false);
+    });
   });
 });
 

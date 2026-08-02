@@ -1,9 +1,10 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
-import { type AddressInfo } from 'node:net';
-import { join, extname } from 'node:path';
+import { extname, join } from 'node:path';
 
 import { chromium, type Browser } from '@playwright/test';
+
+import { resolveStaticFilePath } from './prerender-static-path';
 
 const DIST_DIR = join(process.cwd(), 'dist-landing');
 const LANDING_BASE = process.env.LANDING_BASE ?? '/';
@@ -23,16 +24,11 @@ const MIME_TYPES: Record<string, string> = {
 function startStaticServer(): Promise<{ server: Server; port: number }> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
-      const rawPath = req.url?.split('?')[0] ?? '/';
-      const stripped = rawPath.startsWith(LANDING_BASE)
-        ? '/' + rawPath.slice(LANDING_BASE.length)
-        : rawPath;
-      let filePath: string;
-
-      if (stripped === '/' || stripped === '/index.html') {
-        filePath = join(DIST_DIR, 'landing', 'index.html');
-      } else {
-        filePath = join(DIST_DIR, stripped);
+      const filePath = resolveStaticFilePath(DIST_DIR, req.url ?? '/', LANDING_BASE);
+      if (!filePath) {
+        res.writeHead(404);
+        res.end('Not found');
+        return;
       }
 
       try {
@@ -47,9 +43,13 @@ function startStaticServer(): Promise<{ server: Server; port: number }> {
     });
 
     server.on('error', reject);
-    server.listen(0, () => {
-      const { port } = server.address() as AddressInfo;
-      resolve({ server, port });
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        reject(new Error('[prerender] Static server did not expose a TCP port'));
+        return;
+      }
+      resolve({ server, port: address.port });
     });
   });
 }
@@ -77,7 +77,7 @@ async function prerender() {
 
     page.on('pageerror', (err) => console.error(`[browser] error: ${err.message}`));
 
-    await page.goto(`http://localhost:${port}${LANDING_BASE}`, { waitUntil: 'networkidle' });
+    await page.goto(`http://127.0.0.1:${port}${LANDING_BASE}`, { waitUntil: 'networkidle' });
     await page.waitForSelector('#app > *', { timeout: 30_000 });
 
     const appHtml = await page.evaluate(() => {

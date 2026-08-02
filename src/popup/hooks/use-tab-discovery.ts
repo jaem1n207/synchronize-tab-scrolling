@@ -13,7 +13,7 @@ import {
   sortTabsByRecentVisits,
   filterTabsBySameDomain,
 } from '~/shared/lib/tab-similarity';
-import { isFileUrl, isForbiddenUrl, isPdfUrl } from '~/shared/lib/url-utils';
+import { isBrowserStoreUrl, isFileUrl, isForbiddenUrl, isPdfUrl } from '~/shared/lib/url-utils';
 
 import type { TabInfo, ErrorState } from '../types';
 import type { SortOption } from '../types/filters';
@@ -40,11 +40,7 @@ function getIneligibleReason(url: string, isFileAccessBlocked = false): string |
     return t('ineligibleFileAccessDisabled');
   }
 
-  if (
-    url.includes('chrome.google.com/webstore') ||
-    url.includes('microsoftedge.microsoft.com/addons') ||
-    url.includes('addons.mozilla.org')
-  ) {
+  if (isBrowserStoreUrl(url)) {
     return t('ineligibleWebStore');
   }
   if (url.match(/^https?:\/\/(drive|docs|sheets|mail)\.google\.com/)) {

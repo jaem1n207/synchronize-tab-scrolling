@@ -31,28 +31,26 @@ jobs:
           # Persist the bypass-listed release PAT instead of the default GitHub Actions token.
           token: ${{ secrets.RELEASE_GITHUB_TOKEN }}
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - uses: pnpm/action-setup@v5
 
-      - run: bun install
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
 
       - name: Build Chrome extension
-        run: bun run build
+        run: pnpm build
 
       - name: Copy Chrome build artifacts
         run: mkdir -p build/chrome && cp -r extension/* build/chrome/
 
       - name: Build Firefox extension
-        run: bun run build-firefox
+        run: pnpm build-firefox
 
       - name: Copy Firefox build artifacts
         run: mkdir -p build/firefox && cp -r extension/* build/firefox/
-
-      - name: Setup Node LTS for semantic-release
-        uses: actions/setup-node@v6
-        with:
-          node-version: 'lts/*'
 
       - name: Release
         env:
@@ -65,4 +63,4 @@ jobs:
           EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
           EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
           EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
-        run: npx semantic-release
+        run: pnpm exec semantic-release
