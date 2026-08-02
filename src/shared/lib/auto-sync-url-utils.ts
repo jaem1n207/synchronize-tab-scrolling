@@ -70,7 +70,11 @@ export function normalizeUrlForAutoSync(url: string): string | null {
 export function isUrlExcluded(url: string, patterns: Array<string>): boolean {
   return patterns.some((pattern) => {
     try {
-      const regex = new RegExp(pattern.replace(/\*/g, '.*').replace(/\//g, '\\/'));
+      const regexSource = pattern
+        .split('*')
+        .map((literalPart) => literalPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('.*');
+      const regex = new RegExp(regexSource);
       return regex.test(url);
     } catch {
       return false;
