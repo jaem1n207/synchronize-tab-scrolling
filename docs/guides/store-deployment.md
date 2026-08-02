@@ -48,15 +48,17 @@ Chrome과 Firefox 빌드는 동일한 `extension/` 디렉토리에 출력됩니�
 CI에서는 빌드 후 별도 디렉토리로 복사하여 충돌을 방지합니다:
 
 ```bash
-bun run build          # Chrome 빌드 → extension/
+pnpm build             # Chrome 빌드 → extension/
 cp -r extension/* build/chrome/
 
-bun run build-firefox  # Firefox 빌드 → extension/ (덮어쓰기)
+pnpm build-firefox     # Firefox 빌드 → extension/ (덮어쓰기)
 cp -r extension/* build/firefox/
 ```
 
 - **Chrome/Edge/Brave**: `build/chrome/` 사용 (Chromium 기반 — 동일 빌드)
 - **Firefox**: `build/firefox/` 사용 (gecko 전용 manifest 포함)
+- CI는 `pnpm install --frozen-lockfile`로 감사된 `pnpm-lock.yaml`과 보안 override를 그대로
+  사용합니다. 다른 패키지 매니저로 release dependency graph를 다시 해석하지 않습니다.
 
 ---
 
