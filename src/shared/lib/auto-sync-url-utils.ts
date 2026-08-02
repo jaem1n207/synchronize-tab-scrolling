@@ -69,16 +69,24 @@ export function normalizeUrlForAutoSync(url: string): string | null {
  */
 export function isUrlExcluded(url: string, patterns: Array<string>): boolean {
   return patterns.some((pattern) => {
-    try {
-      const regexSource = pattern
-        .split('*')
-        .map((literalPart) => literalPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        .join('.*');
-      const regex = new RegExp(regexSource);
-      return regex.test(url);
-    } catch {
+    if (typeof pattern !== 'string') {
       return false;
     }
+
+    let searchFrom = 0;
+    for (const literalPart of pattern.split('*')) {
+      if (!literalPart) {
+        continue;
+      }
+
+      const matchIndex = url.indexOf(literalPart, searchFrom);
+      if (matchIndex === -1) {
+        return false;
+      }
+      searchFrom = matchIndex + literalPart.length;
+    }
+
+    return true;
   });
 }
 

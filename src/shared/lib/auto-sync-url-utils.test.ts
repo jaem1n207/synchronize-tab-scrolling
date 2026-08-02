@@ -249,6 +249,11 @@ describe('isUrlExcluded', () => {
         false,
       );
     });
+
+    it('should reject adversarial wildcard chains without regex backtracking', () => {
+      const longNonMatchingUrl = `${'z'.repeat(8_000)}a`;
+      expect(isUrlExcluded(longNonMatchingUrl, ['*a*a*a*a*a*b'])).toBe(false);
+    });
   });
 });
 
