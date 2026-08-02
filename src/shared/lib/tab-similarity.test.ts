@@ -210,6 +210,8 @@ describe('sortTabsWithDomainGrouping', () => {
     // example.com group should come before other.com and another.com
     const sameDomainIndex = sorted.findIndex((tab) => tab.id === 2);
     const otherDomainIndex = sorted.findIndex((tab) => tab.id === 3);
+    expect(sameDomainIndex).toBeGreaterThanOrEqual(0);
+    expect(otherDomainIndex).toBeGreaterThanOrEqual(0);
     expect(sameDomainIndex).toBeLessThan(otherDomainIndex);
   });
 
