@@ -53,8 +53,8 @@ export function normalizeUrlForAutoSync(url: string): string | null {
 /**
  * Check whether a URL matches any of the given exclusion patterns.
  *
- * Patterns use simplified glob syntax where `*` matches any characters
- * and `/` is escaped for regex matching.
+ * Patterns use substring wildcard semantics: `*` matches any character sequence,
+ * while non-wildcard segments are matched literally and in order.
  *
  * @param url - URL string to test
  * @param patterns - Array of glob-like exclusion patterns
