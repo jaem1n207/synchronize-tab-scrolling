@@ -26,6 +26,7 @@ vite.config.*.timestamp-*
 
 # Test artifacts
 .extension-e2e/
+.worktrees/
 playwright-report-extension/
 test-results/
 
