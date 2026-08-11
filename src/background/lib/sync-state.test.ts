@@ -93,6 +93,21 @@ function createMockTab(overrides: Partial<browser.Tabs.Tab> = {}): browser.Tabs.
   };
 }
 
+function findForbiddenContentMessageKeys(value: unknown): Array<string> {
+  if (Array.isArray(value)) {
+    return value.flatMap(findForbiddenContentMessageKeys);
+  }
+  if (typeof value !== 'object' || value === null) {
+    return [];
+  }
+
+  const forbiddenNames = ['title', 'favIconUrl', 'url', 'tabId', 'windowId', 'linkedTabIds'];
+  return Object.entries(value).flatMap(([key, nestedValue]) => {
+    const forbiddenKey = forbiddenNames.includes(key) || /^\d+$/.test(key) ? [key] : [];
+    return [...forbiddenKey, ...findForbiddenContentMessageKeys(nestedValue)];
+  });
+}
+
 describe('sync-state', () => {
   const mockedSendMessage = vi.mocked(sendMessage);
   const mockedBrowser = vi.mocked(browser, true);
@@ -294,7 +309,7 @@ describe('sync-state', () => {
   });
 
   describe('broadcastSyncStatus', () => {
-    beforeEach(() => {
+    it('does not query tab metadata or send the removed legacy status message', async () => {
       commitSyncState(
         createActiveState({
           linkedTabs: [101, 102, 103],
@@ -306,132 +321,27 @@ describe('sync-state', () => {
           lastActiveSyncedTabId: 101,
         }),
       );
-    });
-
-    it('queries current window tabs', async () => {
       mockedBrowser.tabs.query.mockResolvedValueOnce([
-        createMockTab({ id: 101 }),
-        createMockTab({ id: 102 }),
-        createMockTab({ id: 103 }),
+        createMockTab({
+          id: 101,
+          title: 'Private fixture title',
+          url: 'https://private.example/token',
+          favIconUrl: 'private.ico',
+        }),
       ]);
 
       await broadcastSyncStatus();
 
-      expect(mockedBrowser.tabs.query).toHaveBeenCalledWith({ currentWindow: true });
-    });
-
-    it('maps linkedTabs to tab info payload', async () => {
-      mockedBrowser.tabs.query.mockResolvedValueOnce([
-        createMockTab({ id: 101, title: 'Tab A', url: 'https://a.test', favIconUrl: 'icon-a' }),
-        createMockTab({ id: 102, title: 'Tab B', url: 'https://b.test', favIconUrl: 'icon-b' }),
-        createMockTab({ id: 103, title: 'Tab C', url: 'https://c.test', favIconUrl: 'icon-c' }),
-      ]);
-
-      await broadcastSyncStatus();
-
-      const firstStatusCall = mockedSendMessage.mock.calls.find(
-        (call) => call[0] === 'sync:status',
+      expect(mockedBrowser.tabs.query).not.toHaveBeenCalled();
+      expect(mockedSendMessage).not.toHaveBeenCalled();
+      expect(
+        mockedSendMessage.mock.calls.flatMap((call) => findForbiddenContentMessageKeys(call[1])),
+      ).toEqual([]);
+      expect(JSON.stringify(mockedSendMessage.mock.calls)).not.toContain('Private fixture title');
+      expect(JSON.stringify(mockedSendMessage.mock.calls)).not.toContain(
+        'https://private.example/token',
       );
-      expect(firstStatusCall?.[1]).toMatchObject({
-        linkedTabs: [
-          { id: 101, title: 'Tab A', url: 'https://a.test', favIconUrl: 'icon-a', eligible: true },
-          { id: 102, title: 'Tab B', url: 'https://b.test', favIconUrl: 'icon-b', eligible: true },
-          { id: 103, title: 'Tab C', url: 'https://c.test', favIconUrl: 'icon-c', eligible: true },
-        ],
-      });
-    });
-
-    it('filters out linked tabs that are not found in query results', async () => {
-      mockedBrowser.tabs.query.mockResolvedValueOnce([
-        createMockTab({ id: 101, title: 'Tab A', url: 'https://a.test' }),
-        createMockTab({ id: 103, title: 'Tab C', url: 'https://c.test' }),
-      ]);
-
-      await broadcastSyncStatus();
-
-      const statusCalls = mockedSendMessage.mock.calls.filter((call) => call[0] === 'sync:status');
-      expect(statusCalls[0]?.[1]).toMatchObject({
-        linkedTabs: [
-          { id: 101, title: 'Tab A', url: 'https://a.test', eligible: true },
-          { id: 103, title: 'Tab C', url: 'https://c.test', eligible: true },
-        ],
-      });
-    });
-
-    it('uses fallback title and url when tab metadata is missing', async () => {
-      mockedBrowser.tabs.query.mockResolvedValueOnce([
-        createMockTab({ id: 101 }),
-        createMockTab({ id: 102 }),
-        createMockTab({ id: 103 }),
-      ]);
-
-      await broadcastSyncStatus();
-
-      const statusCall = mockedSendMessage.mock.calls.find((call) => call[0] === 'sync:status');
-      expect(statusCall?.[1]).toMatchObject({
-        linkedTabs: [
-          { id: 101, title: 'Untitled', url: '', eligible: true },
-          { id: 102, title: 'Untitled', url: '', eligible: true },
-          { id: 103, title: 'Untitled', url: '', eligible: true },
-        ],
-      });
-    });
-
-    it('sends sync:status to each linked tab with currentTabId', async () => {
-      mockedBrowser.tabs.query.mockResolvedValueOnce([
-        createMockTab({ id: 101 }),
-        createMockTab({ id: 102 }),
-        createMockTab({ id: 103 }),
-      ]);
-
-      await broadcastSyncStatus();
-
-      const statusCalls = mockedSendMessage.mock.calls.filter((call) => call[0] === 'sync:status');
-      expect(statusCalls).toHaveLength(3);
-      expect(statusCalls.map((call) => call[1])).toEqual([
-        expect.objectContaining({ currentTabId: 101 }),
-        expect.objectContaining({ currentTabId: 102 }),
-        expect.objectContaining({ currentTabId: 103 }),
-      ]);
-      expect(statusCalls.map((call) => call[2])).toEqual([
-        { context: 'content-script', tabId: 101 },
-        { context: 'content-script', tabId: 102 },
-        { context: 'content-script', tabId: 103 },
-      ]);
-    });
-
-    it('includes current connectionStatuses in status payload', async () => {
-      mockedBrowser.tabs.query.mockResolvedValueOnce([
-        createMockTab({ id: 101 }),
-        createMockTab({ id: 102 }),
-        createMockTab({ id: 103 }),
-      ]);
-
-      await broadcastSyncStatus();
-
-      const statusCall = mockedSendMessage.mock.calls.find((call) => call[0] === 'sync:status');
-      expect(statusCall?.[1]).toMatchObject({
-        connectionStatuses: {
-          101: 'connected',
-          102: 'disconnected',
-          103: 'error',
-        },
-      });
-    });
-
-    it('handles sendMessage failures gracefully without throwing', async () => {
-      mockedBrowser.tabs.query.mockResolvedValueOnce([
-        createMockTab({ id: 101 }),
-        createMockTab({ id: 102 }),
-        createMockTab({ id: 103 }),
-      ]);
-      mockedSendMessage.mockRejectedValue(new Error('status send failed'));
-
-      await expect(broadcastSyncStatus()).resolves.toBeUndefined();
-      expect(loggerMock.debug).toHaveBeenCalledWith('Failed to send sync status to tab 101', {
-        reason: 'status-send-failed',
-        tabId: 101,
-      });
+      expect(JSON.stringify(mockedSendMessage.mock.calls)).not.toContain('private.ico');
     });
   });
 });

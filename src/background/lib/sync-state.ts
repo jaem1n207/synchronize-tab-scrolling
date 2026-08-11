@@ -1,4 +1,3 @@
-import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
@@ -124,43 +123,10 @@ export async function restoreSyncState(): Promise<RestoreSyncStateResult> {
   return { status: 'ready' };
 }
 
-export async function broadcastSyncStatus(): Promise<void> {
-  const tabs = await browser.tabs.query({ currentWindow: true });
-
-  const tabInfoPromises = syncState.linkedTabs.map(async (tabId) => {
-    const tab = tabs.find((candidate) => candidate.id === tabId);
-    if (!tab) return null;
-
-    return {
-      id: tabId,
-      title: tab.title || 'Untitled',
-      url: tab.url || '',
-      favIconUrl: tab.favIconUrl,
-      eligible: true,
-    };
-  });
-
-  const linkedTabsInfo = (await Promise.all(tabInfoPromises)).filter(
-    (info): info is NonNullable<typeof info> => info !== null,
-  );
-
-  const statusPayload = {
-    linkedTabs: linkedTabsInfo,
-    connectionStatuses: syncState.connectionStatuses,
-  };
-
-  const promises = syncState.linkedTabs.map(async (tabId) => {
-    await sendMessage(
-      'sync:status',
-      { ...statusPayload, currentTabId: tabId },
-      { context: 'content-script', tabId },
-    ).catch(() => {
-      logger.debug(`Failed to send sync status to tab ${tabId}`, {
-        reason: 'status-send-failed',
-        tabId,
-      });
-    });
-  });
-
-  await Promise.all(promises);
+/**
+ * Manual session status is pull-only through the source-authorized `sync:get-status` request.
+ * Keep this lifecycle hook side-effect free while transition controllers share one interface.
+ */
+export function broadcastSyncStatus(): Promise<void> {
+  return Promise.resolve();
 }
