@@ -31,6 +31,7 @@ export interface AddManualSessionTabInput {
 
 interface StopSyncContentResponse {
   success: boolean;
+  tabId: number;
 }
 
 export interface SyncSessionOrchestratorDependencies {
@@ -103,12 +104,19 @@ function isValidTabId(tabId: number): boolean {
 async function cleanupStagedTabs(
   dependencies: SyncSessionOrchestratorDependencies,
   tabIds: ReadonlyArray<number>,
-): Promise<void> {
+): Promise<'cleaned' | 'degraded'> {
+  let degraded = false;
+
   for (const tabId of tabIds) {
-    await dependencies
-      .sendStop(tabId, { tabIds: [tabId], isAutoSync: false })
-      .catch(() => undefined);
+    const result = await withinTimeout(
+      dependencies.sendStop(tabId, { tabIds: [tabId], isAutoSync: false }),
+    );
+    if (result.status !== 'completed' || !result.value.success || result.value.tabId !== tabId) {
+      degraded = true;
+    }
   }
+
+  return degraded ? 'degraded' : 'cleaned';
 }
 
 async function rollbackRejectedStart(
@@ -118,9 +126,11 @@ async function rollbackRejectedStart(
   source: StartManualSessionInput['source'] | AddManualSessionTabInput['source'],
   reason: StartFailureReason | 'persistence-failed' | 'stale-revision',
 ): Promise<ManualTransitionRejection> {
-  await cleanupStagedTabs(dependencies, tabIds);
-  const rollback = await dependencies.overrideAdapter.rollback(snapshot);
-  if (rollback.status === 'degraded') {
+  const cleanup = await cleanupStagedTabs(dependencies, tabIds);
+  const rollback = await dependencies.overrideAdapter
+    .rollback(snapshot)
+    .catch((): { status: 'degraded' } => ({ status: 'degraded' }));
+  if (cleanup === 'degraded' || rollback.status === 'degraded') {
     dependencies.recordRecentOutcome(source, 'auto-sync-degraded');
     return { status: 'rejected', reason, warning: 'auto-sync-degraded' };
   }
@@ -158,12 +168,15 @@ function createStartCandidate(
   connectedTabIds: ReadonlyArray<number>,
   mode: StartManualSessionInput['mode'],
 ): SyncState {
+  const connectionStatuses: SyncState['connectionStatuses'] = {};
+  for (const tabId of connectedTabIds) {
+    connectionStatuses[tabId] = 'connected';
+  }
+
   return {
     isActive: true,
     linkedTabs: [...connectedTabIds],
-    connectionStatuses: Object.fromEntries(
-      connectedTabIds.map((tabId) => [tabId, 'connected'] as const),
-    ),
+    connectionStatuses,
     mode,
     lastActiveSyncedTabId: null,
     revision: previousState.revision + 1,
@@ -274,12 +287,11 @@ export function createSyncSessionOrchestrator(
 
       let warning: 'auto-sync-degraded' | undefined;
       if (rejectedTabIds.length > 0) {
-        await cleanupStagedTabs(dependencies, rejectedTabIds);
-        const rollback = await dependencies.overrideAdapter.rollbackUncommitted(
-          snapshot,
-          connectedTabIds,
-        );
-        if (rollback.status === 'degraded') {
+        const cleanup = await cleanupStagedTabs(dependencies, rejectedTabIds);
+        const rollback = await dependencies.overrideAdapter
+          .rollbackUncommitted(snapshot, connectedTabIds)
+          .catch((): { status: 'degraded' } => ({ status: 'degraded' }));
+        if (cleanup === 'degraded' || rollback.status === 'degraded') {
           warning = 'auto-sync-degraded';
           dependencies.recordRecentOutcome(input.source, warning);
         }

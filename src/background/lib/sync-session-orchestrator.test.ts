@@ -27,10 +27,12 @@ const activeState: SyncState = {
 };
 
 type StartResponse = StartSyncContentResponse | 'timeout' | 'throw';
+type StopResponse = 'invalid' | 'mismatched' | 'timeout' | 'throw';
 
 interface HarnessOptions {
   initialState: SyncState;
   startResponses?: Record<number, StartResponse>;
+  stopResponses?: Record<number, StopResponse>;
   failedInjectionTabIds?: Array<number>;
   persistFails?: boolean;
   overrideCommitStale?: boolean;
@@ -127,7 +129,20 @@ function createOrchestratorHarness(options: HarnessOptions) {
     sendStop: async (tabId) => {
       events.push(`stop:${tabId}`);
       stopTargets.push(tabId);
-      return { success: true };
+      const response = options.stopResponses?.[tabId];
+      if (response === 'timeout') {
+        return new Promise(() => undefined);
+      }
+      if (response === 'throw') {
+        throw new Error('stop failed');
+      }
+      if (response === 'invalid') {
+        return { success: false, tabId };
+      }
+      if (response === 'mismatched') {
+        return { success: true, tabId: tabId + 1 };
+      }
+      return { success: true, tabId };
     },
     revalidate: async () => {
       events.push('revalidate');
@@ -527,6 +542,62 @@ describe('createSyncSessionOrchestrator', () => {
     expect(harness.committedState).toEqual(inactiveState);
   });
 
+  it.each([
+    { name: 'invalid Stop acknowledgement', stopResponse: 'invalid' },
+    { name: 'mismatched Stop acknowledgement', stopResponse: 'mismatched' },
+    { name: 'thrown Stop', stopResponse: 'throw' },
+  ] satisfies Array<{ name: string; stopResponse: StopResponse }>)(
+    'reports degraded full rollback after $name',
+    async ({ stopResponse }) => {
+      const harness = createOrchestratorHarness({
+        initialState: inactiveState,
+        startResponses: { 22: { success: true, tabId: 999 } },
+        stopResponses: { 11: stopResponse },
+      });
+
+      const result = await harness.orchestrator.startManualSession(
+        { operationGeneration: 1, expectedRevision: 0 },
+        { tabIds: [11, 22], mode: 'ratio', source: 'quick-sync', requireAll: true },
+      );
+
+      expect(result).toEqual({
+        status: 'rejected',
+        reason: 'invalid-acknowledgement',
+        warning: 'auto-sync-degraded',
+      });
+      expect(harness.recentOutcomes).toEqual(['auto-sync-degraded']);
+      expect(harness.committedState).toEqual(inactiveState);
+    },
+  );
+
+  it('times out full rollback Stop cleanup after 1,000ms and reports degradation', async () => {
+    vi.useFakeTimers();
+    const harness = createOrchestratorHarness({
+      initialState: inactiveState,
+      startResponses: { 22: { success: true, tabId: 999 } },
+      stopResponses: { 11: 'timeout' },
+    });
+
+    const resultPromise = harness.orchestrator.startManualSession(
+      { operationGeneration: 1, expectedRevision: 0 },
+      { tabIds: [11, 22], mode: 'ratio', source: 'quick-sync', requireAll: true },
+    );
+    const observed = Promise.race([
+      resultPromise,
+      new Promise<'not-settled'>((resolve) => {
+        setTimeout(() => resolve('not-settled'), 1_001);
+      }),
+    ]);
+    await vi.advanceTimersByTimeAsync(1_001);
+
+    await expect(observed).resolves.toEqual({
+      status: 'rejected',
+      reason: 'invalid-acknowledgement',
+      warning: 'auto-sync-degraded',
+    });
+    expect(harness.recentOutcomes).toEqual(['auto-sync-degraded']);
+  });
+
   it('reports a committed popup subset with a warning when excluded rollback degrades', async () => {
     const harness = createOrchestratorHarness({
       initialState: inactiveState,
@@ -540,6 +611,66 @@ describe('createSyncSessionOrchestrator', () => {
     );
 
     expect(result).toEqual({
+      status: 'committed',
+      connectedTabIds: [11, 22],
+      revision: 1,
+      sessionEpoch: 1,
+      warning: 'auto-sync-degraded',
+    });
+    expect(harness.recentOutcomes).toEqual(['auto-sync-degraded']);
+  });
+
+  it.each([
+    { name: 'invalid Stop acknowledgement', stopResponse: 'invalid' },
+    { name: 'mismatched Stop acknowledgement', stopResponse: 'mismatched' },
+    { name: 'thrown Stop', stopResponse: 'throw' },
+  ] satisfies Array<{ name: string; stopResponse: StopResponse }>)(
+    'keeps the committed popup subset truthful but warns after excluded $name',
+    async ({ stopResponse }) => {
+      const harness = createOrchestratorHarness({
+        initialState: inactiveState,
+        startResponses: { 33: { success: false, tabId: 33 } },
+        stopResponses: { 33: stopResponse },
+      });
+
+      const result = await harness.orchestrator.startManualSession(
+        { operationGeneration: 1, expectedRevision: 0 },
+        { tabIds: [11, 22, 33], mode: 'ratio', source: 'popup', requireAll: false },
+      );
+
+      expect(result).toEqual({
+        status: 'committed',
+        connectedTabIds: [11, 22],
+        revision: 1,
+        sessionEpoch: 1,
+        warning: 'auto-sync-degraded',
+      });
+      expect(harness.recentOutcomes).toEqual(['auto-sync-degraded']);
+      expect(harness.committedState.linkedTabs).toEqual([11, 22]);
+    },
+  );
+
+  it('times out excluded popup Stop cleanup after 1,000ms and warns on the committed subset', async () => {
+    vi.useFakeTimers();
+    const harness = createOrchestratorHarness({
+      initialState: inactiveState,
+      startResponses: { 33: { success: false, tabId: 33 } },
+      stopResponses: { 33: 'timeout' },
+    });
+
+    const resultPromise = harness.orchestrator.startManualSession(
+      { operationGeneration: 1, expectedRevision: 0 },
+      { tabIds: [11, 22, 33], mode: 'ratio', source: 'popup', requireAll: false },
+    );
+    const observed = Promise.race([
+      resultPromise,
+      new Promise<'not-settled'>((resolve) => {
+        setTimeout(() => resolve('not-settled'), 1_001);
+      }),
+    ]);
+    await vi.advanceTimersByTimeAsync(1_001);
+
+    await expect(observed).resolves.toEqual({
       status: 'committed',
       connectedTabIds: [11, 22],
       revision: 1,
