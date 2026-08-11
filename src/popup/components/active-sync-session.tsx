@@ -1,6 +1,9 @@
 import { Button } from '~/shared/components/ui/button';
 import { t } from '~/shared/i18n';
-import type { ActiveManualSyncSnapshot, AvailableManualSyncTab } from '~/shared/types/sync-session';
+import type {
+  AvailableManualSyncTab,
+  PopupActiveManualSyncSnapshot,
+} from '~/shared/types/sync-session';
 
 import type { QuickSyncShortcutState } from '../hooks';
 
@@ -10,7 +13,7 @@ import IconRefreshCw from '~icons/lucide/refresh-cw';
 import IconSquare from '~icons/lucide/square';
 
 interface ActiveSyncSessionProps {
-  snapshot: ActiveManualSyncSnapshot;
+  snapshot: PopupActiveManualSyncSnapshot;
   shortcut: QuickSyncShortcutState;
   isStopping: boolean;
   isReconnecting: boolean;
@@ -32,7 +35,7 @@ function getLocationLabel(location: AvailableManualSyncTab['location']): string 
 }
 
 function getConnectionLabel(
-  status: ActiveManualSyncSnapshot['tabs'][number]['connectionStatus'],
+  status: PopupActiveManualSyncSnapshot['tabs'][number]['connectionStatus'],
 ): string {
   switch (status) {
     case 'connected':
@@ -44,7 +47,7 @@ function getConnectionLabel(
   }
 }
 
-function ActiveTabRow({ tab }: { tab: ActiveManualSyncSnapshot['tabs'][number] }) {
+function ActiveTabRow({ tab }: { tab: PopupActiveManualSyncSnapshot['tabs'][number] }) {
   const statusTone =
     tab.connectionStatus === 'connected'
       ? 'bg-emerald-700 dark:bg-emerald-400'

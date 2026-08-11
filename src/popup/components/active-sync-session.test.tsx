@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ActiveManualSyncSnapshot } from '~/shared/types/sync-session';
+import type { PopupActiveManualSyncSnapshot } from '~/shared/types/sync-session';
 
 import { ActiveSyncSession } from './active-sync-session';
 
@@ -45,7 +45,7 @@ vi.mock('~/shared/i18n', () => ({
   },
 }));
 
-const threeTabCrossWindowSnapshot: ActiveManualSyncSnapshot = {
+const threeTabCrossWindowSnapshot: PopupActiveManualSyncSnapshot = {
   revision: 12,
   sessionEpoch: 4,
   mode: 'ratio',
@@ -86,7 +86,7 @@ const assignedShortcut: QuickSyncShortcutState = {
 };
 
 function renderActiveSession(
-  snapshot: ActiveManualSyncSnapshot = threeTabCrossWindowSnapshot,
+  snapshot: PopupActiveManualSyncSnapshot = threeTabCrossWindowSnapshot,
   options: {
     shortcut?: QuickSyncShortcutState;
     isStopping?: boolean;
@@ -146,7 +146,7 @@ describe('ActiveSyncSession', () => {
   });
 
   it('renders an unavailable row with only generic copy and connection state', () => {
-    const snapshot: ActiveManualSyncSnapshot = {
+    const snapshot: PopupActiveManualSyncSnapshot = {
       ...threeTabCrossWindowSnapshot,
       linkedTabIds: [90210],
       tabs: [
@@ -170,7 +170,7 @@ describe('ActiveSyncSession', () => {
 
   it('shows reconnect only for disconnected or error rows and shares the mutation lock', async () => {
     const user = userEvent.setup();
-    const connectedSnapshot: ActiveManualSyncSnapshot = {
+    const connectedSnapshot: PopupActiveManualSyncSnapshot = {
       ...threeTabCrossWindowSnapshot,
       tabs: threeTabCrossWindowSnapshot.tabs.map((tab) => ({
         ...tab,
