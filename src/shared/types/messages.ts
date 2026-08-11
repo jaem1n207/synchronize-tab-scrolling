@@ -368,7 +368,7 @@ export interface ConsumePendingUrlSyncContextualHintResponse {
 }
 
 export interface ProtocolMap {
-  'scroll:start': StartSyncMessage;
+  'scroll:start': StartSyncMessage | StartSyncContentMessage;
   'scroll:stop': StopSyncMessage;
   'scroll:sync': ScrollSyncMessage;
   'scroll:manual': ManualScrollMessage;

@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
 import type { QuickSyncFeedbackMessage, SyncStatusResponseMessage } from '~/shared/types';
+import type {
+  ProtocolMap,
+  StartSyncContentMessage,
+  StartSyncMessage,
+} from '~/shared/types/messages';
+
+type IsExact<TLeft, TRight> =
+  (<T>() => T extends TLeft ? 1 : 2) extends <T>() => T extends TRight ? 1 : 2
+    ? (<T>() => T extends TRight ? 1 : 2) extends <T>() => T extends TLeft ? 1 : 2
+      ? true
+      : false
+    : false;
 
 describe('Quick Sync message contracts', () => {
+  it('keeps the exported scroll:start protocol aligned with both destinations', () => {
+    const protocolIsExact: IsExact<
+      ProtocolMap['scroll:start'],
+      StartSyncMessage | StartSyncContentMessage
+    > = true;
+
+    expect(protocolIsExact).toBe(true);
+  });
+
   it('keeps an absolute candidate deadline', () => {
     const message: QuickSyncFeedbackMessage = {
       outcome: 'candidate-selected',
