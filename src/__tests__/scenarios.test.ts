@@ -101,7 +101,7 @@ import {
   pendingSuggestions,
 } from '~/background/lib/auto-sync-state';
 import { syncState } from '~/background/lib/sync-state';
-import { initScrollSync } from '~/contentScripts/scroll-sync';
+import { getScrollSyncState, initScrollSync } from '~/contentScripts/scroll-sync';
 import {
   calculateAnchoredLogicalRatio,
   calculateAnchoredScrollTop,
@@ -177,11 +177,16 @@ async function invokeContentMessage(messageId: string, data: unknown): Promise<u
   return handler({ data });
 }
 
-async function startContentSync(tabId: number): Promise<void> {
+async function startContentSync(
+  tabId: number,
+  { isAutoSync = false, sessionEpoch = 1 }: { isAutoSync?: boolean; sessionEpoch?: number } = {},
+): Promise<void> {
   await invokeContentMessage('scroll:start', {
     mode: 'ratio',
     currentTabId: tabId,
     linkedTabs: [tabId],
+    isAutoSync,
+    ...(isAutoSync ? {} : { sessionEpoch }),
   });
 }
 
@@ -371,6 +376,7 @@ describe('Scenario: scroll start acknowledgements', () => {
       mode: 'ratio',
       currentTabId: 77,
       tabIds: [77, 78],
+      sessionEpoch: 4,
     });
 
     expect(response).toEqual({
@@ -383,6 +389,85 @@ describe('Scenario: scroll start acknowledgements', () => {
         scrollableHeight: 2300,
       },
     });
+  });
+
+  it('caches the committed epoch for a manual start and clears it on stop', async () => {
+    await startContentSync(78, { sessionEpoch: 9 });
+
+    expect(getScrollSyncState().sessionEpoch).toBe(9);
+
+    await stopContentSync();
+
+    expect(getScrollSyncState().sessionEpoch).toBe(0);
+  });
+});
+
+describe('Scenario: session identity propagation', () => {
+  it('sends the cached manual epoch with scroll and URL messages', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(79, { sessionEpoch: 12 });
+    await waitForScrollThrottleWindow();
+    mocks.sendMessageContentMock.mockClear();
+
+    setWindowScrollTop(250);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+    const changedUrl = await triggerUrlChange('/manual-identity');
+    await flushAsync();
+
+    expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+      'scroll:sync',
+      expect.objectContaining({
+        isAutoSync: false,
+        sourceTabId: 79,
+        sessionEpoch: 12,
+      }),
+      'background',
+    );
+    expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+      'url:sync',
+      {
+        isAutoSync: false,
+        sourceTabId: 79,
+        sessionEpoch: 12,
+        url: changedUrl,
+      },
+      'background',
+    );
+  });
+
+  it('keeps automatic messages epoch-free', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(80, { isAutoSync: true });
+    await waitForScrollThrottleWindow();
+    mocks.sendMessageContentMock.mockClear();
+
+    setWindowScrollTop(300);
+    window.dispatchEvent(new Event('scroll'));
+    await flushAsync();
+    const changedUrl = await triggerUrlChange('/auto-identity');
+    await flushAsync();
+
+    const scrollCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'scroll:sync',
+    );
+    const urlCall = mocks.sendMessageContentMock.mock.calls.find(
+      ([messageId]) => messageId === 'url:sync',
+    );
+
+    expect(scrollCall?.[1]).toEqual(
+      expect.objectContaining({
+        isAutoSync: true,
+        sourceTabId: 80,
+      }),
+    );
+    expect(scrollCall?.[1]).not.toHaveProperty('sessionEpoch');
+    expect(urlCall?.[1]).toEqual({
+      isAutoSync: true,
+      sourceTabId: 80,
+      url: changedUrl,
+    });
+    expect(urlCall?.[1]).not.toHaveProperty('sessionEpoch');
   });
 });
 
@@ -415,7 +500,12 @@ describe('Scenario: URL sync toggle behavior', () => {
 
     expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
       'url:sync',
-      { url: changedUrl, sourceTabId: 11 },
+      {
+        isAutoSync: false,
+        sessionEpoch: 1,
+        sourceTabId: 11,
+        url: changedUrl,
+      },
       'background',
     );
   });

@@ -34,6 +34,8 @@ import type {
   ContextualHintShowMessage,
   WebpageOverlayContextualHintId,
 } from '~/shared/types/contextual-hints';
+import type { ScrollSyncMessage, StartSyncMessage, UrlSyncMessage } from '~/shared/types/messages';
+import type { SessionMessageIdentity } from '~/shared/types/sync-session';
 import type {
   UrlSyncMode,
   UrlSyncNotice,
@@ -60,6 +62,7 @@ import {
   CONNECTION_TIMEOUT_THRESHOLD,
   MAX_RECONNECTION_ATTEMPTS,
   RECONNECTION_BACKOFF_MS,
+  type SyncState,
 } from './lib/scroll-sync-state';
 import { collectTranslatedPageMetadata } from './lib/translated-page-metadata';
 import { destroyPanel, hidePanel, showPanel } from './panel';
@@ -459,7 +462,22 @@ function findNearestElement(): { index: number; ratio: number } | null {
  * Core scroll handler logic (without throttling)
  * Throttling is handled by the wrapper function
  */
-async function handleScrollCore() {
+function getSessionMessageIdentity(): SessionMessageIdentity {
+  if (syncState.isAutoSync) {
+    return {
+      isAutoSync: true,
+      sourceTabId: syncState.tabId,
+    };
+  }
+
+  return {
+    isAutoSync: false,
+    sourceTabId: syncState.tabId,
+    sessionEpoch: syncState.sessionEpoch,
+  };
+}
+
+function handleScrollCore() {
   if (!syncState.isActive || syncState.isManualScrollEnabled) return;
 
   const now = Date.now();
@@ -499,11 +517,11 @@ async function handleScrollCore() {
 
   const pureScrollTop = clampScrollPosition(pureRatio * myMaxScroll, myMaxScroll);
 
-  const message = {
+  const message: ScrollSyncMessage & SessionMessageIdentity = {
+    ...getSessionMessageIdentity(),
     scrollTop: pureScrollTop,
     scrollHeight: scrollInfo.scrollHeight,
     clientHeight: scrollInfo.clientHeight,
-    sourceTabId: syncState.tabId,
     mode: syncState.mode,
     timestamp: now,
   };
@@ -540,6 +558,7 @@ const handleScroll = throttleAndDebounce(handleScrollCore, THROTTLE_DELAY);
  * Broadcast URL change to other tabs (P1)
  */
 async function broadcastUrlChange(url: string) {
+  const sessionIdentity = getSessionMessageIdentity();
   logger.info('URL changed, broadcasting to other tabs', { tabId: syncState.tabId });
 
   // Clear manual scroll offset when navigating to a new page (source tab)
@@ -553,14 +572,12 @@ async function broadcastUrlChange(url: string) {
     });
   }
 
-  sendMessage(
-    'url:sync',
-    {
-      url,
-      sourceTabId: syncState.tabId,
-    },
-    'background',
-  ).catch((error) => {
+  const message: UrlSyncMessage & SessionMessageIdentity = {
+    ...sessionIdentity,
+    url,
+  };
+
+  sendMessage('url:sync', message, 'background').catch((error) => {
     logger.error('Failed to send URL sync message', { error });
   });
 }
@@ -877,7 +894,23 @@ export function initScrollSync() {
 
   // Listen for start sync message
   onMessage('scroll:start', async ({ data }) => {
-    const payload = data;
+    const payload: StartSyncMessage & { sessionEpoch?: number } = data;
+    const isAutoSync = payload.isAutoSync === true;
+    let committedSessionEpoch = 0;
+
+    if (!isAutoSync) {
+      if (
+        typeof payload.sessionEpoch !== 'number' ||
+        !Number.isSafeInteger(payload.sessionEpoch) ||
+        payload.sessionEpoch < 0
+      ) {
+        return {
+          success: false,
+          tabId: payload.currentTabId ?? 0,
+        };
+      }
+      committedSessionEpoch = payload.sessionEpoch;
+    }
 
     // Hide pre-sync suggestion toasts without clearing contextual onboarding shown after navigation.
     hideTransientSuggestionToasts();
@@ -921,9 +954,10 @@ export function initScrollSync() {
     cancelPendingProgrammaticScroll();
 
     syncState.isActive = true;
-    syncState.isAutoSync = payload.isAutoSync ?? false;
+    syncState.isAutoSync = isAutoSync;
     syncState.mode = payload.mode;
     syncState.tabId = payload.currentTabId ?? 0;
+    syncState.sessionEpoch = committedSessionEpoch;
     syncState.isManualScrollEnabled = false;
     syncState.lastProgrammaticScrollTime = 0;
     connectionState.isHealthy = true;
@@ -952,22 +986,26 @@ export function initScrollSync() {
     // Start URL monitoring (P1)
     startUrlMonitoring();
 
-    initKeyboardHandler(syncState.tabId, () => {
-      // This callback exposes manual baselines, so discard pending receiver targets first.
-      cancelPendingProgrammaticScroll();
+    initKeyboardHandler(
+      syncState.tabId,
+      () => {
+        // This callback exposes manual baselines, so discard pending receiver targets first.
+        cancelPendingProgrammaticScroll();
 
-      return {
-        currentScrollTop: window.scrollY,
-        lastSyncedRatio: syncState.lastSyncedRatio,
-        setManualModeActive: (active: boolean) => {
-          syncState.isManualScrollEnabled = active;
-          logger.debug('Manual mode flag set synchronously via callback', { active });
-        },
-        updateOffsetCache: (offset: ManualScrollOffset) => {
-          cachedManualOffset = offset;
-        },
-      };
-    });
+        return {
+          currentScrollTop: window.scrollY,
+          lastSyncedRatio: syncState.lastSyncedRatio,
+          setManualModeActive: (active: boolean) => {
+            syncState.isManualScrollEnabled = active;
+            logger.debug('Manual mode flag set synchronously via callback', { active });
+          },
+          updateOffsetCache: (offset: ManualScrollOffset) => {
+            cachedManualOffset = offset;
+          },
+        };
+      },
+      getSessionMessageIdentity,
+    );
     logger.debug('Keyboard handler initialized');
 
     // Show draggable control panel
@@ -1011,6 +1049,7 @@ export function initScrollSync() {
 
     syncState.isActive = false;
     syncState.isAutoSync = false;
+    syncState.sessionEpoch = 0;
 
     // Stop connection health check
     stopConnectionHealthCheck();
@@ -1360,4 +1399,8 @@ export function getAutoSyncStatus(): { isActive: boolean; isAutoSync: boolean } 
     isActive: syncState.isActive,
     isAutoSync: syncState.isAutoSync,
   };
+}
+
+export function getScrollSyncState(): Readonly<SyncState> {
+  return syncState;
 }
