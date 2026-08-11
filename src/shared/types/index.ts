@@ -13,6 +13,33 @@ export type {
 } from './contextual-hints';
 export * from './url-sync';
 export type {
+  DismissQuickSyncRecentOutcomeMessage,
+  DismissQuickSyncRecentOutcomeResponse,
+  QuickSyncCommandResult,
+  QuickSyncFailureReason,
+  QuickSyncFeedbackMessage,
+  QuickSyncFeedbackResponse,
+  QuickSyncShortcutAssignment,
+  RecentQuickSyncOutcome,
+} from './quick-sync';
+export type {
+  ActiveManualSyncSnapshot,
+  AutoSyncMessageIdentity,
+  AvailableManualSyncTab,
+  ManualAddResult,
+  ManualMessageIdentity,
+  ManualReconnectResult,
+  ManualStartResult,
+  ManualStopResult,
+  ManualTransitionRejection,
+  ReconnectManualSessionMessage,
+  SessionMessageIdentity,
+  SyncStatusRequestMessage,
+  SyncStatusResponseMessage,
+  SyncStatusViewerContext,
+  UnavailableManualSyncTab,
+} from './sync-session';
+export type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
   AutoSyncDetailedStatusResponse,
