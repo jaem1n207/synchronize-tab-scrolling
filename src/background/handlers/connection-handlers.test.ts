@@ -32,6 +32,10 @@ const { messageHandlers, onMessageMock } = vi.hoisted(() => ({
   onMessageMock: vi.fn(),
 }));
 
+const { waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+  waitForBackgroundInitializationMock: vi.fn(),
+}));
+
 vi.mock('webext-bridge/background', () => ({
   onMessage: onMessageMock,
 }));
@@ -60,6 +64,10 @@ vi.mock('../lib/auto-sync-groups', () => ({
   isTabInActiveAutoSyncGroup: vi.fn(),
 }));
 
+vi.mock('../lib/background-initialization', () => ({
+  waitForBackgroundInitialization: waitForBackgroundInitializationMock,
+}));
+
 vi.mock('../lib/content-script-manager', () => ({
   reinjectContentScript: vi.fn(),
 }));
@@ -86,6 +94,11 @@ function getHandler(messageId: string): MessageHandler {
   return handler as MessageHandler;
 }
 
+const readyBackground = {
+  manual: { status: 'ready' as const },
+  auto: { status: 'ready' as const },
+};
+
 describe('registerConnectionHandlers', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -107,8 +120,70 @@ describe('registerConnectionHandlers', () => {
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
+    waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
     registerConnectionHandlers();
+  });
+
+  describe('background readiness', () => {
+    it.each(['sync:get-status', 'scroll:reconnect', 'scroll:request-reinject'])(
+      '%s waits for initialization',
+      async (messageId) => {
+        const handler = getHandler(messageId);
+
+        await handler({ data: { tabId: 14 }, sender: { tabId: 14 } });
+
+        expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('captures reconnect tab identity before awaiting readiness', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      syncState.isActive = true;
+      syncState.linkedTabs = [5, 6];
+      syncState.connectionStatuses = { 5: 'error', 6: 'connected' };
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 5,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      } as browser.Tabs.Tab);
+      vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 5 });
+      const request: HandlerRequest = {
+        data: { tabId: 5 },
+        sender: { tabId: 5 },
+      };
+      const handler = getHandler('scroll:reconnect');
+
+      const result = handler(request);
+      request.data.tabId = 99;
+      release.resolve(readyBackground);
+      await result;
+
+      expect(browser.tabs.get).toHaveBeenCalledWith(5);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        expect.objectContaining({ currentTabId: 5 }),
+        { context: 'content-script', tabId: 5 },
+        3_000,
+      );
+    });
+
+    it('keeps the state-independent ping path unblocked', async () => {
+      waitForBackgroundInitializationMock.mockReturnValue(new Promise(() => undefined));
+      vi.spyOn(Date, 'now').mockReturnValue(1234);
+      const handler = getHandler('scroll:ping');
+
+      await expect(handler({ data: { tabId: 17 }, sender: {} })).resolves.toEqual({
+        success: true,
+        timestamp: 1234,
+        tabId: 17,
+      });
+      expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('sync:get-status', () => {

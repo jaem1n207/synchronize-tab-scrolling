@@ -8,6 +8,7 @@ import {
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
 } from '../lib/auto-sync-groups';
+import { waitForBackgroundInitialization } from '../lib/background-initialization';
 import { reinjectContentScript } from '../lib/content-script-manager';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
@@ -16,6 +17,18 @@ const logger = new ExtensionLogger({ scope: 'background/connection-handlers' });
 
 export function registerConnectionHandlers(): void {
   onMessage('sync:get-status', async ({ sender }) => {
+    const senderTabId = sender.tabId;
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return {
+        success: false,
+        reason: 'session-state-unavailable',
+        isActive: false,
+        linkedTabs: [],
+        connectionStatuses: {},
+      };
+    }
+
     if (!syncState.isActive) {
       return {
         success: false,
@@ -50,7 +63,7 @@ export function registerConnectionHandlers(): void {
       linkedTabs: linkedTabsInfo,
       connectedTabs: syncState.linkedTabs,
       connectionStatuses: syncState.connectionStatuses,
-      currentTabId: sender.tabId,
+      currentTabId: senderTabId,
     };
   });
 
@@ -62,7 +75,12 @@ export function registerConnectionHandlers(): void {
   });
 
   onMessage('scroll:reconnect', async ({ data }) => {
-    const payload = data;
+    const payload = { tabId: data.tabId };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return { success: false, reason: 'session-state-unavailable' };
+    }
+
     logger.info('Received reconnection request from content script', { tabId: payload.tabId });
 
     const isInManualSync = syncState.isActive && syncState.linkedTabs.includes(payload.tabId);
@@ -141,7 +159,12 @@ export function registerConnectionHandlers(): void {
   });
 
   onMessage('scroll:request-reinject', async ({ data }) => {
-    const payload = data;
+    const payload = { tabId: data.tabId };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return { success: false, reason: 'session-state-unavailable' };
+    }
+
     logger.info('Received content script re-inject request', { tabId: payload.tabId });
 
     const isInManualSync = syncState.isActive && syncState.linkedTabs.includes(payload.tabId);
