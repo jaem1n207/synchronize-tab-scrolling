@@ -27,6 +27,7 @@ import type {
   StopSyncResponse,
   SyncBaselineUpdateMessage,
   SyncStatusBroadcastMessage,
+  SyncSuggestionDecisionResponse,
   SyncSuggestionMessage,
   SyncSuggestionResponseMessage,
   TranslatedPageMetadataRequestMessage,
@@ -72,13 +73,19 @@ declare module 'webext-bridge' {
     'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
     'auto-sync:get-status': ProtocolWithReturn<Record<string, never>, unknown>;
     'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, unknown>;
-    'sync-suggestion:response': ProtocolWithReturn<SyncSuggestionResponseMessage, unknown>;
+    'sync-suggestion:response': ProtocolWithReturn<
+      SyncSuggestionResponseMessage,
+      SyncSuggestionDecisionResponse
+    >;
     'translated-page:get-metadata': ProtocolWithReturn<
       TranslatedPageMetadataRequestMessage,
       TranslatedPageMetadataResponseMessage
     >;
     'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, unknown>;
-    'sync-suggestion:add-tab-response': ProtocolWithReturn<AddTabToSyncResponseMessage, unknown>;
+    'sync-suggestion:add-tab-response': ProtocolWithReturn<
+      AddTabToSyncResponseMessage,
+      SyncSuggestionDecisionResponse
+    >;
     'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
     'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
     'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
