@@ -214,16 +214,16 @@ export function useSyncControl({
         const response: StartSyncBackgroundResponse = startResponse;
 
         if (!response.success) {
-          if (await showFileAccessGuidance(response.connectionResults || {})) {
-            return;
-          }
-
           if (response.warning === 'auto-sync-degraded') {
             setError({
               message: t('autoSyncRecoveryDegraded'),
               severity: 'warning',
               timestamp: Date.now(),
             });
+            return;
+          }
+
+          if (await showFileAccessGuidance(response.connectionResults || {})) {
             return;
           }
 

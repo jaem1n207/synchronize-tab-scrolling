@@ -301,6 +301,41 @@ describe('useSyncControl local file failures', () => {
     unmount();
   });
 
+  it('keeps a degraded rollback warning visible when rejected local-file tabs also need access', async () => {
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        return { success: true, isActive: false };
+      }
+
+      return {
+        success: false,
+        connectedTabs: [],
+        connectionResults: {
+          1: { success: false, error: 'Could not establish connection' },
+          2: { success: false, error: 'Could not establish connection' },
+        },
+        error: 'Failed to start synchronization',
+        warning: 'auto-sync-degraded',
+      };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one.md', url: 'file:///Users/me/one.md', eligible: true },
+      { id: 2, title: 'two.md', url: 'file:///Users/me/two.md', eligible: true },
+    ]);
+
+    await act(async () => {
+      result.current.handleStart();
+    });
+
+    await waitFor(() => expect(result.current.error?.message).toBe('autoSyncRecoveryDegraded'));
+    expect(result.current.error?.severity).toBe('warning');
+    expect(result.current.syncStatus.isActive).toBe(false);
+    expect(getFileSchemeAccessInfo).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
   it('keeps committed Start state but surfaces auto-sync recovery warning', async () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
