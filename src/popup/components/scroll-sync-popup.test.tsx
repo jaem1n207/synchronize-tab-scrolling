@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -216,6 +216,32 @@ function createActiveSession(): UseManualSyncSessionResult {
   });
 }
 
+function dispatchPopupShortcut(
+  init: KeyboardEventInit,
+  overrides: { isComposing?: boolean; keyCode?: number } = {},
+) {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+  if (overrides.isComposing !== undefined) {
+    Object.defineProperty(event, 'isComposing', { value: overrides.isComposing });
+  }
+  if (overrides.keyCode !== undefined) {
+    Object.defineProperty(event, 'keyCode', { value: overrides.keyCode });
+  }
+
+  const onWindowKeyDown = vi.fn();
+  window.addEventListener('keydown', onWindowKeyDown);
+  act(() => {
+    document.dispatchEvent(event);
+  });
+  window.removeEventListener('keydown', onWindowKeyDown);
+
+  return { event, onWindowKeyDown };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   popupUiState.actionsMenuOpen = false;
@@ -391,9 +417,11 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     expect(reconnectButton).toBeDisabled();
 
     await user.click(reconnectButton);
-    await user.keyboard('{Control>}s{/Control}');
+    const pendingShortcut = dispatchPopupShortcut({ key: 's', ctrlKey: true });
     expect(reconnectMock).not.toHaveBeenCalled();
     expect(stopMock).toHaveBeenCalledOnce();
+    expect(pendingShortcut.event.defaultPrevented).toBe(false);
+    expect(pendingShortcut.onWindowKeyDown).toHaveBeenCalledOnce();
 
     useManualSyncSessionMock.mockReturnValue(activeSession);
     rerender(<ScrollSyncPopup />);
@@ -427,8 +455,10 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     expect(reconnectButton).toBeDisabled();
 
     await user.click(stopButton);
-    await user.keyboard('{Control>}s{/Control}');
+    const pendingShortcut = dispatchPopupShortcut({ key: 's', ctrlKey: true });
     expect(stopMock).not.toHaveBeenCalled();
+    expect(pendingShortcut.event.defaultPrevented).toBe(false);
+    expect(pendingShortcut.onWindowKeyDown).toHaveBeenCalledOnce();
 
     popupUiState.actionsMenuOpen = true;
     rerender(<ScrollSyncPopup />);
@@ -457,35 +487,51 @@ describe('ScrollSyncPopup authoritative session composition', () => {
   it('keeps popup-local Meta/Ctrl+S Start and authoritative Stop behavior', () => {
     const view = render(<ScrollSyncPopup />);
 
-    fireEvent.keyDown(document, { key: 's', metaKey: true });
+    const startShortcut = dispatchPopupShortcut({ key: 's', metaKey: true });
     expect(handleStartMock).toHaveBeenCalledOnce();
     expect(stopMock).not.toHaveBeenCalled();
+    expect(startShortcut.event.defaultPrevented).toBe(true);
+    expect(startShortcut.onWindowKeyDown).not.toHaveBeenCalled();
 
     useManualSyncSessionMock.mockReturnValue(createActiveSession());
     view.rerender(<ScrollSyncPopup />);
-    fireEvent.keyDown(document, { key: 's', ctrlKey: true });
+    const stopShortcut = dispatchPopupShortcut({ key: 's', ctrlKey: true });
 
     expect(stopMock).toHaveBeenCalledOnce();
+    expect(stopShortcut.event.defaultPrevented).toBe(true);
+    expect(stopShortcut.onWindowKeyDown).not.toHaveBeenCalled();
   });
 
   it('does not implement the browser-wide command as a popup DOM key handler', async () => {
     render(<ScrollSyncPopup />);
     await act(async () => Promise.resolve());
 
-    fireEvent.keyDown(document, { key: '.', metaKey: true, shiftKey: true });
-    fireEvent.keyDown(document, { key: '.', ctrlKey: true, shiftKey: true });
+    const metaShortcut = dispatchPopupShortcut({ key: '.', metaKey: true, shiftKey: true });
+    const controlShortcut = dispatchPopupShortcut({ key: '.', ctrlKey: true, shiftKey: true });
 
     expect(handleStartMock).not.toHaveBeenCalled();
     expect(stopMock).not.toHaveBeenCalled();
+    expect(metaShortcut.event.defaultPrevented).toBe(false);
+    expect(metaShortcut.onWindowKeyDown).toHaveBeenCalledOnce();
+    expect(controlShortcut.event.defaultPrevented).toBe(false);
+    expect(controlShortcut.onWindowKeyDown).toHaveBeenCalledOnce();
   });
 
-  it('ignores popup-local shortcuts while IME composition is active', async () => {
+  it('passes IME composition shortcuts through without mutating popup state', async () => {
     render(<ScrollSyncPopup />);
     await act(async () => Promise.resolve());
 
-    fireEvent.keyDown(document, { key: 's', ctrlKey: true, isComposing: true });
-    fireEvent.keyDown(document, { key: 's', ctrlKey: true, keyCode: 229 });
+    const composingShortcut = dispatchPopupShortcut(
+      { key: 's', ctrlKey: true },
+      { isComposing: true },
+    );
+    const processShortcut = dispatchPopupShortcut({ key: 's', ctrlKey: true }, { keyCode: 229 });
 
     expect(handleStartMock).not.toHaveBeenCalled();
+    expect(stopMock).not.toHaveBeenCalled();
+    expect(composingShortcut.event.defaultPrevented).toBe(false);
+    expect(composingShortcut.onWindowKeyDown).toHaveBeenCalledOnce();
+    expect(processShortcut.event.defaultPrevented).toBe(false);
+    expect(processShortcut.onWindowKeyDown).toHaveBeenCalledOnce();
   });
 });

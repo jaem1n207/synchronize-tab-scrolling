@@ -251,11 +251,16 @@ export function ScrollSyncPopup() {
           }
 
           if (isActive) {
+            event.preventDefault();
+            event.stopPropagation();
             void session.stop();
           } else if (isInactive && selectedTabIds.length >= 2) {
+            event.preventDefault();
+            event.stopPropagation();
             handleStart();
           }
         },
+        preventDefault: false,
         enabled: !session.isMutating,
       },
       {
