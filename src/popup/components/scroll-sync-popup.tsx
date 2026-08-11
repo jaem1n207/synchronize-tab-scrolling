@@ -1,12 +1,14 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { UrlSyncSettings } from '~/shared/components/url-sync-settings';
 import { useKeyboardShortcuts } from '~/shared/hooks/use-keyboard-shortcuts';
+import { t } from '~/shared/i18n';
 import { saveSelectedTabIds } from '~/shared/lib/storage';
 
 import {
   useAutoSync,
   useDomainExclusions,
+  useManualSyncSession,
   usePopupState,
   useSyncControl,
   useTabDiscovery,
@@ -36,6 +38,10 @@ export function ScrollSyncPopup() {
     handleContainerClick,
   } = usePopupState();
 
+  const session = useManualSyncSession();
+  const isInactive = session.state.status === 'inactive';
+  const isActive = session.state.status === 'active';
+
   const { autoSyncEnabled, autoSyncTabCount, handleAutoSyncChange } = useAutoSync();
   const {
     urlSyncEnabled,
@@ -57,59 +63,69 @@ export function ScrollSyncPopup() {
   } = useTabDiscovery({ selectedTabIds, sortBy, sameDomainFilter });
 
   const {
-    syncStatus,
     error: syncError,
-    hasConnectionError,
     handleStart,
-    handleStop,
-    handleResync,
     handleDismissError,
   } = useSyncControl({
     selectedTabIds,
     tabs,
     searchInputRef,
     onSelectedTabIdsChange: setSelectedTabIds,
+    onSessionChange: session.refetch,
   });
 
   const error = tabDiscoveryError ?? syncError;
   const dismissError = tabDiscoveryError ? dismissTabDiscoveryError : handleDismissError;
+  const activeSnapshot = session.state.status === 'active' ? session.state.snapshot : undefined;
+  const activeTabCount = activeSnapshot?.linkedTabIds.length ?? 0;
+  const hasConnectionError =
+    activeSnapshot?.tabs.some(
+      (tab) => tab.connectionStatus === 'disconnected' || tab.connectionStatus === 'error',
+    ) ?? false;
 
   useEffect(() => {
-    if (!excludedDomainsOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 100);
+    if (!isInactive || excludedDomainsOpen) {
+      return;
     }
-  }, [excludedDomainsOpen, searchInputRef]);
+
+    const focusTimer = setTimeout(() => searchInputRef.current?.focus(), 100);
+    return () => clearTimeout(focusTimer);
+  }, [excludedDomainsOpen, isInactive, searchInputRef]);
 
   const handleOpenExcludedDomains = useCallback(() => {
     setExcludedDomainsOpen(true);
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    if (!syncStatus.isActive) {
-      const eligibleTabIds = filteredAndSortedTabs
-        .filter((tab) => tab.eligible)
-        .map((tab) => tab.id);
-      setSelectedTabIds(eligibleTabIds);
-      saveSelectedTabIds(eligibleTabIds);
+    if (!isInactive) {
+      return;
     }
-  }, [syncStatus.isActive, filteredAndSortedTabs, setSelectedTabIds]);
+
+    const eligibleTabIds = filteredAndSortedTabs.filter((tab) => tab.eligible).map((tab) => tab.id);
+    setSelectedTabIds(eligibleTabIds);
+    saveSelectedTabIds(eligibleTabIds);
+  }, [filteredAndSortedTabs, isInactive, setSelectedTabIds]);
 
   const handleClearAll = useCallback(() => {
-    if (!syncStatus.isActive) {
-      setSelectedTabIds([]);
-      saveSelectedTabIds([]);
+    if (!isInactive) {
+      return;
     }
-  }, [syncStatus.isActive, setSelectedTabIds]);
+
+    setSelectedTabIds([]);
+    saveSelectedTabIds([]);
+  }, [isInactive, setSelectedTabIds]);
 
   const handleToggleAllTabs = useCallback(() => {
-    if (!syncStatus.isActive) {
-      if (selectedTabIds.length > 0) {
-        handleClearAll();
-      } else {
-        handleSelectAll();
-      }
+    if (!isInactive) {
+      return;
     }
-  }, [syncStatus.isActive, selectedTabIds.length, handleSelectAll, handleClearAll]);
+
+    if (selectedTabIds.length > 0) {
+      handleClearAll();
+    } else {
+      handleSelectAll();
+    }
+  }, [handleClearAll, handleSelectAll, isInactive, selectedTabIds.length]);
 
   useKeyboardShortcuts(
     [
@@ -117,9 +133,9 @@ export function ScrollSyncPopup() {
         key: 's',
         mod: true,
         handler: () => {
-          if (syncStatus.isActive) {
-            handleStop();
-          } else if (selectedTabIds.length >= 2) {
+          if (isActive) {
+            void session.stop();
+          } else if (isInactive && selectedTabIds.length >= 2) {
             handleStart();
           }
         },
@@ -129,14 +145,15 @@ export function ScrollSyncPopup() {
         mod: true,
         shift: true,
         handler: handleToggleAllTabs,
-        enabled: !syncStatus.isActive,
+        enabled: isInactive,
       },
       {
         key: 'd',
         mod: true,
         handler: () => {
-          setSameDomainFilter((prev) => !prev);
+          setSameDomainFilter((previous) => !previous);
         },
+        enabled: isInactive,
       },
       {
         key: '1',
@@ -144,6 +161,7 @@ export function ScrollSyncPopup() {
         handler: () => {
           setSortBy('similarity');
         },
+        enabled: isInactive,
       },
       {
         key: '2',
@@ -151,9 +169,19 @@ export function ScrollSyncPopup() {
         handler: () => {
           setSortBy('recent');
         },
+        enabled: isInactive,
       },
     ],
-    [syncStatus.isActive, selectedTabIds, handleStart, handleStop, handleToggleAllTabs, setSortBy],
+    [
+      handleStart,
+      handleToggleAllTabs,
+      isActive,
+      isInactive,
+      selectedTabIds,
+      session,
+      setSameDomainFilter,
+      setSortBy,
+    ],
   );
 
   return (
@@ -168,69 +196,129 @@ export function ScrollSyncPopup() {
         </div>
       )}
 
-      <div className="flex-1 p-4 gap-3 overflow-hidden flex flex-col min-h-0">
-        <section
-          aria-labelledby="tab-selection-heading"
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <TabCommandPalette
-            ref={searchInputRef}
-            allTabs={tabs}
-            currentTabId={currentTabId}
-            isSyncActive={syncStatus.isActive}
-            sameDomainFilter={sameDomainFilter}
-            selectedTabIds={selectedTabIds}
-            selectionSummary={
-              <SelectedTabsChips
-                isSyncActive={syncStatus.isActive}
-                tabs={selectedTabsInfo}
-                onRemoveTab={handleToggleTab}
-              />
-            }
-            tabs={filteredAndSortedTabs}
-            totalTabCount={tabs.length}
-            onClearFilter={() => setSameDomainFilter(false)}
-            onToggleTab={handleToggleTab}
-          />
-        </section>
-
-        <UrlSyncSettings
-          enabled={urlSyncEnabled}
-          mode={urlSyncMode}
-          notice={urlSyncNotice}
-          variant="inline-collapsible"
-          onEnabledChange={handleUrlSyncChange}
-          onModeChange={handleUrlSyncModeChange}
-        />
-
-        <div className="flex shrink-0 items-center justify-end gap-2">
-          <SyncControlButtons
-            hasConnectionError={hasConnectionError}
-            isActive={syncStatus.isActive}
-            selectedCount={selectedTabIds.length}
-            onResync={handleResync}
-            onStart={handleStart}
-            onStop={handleStop}
-          />
-          <ActionsMenu
-            autoSyncEnabled={autoSyncEnabled}
-            autoSyncTabCount={autoSyncTabCount}
-            excludedDomainsCount={excludedDomains.length}
-            isSyncActive={syncStatus.isActive}
-            open={actionsMenuOpen}
-            sameDomainFilter={sameDomainFilter}
-            selectedCount={selectedTabIds.length}
-            sortBy={sortBy}
-            onAutoSyncChange={handleAutoSyncChange}
-            onOpenChange={setActionsMenuOpen}
-            onOpenExcludedDomains={handleOpenExcludedDomains}
-            onSameDomainFilterChange={setSameDomainFilter}
-            onSortChange={setSortBy}
-            onStartSync={handleStart}
-            onStopSync={handleStop}
-            onToggleAllTabs={handleToggleAllTabs}
-          />
+      {session.warning === 'cleanup-incomplete' && (
+        <div aria-live="polite" className="absolute top-0 left-0 right-0 z-40 p-4" role="alert">
+          {t('syncCleanupIncomplete')}
         </div>
+      )}
+
+      <div className="flex-1 p-4 gap-3 overflow-hidden flex flex-col min-h-0">
+        {session.state.status === 'loading' && (
+          <div
+            aria-atomic="true"
+            aria-live="polite"
+            className="flex min-h-0 flex-1 items-center justify-center"
+            role="status"
+          >
+            {t('loading')}
+          </div>
+        )}
+
+        {session.state.status === 'error' && (
+          <section
+            aria-atomic="true"
+            aria-live="assertive"
+            className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3"
+            role="alert"
+          >
+            <p>{t('manualSyncStateUnavailable')}</p>
+            <button
+              className="focus-visible:ring-ring rounded-md px-3 py-2 focus-visible:ring-2 focus-visible:outline-none"
+              type="button"
+              onClick={() => {
+                void session.refetch();
+              }}
+            >
+              {t('retryStatusCheck')}
+            </button>
+          </section>
+        )}
+
+        {isInactive && (
+          <section
+            aria-labelledby="tab-selection-heading"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <TabCommandPalette
+              ref={searchInputRef}
+              allTabs={tabs}
+              currentTabId={currentTabId}
+              isSyncActive={false}
+              sameDomainFilter={sameDomainFilter}
+              selectedTabIds={selectedTabIds}
+              selectionSummary={
+                <SelectedTabsChips
+                  isSyncActive={false}
+                  tabs={selectedTabsInfo}
+                  onRemoveTab={handleToggleTab}
+                />
+              }
+              tabs={filteredAndSortedTabs}
+              totalTabCount={tabs.length}
+              onClearFilter={() => setSameDomainFilter(false)}
+              onToggleTab={handleToggleTab}
+            />
+          </section>
+        )}
+
+        {isActive && (
+          <section
+            aria-labelledby="active-sync-heading"
+            className="flex min-h-0 flex-1 items-center justify-center"
+          >
+            <div aria-live="polite" role="status">
+              <h2 id="active-sync-heading">{t('syncActive')}</h2>
+            </div>
+          </section>
+        )}
+
+        {(isInactive || isActive) && (
+          <>
+            <UrlSyncSettings
+              enabled={urlSyncEnabled}
+              mode={urlSyncMode}
+              notice={urlSyncNotice}
+              variant="inline-collapsible"
+              onEnabledChange={handleUrlSyncChange}
+              onModeChange={handleUrlSyncModeChange}
+            />
+
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              <SyncControlButtons
+                hasConnectionError={hasConnectionError}
+                isActive={isActive}
+                selectedCount={isActive ? activeTabCount : selectedTabIds.length}
+                onResync={() => {
+                  void session.reconnect();
+                }}
+                onStart={handleStart}
+                onStop={() => {
+                  void session.stop();
+                }}
+              />
+              <ActionsMenu
+                autoSyncEnabled={autoSyncEnabled}
+                autoSyncTabCount={autoSyncTabCount}
+                excludedDomainsCount={excludedDomains.length}
+                isSyncActive={isActive}
+                open={actionsMenuOpen}
+                sameDomainFilter={sameDomainFilter}
+                selectedCount={isActive ? activeTabCount : selectedTabIds.length}
+                sortBy={sortBy}
+                onAutoSyncChange={handleAutoSyncChange}
+                onOpenChange={setActionsMenuOpen}
+                onOpenExcludedDomains={handleOpenExcludedDomains}
+                onSameDomainFilterChange={setSameDomainFilter}
+                onSortChange={setSortBy}
+                onStartSync={handleStart}
+                onStopSync={() => {
+                  void session.stop();
+                }}
+                onToggleAllTabs={handleToggleAllTabs}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <FooterInfo />
