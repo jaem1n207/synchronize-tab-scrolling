@@ -9,7 +9,7 @@ import {
   type TranslatedPageMetadata,
   type TranslatedPageSignature,
 } from '~/shared/lib/translated-page-url-utils';
-import type { StartSyncContentMessage, UrlSyncMessage } from '~/shared/types/messages';
+import type { StartSyncContentResponse, UrlSyncMessage } from '~/shared/types/messages';
 import type { ManualMessageIdentity } from '~/shared/types/sync-session';
 
 import {
@@ -26,6 +26,7 @@ import {
   dismissedUrlGroups,
   pendingSuggestions,
   addTabSuggestedTabs,
+  withAutoSyncLock,
 } from '../lib/auto-sync-state';
 import {
   showSyncSuggestion,
@@ -35,11 +36,28 @@ import {
   isDomainPermanentlyExcluded,
 } from '../lib/auto-sync-suggestions';
 import { waitForBackgroundInitialization } from '../lib/background-initialization';
-import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
+import { isContentScriptAlive, reinjectManualReconnect } from '../lib/content-script-manager';
 import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
+import { createManualCleanupRetryScheduler } from '../lib/sync-cleanup-retry';
+import {
+  createManualSessionLifecycleController,
+  executeManualReconnect,
+} from '../lib/sync-session-orchestrator';
+import {
+  syncState,
+  getSyncStateSnapshot,
+  persistSyncState,
+  commitSyncState,
+  broadcastSyncStatus,
+} from '../lib/sync-state';
+import { syncTransitionGate } from '../lib/sync-transition-gate';
+
+import type {
+  ManualSessionLifecycleController,
+  ReconnectAttemptToken,
+} from '../lib/sync-session-orchestrator';
 
 const logger = new ExtensionLogger({ scope: 'background/tab-event-handlers' });
 const ACTIVE_SYNC_METADATA_TIMEOUT_MS = 500;
@@ -47,6 +65,125 @@ const MAX_ACTIVE_SYNC_METADATA_PROBES = 10;
 
 interface ActiveSyncMetadataMatch {
   normalizedUrl: string;
+}
+
+function createTabLifecycleController(): ManualSessionLifecycleController {
+  const cleanupScheduler = createManualCleanupRetryScheduler({
+    transitionGate: syncTransitionGate,
+    getState: getSyncStateSnapshot,
+    sendStop: (tabId) =>
+      sendMessageWithTimeout<{ success: boolean; tabId?: number; reason?: string }>(
+        'scroll:stop',
+        { tabIds: [tabId], isAutoSync: false },
+        { context: 'content-script', tabId },
+        1_000,
+      ),
+    setTimer: (callback, delay) => setTimeout(callback, delay),
+    clearTimer: (timer) => clearTimeout(timer),
+  });
+
+  return createManualSessionLifecycleController({
+    getState: getSyncStateSnapshot,
+    persistState: persistSyncState,
+    commitState: commitSyncState,
+    sendStop: (tabId, message) =>
+      sendMessageWithTimeout<{ success: boolean; tabId?: number; reason?: string }>(
+        'scroll:stop',
+        {
+          ...(message.tabIds === undefined ? {} : { tabIds: [...message.tabIds] }),
+          ...(message.isAutoSync === undefined ? {} : { isAutoSync: message.isAutoSync }),
+        },
+        { context: 'content-script', tabId },
+        1_000,
+      ),
+    stopKeepAlive,
+    clearManualOverrides: (tabIds) =>
+      withAutoSyncLock(async () => {
+        for (const tabId of tabIds) {
+          manualSyncOverriddenTabs.delete(tabId);
+        }
+      }),
+    cleanupScheduler,
+    broadcastStatus: broadcastSyncStatus,
+  });
+}
+
+function sendFrozenManualStart(token: ReconnectAttemptToken): Promise<StartSyncContentResponse> {
+  return sendMessageWithTimeout<StartSyncContentResponse>(
+    'scroll:start',
+    {
+      tabIds: [...token.startMessage.tabIds],
+      mode: token.startMessage.mode,
+      currentTabId: token.tabId,
+      isAutoSync: false,
+      sessionEpoch: token.sessionEpoch,
+    },
+    { context: 'content-script', tabId: token.tabId },
+    3_000,
+  );
+}
+
+function reconnectUpdatedManualTab(
+  controller: ManualSessionLifecycleController,
+  tabId: number,
+): Promise<Awaited<ReturnType<typeof executeManualReconnect>>> {
+  return executeManualReconnect({
+    controller,
+    transitionGate: syncTransitionGate,
+    tabId,
+    isTabAvailable: async () => {
+      try {
+        await browser.tabs.get(tabId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    sendHandshake: sendFrozenManualStart,
+  });
+}
+
+function reconnectActivatedManualTab(
+  controller: ManualSessionLifecycleController,
+  tabId: number,
+): Promise<Awaited<ReturnType<typeof executeManualReconnect>>> {
+  return executeManualReconnect({
+    controller,
+    transitionGate: syncTransitionGate,
+    tabId,
+    isTabAvailable: async () => {
+      try {
+        await browser.tabs.get(tabId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    sendHandshake: async (token) => {
+      if (await isContentScriptAlive(tabId)) {
+        return { success: true, tabId };
+      }
+
+      try {
+        const response = await sendFrozenManualStart(token);
+        if (response.success && response.tabId === tabId) {
+          return response;
+        }
+      } catch {
+        // Re-injection is the bounded fallback for a missing content script.
+      }
+
+      return reinjectManualReconnect(token, () => {
+        const state = getSyncStateSnapshot();
+        return (
+          state.isActive &&
+          state.revision === token.revision &&
+          state.sessionEpoch === token.sessionEpoch &&
+          state.linkedTabs.includes(tabId)
+        );
+      });
+    },
+  });
 }
 
 interface ManualSessionEventSnapshot {
@@ -201,13 +338,14 @@ async function findActiveSyncMetadataMatch(
 }
 
 export function registerTabEventHandlers(): void {
+  const manualLifecycleController = createTabLifecycleController();
+
   browser.tabs.onRemoved.addListener(async (tabId) => {
     const removedTabId = tabId;
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
       return;
     }
-    manualSyncOverriddenTabs.delete(removedTabId);
     clearPendingUrlSyncContextualHint(removedTabId);
 
     if (readiness.auto.status === 'ready' && autoSyncState.enabled) {
@@ -230,58 +368,32 @@ export function registerTabEventHandlers(): void {
     }
 
     if (!syncState.isActive || !syncState.linkedTabs.includes(removedTabId)) {
+      manualSyncOverriddenTabs.delete(removedTabId);
       return;
     }
 
     logger.info(`Synced tab ${removedTabId} was closed, updating sync state`);
-
-    syncState.linkedTabs = syncState.linkedTabs.filter((id) => id !== removedTabId);
-    delete syncState.connectionStatuses[removedTabId];
-
-    if (syncState.linkedTabs.length < 2) {
-      logger.info('Less than 2 tabs remaining, stopping sync');
-
-      const remainingTabs = [...syncState.linkedTabs];
-
-      // ✅ FIX: Remove remaining tabs from manualSyncOverriddenTabs
-      for (const remainingTabId of remainingTabs) {
-        manualSyncOverriddenTabs.delete(remainingTabId);
-      }
-
-      const promises = remainingTabs.map((remainingTabId) =>
-        sendMessage('scroll:stop', {}, { context: 'content-script', tabId: remainingTabId }).catch(
-          (error) => {
-            logger.error(`Failed to send stop message to tab ${remainingTabId}`, { error });
-          },
-        ),
-      );
-      await Promise.all(promises);
-
-      stopKeepAlive();
-
-      syncState.isActive = false;
-      syncState.linkedTabs = [];
-      syncState.connectionStatuses = {};
-      syncState.mode = undefined;
-      await persistCommittedSyncStateLegacy();
-
-      // ✅ FIX: Re-add remaining tabs to auto-sync groups if auto-sync is enabled
-      if (readiness.auto.status === 'ready' && autoSyncState.enabled) {
-        for (const remainingTabId of remainingTabs) {
-          try {
-            const tab = await browser.tabs.get(remainingTabId);
-            if (tab.url) {
-              await updateAutoSyncGroup(remainingTabId, tab.url);
-            }
-          } catch {
-            // Tab may have been closed
+    const survivingTabIds = syncState.linkedTabs.filter(
+      (linkedTabId) => linkedTabId !== removedTabId,
+    );
+    const result = await syncTransitionGate.run((context) =>
+      manualLifecycleController.removeTabFromManualSession(context, removedTabId),
+    );
+    if (
+      result.status === 'committed' &&
+      readiness.auto.status === 'ready' &&
+      autoSyncState.enabled
+    ) {
+      for (const survivingTabId of survivingTabIds) {
+        try {
+          const tab = await browser.tabs.get(survivingTabId);
+          if (tab.url) {
+            await updateAutoSyncGroup(survivingTabId, tab.url);
           }
+        } catch {
+          // The tab may have closed while post-commit auto membership was being restored.
         }
       }
-    } else {
-      logger.info(`Continuing sync with ${syncState.linkedTabs.length} tabs`);
-      await persistCommittedSyncStateLegacy();
-      await broadcastSyncStatus();
     }
   });
 
@@ -525,39 +637,7 @@ export function registerTabEventHandlers(): void {
     }
 
     logger.info(`Synced tab ${tabId} was refreshed/updated, reconnecting`, { tabId });
-
-    if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-      return;
-    }
-
-    try {
-      const startMessage = {
-        tabIds: manualSessionEvent.linkedTabIds,
-        mode: manualSessionEvent.mode,
-        currentTabId: manualSessionEvent.sourceTabId,
-        sessionEpoch: manualSessionEvent.sessionEpoch,
-      } satisfies StartSyncContentMessage;
-      await sendMessage('scroll:start', startMessage, { context: 'content-script', tabId });
-
-      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-        return;
-      }
-      syncState.connectionStatuses[tabId] = 'connected';
-      logger.info(`Successfully reconnected tab ${tabId}`);
-
-      await persistCommittedSyncStateLegacy();
-      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-        return;
-      }
-      await broadcastSyncStatus();
-    } catch (error) {
-      logger.error(`Failed to reconnect tab ${tabId}`, { error });
-      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-        return;
-      }
-      syncState.connectionStatuses[tabId] = 'error';
-      await persistCommittedSyncStateLegacy();
-    }
+    await reconnectUpdatedManualTab(manualLifecycleController, tabId);
   });
 
   browser.tabs.onActivated.addListener(async (activeInfo) => {
@@ -566,100 +646,9 @@ export function registerTabEventHandlers(): void {
     if (readiness.manual.status !== 'ready') {
       return;
     }
-    const manualSessionEvent = captureManualSessionEvent(tabId);
-
-    if (manualSessionEvent) {
+    if (captureManualSessionEvent(tabId)) {
       syncState.lastActiveSyncedTabId = tabId;
-    }
-
-    if (!manualSessionEvent) {
-      return;
-    }
-
-    logger.debug(`Synced tab ${tabId} activated, checking content script health`);
-
-    const isAlive = await isContentScriptAlive(tabId);
-    if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-      return;
-    }
-
-    if (isAlive) {
-      if (syncState.connectionStatuses[tabId] !== 'connected') {
-        syncState.connectionStatuses[tabId] = 'connected';
-        await persistCommittedSyncStateLegacy();
-        if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-          return;
-        }
-        await broadcastSyncStatus();
-      }
-      logger.debug(`Tab ${tabId} content script is alive`);
-      return;
-    }
-
-    logger.info(`Content script in tab ${tabId} not responding, attempting recovery`);
-
-    try {
-      const startMessage = {
-        tabIds: manualSessionEvent.linkedTabIds,
-        mode: manualSessionEvent.mode,
-        currentTabId: tabId,
-        sessionEpoch: manualSessionEvent.sessionEpoch,
-      } satisfies StartSyncContentMessage;
-      const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
-        'scroll:start',
-        startMessage,
-        { context: 'content-script', tabId },
-        2_000,
-      );
-
-      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-        return;
-      }
-      if (response && response.success && response.tabId === tabId) {
-        syncState.connectionStatuses[tabId] = 'connected';
-        logger.info(`Successfully reconnected activated tab ${tabId}`);
-        await persistCommittedSyncStateLegacy();
-        if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-          return;
-        }
-        await broadcastSyncStatus();
-        return;
-      }
-    } catch (error) {
-      logger.debug(`Reconnection attempt failed for tab ${tabId}, trying re-injection`, { error });
-      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-        return;
-      }
-    }
-
-    const reinjectSuccess = await reinjectContentScript(tabId, {
-      startMessage: {
-        tabIds: manualSessionEvent.linkedTabIds,
-        mode: manualSessionEvent.mode,
-        currentTabId: tabId,
-        sessionEpoch: manualSessionEvent.sessionEpoch,
-      },
-      isSessionCurrent: (): boolean => isCurrentManualSessionEvent(manualSessionEvent),
-    });
-    if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-      return;
-    }
-
-    if (reinjectSuccess) {
-      syncState.connectionStatuses[tabId] = 'connected';
-      await persistCommittedSyncStateLegacy();
-      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-        return;
-      }
-      await broadcastSyncStatus();
-    } else {
-      logger.error(`Failed to recover tab ${tabId} after all attempts`);
-      syncState.connectionStatuses[tabId] = 'error';
-      await persistCommittedSyncStateLegacy();
-      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
-        return;
-      }
-      await broadcastSyncStatus();
+      await reconnectActivatedManualTab(manualLifecycleController, tabId);
     }
   });
 

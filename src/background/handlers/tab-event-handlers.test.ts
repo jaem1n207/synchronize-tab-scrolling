@@ -20,11 +20,21 @@ import {
   pendingSuggestions,
 } from '../lib/auto-sync-state';
 import { showAddTabSuggestion, showSyncSuggestion } from '../lib/auto-sync-suggestions';
-import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
+import {
+  isContentScriptAlive,
+  reinjectContentScript,
+  reinjectManualReconnect,
+} from '../lib/content-script-manager';
 import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from '../lib/sync-state';
+import {
+  broadcastSyncStatus,
+  commitSyncState,
+  getSyncStateSnapshot,
+  persistSyncState,
+  syncState,
+} from '../lib/sync-state';
 
 import { registerTabEventHandlers } from './tab-event-handlers';
 
@@ -123,6 +133,7 @@ vi.mock('../lib/auto-sync-state', () => ({
   dismissedUrlGroups: new Set<string>(),
   pendingSuggestions: new Set<string>(),
   addTabSuggestedTabs: new Set<number>(),
+  withAutoSyncLock: vi.fn(async (operation: () => Promise<unknown>) => operation()),
 }));
 
 vi.mock('../lib/auto-sync-suggestions', () => ({
@@ -140,6 +151,7 @@ vi.mock('../lib/contextual-hint-state', () => ({
 vi.mock('../lib/content-script-manager', () => ({
   isContentScriptAlive: vi.fn(),
   reinjectContentScript: vi.fn(),
+  reinjectManualReconnect: vi.fn(),
 }));
 
 vi.mock('../lib/keep-alive', () => ({
@@ -160,8 +172,27 @@ vi.mock('../lib/sync-state', () => ({
     revision: 0,
     sessionEpoch: 0,
   },
-  persistCommittedSyncStateLegacy: vi.fn(),
+  getSyncStateSnapshot: vi.fn(),
+  persistSyncState: vi.fn(),
+  commitSyncState: vi.fn(),
   broadcastSyncStatus: vi.fn(),
+}));
+
+vi.mock('../lib/sync-transition-gate', () => ({
+  syncTransitionGate: {
+    run: vi.fn(
+      async (
+        transition: (context: {
+          operationGeneration: number;
+          expectedRevision: number;
+        }) => Promise<unknown>,
+      ) =>
+        transition({
+          operationGeneration: 1,
+          expectedRevision: syncState.revision,
+        }),
+    ),
+  },
 }));
 
 function getListener<K extends keyof EventListeners>(key: K): NonNullable<EventListeners[K]> {
@@ -219,11 +250,35 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(refreshAutoSyncGroupMetadata).mockReturnValue(false);
     vi.mocked(getAutoSyncGroupKeyForTab).mockReturnValue(null);
     vi.mocked(sendMessage).mockResolvedValue(undefined);
-    vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 1 });
+    vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
+      success: true,
+      tabId: destination.tabId,
+    }));
     vi.mocked(isContentScriptAlive).mockResolvedValue(true);
     vi.mocked(reinjectContentScript).mockResolvedValue(true);
+    vi.mocked(reinjectManualReconnect).mockImplementation(async (token, isSessionCurrent) => {
+      const success = await vi.mocked(reinjectContentScript)(token.tabId, {
+        startMessage: token.startMessage,
+        isSessionCurrent,
+      });
+      return { success, tabId: token.tabId };
+    });
     vi.mocked(stopKeepAlive).mockImplementation(() => {});
-    vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
+    vi.mocked(getSyncStateSnapshot).mockImplementation(() => ({
+      ...syncState,
+      linkedTabs: [...syncState.linkedTabs],
+      connectionStatuses: { ...syncState.connectionStatuses },
+    }));
+    vi.mocked(persistSyncState).mockResolvedValue({ status: 'persisted' });
+    vi.mocked(commitSyncState).mockImplementation((nextState) => {
+      syncState.isActive = nextState.isActive;
+      syncState.linkedTabs = [...nextState.linkedTabs];
+      syncState.connectionStatuses = { ...nextState.connectionStatuses };
+      syncState.mode = nextState.mode;
+      syncState.lastActiveSyncedTabId = nextState.lastActiveSyncedTabId;
+      syncState.revision = nextState.revision;
+      syncState.sessionEpoch = nextState.sessionEpoch;
+    });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     vi.mocked(showAddTabSuggestion).mockResolvedValue();
     vi.mocked(showSyncSuggestion).mockResolvedValue();
@@ -370,13 +425,14 @@ describe('registerTabEventHandlers', () => {
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(syncState.mode).toBeUndefined();
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:stop',
-        {},
+        { tabIds: [20], isAutoSync: false },
         { context: 'content-script', tabId: 20 },
+        1_000,
       );
       expect(stopKeepAlive).toHaveBeenCalledTimes(1);
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(manualSyncOverriddenTabs.has(20)).toBe(false);
     });
 
@@ -384,15 +440,44 @@ describe('registerTabEventHandlers', () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2, 3];
       syncState.connectionStatuses = { 1: 'connected', 2: 'connected', 3: 'connected' };
+      syncState.revision = 4;
 
       await getListener('tabs.onRemoved')(1);
 
       expect(syncState.linkedTabs).toEqual([2, 3]);
       expect(syncState.connectionStatuses[1]).toBeUndefined();
       expect(syncState.isActive).toBe(true);
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(syncState.revision).toBe(5);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(stopKeepAlive).not.toHaveBeenCalled();
+    });
+
+    it('keeps linked membership active when closed-tab persistence fails', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.revision = 6;
+      syncState.sessionEpoch = 3;
+      vi.mocked(persistSyncState).mockResolvedValue({ status: 'storage-error' });
+
+      await getListener('tabs.onRemoved')(1);
+
+      expect(syncState).toMatchObject({
+        isActive: true,
+        linkedTabs: [1, 2],
+        connectionStatuses: { 1: 'connected', 2: 'connected' },
+        revision: 6,
+        sessionEpoch: 3,
+      });
+      expect(stopKeepAlive).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalledWith(
+        'scroll:stop',
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
     it('does not change sync state for non-synced tab removal', async () => {
@@ -404,7 +489,7 @@ describe('registerTabEventHandlers', () => {
 
       expect(syncState.linkedTabs).toEqual([1, 2]);
       expect(syncState.connectionStatuses).toEqual({ 1: 'connected', 2: 'connected' });
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -577,7 +662,7 @@ describe('registerTabEventHandlers', () => {
 
       expect(syncState.linkedTabs).toEqual([10, 11]);
       expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -628,13 +713,20 @@ describe('registerTabEventHandlers', () => {
         { id: 1, url: 'https://example.com/reload', title: 'Reloaded' },
       );
 
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:start',
-        { tabIds: [1, 2], mode: 'ratio', currentTabId: 1, sessionEpoch: 0 },
+        {
+          tabIds: [1, 2],
+          mode: 'ratio',
+          currentTabId: 1,
+          isAutoSync: false,
+          sessionEpoch: 0,
+        },
         { context: 'content-script', tabId: 1 },
+        3_000,
       );
       expect(syncState.connectionStatuses[1]).toBe('connected');
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -1016,12 +1108,18 @@ describe('registerTabEventHandlers', () => {
 
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:start',
-        { tabIds: [15, 16], mode: 'ratio', currentTabId: 15, sessionEpoch: 0 },
+        {
+          tabIds: [15, 16],
+          mode: 'ratio',
+          currentTabId: 15,
+          isAutoSync: false,
+          sessionEpoch: 0,
+        },
         { context: 'content-script', tabId: 15 },
-        2_000,
+        3_000,
       );
       expect(syncState.connectionStatuses[15]).toBe('connected');
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(reinjectContentScript).not.toHaveBeenCalled();
     });
@@ -1047,13 +1145,14 @@ describe('registerTabEventHandlers', () => {
             tabIds: [25, 26],
             mode: 'element',
             currentTabId: 25,
+            isAutoSync: false,
             sessionEpoch: 4,
           },
           isSessionCurrent: expect.any(Function),
         }),
       );
       expect(syncState.connectionStatuses[25]).toBe('connected');
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -1066,7 +1165,7 @@ describe('registerTabEventHandlers', () => {
       await getListener('tabs.onActivated')({ tabId: 30 });
 
       expect(syncState.connectionStatuses[30]).toBe('connected');
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
   });
