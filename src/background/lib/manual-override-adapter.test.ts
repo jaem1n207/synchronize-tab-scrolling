@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
-import { createManualOverrideAdapter } from './manual-override-adapter';
+import {
+  createManualOverrideAdapter,
+  isTabProvisionallyManuallyOverridden,
+} from './manual-override-adapter';
 
 vi.mock('./messaging', () => ({
   sendMessageWithTimeout: vi.fn(),
@@ -66,12 +69,18 @@ describe('createManualOverrideAdapter', () => {
     expect(groups.get('group-a')?.tabIds).toEqual(new Set([44]));
     expect(groups.has('group-b')).toBe(false);
     expect(overrideTabIds).toEqual(new Set([99]));
+    expect(isTabProvisionallyManuallyOverridden(11)).toBe(true);
+    expect(isTabProvisionallyManuallyOverridden(22)).toBe(true);
+    expect(isTabProvisionallyManuallyOverridden(33)).toBe(true);
 
     await expect(adapter.commit(snapshot, [11, 22])).resolves.toEqual({ status: 'committed' });
 
     expect(overrideTabIds).toEqual(new Set([99, 11, 22]));
     expect(groups.get('group-a')?.tabIds).toEqual(new Set([44]));
     expect(groups.has('group-b')).toBe(false);
+    expect(isTabProvisionallyManuallyOverridden(11)).toBe(false);
+    expect(isTabProvisionallyManuallyOverridden(22)).toBe(false);
+    expect(isTabProvisionallyManuallyOverridden(33)).toBe(true);
 
     await expect(adapter.rollbackUncommitted(snapshot, [11, 22])).resolves.toEqual({
       status: 'rolled-back',
@@ -82,15 +91,22 @@ describe('createManualOverrideAdapter', () => {
     expect(groups.get('unaffected')?.tabIds).toEqual(new Set([55, 66]));
     expect(pendingSuggestions).toEqual(new Set(['unaffected']));
     expect(restoreRuntime).toHaveBeenCalledWith(['group-b']);
+    expect(isTabProvisionallyManuallyOverridden(33)).toBe(false);
   });
 
   it('rejects a commit from an older operation generation', async () => {
     const adapter = createAdapter();
     const staleSnapshot = await adapter.prepare(4, [11]);
-    await adapter.prepare(5, [22]);
+    const currentSnapshot = await adapter.prepare(5, [22]);
 
     await expect(adapter.commit(staleSnapshot, [11])).resolves.toEqual({ status: 'stale' });
     expect(overrideTabIds).toEqual(new Set([99]));
+    expect(isTabProvisionallyManuallyOverridden(11)).toBe(false);
+
+    await adapter.rollback(staleSnapshot);
+    expect(isTabProvisionallyManuallyOverridden(11)).toBe(false);
+    await adapter.rollback(currentSnapshot);
+    expect(isTabProvisionallyManuallyOverridden(22)).toBe(false);
   });
 
   it('restores the full captured override and group state on rollback', async () => {
@@ -106,6 +122,8 @@ describe('createManualOverrideAdapter', () => {
     expect(groups.get('unaffected')).toEqual(createGroup([55, 66], false));
     expect(pendingSuggestions).toEqual(new Set(['group-a', 'group-b', 'unaffected']));
     expect(restoreRuntime).toHaveBeenCalledWith(['group-a', 'group-b']);
+    expect(isTabProvisionallyManuallyOverridden(11)).toBe(false);
+    expect(isTabProvisionallyManuallyOverridden(22)).toBe(false);
   });
 
   it('returns degraded when captured auto runtime cannot be fully restored', async () => {
@@ -114,6 +132,20 @@ describe('createManualOverrideAdapter', () => {
     const snapshot = await adapter.prepare(12, [11, 22]);
 
     await expect(adapter.rollback(snapshot)).resolves.toEqual({ status: 'degraded' });
+    expect(groups.get('group-a')).toEqual(createGroup([11, 44]));
+    expect(groups.get('group-b')).toEqual(createGroup([22, 33]));
+    expect(isTabProvisionallyManuallyOverridden(11)).toBe(false);
+    expect(isTabProvisionallyManuallyOverridden(22)).toBe(false);
+  });
+
+  it('returns degraded and clears provisional ownership when runtime restoration throws', async () => {
+    restoreRuntime.mockRejectedValue(new Error('restore failed'));
+    const adapter = createAdapter();
+    const snapshot = await adapter.prepare(13, [11, 22]);
+
+    await expect(adapter.rollback(snapshot)).resolves.toEqual({ status: 'degraded' });
+    expect(isTabProvisionallyManuallyOverridden(11)).toBe(false);
+    expect(isTabProvisionallyManuallyOverridden(22)).toBe(false);
     expect(groups.get('group-a')).toEqual(createGroup([11, 44]));
     expect(groups.get('group-b')).toEqual(createGroup([22, 33]));
   });

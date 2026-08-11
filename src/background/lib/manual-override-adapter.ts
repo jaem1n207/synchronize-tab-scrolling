@@ -46,6 +46,23 @@ interface CapturedOverrideState {
   pendingSuggestionGroupIds: Set<string>;
 }
 
+const provisionalManualOverrideOwners = new Map<number, number>();
+
+export function isTabProvisionallyManuallyOverridden(tabId: number): boolean {
+  return provisionalManualOverrideOwners.has(tabId);
+}
+
+function clearOwnedProvisionalOverrides(
+  snapshot: ManualOverrideSnapshot,
+  tabIds: ReadonlyArray<number> = snapshot.joiningTabIds,
+): void {
+  for (const tabId of tabIds) {
+    if (provisionalManualOverrideOwners.get(tabId) === snapshot.operationGeneration) {
+      provisionalManualOverrideOwners.delete(tabId);
+    }
+  }
+}
+
 function cloneGroup(group: AutoSyncGroup): AutoSyncGroup {
   const clone: AutoSyncGroup = {
     tabIds: new Set(group.tabIds),
@@ -100,6 +117,10 @@ export function createManualOverrideAdapter(
         const capturedGroups = new Map<string, AutoSyncGroup>();
         const pendingSuggestionGroupIds = new Set<string>();
 
+        for (const tabId of uniqueJoiningTabIds) {
+          provisionalManualOverrideOwners.set(tabId, operationGeneration);
+        }
+
         for (const [groupId, group] of dependencies.groups) {
           if (![...group.tabIds].some((tabId) => joiningIds.has(tabId))) {
             continue;
@@ -146,12 +167,14 @@ export function createManualOverrideAdapter(
           snapshot.operationGeneration !== latestOperationGeneration ||
           committedJoiningTabIds.some((tabId) => !snapshot.joiningTabIds.includes(tabId))
         ) {
+          clearOwnedProvisionalOverrides(snapshot);
           return { status: 'stale' };
         }
 
         for (const tabId of committedJoiningTabIds) {
           dependencies.overrideTabIds.add(tabId);
         }
+        clearOwnedProvisionalOverrides(snapshot, committedJoiningTabIds);
         for (const groupId of [...dependencies.pendingSuggestions]) {
           const group = dependencies.groups.get(groupId);
           if (!group || group.tabIds.size < 2) {
@@ -166,6 +189,7 @@ export function createManualOverrideAdapter(
       return dependencies.withAutoSyncLock(async () => {
         const captured = capturedStates.get(snapshot);
         if (!captured) {
+          clearOwnedProvisionalOverrides(snapshot);
           return { status: 'degraded' };
         }
 
@@ -173,6 +197,7 @@ export function createManualOverrideAdapter(
         const excludedIds = new Set(
           snapshot.joiningTabIds.filter((tabId) => !committedIds.has(tabId)),
         );
+        clearOwnedProvisionalOverrides(snapshot, [...excludedIds]);
         const restoredGroupIds: Array<string> = [];
 
         for (const [groupId, previousGroup] of captured.groups) {
@@ -201,7 +226,9 @@ export function createManualOverrideAdapter(
           restoredGroupIds.push(groupId);
         }
 
-        const runtimeRestored = await dependencies.restoreRuntime(restoredGroupIds);
+        const runtimeRestored = await dependencies
+          .restoreRuntime(restoredGroupIds)
+          .catch(() => false);
         return runtimeRestored ? { status: 'rolled-back' } : { status: 'degraded' };
       });
     },
@@ -210,9 +237,11 @@ export function createManualOverrideAdapter(
       return dependencies.withAutoSyncLock(async () => {
         const captured = capturedStates.get(snapshot);
         if (!captured) {
+          clearOwnedProvisionalOverrides(snapshot);
           return { status: 'degraded' };
         }
 
+        clearOwnedProvisionalOverrides(snapshot);
         for (const groupId of snapshot.affectedGroupIds) {
           dependencies.groups.delete(groupId);
         }
@@ -229,7 +258,9 @@ export function createManualOverrideAdapter(
         const activeGroupIds = [...captured.groups]
           .filter(([, group]) => group.isActive)
           .map(([groupId]) => groupId);
-        const runtimeRestored = await dependencies.restoreRuntime(activeGroupIds);
+        const runtimeRestored = await dependencies
+          .restoreRuntime(activeGroupIds)
+          .catch(() => false);
         return runtimeRestored ? { status: 'rolled-back' } : { status: 'degraded' };
       });
     },
