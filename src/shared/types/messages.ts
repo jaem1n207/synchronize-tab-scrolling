@@ -165,27 +165,6 @@ export type UrlSyncMessage = UrlSyncPayload & SessionMessageIdentity;
 export type ConnectionStatus = 'connected' | 'disconnected' | 'error';
 
 /**
- * Tab information included in sync status broadcasts
- */
-export interface SyncedTabInfo {
-  id: number;
-  title: string;
-  url: string;
-  favIconUrl?: string;
-  eligible: boolean;
-}
-
-/**
- * Broadcast payload for sync status updates to content scripts.
- * Sent by background to all synced tabs when sync state changes.
- */
-export interface SyncStatusBroadcastMessage {
-  linkedTabs: Array<SyncedTabInfo>;
-  connectionStatuses: Record<number, ConnectionStatus>;
-  currentTabId: number;
-}
-
-/**
  * Health check ping between background and content script
  */
 export interface ScrollPingMessage {
@@ -413,7 +392,6 @@ export interface ProtocolMap {
   'scroll:ping': ScrollPingMessage;
   'scroll:reconnect': ScrollReconnectMessage;
   'scroll:request-reinject': ScrollRequestReinjectMessage;
-  'sync:status': SyncStatusBroadcastMessage;
   'sync:get-status': PopupSyncStatusRequestMessage | ContentSyncStatusRequestMessage;
   'sync:reconnect-session': ReconnectManualSessionMessage;
   'url:sync': UrlSyncMessage;

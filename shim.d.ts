@@ -25,7 +25,6 @@ import type {
   StopSyncMessage,
   StopSyncResponse,
   SyncBaselineUpdateMessage,
-  SyncStatusBroadcastMessage,
   SyncSuggestionDecisionResponse,
   SyncSuggestionMessage,
   SyncSuggestionResponseMessage,
@@ -68,7 +67,6 @@ declare module 'webext-bridge' {
     'scroll:ping': ProtocolWithReturn<ScrollPingMessage, unknown>;
     'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
     'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;
-    'sync:status': SyncStatusBroadcastMessage;
     'sync:get-status': ProtocolWithReturn<
       PopupSyncStatusRequestMessage | ContentSyncStatusRequestMessage,
       SyncStatusResponseMessage
