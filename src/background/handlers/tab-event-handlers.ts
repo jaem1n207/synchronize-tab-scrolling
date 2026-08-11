@@ -75,7 +75,10 @@ function isCurrentManualSessionEvent(snapshot: ManualSessionEventSnapshot): bool
   return (
     syncState.isActive &&
     syncState.sessionEpoch === snapshot.sessionEpoch &&
-    syncState.linkedTabs.includes(snapshot.sourceTabId)
+    syncState.linkedTabs.includes(snapshot.sourceTabId) &&
+    syncState.linkedTabs.length === snapshot.linkedTabIds.length &&
+    snapshot.linkedTabIds.every((tabId) => syncState.linkedTabs.includes(tabId)) &&
+    (syncState.mode || 'ratio') === snapshot.mode
   );
 }
 
@@ -629,15 +632,33 @@ export function registerTabEventHandlers(): void {
       }
     }
 
-    const reinjectSuccess = await reinjectContentScript(tabId);
+    const reinjectSuccess = await reinjectContentScript(tabId, {
+      startMessage: {
+        tabIds: manualSessionEvent.linkedTabIds,
+        mode: manualSessionEvent.mode,
+        currentTabId: tabId,
+        sessionEpoch: manualSessionEvent.sessionEpoch,
+      },
+      isSessionCurrent: (): boolean => isCurrentManualSessionEvent(manualSessionEvent),
+    });
     if (!isCurrentManualSessionEvent(manualSessionEvent)) {
       return;
     }
 
-    if (!reinjectSuccess) {
+    if (reinjectSuccess) {
+      syncState.connectionStatuses[tabId] = 'connected';
+      await persistCommittedSyncStateLegacy();
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
+      await broadcastSyncStatus();
+    } else {
       logger.error(`Failed to recover tab ${tabId} after all attempts`);
       syncState.connectionStatuses[tabId] = 'error';
       await persistCommittedSyncStateLegacy();
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
       await broadcastSyncStatus();
     }
   });

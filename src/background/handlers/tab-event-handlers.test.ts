@@ -1026,6 +1026,37 @@ describe('registerTabEventHandlers', () => {
       expect(reinjectContentScript).not.toHaveBeenCalled();
     });
 
+    it('reinjects with the captured manual session and owns the successful status mutation', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [25, 26];
+      syncState.mode = 'element';
+      syncState.sessionEpoch = 4;
+      syncState.connectionStatuses = { 25: 'error', 26: 'connected' };
+      vi.mocked(isContentScriptAlive).mockResolvedValue(false);
+      vi.mocked(sendMessageWithTimeout).mockRejectedValue(new Error('content script missing'));
+      vi.mocked(reinjectContentScript).mockImplementation(async (_tabId, context) =>
+        context.isSessionCurrent(),
+      );
+
+      await getListener('tabs.onActivated')({ tabId: 25 });
+
+      expect(reinjectContentScript).toHaveBeenCalledWith(
+        25,
+        expect.objectContaining({
+          startMessage: {
+            tabIds: [25, 26],
+            mode: 'element',
+            currentTabId: 25,
+            sessionEpoch: 4,
+          },
+          isSessionCurrent: expect.any(Function),
+        }),
+      );
+      expect(syncState.connectionStatuses[25]).toBe('connected');
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
+    });
+
     it('updates connection status when content script is alive', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [30];
