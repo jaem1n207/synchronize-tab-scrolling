@@ -52,6 +52,10 @@ export function isDomainSnoozed(normalizedUrl: string): boolean {
  * This prevents hanging when active tab's content script isn't responding.
  */
 export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
+  if (autoSyncState.enabled !== true) {
+    return;
+  }
+
   const group = autoSyncState.groups.get(normalizedUrl);
   const hasAnyPendingSuggestions = pendingSuggestions.size > 0;
   const hasAnyDismissedGroups = dismissedUrlGroups.size > 0;
@@ -212,10 +216,17 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
+  if (autoSyncState.enabled !== true) {
+    pendingSuggestions.delete(normalizedUrl);
+    return;
+  }
+
   logger.info('[AUTO-SYNC] Showing sync suggestion toast on ALL tabs', {
     targetTabCount: uniqueTargetTabs.length,
     tabCount: tabIds.length,
   });
+
+  const expectedRevision = syncState.revision;
 
   // Send toast to all tabs in parallel
   const results = await Promise.allSettled(
@@ -228,6 +239,7 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
             tabCount: tabIds.length,
             tabIds,
             tabTitles,
+            expectedRevision,
             ...(group.matchKind && { matchKind: group.matchKind }),
             ...(group.matchConfidence && { matchConfidence: group.matchConfidence }),
             ...(syncState.isActive &&
@@ -273,6 +285,10 @@ export async function sendSuggestionToSingleTab(
   normalizedUrl: string,
   group: AutoSyncGroup,
 ): Promise<void> {
+  if (autoSyncState.enabled !== true) {
+    return;
+  }
+
   if (isDomainPermanentlyExcluded(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping single-tab suggestion - domain is permanently excluded', {
       tabId,
@@ -318,8 +334,13 @@ export async function sendSuggestionToSingleTab(
     }
   }
 
+  if (autoSyncState.enabled !== true) {
+    return;
+  }
+
   // Send toast to the single new tab
   try {
+    const expectedRevision = syncState.revision;
     await sendMessage(
       'sync-suggestion:show',
       {
@@ -327,6 +348,7 @@ export async function sendSuggestionToSingleTab(
         tabIds,
         tabTitles,
         tabCount: tabIds.length,
+        expectedRevision,
         ...(group.matchKind && { matchKind: group.matchKind }),
         ...(group.matchConfidence && { matchConfidence: group.matchConfidence }),
         ...(syncState.isActive &&
@@ -362,6 +384,10 @@ export async function showAddTabSuggestion(
   matchKind?: AutoSyncSuggestionMatchKind,
   matchConfidence?: TranslatedPageConfidence,
 ): Promise<void> {
+  if (autoSyncState.enabled !== true) {
+    return;
+  }
+
   if (isDomainPermanentlyExcluded(normalizedUrl)) {
     logger.debug('[AUTO-SYNC] Skipping add-tab suggestion - domain is permanently excluded', {
       tabId,
@@ -398,6 +424,8 @@ export async function showAddTabSuggestion(
     hasManualOffsets,
   });
 
+  const expectedRevision = syncState.revision;
+
   // Send toast to all tabs in parallel
   const results = await Promise.allSettled(
     uniqueTargetTabs.map(async (targetTabId) => {
@@ -409,6 +437,7 @@ export async function showAddTabSuggestion(
             tabTitle,
             hasManualOffsets,
             normalizedUrl,
+            expectedRevision,
             ...(matchKind && { matchKind }),
             ...(matchConfidence && { matchConfidence }),
           },

@@ -76,6 +76,8 @@ vi.mock('./sync-state', () => ({
     linkedTabs: [] as Array<number>,
     connectionStatuses: {} as Record<number, 'connected' | 'disconnected' | 'error'>,
     lastActiveSyncedTabId: null as number | null,
+    revision: 0,
+    sessionEpoch: 0,
   },
 }));
 
@@ -116,6 +118,12 @@ function createMockTab(
   };
 }
 
+function getExpectedRevision(value: unknown): unknown {
+  return typeof value === 'object' && value !== null
+    ? Reflect.get(value, 'expectedRevision')
+    : undefined;
+}
+
 describe('auto-sync-suggestions', () => {
   const mockedSendMessage = vi.mocked(sendMessage);
   const mockedSendMessageWithTimeout = vi.mocked(sendMessageWithTimeout);
@@ -138,6 +146,8 @@ describe('auto-sync-suggestions', () => {
     syncState.linkedTabs = [];
     syncState.connectionStatuses = {};
     syncState.lastActiveSyncedTabId = null;
+    syncState.revision = 0;
+    syncState.sessionEpoch = 0;
 
     extractDomainFromUrlMock.mockImplementation((url: string) => {
       try {
@@ -207,6 +217,58 @@ describe('auto-sync-suggestions', () => {
   });
 
   describe('showSyncSuggestion', () => {
+    it.each([
+      { label: 'disabled', storedValue: false },
+      { label: 'malformed', storedValue: 'true' },
+    ])(
+      'does not display an initial suggestion when auto-sync is $label',
+      async ({ storedValue }) => {
+        const normalizedUrl = 'https://opt-in.test/page';
+        autoSyncState.groups.set(normalizedUrl, createGroup([1, 2]));
+        Reflect.set(autoSyncState, 'enabled', storedValue);
+
+        await showSyncSuggestion(normalizedUrl);
+
+        expect(mockedBrowser.tabs.get).not.toHaveBeenCalled();
+        expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
+        expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
+      },
+    );
+
+    it('captures the committed revision in every displayed initial suggestion', async () => {
+      const normalizedUrl = 'https://revision.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([1, 2]));
+      syncState.revision = 6;
+
+      await showSyncSuggestion(normalizedUrl);
+
+      const showCalls = mockedSendMessageWithTimeout.mock.calls.filter(
+        (call) => call[0] === 'sync-suggestion:show',
+      );
+      expect(showCalls).toHaveLength(2);
+      expect(showCalls.map((call) => getExpectedRevision(call[1]))).toEqual([6, 6]);
+    });
+
+    it('does not display after opt-in is disabled during suggestion preparation', async () => {
+      const normalizedUrl = 'https://disabled-during-preparation.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([1, 2]));
+      mockedSendMessageWithTimeout.mockImplementation(async (message) => {
+        if (message === 'scroll:ping') {
+          autoSyncState.enabled = false;
+          return { success: true, tabId: 1, isSyncActive: false };
+        }
+        return { success: false, tabId: 1, isSyncActive: false };
+      });
+
+      await showSyncSuggestion(normalizedUrl);
+
+      const showCalls = mockedSendMessageWithTimeout.mock.calls.filter(
+        (call) => call[0] === 'sync-suggestion:show',
+      );
+      expect(showCalls).toHaveLength(0);
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
+    });
+
     it('returns early when group does not exist', async () => {
       await showSyncSuggestion('https://missing.test');
 
@@ -678,6 +740,44 @@ describe('auto-sync-suggestions', () => {
   });
 
   describe('sendSuggestionToSingleTab', () => {
+    it('does not display a pending-group suggestion when auto-sync is disabled', async () => {
+      const group = createGroup([1, 2]);
+      autoSyncState.enabled = false;
+
+      await sendSuggestionToSingleTab(2, 'https://disabled-single.test', group);
+
+      expect(mockedSendMessage).not.toHaveBeenCalled();
+      expect(mockedBrowser.tabs.get).not.toHaveBeenCalled();
+    });
+
+    it('captures the committed revision in a pending-group suggestion', async () => {
+      const group = createGroup([1, 2]);
+      syncState.revision = 7;
+
+      await sendSuggestionToSingleTab(2, 'https://single-revision.test', group);
+
+      expect(mockedSendMessage).toHaveBeenCalledWith(
+        'sync-suggestion:show',
+        expect.objectContaining({ expectedRevision: 7 }),
+        { context: 'content-script', tabId: 2 },
+      );
+    });
+
+    it('does not display after opt-in is disabled while preparing a pending-group suggestion', async () => {
+      const group = createGroup([1, 2]);
+      mockedSendMessage.mockImplementationOnce(async () => {
+        autoSyncState.enabled = false;
+        return {};
+      });
+
+      await sendSuggestionToSingleTab(2, 'https://single-disabled-during-preparation.test', group);
+
+      expect(mockedSendMessage).toHaveBeenCalledTimes(1);
+      expect(
+        mockedSendMessage.mock.calls.filter((call) => call[0] === 'sync-suggestion:show'),
+      ).toHaveLength(0);
+    });
+
     it('returns early when domain is snoozed', async () => {
       const group = createGroup([1, 2]);
       suggestionSnoozeUntil.set('snoozed-single.test', Date.now() + 60000);
@@ -700,6 +800,7 @@ describe('auto-sync-suggestions', () => {
       expect(mockedSendMessage).toHaveBeenCalledWith(
         'sync-suggestion:show',
         {
+          expectedRevision: 0,
           normalizedUrl: 'https://single.test',
           tabIds: [1, 2, 3],
           tabTitles: ['One', 'Two', 'Three'],
@@ -841,6 +942,34 @@ describe('auto-sync-suggestions', () => {
   });
 
   describe('showAddTabSuggestion', () => {
+    it.each([
+      { label: 'disabled', storedValue: false },
+      { label: 'malformed', storedValue: 1 },
+    ])(
+      'does not display an add-tab suggestion when auto-sync is $label',
+      async ({ storedValue }) => {
+        syncState.linkedTabs = [1, 2];
+        Reflect.set(autoSyncState, 'enabled', storedValue);
+
+        await showAddTabSuggestion(3, 'New Tab', 'https://disabled-add.test');
+
+        expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
+      },
+    );
+
+    it('captures the committed revision in every displayed add-tab suggestion', async () => {
+      syncState.linkedTabs = [1, 2];
+      syncState.revision = 8;
+
+      await showAddTabSuggestion(3, 'New Tab', 'https://revision-add.test');
+
+      const addCalls = mockedSendMessageWithTimeout.mock.calls.filter(
+        (call) => call[0] === 'sync-suggestion:add-tab',
+      );
+      expect(addCalls).toHaveLength(3);
+      expect(addCalls.map((call) => getExpectedRevision(call[1]))).toEqual([8, 8, 8]);
+    });
+
     it('returns early when domain is snoozed', async () => {
       syncState.linkedTabs = [1, 2];
       suggestionSnoozeUntil.set('snoozed-add-tab.test', Date.now() + 60000);
@@ -918,6 +1047,7 @@ describe('auto-sync-suggestions', () => {
       expect(mockedSendMessageWithTimeout).toHaveBeenCalledWith(
         'sync-suggestion:add-tab',
         {
+          expectedRevision: 0,
           tabId: 21,
           tabTitle: 'Brand New',
           hasManualOffsets: false,
@@ -942,6 +1072,7 @@ describe('auto-sync-suggestions', () => {
       expect(mockedSendMessageWithTimeout).toHaveBeenCalledWith(
         'sync-suggestion:add-tab',
         {
+          expectedRevision: 0,
           tabId: 23,
           tabTitle: 'Translated Tab',
           hasManualOffsets: false,
