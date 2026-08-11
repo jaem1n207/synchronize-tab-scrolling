@@ -73,6 +73,9 @@ export function useSyncControl({
 
   const applyLegacySyncStatus = useCallback(
     (response: LegacySyncStatusResponse): void => {
+      if (response.status !== 'ready') {
+        return;
+      }
       if (response.isActive) {
         setSyncStatus({
           isActive: true,
@@ -96,7 +99,26 @@ export function useSyncControl({
 
   const refreshSyncStatus = useCallback(async (): Promise<LegacySyncStatusResponse> => {
     const response = await sendMessage('sync:get-status', {}, 'background');
+    if (response.status === 'unavailable') {
+      setError({
+        message: t('manualSyncStateUnavailable'),
+        severity: 'error',
+        timestamp: Date.now(),
+        action: {
+          label: t('retry'),
+          handler: () => {
+            refreshSyncStatus().catch((refreshError) => {
+              logger.error('Failed to refresh unavailable manual sync state:', refreshError);
+            });
+          },
+        },
+      });
+      return response;
+    }
     applyLegacySyncStatus(response);
+    setError((currentError) =>
+      currentError?.message === t('manualSyncStateUnavailable') ? null : currentError,
+    );
     return response;
   }, [applyLegacySyncStatus]);
 
@@ -109,6 +131,9 @@ export function useSyncControl({
         let hasActiveSync = false;
         try {
           const response = await refreshSyncStatus();
+          if (response.status === 'unavailable') {
+            return;
+          }
           if (response.isActive) {
             hasActiveSync = true;
           }
@@ -340,7 +365,10 @@ export function useSyncControl({
       }
 
       if (result.status === 'rejected') {
-        await refreshSyncStatus();
+        const refreshed = await refreshSyncStatus();
+        if (refreshed.status === 'unavailable') {
+          return;
+        }
         setError({
           message: t('warningStopSyncFailed', [result.reason]),
           severity: 'warning',
@@ -397,7 +425,10 @@ export function useSyncControl({
         'background',
       );
       if (result.status === 'refresh-required') {
-        await refreshSyncStatus();
+        const refreshed = await refreshSyncStatus();
+        if (refreshed.status === 'unavailable') {
+          return;
+        }
         setError({
           message: t('reconnectionSuccessful'),
           severity: 'info',
@@ -406,7 +437,10 @@ export function useSyncControl({
         return;
       }
       if (result.status === 'rejected') {
-        await refreshSyncStatus();
+        const refreshed = await refreshSyncStatus();
+        if (refreshed.status === 'unavailable') {
+          return;
+        }
         setError({
           message: t('reconnectionFailed'),
           severity: 'warning',

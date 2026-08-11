@@ -139,7 +139,15 @@ describe('useSyncControl local file failures', () => {
     enableReactActEnvironment();
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
-        return { success: true, isActive: false };
+        return {
+          status: 'ready',
+          success: false,
+          isActive: false,
+          revision: 0,
+          linkedTabs: [],
+          connectedTabs: [],
+          connectionStatuses: {},
+        };
       }
 
       return {
@@ -212,7 +220,15 @@ describe('useSyncControl local file failures', () => {
   it('keeps the generic retry action when only a non-file tab fails in a mixed selection', async () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
-        return { success: true, isActive: false };
+        return {
+          status: 'ready',
+          success: false,
+          isActive: false,
+          revision: 0,
+          linkedTabs: [],
+          connectedTabs: [],
+          connectionStatuses: {},
+        };
       }
 
       return {
@@ -270,7 +286,15 @@ describe('useSyncControl local file failures', () => {
   it('shows auto-sync recovery warning without claiming success after a rejected Start', async () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
-        return { success: true, isActive: false };
+        return {
+          status: 'ready',
+          success: false,
+          isActive: false,
+          revision: 0,
+          linkedTabs: [],
+          connectedTabs: [],
+          connectionStatuses: {},
+        };
       }
 
       return {
@@ -304,7 +328,15 @@ describe('useSyncControl local file failures', () => {
   it('keeps a degraded rollback warning visible when rejected local-file tabs also need access', async () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
-        return { success: true, isActive: false };
+        return {
+          status: 'ready',
+          success: false,
+          isActive: false,
+          revision: 0,
+          linkedTabs: [],
+          connectedTabs: [],
+          connectionStatuses: {},
+        };
       }
 
       return {
@@ -339,7 +371,15 @@ describe('useSyncControl local file failures', () => {
   it('keeps committed Start state but surfaces auto-sync recovery warning', async () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
-        return { success: true, isActive: false };
+        return {
+          status: 'ready',
+          success: false,
+          isActive: false,
+          revision: 0,
+          linkedTabs: [],
+          connectedTabs: [],
+          connectionStatuses: {},
+        };
       }
 
       return {
@@ -387,6 +427,7 @@ describe('useSyncControl revision-aware lifecycle', () => {
 
   it('restores the authoritative inactive revision instead of retaining the initial zero', async () => {
     vi.mocked(sendMessage).mockResolvedValue({
+      status: 'ready',
       success: false,
       isActive: false,
       revision: 7,
@@ -406,8 +447,30 @@ describe('useSyncControl revision-aware lifecycle', () => {
     unmount();
   });
 
+  it('keeps initial state unknown and reports unavailable restore as retryable', async () => {
+    vi.mocked(sendMessage).mockResolvedValue({
+      status: 'unavailable',
+      reason: 'storage-error',
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.error?.message).toBe('manualSyncStateUnavailable'));
+    expect(result.current.syncStatus).toEqual({
+      isActive: false,
+      connectedTabs: [],
+      connectionStatuses: {},
+      revision: 0,
+    });
+    expect(result.current.error?.action?.label).toBe('retry');
+    unmount();
+  });
+
   it('preserves a cross-window authoritative session when discovery sees only one linked tab', async () => {
     vi.mocked(sendMessage).mockResolvedValue({
+      status: 'ready',
       success: true,
       isActive: true,
       revision: 8,
@@ -440,6 +503,7 @@ describe('useSyncControl revision-aware lifecycle', () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
         return {
+          status: 'ready',
           success: false,
           isActive: false,
           revision: 4,
@@ -482,6 +546,7 @@ describe('useSyncControl revision-aware lifecycle', () => {
       if (message === 'sync:get-status') {
         statusRequestCount += 1;
         return {
+          status: 'ready',
           success: true,
           isActive: true,
           revision: statusRequestCount === 1 ? 9 : 10,
@@ -516,10 +581,44 @@ describe('useSyncControl revision-aware lifecycle', () => {
     unmount();
   });
 
+  it('preserves active truth when stale Stop refresh is unavailable', async () => {
+    let statusRequests = 0;
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        statusRequests += 1;
+        return statusRequests === 1
+          ? {
+              status: 'ready',
+              success: true,
+              isActive: true,
+              revision: 9,
+              linkedTabs: [],
+              connectedTabs: [1, 2],
+              connectionStatuses: { 1: 'connected', 2: 'connected' },
+            }
+          : { status: 'unavailable', reason: 'storage-error' };
+      }
+      return { status: 'rejected', reason: 'stale-revision' };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(9));
+    await act(async () => result.current.handleStop());
+
+    expect(result.current.syncStatus.isActive).toBe(true);
+    expect(result.current.syncStatus.connectedTabs).toEqual([1, 2]);
+    expect(result.current.error?.message).toBe('manualSyncStateUnavailable');
+    unmount();
+  });
+
   it('commits inactive local truth and surfaces incomplete cleanup after Stop', async () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
         return {
+          status: 'ready',
           success: true,
           isActive: true,
           revision: 12,
@@ -560,6 +659,7 @@ describe('useSyncControl revision-aware lifecycle', () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
         return {
+          status: 'ready',
           success: true,
           isActive: true,
           revision: 21,
@@ -600,6 +700,7 @@ describe('useSyncControl revision-aware lifecycle', () => {
     {
       name: '3-to-2 topology removal',
       refreshed: {
+        status: 'ready',
         success: true,
         isActive: true,
         revision: 22,
@@ -611,6 +712,7 @@ describe('useSyncControl revision-aware lifecycle', () => {
     {
       name: '2-to-inactive durable Stop',
       refreshed: {
+        status: 'ready',
         success: false,
         isActive: false,
         revision: 22,
@@ -626,6 +728,7 @@ describe('useSyncControl revision-aware lifecycle', () => {
         statusRequests += 1;
         return statusRequests === 1
           ? {
+              status: 'ready',
               success: true,
               isActive: true,
               revision: 21,
@@ -658,4 +761,85 @@ describe('useSyncControl revision-aware lifecycle', () => {
     });
     unmount();
   });
+
+  it('preserves active truth when reconnect refresh is unavailable', async () => {
+    let statusRequests = 0;
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        statusRequests += 1;
+        return statusRequests === 1
+          ? {
+              status: 'ready',
+              success: true,
+              isActive: true,
+              revision: 21,
+              linkedTabs: [],
+              connectedTabs: [1, 2],
+              connectionStatuses: { 1: 'error', 2: 'connected' },
+            }
+          : { status: 'unavailable', reason: 'invalid-state' };
+      }
+      return { status: 'refresh-required', revision: 22 };
+    });
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(21));
+    await act(async () => result.current.handleResync());
+
+    expect(result.current.syncStatus).toEqual({
+      isActive: true,
+      connectedTabs: [1, 2],
+      connectionStatuses: { 1: 'error', 2: 'connected' },
+      revision: 21,
+    });
+    expect(result.current.error?.message).toBe('manualSyncStateUnavailable');
+    unmount();
+  });
+
+  it.each([
+    { name: '3-to-2 removal', connectedTabs: [1, 2, 3] },
+    { name: '2-to-inactive Stop', connectedTabs: [1, 2] },
+  ])(
+    'does not show reconnect success when missing-tab $name persistence fails',
+    async ({ connectedTabs }) => {
+      let statusRequests = 0;
+      const connectionStatuses = Object.fromEntries(
+        connectedTabs.map((tabId) => [tabId, tabId === 1 ? 'error' : 'connected']),
+      );
+      vi.mocked(sendMessage).mockImplementation(async (message) => {
+        if (message === 'sync:get-status') {
+          statusRequests += 1;
+          return {
+            status: 'ready',
+            success: true,
+            isActive: true,
+            revision: 30,
+            linkedTabs: [],
+            connectedTabs,
+            connectionStatuses,
+          };
+        }
+        return { status: 'rejected', reason: 'persistence-failed' };
+      });
+      const { result, unmount } = renderUseSyncControl(
+        connectedTabs.map((id) => ({
+          id,
+          title: `tab-${id}`,
+          url: `https://example.com/${id}`,
+          eligible: true,
+        })),
+      );
+      await waitFor(() => expect(result.current.syncStatus.revision).toBe(30));
+      await act(async () => result.current.handleResync());
+
+      expect(statusRequests).toBe(2);
+      expect(result.current.syncStatus.isActive).toBe(true);
+      expect(result.current.syncStatus.connectedTabs).toEqual(connectedTabs);
+      expect(result.current.error?.message).toBe('reconnectionFailed');
+      expect(result.current.error?.severity).toBe('warning');
+      unmount();
+    },
+  );
 });
