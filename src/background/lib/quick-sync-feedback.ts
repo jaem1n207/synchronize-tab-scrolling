@@ -196,10 +196,6 @@ export function createQuickSyncBadgeController(dependencies: {
       badgeGeneration += 1;
       const current = { badgeGeneration, candidateGeneration };
       generations.set(tabId, current);
-      await Promise.all([
-        dependencies.setBadgeText({ tabId, text: '!' }),
-        dependencies.setTitle({ tabId, title: dependencies.getUnsupportedTitle() }),
-      ]);
       dependencies.setTimer(() => {
         const latest = generations.get(tabId);
         if (
@@ -214,6 +210,10 @@ export function createQuickSyncBadgeController(dependencies: {
           dependencies.setTitle({ tabId, title: '' }),
         ]).catch(() => undefined);
       }, QUICK_SYNC_BADGE_DURATION_MS);
+      await Promise.all([
+        dependencies.setBadgeText({ tabId, text: '!' }),
+        dependencies.setTitle({ tabId, title: dependencies.getUnsupportedTitle() }),
+      ]);
     },
   };
 }

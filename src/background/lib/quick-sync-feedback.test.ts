@@ -134,6 +134,38 @@ describe('createQuickSyncBadgeController', () => {
     vi.useRealTimers();
   });
 
+  it('clears badge text after the initial title update fails', async () => {
+    const setBadgeText = vi.fn().mockResolvedValue(undefined);
+    const setTitle = vi.fn().mockRejectedValueOnce(new Error('title unavailable'));
+    const controller = createQuickSyncBadgeController({
+      setBadgeText,
+      setTitle,
+      getUnsupportedTitle: () => 'unsupported',
+      setTimer: setTimeout,
+    });
+
+    await expect(controller.showUnsupported(11, 7)).rejects.toThrow('title unavailable');
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    expect(setBadgeText).toHaveBeenLastCalledWith({ tabId: 11, text: '' });
+  });
+
+  it('clears the action title after the initial badge text update fails', async () => {
+    const setBadgeText = vi.fn().mockRejectedValueOnce(new Error('badge unavailable'));
+    const setTitle = vi.fn().mockResolvedValue(undefined);
+    const controller = createQuickSyncBadgeController({
+      setBadgeText,
+      setTitle,
+      getUnsupportedTitle: () => 'unsupported',
+      setTimer: setTimeout,
+    });
+
+    await expect(controller.showUnsupported(11, 7)).rejects.toThrow('badge unavailable');
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    expect(setTitle).toHaveBeenLastCalledWith({ tabId: 11, title: '' });
+  });
+
   it('prevents an older clear timer from clearing a newer badge', async () => {
     const setBadgeText = vi.fn().mockResolvedValue(undefined);
     const controller = createQuickSyncBadgeController({
