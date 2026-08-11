@@ -8,7 +8,7 @@ import {
   saveExcludedDomains,
   saveSuggestionSnooze,
 } from '~/shared/lib/storage';
-import type { AutoSyncGroupInfo } from '~/shared/types/messages';
+import type { AutoSyncGroupInfo, StartSyncContentMessage } from '~/shared/types/messages';
 
 import { removeTabFromAllAutoSyncGroups, updateAutoSyncGroup } from '../lib/auto-sync-groups';
 import { toggleAutoSync } from '../lib/auto-sync-lifecycle';
@@ -250,14 +250,16 @@ export function registerAutoSyncHandlers(): void {
 
           const promises = tabIds.map(async (tabId) => {
             try {
+              const startMessage = {
+                tabIds,
+                mode: 'ratio',
+                currentTabId: tabId,
+                isAutoSync: false,
+                sessionEpoch: syncState.sessionEpoch,
+              } satisfies StartSyncContentMessage;
               const ack = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
                 'scroll:start',
-                {
-                  tabIds,
-                  mode: 'ratio',
-                  currentTabId: tabId,
-                  isAutoSync: false,
-                },
+                startMessage,
                 { context: 'content-script', tabId },
                 2_000,
               );
@@ -387,14 +389,16 @@ export function registerAutoSyncHandlers(): void {
 
           const promises = newTabIds.map(async (candidateTabId) => {
             try {
+              const startMessage = {
+                tabIds: newTabIds,
+                mode: syncState.mode || 'ratio',
+                currentTabId: candidateTabId,
+                isAutoSync: false,
+                sessionEpoch: syncState.sessionEpoch,
+              } satisfies StartSyncContentMessage;
               const ack = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
                 'scroll:start',
-                {
-                  tabIds: newTabIds,
-                  mode: syncState.mode || 'ratio',
-                  currentTabId: candidateTabId,
-                  isAutoSync: false,
-                },
+                startMessage,
                 { context: 'content-script', tabId: candidateTabId },
                 2_000,
               );

@@ -124,6 +124,8 @@ vi.mock('../lib/sync-state', () => ({
     connectionStatuses: {} as Record<number, 'connected' | 'disconnected' | 'error'>,
     lastActiveSyncedTabId: null,
     mode: undefined as 'ratio' | 'element' | undefined,
+    revision: 0,
+    sessionEpoch: 0,
   },
   persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
@@ -146,6 +148,7 @@ describe('registerAutoSyncHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     messageHandlers.clear();
+    syncState.sessionEpoch = 9;
 
     onMessageMock.mockImplementation((messageId: string, handler: RegisteredMessageHandler) => {
       messageHandlers.set(messageId, handler);
@@ -387,6 +390,15 @@ describe('registerAutoSyncHandlers', () => {
       expect(autoSyncState.groups.has(normalizedUrl)).toBe(false);
       expect(syncState.isActive).toBe(true);
       expect(syncState.linkedTabs).toEqual([10, 20]);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        expect.objectContaining({
+          isAutoSync: false,
+          sessionEpoch: 9,
+        }),
+        expect.anything(),
+        2_000,
+      );
       expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
@@ -697,6 +709,15 @@ describe('registerAutoSyncHandlers', () => {
       expect(manualSyncOverriddenTabs.has(3)).toBe(true);
       expect(removeTabFromAllAutoSyncGroups).toHaveBeenCalledWith(3);
       expect(syncState.linkedTabs).toEqual([1, 2, 3]);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        expect.objectContaining({
+          isAutoSync: false,
+          sessionEpoch: 9,
+        }),
+        expect.anything(),
+        2_000,
+      );
       expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
