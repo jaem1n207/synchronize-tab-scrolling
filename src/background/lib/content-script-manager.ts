@@ -4,7 +4,6 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import type { StartSyncContentMessage } from '~/shared/types/messages';
 
 import { sendMessageWithTimeout } from './messaging';
-import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from './sync-state';
 
 const logger = new ExtensionLogger({ scope: 'content-script-manager' });
 
@@ -24,7 +23,15 @@ export async function isContentScriptAlive(tabId: number): Promise<boolean> {
 }
 
 // Helper function to re-inject content script into a tab
-export async function reinjectContentScript(tabId: number): Promise<boolean> {
+export interface ReinjectionContext {
+  startMessage: StartSyncContentMessage;
+  isSessionCurrent: () => boolean;
+}
+
+export async function reinjectContentScript(
+  tabId: number,
+  context: ReinjectionContext,
+): Promise<boolean> {
   try {
     logger.info(`Re-injecting content script into tab ${tabId}`);
 
@@ -35,29 +42,58 @@ export async function reinjectContentScript(tabId: number): Promise<boolean> {
     });
 
     logger.info(`Content script re-injected into tab ${tabId}`);
+    if (!context.isSessionCurrent()) {
+      return false;
+    }
 
     // Wait a moment for the script to initialize
     await new Promise((resolve) => setTimeout(resolve, 500));
+    if (!context.isSessionCurrent()) {
+      return false;
+    }
 
-    // Now send scroll:start to initialize sync
-    const startMessage = {
-      tabIds: syncState.linkedTabs,
-      mode: syncState.mode || 'ratio',
-      currentTabId: tabId,
-      sessionEpoch: syncState.sessionEpoch,
-    } satisfies StartSyncContentMessage;
-    const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
-      'scroll:start',
-      startMessage,
-      { context: 'content-script', tabId },
-      3_000,
-    );
+    let response: { success: boolean; tabId: number } | undefined;
+    if (context.startMessage.isAutoSync === true) {
+      response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+        'scroll:start',
+        {
+          tabIds: context.startMessage.tabIds,
+          mode: context.startMessage.mode,
+          currentTabId: context.startMessage.currentTabId,
+          isAutoSync: true,
+        },
+        { context: 'content-script', tabId },
+        3_000,
+      );
+    } else if (context.startMessage.isAutoSync === false) {
+      response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+        'scroll:start',
+        {
+          tabIds: context.startMessage.tabIds,
+          mode: context.startMessage.mode,
+          currentTabId: context.startMessage.currentTabId,
+          isAutoSync: false,
+          sessionEpoch: context.startMessage.sessionEpoch,
+        },
+        { context: 'content-script', tabId },
+        3_000,
+      );
+    } else {
+      response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+        'scroll:start',
+        {
+          tabIds: context.startMessage.tabIds,
+          mode: context.startMessage.mode,
+          currentTabId: context.startMessage.currentTabId,
+          sessionEpoch: context.startMessage.sessionEpoch,
+        },
+        { context: 'content-script', tabId },
+        3_000,
+      );
+    }
 
-    if (response && response.success && response.tabId === tabId) {
-      syncState.connectionStatuses[tabId] = 'connected';
+    if (context.isSessionCurrent() && response && response.success && response.tabId === tabId) {
       logger.info(`Tab ${tabId} reconnected after content script re-injection`);
-      await persistCommittedSyncStateLegacy();
-      await broadcastSyncStatus();
       return true;
     }
 
