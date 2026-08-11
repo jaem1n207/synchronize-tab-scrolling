@@ -20,6 +20,7 @@ interface ExtensionFixtures {
     comparison: FixtureSite;
     unrelated: FixtureSite;
   };
+  movePageToNewWindow: (page: Page) => Promise<void>;
   openPopup: () => Promise<Page>;
 }
 
@@ -113,6 +114,71 @@ async function getExtensionId(context: BrowserContext): Promise<string> {
   return extensionId;
 }
 
+async function movePageToNewWindow(context: BrowserContext, page: Page): Promise<void> {
+  let serviceWorker = context.serviceWorkers()[0];
+  if (!serviceWorker) {
+    serviceWorker = await context.waitForEvent('serviceworker', { timeout: 10_000 });
+  }
+
+  const moved = await serviceWorker.evaluate(async (targetUrl) => {
+    const chromeApi: unknown = Reflect.get(globalThis, 'chrome');
+    if (typeof chromeApi !== 'object' || chromeApi === null) {
+      return false;
+    }
+
+    const tabsApi: unknown = Reflect.get(chromeApi, 'tabs');
+    const windowsApi: unknown = Reflect.get(chromeApi, 'windows');
+    if (
+      typeof tabsApi !== 'object' ||
+      tabsApi === null ||
+      typeof windowsApi !== 'object' ||
+      windowsApi === null
+    ) {
+      return false;
+    }
+
+    const queryTabs: unknown = Reflect.get(tabsApi, 'query');
+    const createWindow: unknown = Reflect.get(windowsApi, 'create');
+    if (typeof queryTabs !== 'function' || typeof createWindow !== 'function') {
+      return false;
+    }
+
+    const tabs: unknown = await Reflect.apply(queryTabs, tabsApi, [{}]);
+    if (!Array.isArray(tabs)) {
+      return false;
+    }
+
+    const targetTab = tabs.find(
+      (tab) =>
+        typeof tab === 'object' &&
+        tab !== null &&
+        Reflect.get(tab, 'url') === targetUrl &&
+        typeof Reflect.get(tab, 'id') === 'number',
+    );
+    if (targetTab === undefined) {
+      return false;
+    }
+
+    const tabId: unknown = Reflect.get(targetTab, 'id');
+    if (typeof tabId !== 'number' || !Number.isSafeInteger(tabId) || tabId <= 0) {
+      return false;
+    }
+
+    await Reflect.apply(createWindow, windowsApi, [
+      {
+        focused: false,
+        tabId,
+        type: 'normal',
+      },
+    ]);
+    return true;
+  }, page.url());
+
+  if (!moved) {
+    throw new Error('Could not move the local fixture page to another browser window');
+  }
+}
+
 export const test = base.extend<ExtensionFixtures>({
   fixtureSites: async ({}, run) => {
     const primary = await startFixtureSite('Primary');
@@ -144,6 +210,10 @@ export const test = base.extend<ExtensionFixtures>({
 
   extensionId: async ({ extensionContext }, run) => {
     await run(await getExtensionId(extensionContext));
+  },
+
+  movePageToNewWindow: async ({ extensionContext }, run) => {
+    await run((page) => movePageToNewWindow(extensionContext, page));
   },
 
   openPopup: async ({ extensionContext, extensionId }, run) => {
