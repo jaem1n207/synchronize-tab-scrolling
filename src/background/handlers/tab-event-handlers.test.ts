@@ -51,6 +51,10 @@ type EventListeners = {
 
 const eventListeners: EventListeners = {};
 
+const { waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+  waitForBackgroundInitializationMock: vi.fn(),
+}));
+
 vi.mock('webext-bridge/background', () => ({
   sendMessage: vi.fn(),
 }));
@@ -90,6 +94,10 @@ vi.mock('../lib/auto-sync-groups', () => ({
   broadcastAutoSyncGroupUpdate: vi.fn(),
   refreshAutoSyncGroupMetadata: vi.fn(),
   getAutoSyncGroupKeyForTab: vi.fn(),
+}));
+
+vi.mock('../lib/background-initialization', () => ({
+  waitForBackgroundInitialization: waitForBackgroundInitializationMock,
 }));
 
 vi.mock('../lib/auto-sync-lifecycle', () => ({
@@ -160,6 +168,11 @@ function getListener<K extends keyof EventListeners>(key: K): NonNullable<EventL
   return listener as NonNullable<EventListeners[K]>;
 }
 
+const readyBackground = {
+  manual: { status: 'ready' as const },
+  auto: { status: 'ready' as const },
+};
+
 describe('registerTabEventHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -211,6 +224,7 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(showAddTabSuggestion).mockResolvedValue();
     vi.mocked(showSyncSuggestion).mockResolvedValue();
     vi.mocked(toggleAutoSync).mockResolvedValue();
+    waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
     vi.mocked(browser.tabs.onRemoved.addListener).mockImplementation((listener) => {
       eventListeners['tabs.onRemoved'] = listener as RemovedListener;
@@ -229,6 +243,90 @@ describe('registerTabEventHandlers', () => {
     });
 
     registerTabEventHandlers();
+  });
+
+  describe('background readiness', () => {
+    it('gates every tab and storage listener on initialization', async () => {
+      await getListener('tabs.onRemoved')(1);
+      await getListener('tabs.onCreated')({ id: 2 });
+      await getListener('tabs.onUpdated')(3, {}, { id: 3 });
+      await getListener('tabs.onActivated')({ tabId: 4 });
+      await getListener('storage.onChanged')({}, 'local');
+
+      expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(5);
+    });
+
+    it('does not mutate removed-tab state before readiness resolves', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      manualSyncOverriddenTabs.add(7);
+
+      const result = getListener('tabs.onRemoved')(7);
+      await Promise.resolve();
+
+      expect(manualSyncOverriddenTabs.has(7)).toBe(true);
+      expect(clearPendingUrlSyncContextualHint).not.toHaveBeenCalled();
+
+      release.resolve(readyBackground);
+      await result;
+
+      expect(manualSyncOverriddenTabs.has(7)).toBe(false);
+      expect(clearPendingUrlSyncContextualHint).toHaveBeenCalledWith(7);
+    });
+
+    it('captures created-tab identity before awaiting readiness', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      autoSyncState.enabled = true;
+      const tab = { id: 7, url: 'https://example.com/original' };
+
+      const result = getListener('tabs.onCreated')(tab);
+      tab.id = 8;
+      tab.url = 'https://example.com/mutated';
+      release.resolve(readyBackground);
+      await result;
+
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(
+        7,
+        'https://example.com/original',
+        true,
+        true,
+      );
+    });
+
+    it('captures updated-tab identity before awaiting readiness', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      autoSyncState.enabled = true;
+      const changeInfo = { url: 'https://example.com/original' };
+      const tab = { id: 9, url: 'https://example.com/original', title: 'Original' };
+
+      const result = getListener('tabs.onUpdated')(9, changeInfo, tab);
+      changeInfo.url = 'https://example.com/mutated';
+      tab.url = 'https://example.com/mutated';
+      release.resolve(readyBackground);
+      await result;
+
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(9, 'https://example.com/original');
+    });
+
+    it('captures storage change values before awaiting readiness', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      const changes = {
+        autoSyncEnabled: {
+          oldValue: false,
+          newValue: true,
+        },
+      };
+
+      const result = getListener('storage.onChanged')(changes, 'local');
+      changes.autoSyncEnabled.newValue = false;
+      release.resolve(readyBackground);
+      await result;
+
+      expect(toggleAutoSync).toHaveBeenCalledWith(true);
+    });
   });
 
   describe('tabs.onRemoved', () => {

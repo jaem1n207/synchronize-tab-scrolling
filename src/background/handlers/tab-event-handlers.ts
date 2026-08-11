@@ -32,6 +32,7 @@ import {
   isDomainSnoozed,
   isDomainPermanentlyExcluded,
 } from '../lib/auto-sync-suggestions';
+import { waitForBackgroundInitialization } from '../lib/background-initialization';
 import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
 import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
@@ -166,11 +167,17 @@ async function findActiveSyncMetadataMatch(
 
 export function registerTabEventHandlers(): void {
   browser.tabs.onRemoved.addListener(async (tabId) => {
-    manualSyncOverriddenTabs.delete(tabId);
-    clearPendingUrlSyncContextualHint(tabId);
+    const removedTabId = tabId;
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return;
+    }
 
-    if (autoSyncState.enabled) {
-      await removeTabFromAllAutoSyncGroups(tabId);
+    manualSyncOverriddenTabs.delete(removedTabId);
+    clearPendingUrlSyncContextualHint(removedTabId);
+
+    if (readiness.auto.status === 'ready' && autoSyncState.enabled) {
+      await removeTabFromAllAutoSyncGroups(removedTabId);
       await broadcastAutoSyncGroupUpdate();
     }
 
@@ -178,7 +185,7 @@ export function registerTabEventHandlers(): void {
       const dismissPromises = syncState.linkedTabs.map((linkedTabId) =>
         sendMessageWithTimeout(
           'sync-suggestion:dismiss-add-tab',
-          { tabId },
+          { tabId: removedTabId },
           { context: 'content-script', tabId: linkedTabId },
           1_000,
         ).catch(() => {
@@ -188,14 +195,14 @@ export function registerTabEventHandlers(): void {
       await Promise.allSettled(dismissPromises);
     }
 
-    if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
+    if (!syncState.isActive || !syncState.linkedTabs.includes(removedTabId)) {
       return;
     }
 
-    logger.info(`Synced tab ${tabId} was closed, updating sync state`);
+    logger.info(`Synced tab ${removedTabId} was closed, updating sync state`);
 
-    syncState.linkedTabs = syncState.linkedTabs.filter((id) => id !== tabId);
-    delete syncState.connectionStatuses[tabId];
+    syncState.linkedTabs = syncState.linkedTabs.filter((id) => id !== removedTabId);
+    delete syncState.connectionStatuses[removedTabId];
 
     if (syncState.linkedTabs.length < 2) {
       logger.info('Less than 2 tabs remaining, stopping sync');
@@ -225,7 +232,7 @@ export function registerTabEventHandlers(): void {
       await persistCommittedSyncStateLegacy();
 
       // ✅ FIX: Re-add remaining tabs to auto-sync groups if auto-sync is enabled
-      if (autoSyncState.enabled) {
+      if (readiness.auto.status === 'ready' && autoSyncState.enabled) {
         for (const remainingTabId of remainingTabs) {
           try {
             const tab = await browser.tabs.get(remainingTabId);
@@ -244,7 +251,16 @@ export function registerTabEventHandlers(): void {
     }
   });
 
-  browser.tabs.onCreated.addListener(async (tab) => {
+  browser.tabs.onCreated.addListener(async (incomingTab) => {
+    const tab = {
+      id: incomingTab.id,
+      url: incomingTab.url,
+    };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return;
+    }
+
     // ✅ Bug 9-1 Fix: Record the current active synced tab BEFORE browser switches to new tab
     if (syncState.isActive) {
       try {
@@ -263,6 +279,10 @@ export function registerTabEventHandlers(): void {
     }
 
     if (!autoSyncState.enabled || !tab.id) {
+      return;
+    }
+
+    if (readiness.auto.status !== 'ready') {
       return;
     }
 
@@ -305,8 +325,26 @@ export function registerTabEventHandlers(): void {
     }
   });
 
-  browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.url || (changeInfo.status === 'loading' && tab.url)) {
+  browser.tabs.onUpdated.addListener(async (incomingTabId, incomingChangeInfo, incomingTab) => {
+    const tabId = incomingTabId;
+    const changeInfo = {
+      url: incomingChangeInfo.url,
+      status: incomingChangeInfo.status,
+    };
+    const tab = {
+      id: incomingTab.id,
+      url: incomingTab.url,
+      title: incomingTab.title,
+    };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return;
+    }
+
+    if (
+      readiness.auto.status === 'ready' &&
+      (changeInfo.url || (changeInfo.status === 'loading' && tab.url))
+    ) {
       const url = changeInfo.url || tab.url || '';
       const newTabSignature = buildTranslatedPageSignature(url);
       const normalizedUrl = newTabSignature?.canonicalKey ?? null;
@@ -468,7 +506,13 @@ export function registerTabEventHandlers(): void {
     }
   });
 
-  browser.tabs.onActivated.addListener(async ({ tabId }) => {
+  browser.tabs.onActivated.addListener(async (activeInfo) => {
+    const tabId = activeInfo.tabId;
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return;
+    }
+
     if (syncState.isActive && syncState.linkedTabs.includes(tabId)) {
       syncState.lastActiveSyncedTabId = tabId;
     }
@@ -528,15 +572,24 @@ export function registerTabEventHandlers(): void {
 
   logger.info('Tab event listeners registered');
 
-  browser.storage.onChanged.addListener(async (changes, areaName) => {
-    if (areaName !== 'local') return;
+  browser.storage.onChanged.addListener(async (changes, incomingAreaName) => {
+    const areaName = incomingAreaName;
+    const rawAutoSyncEnabledChange = Reflect.get(changes, 'autoSyncEnabled');
+    const autoSyncEnabledChange =
+      typeof rawAutoSyncEnabledChange === 'object' && rawAutoSyncEnabledChange !== null
+        ? {
+            newValue: Reflect.get(rawAutoSyncEnabledChange, 'newValue'),
+            oldValue: Reflect.get(rawAutoSyncEnabledChange, 'oldValue'),
+          }
+        : null;
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.auto.status !== 'ready' || areaName !== 'local') {
+      return;
+    }
 
-    if ('autoSyncEnabled' in changes) {
-      const { newValue, oldValue } = changes.autoSyncEnabled as {
-        newValue?: boolean;
-        oldValue?: boolean;
-      };
-      if (newValue !== oldValue && newValue !== undefined) {
+    if (autoSyncEnabledChange) {
+      const { newValue, oldValue } = autoSyncEnabledChange;
+      if (typeof newValue === 'boolean' && newValue !== oldValue) {
         logger.info('Auto-sync enabled changed via storage', { newValue, oldValue });
         await toggleAutoSync(newValue);
       }
