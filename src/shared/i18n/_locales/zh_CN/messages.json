@@ -824,6 +824,9 @@
   "currentTabLocation": {
     "message": "当前标签页"
   },
+  "otherSyncedTab": {
+    "message": "另一个同步标签页"
+  },
   "currentWindowLocation": {
     "message": "当前窗口"
   },
