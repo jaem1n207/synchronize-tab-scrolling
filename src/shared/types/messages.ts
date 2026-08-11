@@ -376,7 +376,7 @@ export interface AddTabToSyncResponseMessage {
 
 export type SyncSuggestionDecisionResponse =
   | { success: true; revision?: number }
-  | { success: false; reason: string };
+  | { success: false; reason: string; warning?: 'auto-sync-degraded' };
 
 /**
  * Message to dismiss add-tab toast on all tabs (when one tab responds)
