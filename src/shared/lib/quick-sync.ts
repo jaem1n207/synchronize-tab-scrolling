@@ -26,7 +26,7 @@ export function parseQuickSyncPortGeneration(name: string): number | null {
   }
 
   const generationValue = name.slice(QUICK_SYNC_PORT_PREFIX.length);
-  if (generationValue.length === 0) {
+  if (!/^(?:0|[1-9]\d*)$/.test(generationValue)) {
     return null;
   }
 

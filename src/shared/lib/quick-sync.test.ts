@@ -39,6 +39,11 @@ describe('Quick Sync Port names', () => {
 
   it.each([
     'quick-sync-candidate:',
+    'quick-sync-candidate: 12',
+    'quick-sync-candidate:+12',
+    'quick-sync-candidate:0x10',
+    'quick-sync-candidate:1e3',
+    'quick-sync-candidate:01',
     'quick-sync-candidate:-1',
     'quick-sync-candidate:1.5',
     'other:12',
