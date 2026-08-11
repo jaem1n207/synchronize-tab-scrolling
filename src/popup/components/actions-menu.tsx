@@ -31,6 +31,7 @@ interface ActionsMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isSyncActive: boolean;
+  isSyncMutationPending: boolean;
   selectedCount: number;
   onStartSync: () => void;
   onStopSync: () => void;
@@ -50,6 +51,7 @@ export function ActionsMenu({
   open,
   onOpenChange,
   isSyncActive,
+  isSyncMutationPending,
   selectedCount,
   onStartSync,
   onStopSync,
@@ -100,12 +102,16 @@ export function ActionsMenu({
   }, [open, onOpenChange]);
 
   const handleSyncAction = useCallback(() => {
+    if (isSyncMutationPending) {
+      return;
+    }
+
     if (isSyncActive) {
       onStopSync();
     } else {
       onStartSync();
     }
-  }, [isSyncActive, onStartSync, onStopSync]);
+  }, [isSyncActive, isSyncMutationPending, onStartSync, onStopSync]);
 
   return (
     <Popover modal open={open} onOpenChange={onOpenChange}>
@@ -167,7 +173,7 @@ export function ActionsMenu({
                   <CommandGroup heading={t('syncControlsHeading')}>
                     <CommandItem
                       ref={firstItemRef}
-                      disabled={!isSyncActive && selectedCount < 2}
+                      disabled={isSyncMutationPending || (!isSyncActive && selectedCount < 2)}
                       onSelect={handleSyncAction}
                     >
                       <div className="flex items-center gap-2 flex-1">
