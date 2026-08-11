@@ -23,6 +23,7 @@ import {
   suggestionSnoozeUntil,
   withAutoSyncLock,
 } from '../lib/auto-sync-state';
+import { waitForBackgroundInitialization } from '../lib/background-initialization';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
@@ -89,12 +90,22 @@ async function rollbackFailedSuggestionStart(connectedTabIds: Array<number>): Pr
 
 export function registerAutoSyncHandlers(): void {
   onMessage('auto-sync:status-changed', async ({ data }) => {
-    const payload = data;
-    await toggleAutoSync(payload.enabled);
+    const enabled = data.enabled;
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready' || readiness.auto.status !== 'ready') {
+      return { success: false, reason: 'initialization-unavailable' };
+    }
+
+    await toggleAutoSync(enabled);
     return { success: true, enabled: autoSyncState.enabled };
   });
 
   onMessage('auto-sync:get-status', async () => {
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready' || readiness.auto.status !== 'ready') {
+      return { success: false, reason: 'initialization-unavailable' };
+    }
+
     const groups: Array<AutoSyncGroupInfo> = [];
     for (const [normalizedUrl, group] of autoSyncState.groups.entries()) {
       groups.push({
@@ -114,7 +125,13 @@ export function registerAutoSyncHandlers(): void {
   });
 
   onMessage('auto-sync:get-detailed-status', async ({ sender }) => {
-    logger.debug('[AUTO-SYNC] get-detailed-status request', { senderTabId: sender.tabId });
+    const senderTabId = sender.tabId;
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready' || readiness.auto.status !== 'ready') {
+      return { success: false, reason: 'initialization-unavailable' };
+    }
+
+    logger.debug('[AUTO-SYNC] get-detailed-status request', { senderTabId });
 
     const activeGroups = Array.from(autoSyncState.groups.values()).filter((g) => g.isActive);
     const totalSyncedTabs = activeGroups.reduce((sum, g) => sum + g.tabIds.size, 0);
@@ -130,9 +147,9 @@ export function registerAutoSyncHandlers(): void {
         }
       | undefined;
 
-    if (sender.tabId) {
+    if (senderTabId) {
       for (const [, group] of autoSyncState.groups.entries()) {
-        if (group.tabIds.has(sender.tabId)) {
+        if (group.tabIds.has(senderTabId)) {
           currentTabGroup = {
             tabCount: group.tabIds.size,
             isActive: group.isActive,
@@ -166,6 +183,11 @@ export function registerAutoSyncHandlers(): void {
   onMessage(
     'sync-suggestion:response',
     async ({ data: { accepted, normalizedUrl, permanent, snooze } }) => {
+      const readiness = await waitForBackgroundInitialization();
+      if (readiness.manual.status !== 'ready' || readiness.auto.status !== 'ready') {
+        return { success: false, reason: 'initialization-unavailable' };
+      }
+
       logger.info('[AUTO-SYNC] Received sync suggestion response', {
         accepted,
         permanent: permanent === true,
@@ -312,6 +334,11 @@ export function registerAutoSyncHandlers(): void {
   onMessage(
     'sync-suggestion:add-tab-response',
     async ({ data: { accepted, tabId, permanent, snooze, normalizedUrl } }) => {
+      const readiness = await waitForBackgroundInitialization();
+      if (readiness.manual.status !== 'ready' || readiness.auto.status !== 'ready') {
+        return { success: false, reason: 'initialization-unavailable' };
+      }
+
       logger.info('[AUTO-SYNC] Received add-tab suggestion response', {
         accepted,
         tabId,
@@ -457,7 +484,9 @@ export function registerAutoSyncHandlers(): void {
   );
 
   onMessage('auto-sync:excluded-domains-changed', async ({ data }) => {
-    const { domains } = data;
+    const domains = [...data.domains];
+    await waitForBackgroundInitialization();
+
     excludedDomains.clear();
     for (const domain of domains) {
       excludedDomains.add(domain);
@@ -469,6 +498,7 @@ export function registerAutoSyncHandlers(): void {
   });
 
   onMessage('auto-sync:get-excluded-domains', async () => {
+    await waitForBackgroundInitialization();
     const domains = await loadExcludedDomains();
     return { domains };
   });

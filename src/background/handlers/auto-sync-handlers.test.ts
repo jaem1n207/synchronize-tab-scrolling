@@ -46,6 +46,10 @@ const { messageHandlers, onMessageMock } = vi.hoisted(() => ({
   onMessageMock: vi.fn(),
 }));
 
+const { waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+  waitForBackgroundInitializationMock: vi.fn(),
+}));
+
 vi.mock('webext-bridge/background', () => ({
   onMessage: onMessageMock,
 }));
@@ -80,6 +84,10 @@ vi.mock('~/shared/lib/storage', () => ({
 vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
   updateAutoSyncGroup: vi.fn(),
+}));
+
+vi.mock('../lib/background-initialization', () => ({
+  waitForBackgroundInitialization: waitForBackgroundInitializationMock,
 }));
 
 vi.mock('../lib/auto-sync-lifecycle', () => ({
@@ -128,6 +136,11 @@ function getRequiredHandler(messageId: string): RegisteredMessageHandler {
   }
   return handler;
 }
+
+const readyBackground = {
+  manual: { status: 'ready' as const },
+  auto: { status: 'ready' as const },
+};
 
 describe('registerAutoSyncHandlers', () => {
   beforeEach(() => {
@@ -183,8 +196,63 @@ describe('registerAutoSyncHandlers', () => {
     vi.mocked(withAutoSyncLock).mockImplementation((fn: () => Promise<unknown>) => fn());
     vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
+    waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
     registerAutoSyncHandlers();
+  });
+
+  describe('background readiness', () => {
+    it.each([
+      { messageId: 'auto-sync:status-changed', data: { enabled: true } },
+      { messageId: 'auto-sync:get-status' },
+      { messageId: 'auto-sync:get-detailed-status' },
+      {
+        messageId: 'sync-suggestion:response',
+        data: { accepted: false, normalizedUrl: 'https://example.com/page' },
+      },
+      {
+        messageId: 'sync-suggestion:add-tab-response',
+        data: { accepted: false, tabId: 7 },
+      },
+      {
+        messageId: 'auto-sync:excluded-domains-changed',
+        data: { domains: [] },
+      },
+      { messageId: 'auto-sync:get-excluded-domains' },
+    ])('$messageId waits for initialization', async ({ messageId, data }) => {
+      const handler = getRequiredHandler(messageId);
+
+      await handler({ data, sender: { tabId: 7 } });
+
+      expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads auto-sync status only after readiness resolves', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      autoSyncState.enabled = false;
+      const handler = getRequiredHandler('auto-sync:get-status');
+
+      const response = handler({ sender: {} });
+      autoSyncState.enabled = true;
+      release.resolve(readyBackground);
+
+      await expect(response).resolves.toMatchObject({ success: true, enabled: true });
+    });
+
+    it('fails closed instead of toggling auto-sync when initialization is degraded', async () => {
+      waitForBackgroundInitializationMock.mockResolvedValue({
+        manual: { status: 'storage-error' },
+        auto: { status: 'degraded', reason: 'manual-state-unavailable' },
+      });
+      const handler = getRequiredHandler('auto-sync:status-changed');
+
+      await expect(handler({ data: { enabled: true }, sender: {} })).resolves.toEqual({
+        success: false,
+        reason: 'initialization-unavailable',
+      });
+      expect(toggleAutoSync).not.toHaveBeenCalled();
+    });
   });
 
   describe('auto-sync:status-changed', () => {
