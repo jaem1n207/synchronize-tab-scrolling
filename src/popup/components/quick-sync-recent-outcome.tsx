@@ -29,6 +29,7 @@ function getOutcomeCopy(outcome: RecentQuickSyncOutcome): {
     case 'candidate-tab-missing':
     case 'connection-timeout':
     case 'invalid-acknowledgement':
+    case 'offset-reconciliation-failed':
     case 'persistence-failed':
     case 'hud-unavailable':
       break;
