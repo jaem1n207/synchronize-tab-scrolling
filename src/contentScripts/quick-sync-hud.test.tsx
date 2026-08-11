@@ -482,3 +482,20 @@ describe('initQuickSyncHud', () => {
     expect(getHudUi().queryByRole('link')).not.toBeInTheDocument();
   });
 });
+
+describe('content script entrypoint', () => {
+  it('registers Quick Sync feedback synchronously before scroll synchronization starts', async () => {
+    vi.resetModules();
+    const calls: Array<string> = [];
+    vi.doMock('./quick-sync-hud', () => ({
+      initQuickSyncHud: () => calls.push('quick-sync-hud'),
+    }));
+    vi.doMock('./scroll-sync', () => ({
+      initScrollSync: () => calls.push('scroll-sync'),
+    }));
+
+    await import('./index');
+
+    expect(calls).toEqual(['quick-sync-hud', 'scroll-sync']);
+  });
+});
