@@ -256,8 +256,20 @@ async function startPopupManualSession(startRequest: {
       }
     },
     sendStop: async (tabId, message) => {
-      await sendMessage('scroll:stop', message, { context: 'content-script', tabId });
-      return { success: true };
+      const response: unknown = await sendMessage('scroll:stop', message, {
+        context: 'content-script',
+        tabId,
+      });
+      if (typeof response !== 'object' || response === null) {
+        return { success: false, tabId: -1 };
+      }
+
+      const success = Reflect.get(response, 'success');
+      const responseTabId = Reflect.get(response, 'tabId');
+      return {
+        success: success === true,
+        tabId: Number.isSafeInteger(responseTabId) ? Number(responseTabId) : -1,
+      };
     },
     revalidate: async (context, connectedTabIds) => {
       if (getSyncStateSnapshot().revision !== context.expectedRevision) {

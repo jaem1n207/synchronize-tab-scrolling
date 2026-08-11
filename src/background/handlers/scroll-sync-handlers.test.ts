@@ -76,8 +76,8 @@ const { getManualReadinessSnapshotMock, waitForBackgroundInitializationMock } = 
   waitForBackgroundInitializationMock: vi.fn(),
 }));
 
-const { transitionEvents } = vi.hoisted(() => ({
-  transitionEvents: [] as Array<string>,
+const { transitionEvents } = vi.hoisted((): { transitionEvents: Array<string> } => ({
+  transitionEvents: [],
 }));
 
 vi.mock('webext-bridge/background', () => ({
@@ -246,7 +246,19 @@ describe('registerScrollSyncHandlers', () => {
       },
     );
 
-    vi.mocked(sendMessage).mockResolvedValue({ success: true });
+    sendMessageMock.mockImplementation(
+      async (messageId: string, _data: unknown, destination: unknown) => {
+        if (
+          messageId === 'scroll:stop' &&
+          typeof destination === 'object' &&
+          destination !== null
+        ) {
+          const tabId = Reflect.get(destination, 'tabId');
+          return { success: true, tabId };
+        }
+        return { success: true };
+      },
+    );
     vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
       success: true,
       tabId: destination.tabId,
@@ -559,6 +571,45 @@ describe('registerScrollSyncHandlers', () => {
         { tabIds: [33], isAutoSync: false },
         { context: 'content-script', tabId: 33 },
       );
+    });
+
+    it('passes through an invalid staged Stop acknowledgement as a degraded popup warning', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) =>
+        destination.tabId === 33
+          ? { success: false, tabId: 33 }
+          : { success: true, tabId: destination.tabId },
+      );
+      sendMessageMock.mockImplementation(
+        async (messageId: string, _data: unknown, destination: unknown) => {
+          if (
+            messageId === 'scroll:stop' &&
+            typeof destination === 'object' &&
+            destination !== null
+          ) {
+            const tabId = Reflect.get(destination, 'tabId');
+            return { success: false, tabId };
+          }
+          return { success: true };
+        },
+      );
+
+      const result = await handler({
+        data: { tabIds: [11, 22, 33], mode: 'ratio' },
+        sender: {},
+      });
+
+      expect(result).toEqual({
+        success: true,
+        connectedTabs: [11, 22],
+        connectionResults: {
+          11: { success: true },
+          22: { success: true },
+          33: { success: false, error: 'Invalid acknowledgment' },
+        },
+        warning: 'auto-sync-degraded',
+      });
+      expect(syncState.linkedTabs).toEqual([11, 22]);
     });
 
     it('injects a missing content script before sending popup manual Start', async () => {
