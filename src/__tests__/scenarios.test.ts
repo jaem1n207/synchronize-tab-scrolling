@@ -101,6 +101,7 @@ import {
   pendingSuggestions,
 } from '~/background/lib/auto-sync-state';
 import { syncState } from '~/background/lib/sync-state';
+import { destroyPanel, hidePanel, showPanel } from '~/contentScripts/panel';
 import { getScrollSyncState, initScrollSync } from '~/contentScripts/scroll-sync';
 import {
   calculateAnchoredLogicalRatio,
@@ -128,6 +129,12 @@ interface MockMutationObserverInstance {
   trigger: () => void;
 }
 
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+}
+
 const mutationObservers: Array<MockMutationObserverInstance> = [];
 
 class MockMutationObserver {
@@ -145,6 +152,28 @@ class MockMutationObserver {
       },
     });
   }
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve: Deferred<T>['resolve'] = () => undefined;
+  let reject: Deferred<T>['reject'] = () => undefined;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+}
+
+function deferNextStorageSet(): Deferred<void> {
+  const deferred = createDeferred<void>();
+  mocks.storageSetMock.mockImplementationOnce(async (data: Record<string, unknown>) => {
+    await deferred.promise;
+    for (const [key, value] of Object.entries(data)) {
+      mocks.storageData.set(key, value);
+    }
+  });
+  return deferred;
 }
 
 function createGroup(tabIds: Array<number>, isActive = false): AutoSyncGroup {
@@ -402,6 +431,321 @@ describe('Scenario: scroll start acknowledgements', () => {
   });
 });
 
+describe('Scenario: content runtime operation generations', () => {
+  it('lets a newer stop invalidate a start that is still loading its offset', async () => {
+    const olderOffsetLoad = createDeferred<Record<string, unknown>>();
+    vi.mocked(hidePanel).mockClear();
+    vi.mocked(showPanel).mockClear();
+    mocks.storageGetMock.mockImplementationOnce(() => olderOffsetLoad.promise);
+
+    const olderStart = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 80,
+      tabIds: [80, 81],
+      sessionEpoch: 2,
+    });
+    await flushAsync();
+
+    await expect(
+      invokeContentMessage('scroll:stop', {
+        tabIds: [80],
+        isAutoSync: false,
+      }),
+    ).resolves.toEqual({ success: true, tabId: 80 });
+
+    olderOffsetLoad.resolve({
+      manualScrollOffsets: { 80: { ratio: 0.4, pixels: 400 } },
+    });
+    await expect(olderStart).resolves.toEqual({
+      success: false,
+      tabId: 80,
+      reason: 'stale-operation',
+    });
+
+    expect(getScrollSyncState().isActive).toBe(false);
+    expect(vi.mocked(showPanel)).not.toHaveBeenCalled();
+  });
+
+  it('keeps a newer runtime when an older start resumes after offset load', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(81, { sessionEpoch: 3 });
+
+    const olderOffsetLoad = createDeferred<Record<string, unknown>>();
+    vi.mocked(destroyPanel).mockClear();
+    vi.mocked(hidePanel).mockClear();
+    vi.mocked(showPanel).mockClear();
+    mocks.storageGetMock
+      .mockImplementationOnce(() => olderOffsetLoad.promise)
+      .mockImplementationOnce(async () => ({
+        manualScrollOffsets: { 81: { ratio: 0.2, pixels: 200 } },
+      }));
+
+    const olderStart = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 81,
+      tabIds: [81, 82],
+      sessionEpoch: 4,
+    });
+    await flushAsync();
+
+    const newerStart = await invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 81,
+      tabIds: [81, 83],
+      sessionEpoch: 5,
+    });
+    expect(newerStart).toEqual(expect.objectContaining({ success: true, tabId: 81 }));
+    expect(getScrollSyncState().sessionEpoch).toBe(5);
+    const destroyCallsAfterNewerStart = vi.mocked(destroyPanel).mock.calls.length;
+    const showCallsAfterNewerStart = vi.mocked(showPanel).mock.calls.length;
+    expect(showCallsAfterNewerStart).toBeGreaterThan(0);
+
+    olderOffsetLoad.resolve({
+      manualScrollOffsets: { 81: { ratio: 0.4, pixels: 400 } },
+    });
+    await expect(olderStart).resolves.toEqual({
+      success: false,
+      tabId: 81,
+      reason: 'stale-operation',
+    });
+
+    expect(getScrollSyncState().sessionEpoch).toBe(5);
+    expect(vi.mocked(destroyPanel)).toHaveBeenCalledTimes(destroyCallsAfterNewerStart);
+    expect(vi.mocked(hidePanel)).not.toHaveBeenCalled();
+    expect(vi.mocked(showPanel)).toHaveBeenCalledTimes(showCallsAfterNewerStart);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 5,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(700);
+  });
+
+  it('stops only the captured runtime when stop resumes after a newer start', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(82, { sessionEpoch: 5 });
+
+    const olderOffsetClear = deferNextStorageSet();
+    vi.mocked(destroyPanel).mockClear();
+    vi.mocked(hidePanel).mockClear();
+    vi.mocked(showPanel).mockClear();
+    mocks.storageSetMock.mockClear();
+
+    const olderStop = invokeContentMessage('scroll:stop', {
+      tabIds: [82],
+      isAutoSync: false,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.storageData.set('manualScrollOffsets', {
+      82: { ratio: 0.2, pixels: 200 },
+    });
+    const newerStart = await invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 82,
+      tabIds: [82, 84],
+      sessionEpoch: 6,
+    });
+    expect(newerStart).toEqual(expect.objectContaining({ success: true, tabId: 82 }));
+    expect(getScrollSyncState().sessionEpoch).toBe(6);
+
+    olderOffsetClear.resolve();
+    await expect(olderStop).resolves.toEqual({
+      success: false,
+      tabId: 82,
+      reason: 'stale-operation',
+    });
+
+    expect(getScrollSyncState()).toEqual(
+      expect.objectContaining({
+        isActive: true,
+        tabId: 82,
+        sessionEpoch: 6,
+      }),
+    );
+    await expect(getManualScrollOffset(82)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
+    expect(vi.mocked(hidePanel)).not.toHaveBeenCalled();
+    expect(vi.mocked(showPanel)).toHaveBeenCalledTimes(1);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 6,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(700);
+  });
+
+  it('skips stale URL navigation when a newer start commits during offset clear', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('follow-changed-tab');
+    await startContentSync(83, { sessionEpoch: 7 });
+
+    const olderOffsetClear = deferNextStorageSet();
+    mocks.storageSetMock.mockClear();
+    vi.mocked(hidePanel).mockClear();
+    vi.mocked(showPanel).mockClear();
+
+    const olderUrlSync = invokeContentMessage('url:sync', {
+      url: 'http://localhost/stale-target',
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 7,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.storageData.set('manualScrollOffsets', {
+      83: { ratio: 0.2, pixels: 200 },
+    });
+    const newerStart = await invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 83,
+      tabIds: [83, 85],
+      sessionEpoch: 8,
+    });
+    expect(newerStart).toEqual(expect.objectContaining({ success: true, tabId: 83 }));
+    expect(getScrollSyncState().sessionEpoch).toBe(8);
+
+    olderOffsetClear.resolve();
+    await expect(olderUrlSync).resolves.toEqual({
+      success: false,
+      reason: 'stale-operation',
+    });
+
+    expect(window.location.href).toBe('http://localhost/start');
+    expect(getScrollSyncState()).toEqual(
+      expect.objectContaining({
+        isActive: true,
+        tabId: 83,
+        sessionEpoch: 8,
+      }),
+    );
+    await expect(getManualScrollOffset(83)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
+    expect(vi.mocked(hidePanel)).not.toHaveBeenCalled();
+    expect(vi.mocked(showPanel)).toHaveBeenCalledTimes(1);
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 8,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(700);
+  });
+
+  it('keeps a third start aligned when it begins during stale offset repair', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(84, { sessionEpoch: 9 });
+
+    const olderOffsetClear = deferNextStorageSet();
+    mocks.storageSetMock.mockClear();
+
+    const olderStop = invokeContentMessage('scroll:stop', {
+      tabIds: [84],
+      isAutoSync: false,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.storageData.set('manualScrollOffsets', {
+      84: { ratio: 0.2, pixels: 200 },
+    });
+    await expect(
+      invokeContentMessage('scroll:start', {
+        mode: 'ratio',
+        currentTabId: 84,
+        tabIds: [84, 86],
+        sessionEpoch: 10,
+      }),
+    ).resolves.toEqual(expect.objectContaining({ success: true, tabId: 84 }));
+
+    const offsetRepairSave = deferNextStorageSet();
+    olderOffsetClear.resolve();
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(2);
+    });
+
+    const thirdOffsetLoad = createDeferred<void>();
+    const storageGetCallsBeforeThirdStart = mocks.storageGetMock.mock.calls.length;
+    mocks.storageGetMock.mockImplementationOnce(() => {
+      const offsetAtRead = mocks.storageData.get('manualScrollOffsets');
+      const result = offsetAtRead === undefined ? {} : { manualScrollOffsets: offsetAtRead };
+      return thirdOffsetLoad.promise.then(() => result);
+    });
+
+    const thirdStart = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 84,
+      tabIds: [84, 87],
+      sessionEpoch: 11,
+    });
+    await flushAsync();
+
+    offsetRepairSave.resolve();
+    await expect(olderStop).resolves.toEqual({
+      success: false,
+      tabId: 84,
+      reason: 'stale-operation',
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageGetMock.mock.calls.length).toBeGreaterThan(
+        storageGetCallsBeforeThirdStart,
+      );
+    });
+
+    thirdOffsetLoad.resolve();
+    await expect(thirdStart).resolves.toEqual(
+      expect.objectContaining({ success: true, tabId: 84 }),
+    );
+    expect(getScrollSyncState().sessionEpoch).toBe(11);
+    await expect(getManualScrollOffset(84)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 11,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(700);
+  });
+});
+
 describe('Scenario: session identity propagation', () => {
   it('sends the cached manual epoch with scroll and URL messages', async () => {
     setDocumentScrollMetrics(2000, 1000);
@@ -519,6 +863,8 @@ describe('Scenario: URL sync toggle behavior', () => {
     await invokeContentMessage('url:sync', {
       url: targetUrl,
       sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe(targetUrl);
@@ -533,6 +879,8 @@ describe('Scenario: URL sync toggle behavior', () => {
     await invokeContentMessage('url:sync', {
       url: 'https://search.naver.com/search.naver?where=nexearch&sm=top_hty&fbm=0&ie=utf8&query=hello&ackey=0eid74s6',
       sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe(
@@ -548,6 +896,8 @@ describe('Scenario: URL sync toggle behavior', () => {
     await invokeContentMessage('url:sync', {
       url: 'https://example.com/docs/config?lang=en',
       sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe('https://example.com/docs/config?lang=tr');
@@ -561,6 +911,8 @@ describe('Scenario: URL sync toggle behavior', () => {
     await invokeContentMessage('url:sync', {
       url: 'https://en.example.com/docs/config',
       sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe('https://tr.example.com/docs/config');
@@ -575,6 +927,8 @@ describe('Scenario: URL sync toggle behavior', () => {
     await invokeContentMessage('url:sync', {
       url: 'https://example.com/en/about?tab=pricing',
       sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
@@ -591,6 +945,8 @@ describe('Scenario: URL sync toggle behavior', () => {
       await invokeContentMessage('url:sync', {
         url: 'https://developer.chrome.com/blog/inside-browser-part3?hl=en',
         sourceTabId: 99,
+        isAutoSync: false,
+        sessionEpoch: 1,
       });
 
       expect(window.location.href).toBe('https://d2.naver.com/helloworld/6204533');
@@ -617,6 +973,8 @@ describe('Scenario: URL sync toggle behavior', () => {
       await invokeContentMessage('url:sync', {
         url: 'https://example.com/en/about',
         sourceTabId: 99,
+        isAutoSync: false,
+        sessionEpoch: 1,
       });
 
       expect(await loadUrlSyncMode()).toBe('follow-changed-tab');
@@ -648,6 +1006,8 @@ describe('Scenario: URL sync toggle behavior', () => {
     await invokeContentMessage('url:sync', {
       url: 'http://localhost/no-navigation-target',
       sourceTabId: 88,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe(beforeNavigation);
@@ -663,6 +1023,8 @@ describe('Scenario: URL sync toggle behavior', () => {
     await invokeContentMessage('url:sync', {
       url: 'http://localhost/self-source-target',
       sourceTabId: 44,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe(beforeNavigation);
@@ -1372,6 +1734,8 @@ describe('Scenario: manual offset reset when URL changes', () => {
     await invokeContentMessage('url:sync', {
       url: targetUrl,
       sourceTabId: 999,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     await expect(getManualScrollOffset(202)).resolves.toEqual({ ratio: 0, pixels: 0 });
@@ -1389,6 +1753,8 @@ describe('Scenario: manual offset reset when URL changes', () => {
       await invokeContentMessage('url:sync', {
         url: 'not-a-url',
         sourceTabId: 999,
+        isAutoSync: false,
+        sessionEpoch: 1,
       });
 
       expect(notices).toContainEqual({
@@ -1418,6 +1784,8 @@ describe('Scenario: manual offset reset when URL changes', () => {
       await invokeContentMessage('url:sync', {
         url: 'https://developer.chrome.com/blog/inside-browser-part3?hl=en',
         sourceTabId: 999,
+        isAutoSync: false,
+        sessionEpoch: 1,
       });
 
       expect(notices).toContainEqual({
@@ -1455,6 +1823,8 @@ describe('Scenario: manual offset reset when URL changes', () => {
     await invokeContentMessage('url:sync', {
       url: 'https://example.com/en/about?tab=pricing',
       sourceTabId: 999,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
@@ -1481,6 +1851,8 @@ describe('Scenario: manual offset reset when URL changes', () => {
     await invokeContentMessage('url:sync', {
       url: 'https://example.com/en/about',
       sourceTabId: 999,
+      isAutoSync: false,
+      sessionEpoch: 1,
     });
 
     await expect(getManualScrollOffset(205)).resolves.toEqual({ ratio: -0.1, pixels: -30 });

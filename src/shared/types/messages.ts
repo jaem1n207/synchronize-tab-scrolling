@@ -74,6 +74,7 @@ export type StartSyncContentResponse = {
   success: boolean;
   tabId: number;
   metrics?: ContextualHintScrollMetrics;
+  reason?: 'stale-operation';
 };
 
 export type StartSyncBackgroundResponse = {

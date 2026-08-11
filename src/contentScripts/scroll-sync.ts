@@ -37,6 +37,7 @@ import type {
 import type {
   ScrollSyncMessage,
   StartSyncContentMessage,
+  StartSyncContentResponse,
   StartSyncMessage,
   UrlSyncMessage,
 } from '~/shared/types/messages';
@@ -88,9 +89,137 @@ const urlMonitorState = createInitialUrlMonitorState();
 const LAZY_LOAD_CATCH_UP_DELAY_MS = 120;
 const LAZY_LOAD_CATCH_UP_MAX_ATTEMPTS = 3;
 
+interface ContentRuntimeIdentity {
+  operationGeneration: number;
+  tabId: number;
+  isAutoSync: boolean;
+  sessionEpoch: number;
+}
+
+interface UrlSyncOperationIdentity {
+  operationGeneration: number;
+  runtime: ContentRuntimeIdentity;
+}
+
 let cachedManualOffset: ManualScrollOffset = { ratio: 0, pixels: 0 };
 let lazyLoadCatchUpTimeoutId: number | null = null;
 let lazyLoadCatchUpGeneration = 0;
+let runtimeOperationGeneration = 0;
+let activeRuntimeIdentity: ContentRuntimeIdentity | null = null;
+let pendingRuntimeIdentity: ContentRuntimeIdentity | null = null;
+let urlSyncOperationGeneration = 0;
+let manualOffsetReconciliationBarrier: Promise<void> = Promise.resolve();
+
+function beginRuntimeOperation(): number {
+  runtimeOperationGeneration += 1;
+  urlSyncOperationGeneration += 1;
+  activeRuntimeIdentity = null;
+  pendingRuntimeIdentity = null;
+  return runtimeOperationGeneration;
+}
+
+function isRuntimeOperationCurrent(operationGeneration: number): boolean {
+  return operationGeneration === runtimeOperationGeneration;
+}
+
+function isRuntimeOperationIdentityCurrent(runtime: ContentRuntimeIdentity): boolean {
+  return (
+    runtime.operationGeneration === runtimeOperationGeneration &&
+    (activeRuntimeIdentity === runtime || pendingRuntimeIdentity === runtime)
+  );
+}
+
+function isRuntimeIdentityCurrent(runtime: ContentRuntimeIdentity): boolean {
+  return (
+    activeRuntimeIdentity === runtime &&
+    isRuntimeOperationIdentityCurrent(runtime) &&
+    syncState.isActive &&
+    syncState.tabId === runtime.tabId &&
+    syncState.isAutoSync === runtime.isAutoSync &&
+    syncState.sessionEpoch === runtime.sessionEpoch
+  );
+}
+
+function createSessionMessageIdentity(runtime: ContentRuntimeIdentity): SessionMessageIdentity {
+  if (runtime.isAutoSync) {
+    return {
+      isAutoSync: true,
+      sourceTabId: runtime.tabId,
+    };
+  }
+
+  return {
+    isAutoSync: false,
+    sourceTabId: runtime.tabId,
+    sessionEpoch: runtime.sessionEpoch,
+  };
+}
+
+function doesSessionMessageMatchRuntime(
+  identity: SessionMessageIdentity,
+  runtime: ContentRuntimeIdentity,
+): boolean {
+  if (identity.isAutoSync) {
+    return runtime.isAutoSync;
+  }
+
+  return !runtime.isAutoSync && identity.sessionEpoch === runtime.sessionEpoch;
+}
+
+function beginUrlSyncOperation(runtime: ContentRuntimeIdentity): UrlSyncOperationIdentity {
+  urlSyncOperationGeneration += 1;
+  return {
+    operationGeneration: urlSyncOperationGeneration,
+    runtime,
+  };
+}
+
+function isUrlSyncOperationCurrent(operation: UrlSyncOperationIdentity): boolean {
+  return (
+    operation.operationGeneration === urlSyncOperationGeneration &&
+    isRuntimeIdentityCurrent(operation.runtime)
+  );
+}
+
+function createStaleOperationAcknowledgement(tabId?: number) {
+  return {
+    success: false,
+    ...(tabId === undefined ? {} : { tabId }),
+    reason: 'stale-operation',
+  };
+}
+
+async function waitForManualOffsetReconciliation(): Promise<void> {
+  while (true) {
+    const barrier = manualOffsetReconciliationBarrier;
+    await barrier;
+    if (barrier === manualOffsetReconciliationBarrier) {
+      return;
+    }
+  }
+}
+
+function restoreCurrentRuntimeOffsetAfterStaleClear(tabId: number): Promise<void> {
+  const runtime = activeRuntimeIdentity;
+  if (!runtime || runtime.tabId !== tabId || !isRuntimeIdentityCurrent(runtime)) {
+    return Promise.resolve();
+  }
+
+  const offset = cachedManualOffset;
+  const precedingBarrier = manualOffsetReconciliationBarrier;
+  const reconciliation = precedingBarrier.then(async () => {
+    const pendingRuntime = pendingRuntimeIdentity;
+    const isReplacementStartPending =
+      pendingRuntime?.tabId === tabId && isRuntimeOperationIdentityCurrent(pendingRuntime);
+    if (!isRuntimeIdentityCurrent(runtime) && !isReplacementStartPending) {
+      return;
+    }
+
+    await saveManualScrollOffset(tabId, offset.ratio, offset.pixels, offset.anchor);
+  });
+  manualOffsetReconciliationBarrier = reconciliation;
+  return reconciliation;
+}
 
 const programmaticScrollScheduler = createLatestProgrammaticScrollScheduler({
   requestFrame: (callback) => window.requestAnimationFrame(callback),
@@ -563,18 +692,37 @@ const handleScroll = throttleAndDebounce(handleScrollCore, THROTTLE_DELAY);
  * Broadcast URL change to other tabs (P1)
  */
 async function broadcastUrlChange(url: string) {
-  const sessionIdentity = getSessionMessageIdentity();
-  logger.info('URL changed, broadcasting to other tabs', { tabId: syncState.tabId });
+  const runtime = activeRuntimeIdentity;
+  if (!runtime || !isRuntimeIdentityCurrent(runtime)) {
+    return;
+  }
+
+  const operation = beginUrlSyncOperation(runtime);
+  const sessionIdentity = createSessionMessageIdentity(runtime);
+  logger.info('URL changed, broadcasting to other tabs', { tabId: runtime.tabId });
 
   // Clear manual scroll offset when navigating to a new page (source tab)
   // Only clear if URL sync is enabled - old offset values won't be useful on a new page
   const urlSyncEnabled = await loadUrlSyncEnabled();
+  if (!isUrlSyncOperationCurrent(operation)) {
+    return;
+  }
+
   if (urlSyncEnabled) {
-    await clearManualScrollOffset(syncState.tabId);
+    await clearManualScrollOffset(runtime.tabId);
+    if (!isUrlSyncOperationCurrent(operation)) {
+      await restoreCurrentRuntimeOffsetAfterStaleClear(runtime.tabId);
+      return;
+    }
+
     cachedManualOffset = { ratio: 0, pixels: 0 };
     logger.debug('Cleared manual scroll offset on URL change (source tab)', {
-      tabId: syncState.tabId,
+      tabId: runtime.tabId,
     });
+  }
+
+  if (!isUrlSyncOperationCurrent(operation)) {
+    return;
   }
 
   const message: UrlSyncMessage & SessionMessageIdentity = {
@@ -902,6 +1050,7 @@ export function initScrollSync() {
     const payload: StartSyncContentMessage | StartSyncMessage = data;
     const isAutoSync = payload.isAutoSync === true;
     const sessionEpoch = 'sessionEpoch' in payload ? payload.sessionEpoch : undefined;
+    const targetTabId = payload.currentTabId ?? 0;
     let committedSessionEpoch = 0;
 
     if (!isAutoSync) {
@@ -912,18 +1061,33 @@ export function initScrollSync() {
       ) {
         return {
           success: false,
-          tabId: payload.currentTabId ?? 0,
+          tabId: targetTabId,
         };
       }
       committedSessionEpoch = sessionEpoch;
     }
+
+    const wasSyncActive = syncState.isActive;
+    const operationGeneration = beginRuntimeOperation();
+    const runtimeIdentity: ContentRuntimeIdentity = {
+      operationGeneration,
+      tabId: targetTabId,
+      isAutoSync,
+      sessionEpoch: committedSessionEpoch,
+    };
+    pendingRuntimeIdentity = runtimeIdentity;
+    const createStaleStartAcknowledgement = (): StartSyncContentResponse => ({
+      success: false,
+      tabId: targetTabId,
+      reason: 'stale-operation',
+    });
 
     // Hide pre-sync suggestion toasts without clearing contextual onboarding shown after navigation.
     hideTransientSuggestionToasts();
 
     // Clean up any existing sync state before starting new sync
     // This is critical for re-sync scenarios where content script is already active
-    if (syncState.isActive) {
+    if (wasSyncActive) {
       logger.info('Sync already active, cleaning up old state before re-initializing');
 
       cancelPendingProgrammaticScroll();
@@ -936,6 +1100,9 @@ export function initScrollSync() {
 
       // Cleanup old keyboard handler without persisting offsets from the previous sync session.
       await cleanupKeyboardHandler({ persistManualOffset: false });
+      if (!isRuntimeOperationCurrent(operationGeneration)) {
+        return createStaleStartAcknowledgement();
+      }
 
       // Stop old connection health check
       stopConnectionHealthCheck();
@@ -956,17 +1123,28 @@ export function initScrollSync() {
       });
     }
 
+    await waitForManualOffsetReconciliation();
+    if (!isRuntimeOperationCurrent(operationGeneration)) {
+      return createStaleStartAcknowledgement();
+    }
+
+    const nextManualOffset = await getManualScrollOffset(targetTabId);
+    if (!isRuntimeOperationCurrent(operationGeneration)) {
+      return createStaleStartAcknowledgement();
+    }
+
     // Reset all state variables
     cancelPendingProgrammaticScroll();
 
     syncState.isActive = true;
     syncState.isAutoSync = isAutoSync;
     syncState.mode = payload.mode;
-    syncState.tabId = payload.currentTabId ?? 0;
+    syncState.tabId = targetTabId;
     syncState.sessionEpoch = committedSessionEpoch;
     syncState.isManualScrollEnabled = false;
     syncState.lastProgrammaticScrollTime = 0;
     connectionState.isHealthy = true;
+    cachedManualOffset = nextManualOffset;
 
     // Reset mousemove state for wheel manual mode
     wheelState.lastMouseMoveCheckTime = 0;
@@ -1018,8 +1196,6 @@ export function initScrollSync() {
     showPanel();
     logger.debug('Panel shown');
 
-    cachedManualOffset = await getManualScrollOffset(syncState.tabId);
-
     // Start connection health monitoring
     startConnectionHealthCheck();
     connectionState.lastSuccessfulSync = Date.now();
@@ -1027,29 +1203,39 @@ export function initScrollSync() {
     // Start visibility change monitoring for idle tab reconnection
     startVisibilityChangeMonitoring();
 
+    activeRuntimeIdentity = runtimeIdentity;
+    pendingRuntimeIdentity = null;
+
     return {
       success: true,
-      tabId: syncState.tabId,
-      metrics: getContextualHintScrollMetrics(syncState.tabId),
+      tabId: targetTabId,
+      metrics: getContextualHintScrollMetrics(targetTabId),
     };
   });
 
   // Listen for stop sync message
   onMessage('scroll:stop', async ({ data }) => {
     const payload = data;
+    const targetRuntime = activeRuntimeIdentity ?? pendingRuntimeIdentity;
+    if (!targetRuntime || !isRuntimeOperationIdentityCurrent(targetRuntime)) {
+      return createStaleOperationAcknowledgement(syncState.tabId);
+    }
+
     logger.info('Stopping scroll sync', {
-      tabId: syncState.tabId,
+      tabId: targetRuntime.tabId,
       isAutoSync: payload.isAutoSync ?? false,
     });
 
     // Auto-sync stop should only stop auto-sync (not interfere with manual sync)
     // But manual stop (from popup) should work regardless of sync type
-    if (payload.isAutoSync && !syncState.isAutoSync) {
+    if (payload.isAutoSync && !targetRuntime.isAutoSync) {
       logger.debug('Ignoring auto-sync stop - current sync is manual');
       return { success: false, reason: 'Not in auto-sync mode' };
     }
     // Note: Manual stop (without isAutoSync flag) now works for both sync types
     // This allows users to stop sync from popup even when auto-sync is active
+
+    const operationGeneration = beginRuntimeOperation();
 
     cancelPendingProgrammaticScroll();
 
@@ -1080,15 +1266,23 @@ export function initScrollSync() {
 
     // Cleanup keyboard handler without re-saving an offset that sync stop is about to clear.
     await cleanupKeyboardHandler({ persistManualOffset: false });
+    if (!isRuntimeOperationCurrent(operationGeneration)) {
+      return createStaleOperationAcknowledgement(targetRuntime.tabId);
+    }
 
-    await clearManualScrollOffset(syncState.tabId);
+    await clearManualScrollOffset(targetRuntime.tabId);
+    if (!isRuntimeOperationCurrent(operationGeneration)) {
+      await restoreCurrentRuntimeOffsetAfterStaleClear(targetRuntime.tabId);
+      return createStaleOperationAcknowledgement(targetRuntime.tabId);
+    }
+
     cachedManualOffset = { ratio: 0, pixels: 0 };
-    logger.info('Cleared manual scroll offset on sync stop', { tabId: syncState.tabId });
+    logger.info('Cleared manual scroll offset on sync stop', { tabId: targetRuntime.tabId });
 
     // Hide draggable control panel
     hidePanel();
 
-    return { success: true, tabId: syncState.tabId };
+    return { success: true, tabId: targetRuntime.tabId };
   });
 
   // Listen for scroll sync from other tabs
@@ -1249,21 +1443,37 @@ export function initScrollSync() {
 
   // Listen for URL sync from other tabs (P1)
   onMessage('url:sync', async ({ data }) => {
-    if (!syncState.isActive) return;
-
     const payload = data;
+    const runtime = activeRuntimeIdentity;
+    if (
+      !runtime ||
+      !isRuntimeIdentityCurrent(runtime) ||
+      !doesSessionMessageMatchRuntime(payload, runtime)
+    ) {
+      return createStaleOperationAcknowledgement();
+    }
 
     // Don't navigate if this is the source tab
-    if (payload.sourceTabId === syncState.tabId) return;
+    if (payload.sourceTabId === runtime.tabId) return;
+
+    const operation = beginUrlSyncOperation(runtime);
 
     // Check if URL sync is enabled
     const urlSyncEnabled = await loadUrlSyncEnabled();
+    if (!isUrlSyncOperationCurrent(operation)) {
+      return createStaleOperationAcknowledgement();
+    }
+
     if (!urlSyncEnabled) {
       logger.debug('URL sync is disabled, ignoring navigation request');
       return;
     }
 
     const modeRepairResult = await repairUrlSyncMode();
+    if (!isUrlSyncOperationCurrent(operation)) {
+      return createStaleOperationAcknowledgement();
+    }
+
     if (modeRepairResult.status === 'failed') {
       emitUrlSyncNotice(createUrlSyncNoticeDetail(modeRepairResult.notice));
       logger.warn('URL sync navigation skipped because mode settings could not be repaired', {
@@ -1320,9 +1530,18 @@ export function initScrollSync() {
       mode: modeRepairResult.mode,
     });
 
-    await clearManualScrollOffset(syncState.tabId);
+    if (!isUrlSyncOperationCurrent(operation)) {
+      return createStaleOperationAcknowledgement();
+    }
+
+    await clearManualScrollOffset(runtime.tabId);
+    if (!isUrlSyncOperationCurrent(operation)) {
+      await restoreCurrentRuntimeOffsetAfterStaleClear(runtime.tabId);
+      return createStaleOperationAcknowledgement();
+    }
+
     cachedManualOffset = { ratio: 0, pixels: 0 };
-    logger.debug('Cleared manual scroll offset before URL navigation', { tabId: syncState.tabId });
+    logger.debug('Cleared manual scroll offset before URL navigation', { tabId: runtime.tabId });
 
     const pendingHintId = getPendingUrlSyncHintIdForMode(modeRepairResult.mode);
     const pendingHintSaveResult = await sendMessage(
@@ -1336,6 +1555,10 @@ export function initScrollSync() {
         mode: modeRepairResult.mode,
         operation: 'save-pending-url-sync-contextual-hint',
       });
+    }
+
+    if (!isUrlSyncOperationCurrent(operation)) {
+      return createStaleOperationAcknowledgement();
     }
 
     navigateToUrl(resolution.url);
