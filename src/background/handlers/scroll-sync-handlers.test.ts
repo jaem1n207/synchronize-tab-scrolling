@@ -24,14 +24,24 @@ import {
   autoSyncState,
   manualSyncOverriddenTabs,
   pendingSuggestions,
+  withAutoSyncLock,
 } from '../lib/auto-sync-state';
+import { isContentScriptAlive } from '../lib/content-script-manager';
 import {
   consumePendingUrlSyncContextualHint,
   savePendingUrlSyncContextualHint,
 } from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from '../lib/sync-state';
+import {
+  broadcastSyncStatus,
+  commitSyncState,
+  getSyncStateSnapshot,
+  persistCommittedSyncStateLegacy,
+  persistSyncState,
+  syncState,
+} from '../lib/sync-state';
+import { syncTransitionGate } from '../lib/sync-transition-gate';
 
 import { registerScrollSyncHandlers } from './scroll-sync-handlers';
 
@@ -41,15 +51,21 @@ type RegisteredMessageHandler<TData = unknown> = (
   message: MessageEnvelope<TData>,
 ) => Promise<unknown>;
 
-const { messageHandlers, onMessageMock, sendMessageMock, tabsGetMock, tabsQueryMock } = vi.hoisted(
-  () => ({
-    messageHandlers: new Map<string, (...args: never[]) => unknown>(),
-    onMessageMock: vi.fn(),
-    sendMessageMock: vi.fn(),
-    tabsGetMock: vi.fn(),
-    tabsQueryMock: vi.fn(),
-  }),
-);
+const {
+  messageHandlers,
+  onMessageMock,
+  sendMessageMock,
+  tabsGetMock,
+  tabsQueryMock,
+  executeScriptMock,
+} = vi.hoisted(() => ({
+  messageHandlers: new Map<string, (...args: never[]) => unknown>(),
+  onMessageMock: vi.fn(),
+  sendMessageMock: vi.fn(),
+  tabsGetMock: vi.fn(),
+  tabsQueryMock: vi.fn(),
+  executeScriptMock: vi.fn(),
+}));
 
 const { isContextualHintDismissedMock } = vi.hoisted(() => ({
   isContextualHintDismissedMock: vi.fn(),
@@ -58,6 +74,10 @@ const { isContextualHintDismissedMock } = vi.hoisted(() => ({
 const { getManualReadinessSnapshotMock, waitForBackgroundInitializationMock } = vi.hoisted(() => ({
   getManualReadinessSnapshotMock: vi.fn(),
   waitForBackgroundInitializationMock: vi.fn(),
+}));
+
+const { transitionEvents } = vi.hoisted(() => ({
+  transitionEvents: [] as Array<string>,
 }));
 
 vi.mock('webext-bridge/background', () => ({
@@ -70,6 +90,9 @@ vi.mock('webextension-polyfill', () => ({
     tabs: {
       get: tabsGetMock,
       query: tabsQueryMock,
+    },
+    scripting: {
+      executeScript: executeScriptMock,
     },
   },
 }));
@@ -107,11 +130,19 @@ vi.mock('../lib/auto-sync-state', () => ({
   manualSyncOverriddenTabs: new Set<number>(),
   pendingSuggestions: new Set<string>(),
   addTabSuggestedTabs: new Set<number>(),
+  withAutoSyncLock: vi.fn(async (operation: () => Promise<unknown>) => {
+    transitionEvents.push('auto-lock');
+    return operation();
+  }),
 }));
 
 vi.mock('../lib/contextual-hint-state', () => ({
   consumePendingUrlSyncContextualHint: vi.fn(),
   savePendingUrlSyncContextualHint: vi.fn(),
+}));
+
+vi.mock('../lib/content-script-manager', () => ({
+  isContentScriptAlive: vi.fn(),
 }));
 
 vi.mock('../lib/keep-alive', () => ({
@@ -133,8 +164,30 @@ vi.mock('../lib/sync-state', () => ({
     revision: 0,
     sessionEpoch: 0,
   },
+  getSyncStateSnapshot: vi.fn(),
+  commitSyncState: vi.fn(),
+  persistSyncState: vi.fn(),
   persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
+}));
+
+vi.mock('../lib/sync-transition-gate', () => ({
+  syncTransitionGate: {
+    run: vi.fn(
+      async (
+        transition: (context: {
+          operationGeneration: number;
+          expectedRevision: number;
+        }) => Promise<unknown>,
+      ) => {
+        transitionEvents.push('transition-gate');
+        return transition({
+          operationGeneration: 1,
+          expectedRevision: syncState.revision,
+        });
+      },
+    ),
+  },
 }));
 
 function getHandler<TData>(messageId: string): RegisteredMessageHandler<TData> {
@@ -185,6 +238,7 @@ describe('registerScrollSyncHandlers', () => {
     manualSyncOverriddenTabs.clear();
     pendingSuggestions.clear();
     addTabSuggestedTabs.clear();
+    transitionEvents.splice(0);
 
     onMessageMock.mockImplementation(
       (messageId: string, handler: (...args: never[]) => unknown) => {
@@ -217,10 +271,27 @@ describe('registerScrollSyncHandlers', () => {
         }) as browser.Tabs.Tab,
     );
     vi.mocked(browser.tabs.query).mockResolvedValue([]);
+    vi.mocked(browser.scripting.executeScript).mockResolvedValue([]);
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(updateAutoSyncGroup).mockResolvedValue(null);
+    vi.mocked(isContentScriptAlive).mockResolvedValue(true);
     vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
+    vi.mocked(getSyncStateSnapshot).mockImplementation(() => ({
+      ...syncState,
+      linkedTabs: [...syncState.linkedTabs],
+      connectionStatuses: { ...syncState.connectionStatuses },
+    }));
+    vi.mocked(commitSyncState).mockImplementation((nextState) => {
+      syncState.isActive = nextState.isActive;
+      syncState.linkedTabs = [...nextState.linkedTabs];
+      syncState.connectionStatuses = { ...nextState.connectionStatuses };
+      syncState.lastActiveSyncedTabId = nextState.lastActiveSyncedTabId;
+      syncState.revision = nextState.revision;
+      syncState.sessionEpoch = nextState.sessionEpoch;
+      syncState.mode = nextState.mode;
+    });
+    vi.mocked(persistSyncState).mockResolvedValue({ status: 'persisted' });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     isContextualHintDismissedMock.mockResolvedValue(false);
     vi.mocked(consumePendingUrlSyncContextualHint).mockReset();
@@ -417,6 +488,130 @@ describe('registerScrollSyncHandlers', () => {
   });
 
   describe('scroll:start', () => {
+    it('runs popup manual Start through the transition gate before the auto lock', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+
+      const result = await handler({
+        data: { tabIds: [11, 22], mode: 'ratio' },
+        sender: {},
+      });
+
+      expect(result).toEqual({
+        success: true,
+        connectedTabs: [11, 22],
+        connectionResults: {
+          11: { success: true },
+          22: { success: true },
+        },
+      });
+      expect(transitionEvents.slice(0, 2)).toEqual(['transition-gate', 'auto-lock']);
+      expect(syncTransitionGate.run).toHaveBeenCalledTimes(1);
+      expect(withAutoSyncLock).toHaveBeenCalled();
+      expect(persistSyncState).toHaveBeenCalledWith({
+        isActive: true,
+        linkedTabs: [11, 22],
+        connectionStatuses: { 11: 'connected', 22: 'connected' },
+        mode: 'ratio',
+        lastActiveSyncedTabId: null,
+        revision: 1,
+        sessionEpoch: 1,
+      });
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        {
+          tabIds: [11, 22],
+          mode: 'ratio',
+          currentTabId: 11,
+          isAutoSync: false,
+          sessionEpoch: 1,
+        },
+        { context: 'content-script', tabId: 11 },
+        1_000,
+      );
+    });
+
+    it('preserves popup partial connection details while cleaning the rejected staged tab', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) =>
+        destination.tabId === 33
+          ? { success: false, tabId: 33 }
+          : { success: true, tabId: destination.tabId },
+      );
+
+      const result = await handler({
+        data: { tabIds: [11, 22, 33], mode: 'ratio' },
+        sender: {},
+      });
+
+      expect(result).toEqual({
+        success: true,
+        connectedTabs: [11, 22],
+        connectionResults: {
+          11: { success: true },
+          22: { success: true },
+          33: { success: false, error: 'Invalid acknowledgment' },
+        },
+      });
+      expect(syncState.revision).toBe(1);
+      expect(syncState.sessionEpoch).toBe(1);
+      expect(sendMessage).toHaveBeenCalledWith(
+        'scroll:stop',
+        { tabIds: [33], isAutoSync: false },
+        { context: 'content-script', tabId: 33 },
+      );
+    });
+
+    it('injects a missing content script before sending popup manual Start', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      vi.mocked(isContentScriptAlive).mockResolvedValueOnce(false).mockResolvedValue(true);
+
+      const result = await handler({
+        data: { tabIds: [11, 22], mode: 'ratio' },
+        sender: {},
+      });
+
+      expect(result).toMatchObject({ success: true, connectedTabs: [11, 22] });
+      expect(browser.scripting.executeScript).toHaveBeenCalledWith({
+        target: { tabId: 11 },
+        files: ['dist/contentScripts/index.global.js'],
+      });
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        expect.objectContaining({ currentTabId: 11, sessionEpoch: 1 }),
+        { context: 'content-script', tabId: 11 },
+        1_000,
+      );
+    });
+
+    it('does not publish popup manual state when persistence fails', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+      vi.mocked(persistSyncState).mockResolvedValue({ status: 'storage-error' });
+
+      const result = await handler({
+        data: { tabIds: [11, 22], mode: 'ratio' },
+        sender: {},
+      });
+
+      expect(result).toEqual({
+        success: false,
+        connectedTabs: [11, 22],
+        connectionResults: {
+          11: { success: true },
+          22: { success: true },
+        },
+        error: 'Failed to persist synchronization state',
+      });
+      expect(syncState).toMatchObject({
+        isActive: false,
+        linkedTabs: [],
+        connectionStatuses: {},
+        revision: 0,
+        sessionEpoch: 0,
+      });
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+      expect(startKeepAlive).not.toHaveBeenCalled();
+    });
+
     it('starts sync successfully when 2 or more tabs connect', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
       const payload: StartSyncMessage = {
@@ -491,22 +686,25 @@ describe('registerScrollSyncHandlers', () => {
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
-    it('marks manual sync tabs as overridden and removes them from auto-sync groups', async () => {
+    it('marks manual sync tabs as overridden and removes their staged auto memberships', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
       const payload: StartSyncMessage = {
         tabIds: [5, 6],
         mode: 'ratio',
         isAutoSync: false,
       };
+      autoSyncState.groups.set('manual-candidates', {
+        tabIds: new Set([5, 6, 7]),
+        isActive: true,
+      });
 
       const result = await handler({ data: payload, sender: {} });
 
       expect(result).toMatchObject({ success: true, connectedTabs: [5, 6] });
       expect(manualSyncOverriddenTabs.has(5)).toBe(true);
       expect(manualSyncOverriddenTabs.has(6)).toBe(true);
-      expect(removeTabFromAllAutoSyncGroups).toHaveBeenCalledTimes(2);
-      expect(removeTabFromAllAutoSyncGroups).toHaveBeenNthCalledWith(1, 5);
-      expect(removeTabFromAllAutoSyncGroups).toHaveBeenNthCalledWith(2, 6);
+      expect(autoSyncState.groups.get('manual-candidates')?.tabIds).toEqual(new Set([7]));
+      expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
     });
 
     it('prunes pendingSuggestions for groups below threshold on manual sync start', async () => {

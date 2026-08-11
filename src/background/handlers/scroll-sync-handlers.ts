@@ -11,32 +11,42 @@ import type {
   ContextualHintScrollMetrics,
   ContextualHintShowMessage,
 } from '~/shared/types/contextual-hints';
-import type { StartSyncContentMessage, StartSyncContentResponse } from '~/shared/types/messages';
+import type {
+  StartSyncConnectionResults,
+  StartSyncContentMessage,
+  StartSyncContentResponse,
+} from '~/shared/types/messages';
 import type { SessionMessageIdentity } from '~/shared/types/sync-session';
 
-import {
-  removeTabFromAllAutoSyncGroups,
-  getAutoSyncGroupMembers,
-  updateAutoSyncGroup,
-} from '../lib/auto-sync-groups';
+import { getAutoSyncGroupMembers, updateAutoSyncGroup } from '../lib/auto-sync-groups';
 import {
   autoSyncState,
   manualSyncOverriddenTabs,
-  pendingSuggestions,
   addTabSuggestedTabs,
 } from '../lib/auto-sync-state';
 import {
   getManualReadinessSnapshot,
   waitForBackgroundInitialization,
 } from '../lib/background-initialization';
+import { isContentScriptAlive } from '../lib/content-script-manager';
 import {
   consumePendingUrlSyncContextualHint,
   savePendingUrlSyncContextualHint,
 } from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
+import { manualOverrideAdapter } from '../lib/manual-override-adapter';
 import { isAuthorizedManualSessionMessage } from '../lib/manual-session-authorization';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
+import { createSyncSessionOrchestrator } from '../lib/sync-session-orchestrator';
+import {
+  syncState,
+  getSyncStateSnapshot,
+  commitSyncState,
+  persistSyncState,
+  persistCommittedSyncStateLegacy,
+  broadcastSyncStatus,
+} from '../lib/sync-state';
+import { syncTransitionGate } from '../lib/sync-transition-gate';
 
 const logger = new ExtensionLogger({ scope: 'background/scroll-sync-handlers' });
 const MANUAL_ADJUSTMENT_HINT_ID = 'manual-scroll-adjustment';
@@ -126,6 +136,192 @@ async function maybeShowManualAdjustmentHint(
   }
 }
 
+async function ensurePopupContentScript(tabId: number): Promise<boolean> {
+  try {
+    await browser.tabs.get(tabId);
+    const isAlive = await Promise.race([
+      isContentScriptAlive(tabId),
+      new Promise<false>((resolve) => {
+        setTimeout(() => resolve(false), 250);
+      }),
+    ]);
+    if (isAlive) {
+      return true;
+    }
+
+    await browser.scripting.executeScript({
+      target: { tabId },
+      files: ['dist/contentScripts/index.global.js'],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getPopupStartError(
+  reason:
+    | 'unsupported-page'
+    | 'content-unreachable'
+    | 'candidate-tab-missing'
+    | 'connection-timeout'
+    | 'invalid-acknowledgement'
+    | 'persistence-failed'
+    | 'auto-sync-degraded'
+    | 'session-state-unavailable'
+    | 'hud-unavailable'
+    | 'stale-revision'
+    | 'not-active',
+): string {
+  switch (reason) {
+    case 'connection-timeout':
+      return 'Timeout after 1000ms';
+    case 'invalid-acknowledgement':
+      return 'Invalid acknowledgment';
+    case 'persistence-failed':
+      return 'Failed to persist synchronization state';
+    case 'stale-revision':
+      return 'Synchronization state changed';
+    case 'not-active':
+      return 'A synchronization session is already active';
+    default:
+      return 'Could not establish connection';
+  }
+}
+
+async function startPopupManualSession(startRequest: {
+  tabIds: Array<number>;
+  mode: 'ratio' | 'element';
+}): Promise<{
+  success: boolean;
+  connectedTabs: Array<number>;
+  connectionResults: StartSyncConnectionResults;
+  error?: string;
+  warning?: 'auto-sync-degraded';
+}> {
+  const connectionResults: StartSyncConnectionResults = {};
+  const connectedScrollMetrics: Array<ContextualHintScrollMetrics> = [];
+  const orchestrator = createSyncSessionOrchestrator({
+    getState: getSyncStateSnapshot,
+    persistState: persistSyncState,
+    commitState: commitSyncState,
+    ensureContentScript: ensurePopupContentScript,
+    sendStart: async (tabId, message) => {
+      try {
+        let response: StartSyncContentResponse;
+        if (message.isAutoSync === true) {
+          response = await sendMessageWithTimeout<StartSyncContentResponse>(
+            'scroll:start',
+            {
+              tabIds: message.tabIds,
+              mode: message.mode,
+              currentTabId: message.currentTabId,
+              isAutoSync: true,
+            },
+            { context: 'content-script', tabId },
+            1_000,
+          );
+        } else {
+          response = await sendMessageWithTimeout<StartSyncContentResponse>(
+            'scroll:start',
+            {
+              tabIds: message.tabIds,
+              mode: message.mode,
+              currentTabId: message.currentTabId,
+              isAutoSync: false,
+              sessionEpoch: message.sessionEpoch,
+            },
+            { context: 'content-script', tabId },
+            1_000,
+          );
+        }
+        if (response.success && response.tabId === tabId) {
+          connectionResults[tabId] = { success: true };
+          if (isValidScrollMetrics(response.metrics, tabId)) {
+            connectedScrollMetrics.push(response.metrics);
+          }
+        } else {
+          connectionResults[tabId] = {
+            success: false,
+            error: 'Invalid acknowledgment',
+          };
+        }
+        return response;
+      } catch (error) {
+        connectionResults[tabId] = {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+        throw error;
+      }
+    },
+    sendStop: async (tabId, message) => {
+      await sendMessage('scroll:stop', message, { context: 'content-script', tabId });
+      return { success: true };
+    },
+    revalidate: async (context, connectedTabIds) => {
+      if (getSyncStateSnapshot().revision !== context.expectedRevision) {
+        return false;
+      }
+      const results = await Promise.allSettled(
+        connectedTabIds.map((tabId) => browser.tabs.get(tabId)),
+      );
+      return results.every((result) => result.status === 'fulfilled');
+    },
+    overrideAdapter: manualOverrideAdapter,
+    startKeepAlive,
+    stopKeepAlive,
+    broadcastStatus: broadcastSyncStatus,
+    recordRecentOutcome: () => undefined,
+  });
+
+  const result = await syncTransitionGate.run((context) =>
+    orchestrator.startManualSession(context, {
+      tabIds: [...startRequest.tabIds],
+      mode: startRequest.mode,
+      source: 'popup',
+      requireAll: false,
+    }),
+  );
+
+  for (const tabId of startRequest.tabIds) {
+    if (connectionResults[tabId] === undefined) {
+      connectionResults[tabId] = {
+        success: false,
+        error:
+          result.status === 'rejected'
+            ? getPopupStartError(result.reason)
+            : 'Could not establish connection',
+      };
+    }
+  }
+
+  const connectedTabs =
+    result.status === 'committed'
+      ? result.connectedTabIds
+      : Object.entries(connectionResults)
+          .filter(([, connection]) => connection.success)
+          .map(([tabId]) => Number(tabId));
+
+  if (result.status === 'rejected') {
+    return {
+      success: false,
+      connectedTabs,
+      connectionResults,
+      error: getPopupStartError(result.reason),
+      ...(result.warning === undefined ? {} : { warning: result.warning }),
+    };
+  }
+
+  await maybeShowManualAdjustmentHint(connectedScrollMetrics, result.connectedTabIds);
+  return {
+    success: true,
+    connectedTabs: result.connectedTabIds,
+    connectionResults,
+    ...(result.warning === undefined ? {} : { warning: result.warning }),
+  };
+}
+
 export function registerScrollSyncHandlers(): void {
   logger.info('Registering scroll:start handler');
   onMessage('contextual-hint:save-pending-url-sync', ({ data, sender }) => {
@@ -169,23 +365,10 @@ export function registerScrollSyncHandlers(): void {
       isAutoSync: startRequest.isAutoSync ?? false,
     });
 
-    // If this is a manual sync (not auto-sync), handle conflict with auto-sync
-    if (!startRequest.isAutoSync) {
-      for (const tabId of startRequest.tabIds) {
-        manualSyncOverriddenTabs.add(tabId);
-        await removeTabFromAllAutoSyncGroups(tabId);
-      }
-
-      // Clean up stale pending suggestions for groups that no longer have enough tabs
-      for (const normalizedUrl of [...pendingSuggestions]) {
-        const group = autoSyncState.groups.get(normalizedUrl);
-        if (!group || group.tabIds.size < 2) {
-          pendingSuggestions.delete(normalizedUrl);
-        }
-      }
-
-      logger.debug('Manual sync started, tabs excluded from auto-sync', {
+    if (startRequest.isAutoSync !== true) {
+      return startPopupManualSession({
         tabIds: startRequest.tabIds,
+        mode: startRequest.mode,
       });
     }
 
