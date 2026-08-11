@@ -73,6 +73,7 @@ export type StartSyncBackgroundResponse = {
   connectedTabs: Array<number>;
   connectionResults: StartSyncConnectionResults;
   error?: string;
+  warning?: 'auto-sync-degraded';
 };
 
 export type StartSyncResponse = StartSyncContentResponse | StartSyncBackgroundResponse;
