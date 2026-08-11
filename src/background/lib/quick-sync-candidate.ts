@@ -36,6 +36,10 @@ export interface QuickSyncCandidateStore {
     succeeded: boolean;
     completedAt: number;
   }): 'cleared' | 'restored' | 'stale';
+  abortSecondTabAttempt(input: {
+    generation: number;
+    operationGeneration: number;
+  }): 'cleared' | 'stale';
 }
 
 export function createQuickSyncCandidateStore(): QuickSyncCandidateStore {
@@ -110,6 +114,17 @@ export function createQuickSyncCandidateStore(): QuickSyncCandidateStore {
         candidate = { ...reservedCandidate };
         return 'restored';
       }
+      return 'cleared';
+    },
+    abortSecondTabAttempt(input) {
+      if (
+        reservation?.candidate.generation !== input.generation ||
+        reservation.operationGeneration !== input.operationGeneration
+      ) {
+        return 'stale';
+      }
+
+      reservation = null;
       return 'cleared';
     },
   };

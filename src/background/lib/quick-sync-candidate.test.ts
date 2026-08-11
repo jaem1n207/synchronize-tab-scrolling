@@ -131,6 +131,42 @@ describe('createQuickSyncCandidateStore', () => {
     ).toBe('cleared');
   });
 
+  it('terminally clears a reserved attempt before its original deadline', () => {
+    const store = createQuickSyncCandidateStore();
+    store.arm({ tabId: 11, expiresAt: 30_000, generation: 1 });
+    store.reserveForSecondTab({
+      tabId: 22,
+      commandReceivedAt: 29_000,
+      operationGeneration: 4,
+    });
+
+    expect(
+      store.abortSecondTabAttempt({
+        generation: 1,
+        operationGeneration: 4,
+      }),
+    ).toBe('cleared');
+    expect(store.read()).toBeNull();
+  });
+
+  it('protects a reservation from a stale terminal abort', () => {
+    const store = createQuickSyncCandidateStore();
+    store.arm({ tabId: 11, expiresAt: 30_000, generation: 1 });
+    store.reserveForSecondTab({
+      tabId: 22,
+      commandReceivedAt: 29_000,
+      operationGeneration: 4,
+    });
+
+    expect(
+      store.abortSecondTabAttempt({
+        generation: 1,
+        operationGeneration: 3,
+      }),
+    ).toBe('stale');
+    expect(store.clear(1)).toBe(false);
+  });
+
   it('ignores a stale completion from a different operation generation', () => {
     const store = createQuickSyncCandidateStore();
     store.arm({ tabId: 11, expiresAt: 30_000, generation: 1 });
