@@ -308,7 +308,7 @@ describe('createQuickSyncCoordinator', () => {
     expect(harness.candidateStore.read()).toBeNull();
   });
 
-  it('restores the original candidate deadline after a failed Start before expiry', async () => {
+  it('terminates the invocation HUD and retries the original candidate after a failed Start', async () => {
     const harness = createHarness();
     harness.candidateStore.arm({ tabId: 11, generation: 4, expiresAt: 20_000 });
     harness.startManualSession.mockResolvedValue({
@@ -331,15 +331,28 @@ describe('createQuickSyncCoordinator', () => {
       generation: 4,
       expiresAt: 20_000,
     });
-    expect(harness.feedback.at(-1)?.message).toEqual({
-      outcome: 'second-tab-failed',
-      generation: 4,
-      expiresAt: 20_000,
-      reason: 'connection-timeout',
-    });
+    expect(harness.feedback.slice(-2)).toEqual([
+      {
+        tabId: 22,
+        message: {
+          outcome: 'clear',
+          generation: 4,
+          reason: 'invalidated',
+        },
+      },
+      {
+        tabId: 11,
+        message: {
+          outcome: 'second-tab-failed',
+          generation: 4,
+          expiresAt: 20_000,
+          reason: 'connection-timeout',
+        },
+      },
+    ]);
   });
 
-  it('clears a failed Start completed at the original deadline', async () => {
+  it('terminally clears both HUDs when a failed Start completes at the deadline', async () => {
     const harness = createHarness();
     harness.candidateStore.arm({ tabId: 11, generation: 4, expiresAt: 20_000 });
     harness.startManualSession.mockImplementation(async () => {
@@ -356,6 +369,75 @@ describe('createQuickSyncCoordinator', () => {
     );
 
     expect(harness.candidateStore.read()).toBeNull();
+    expect(harness.feedback.slice(-2)).toEqual([
+      {
+        tabId: 22,
+        message: {
+          outcome: 'clear',
+          generation: 4,
+          reason: 'invalidated',
+        },
+      },
+      {
+        tabId: 11,
+        message: {
+          outcome: 'clear',
+          generation: 4,
+          reason: 'expired',
+        },
+      },
+    ]);
+  });
+
+  it('terminally clears a missing reserved candidate before its deadline', async () => {
+    const harness = createHarness();
+    await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 11,
+        windowId: 1,
+      }),
+    );
+    harness.revalidateInvocationTab.mockRejectedValueOnce(new Error('missing'));
+    harness.setNow(19_500);
+
+    const result = await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 19_000,
+        tabId: 22,
+        windowId: 2,
+      }),
+    );
+
+    expect(result).toEqual({ status: 'rejected', reason: 'candidate-tab-missing' });
+    expect(harness.candidateStore.read()).toBeNull();
+    expect(harness.port.disconnect).toHaveBeenCalledOnce();
+    expect(harness.startManualSession).not.toHaveBeenCalled();
+    expect(harness.feedback.slice(-2)).toEqual([
+      {
+        tabId: 22,
+        message: {
+          outcome: 'clear',
+          generation: 1,
+          reason: 'invalidated',
+        },
+      },
+      {
+        tabId: 11,
+        message: {
+          outcome: 'clear',
+          generation: 1,
+          reason: 'invalidated',
+        },
+      },
+    ]);
+    expect(harness.recentOutcomes.at(-1)).toEqual({
+      tabId: 22,
+      resultKind: 'start-failed',
+      reason: 'candidate-tab-missing',
+      expiresAt: 49_500,
+    });
+    expect(harness.showUnsupportedBadge).toHaveBeenCalledWith(22, 1);
   });
 
   it('disconnects a provisional Port and records failure when first-tab revalidation fails', async () => {

@@ -307,6 +307,7 @@ export function createQuickSyncCoordinator(
     candidate: QuickSyncCandidate,
   ): Promise<QuickSyncCommandResult> {
     let reason: QuickSyncFailureReason = 'hud-unavailable';
+    let candidateRevalidated = false;
     let succeeded = false;
     try {
       const feedbackReady = await sendReadyFeedback(invocation.tabId, {
@@ -319,6 +320,7 @@ export function createQuickSyncCoordinator(
 
       reason = 'candidate-tab-missing';
       await dependencies.revalidateInvocationTab(candidate.tabId);
+      candidateRevalidated = true;
       const result = await dependencies.startManualSession(context, {
         tabIds: [candidate.tabId, invocation.tabId],
         mode: 'ratio',
@@ -343,17 +345,29 @@ export function createQuickSyncCoordinator(
     } catch {
       return { status: 'rejected', reason };
     } finally {
-      const finish = dependencies.candidateStore.finishSecondTabAttempt({
-        generation: candidate.generation,
-        operationGeneration: context.operationGeneration,
-        succeeded,
-        completedAt: dependencies.now(),
-      });
+      const finish = candidateRevalidated
+        ? dependencies.candidateStore.finishSecondTabAttempt({
+            generation: candidate.generation,
+            operationGeneration: context.operationGeneration,
+            succeeded,
+            completedAt: dependencies.now(),
+          })
+        : dependencies.candidateStore.abortSecondTabAttempt({
+            generation: candidate.generation,
+            operationGeneration: context.operationGeneration,
+          });
       if (!succeeded) {
         recordFailure(invocation.tabId, candidate.generation, 'start-failed', reason);
+        await dependencies
+          .sendFeedback(invocation.tabId, {
+            outcome: 'clear',
+            generation: candidate.generation,
+            reason: 'invalidated',
+          })
+          .catch(() => undefined);
         if (finish === 'restored') {
           await dependencies
-            .sendFeedback(invocation.tabId, {
+            .sendFeedback(candidate.tabId, {
               outcome: 'second-tab-failed',
               generation: candidate.generation,
               expiresAt: candidate.expiresAt,
@@ -361,7 +375,10 @@ export function createQuickSyncCoordinator(
             })
             .catch(() => undefined);
         } else if (finish === 'cleared') {
-          await releaseCandidateFeedback(candidate, 'expired');
+          await releaseCandidateFeedback(
+            candidate,
+            candidateRevalidated ? 'expired' : 'invalidated',
+          );
         }
       }
     }
