@@ -19,6 +19,7 @@ import type {
   ManualStopResult,
   ReconnectManualSessionMessage,
   SessionMessageIdentity,
+  SyncStatusRequestMessage,
 } from './sync-session';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
 
@@ -181,26 +182,6 @@ export interface SyncStatusBroadcastMessage {
   connectionStatuses: Record<number, ConnectionStatus>;
   currentTabId: number;
 }
-
-export interface LegacySyncStatusReadyResponse {
-  status: 'ready';
-  success: boolean;
-  isActive: boolean;
-  revision: number;
-  linkedTabs: Array<SyncedTabInfo>;
-  connectedTabs: Array<number>;
-  connectionStatuses: Record<number, ConnectionStatus>;
-  currentTabId?: number;
-}
-
-export interface LegacySyncStatusUnavailableResponse {
-  status: 'unavailable';
-  reason: 'session-state-unavailable' | 'storage-error' | 'invalid-state';
-}
-
-export type LegacySyncStatusResponse =
-  | LegacySyncStatusReadyResponse
-  | LegacySyncStatusUnavailableResponse;
 
 /**
  * Health check ping between background and content script
@@ -431,7 +412,7 @@ export interface ProtocolMap {
   'scroll:reconnect': ScrollReconnectMessage;
   'scroll:request-reinject': ScrollRequestReinjectMessage;
   'sync:status': SyncStatusBroadcastMessage;
-  'sync:get-status': LegacySyncStatusResponse;
+  'sync:get-status': SyncStatusRequestMessage;
   'sync:reconnect-session': ReconnectManualSessionMessage;
   'url:sync': UrlSyncMessage;
   'element:match': ElementMatchMessage;

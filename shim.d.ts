@@ -11,7 +11,6 @@ import type {
   ElementMatchMessage,
   ExcludedDomainsChangedMessage,
   ManualScrollMessage,
-  LegacySyncStatusResponse,
   PanelPositionMessage,
   ReconnectManualSessionResponse,
   ScrollPingMessage,
@@ -36,7 +35,11 @@ import type {
   UrlSyncMessage,
   UrlSyncModeChangedMessage,
 } from '~/shared/types/messages';
-import type { ReconnectManualSessionMessage } from '~/shared/types/sync-session';
+import type {
+  ReconnectManualSessionMessage,
+  SyncStatusRequestMessage,
+  SyncStatusResponseMessage,
+} from '~/shared/types/sync-session';
 
 import type { AttributifyAttributes } from 'unocss/preset-attributify';
 import type { ProtocolWithReturn } from 'webext-bridge';
@@ -59,7 +62,7 @@ declare module 'webext-bridge' {
     'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
     'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;
     'sync:status': SyncStatusBroadcastMessage;
-    'sync:get-status': ProtocolWithReturn<Record<string, never>, LegacySyncStatusResponse>;
+    'sync:get-status': ProtocolWithReturn<SyncStatusRequestMessage, SyncStatusResponseMessage>;
     'sync:reconnect-session': ProtocolWithReturn<
       ReconnectManualSessionMessage,
       ReconnectManualSessionResponse
