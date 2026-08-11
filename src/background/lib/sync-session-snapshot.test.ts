@@ -3,7 +3,7 @@ import browser from 'webextension-polyfill';
 
 import type { SyncState } from '~/shared/types/sync-state';
 
-import { buildManualSyncSnapshot } from './sync-session-snapshot';
+import { buildContentManualSyncSnapshot, buildManualSyncSnapshot } from './sync-session-snapshot';
 
 vi.mock('webextension-polyfill', () => ({
   default: {
@@ -137,5 +137,25 @@ describe('buildManualSyncSnapshot', () => {
     expect(snapshot.tabs[0]).not.toHaveProperty('url');
     expect(snapshot.tabs[0]).not.toHaveProperty('index');
     expect(snapshot.tabs[0]).not.toHaveProperty('incognito');
+  });
+});
+
+describe('buildContentManualSyncSnapshot', () => {
+  it('returns only generic committed topology without browser tab hydration', () => {
+    const snapshot = buildContentManualSyncSnapshot(activeState, 22);
+
+    expect(browser.tabs.get).not.toHaveBeenCalled();
+    expect(snapshot).toEqual({
+      revision: 5,
+      sessionEpoch: 2,
+      mode: 'ratio',
+      linkedTabCount: 3,
+      tabs: [
+        { location: 'other-tab', connectionStatus: 'connected' },
+        { location: 'current-tab', connectionStatus: 'disconnected' },
+        { location: 'other-tab', connectionStatus: 'error' },
+      ],
+    });
+    expect(Object.keys(snapshot.tabs[0]).sort()).toEqual(['connectionStatus', 'location']);
   });
 });

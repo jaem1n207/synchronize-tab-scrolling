@@ -1,8 +1,10 @@
 import browser from 'webextension-polyfill';
 
 import type {
-  ActiveManualSyncSnapshot,
   AvailableManualSyncTab,
+  ContentActiveManualSyncSnapshot,
+  ContentManualSyncTab,
+  PopupActiveManualSyncSnapshot,
   SyncStatusViewerContext,
   UnavailableManualSyncTab,
 } from '~/shared/types/sync-session';
@@ -34,7 +36,7 @@ function getTabLocation(
 export async function buildManualSyncSnapshot(
   state: SyncState,
   viewer: SyncStatusViewerContext,
-): Promise<ActiveManualSyncSnapshot> {
+): Promise<PopupActiveManualSyncSnapshot> {
   const tabs = await Promise.all(
     state.linkedTabs.map(
       async (tabId): Promise<AvailableManualSyncTab | UnavailableManualSyncTab> => {
@@ -68,6 +70,26 @@ export async function buildManualSyncSnapshot(
     sessionEpoch: state.sessionEpoch,
     mode: state.mode ?? 'ratio',
     linkedTabIds: [...state.linkedTabs],
+    tabs,
+  };
+}
+
+export function buildContentManualSyncSnapshot(
+  state: SyncState,
+  viewerTabId: number,
+): ContentActiveManualSyncSnapshot {
+  const tabs = state.linkedTabs.map(
+    (tabId): ContentManualSyncTab => ({
+      location: tabId === viewerTabId ? 'current-tab' : 'other-tab',
+      connectionStatus: state.connectionStatuses[tabId] ?? 'error',
+    }),
+  );
+
+  return {
+    revision: state.revision,
+    sessionEpoch: state.sessionEpoch,
+    mode: state.mode ?? 'ratio',
+    linkedTabCount: state.linkedTabs.length,
     tabs,
   };
 }
