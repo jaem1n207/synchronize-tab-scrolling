@@ -520,6 +520,67 @@ describe('registerTabEventHandlers', () => {
   });
 
   describe('tabs.onUpdated', () => {
+    it('does not relay a stale URL event into a replacement manual session', async () => {
+      const urlSyncEnabled = Promise.withResolvers<boolean>();
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.sessionEpoch = 3;
+      vi.mocked(loadUrlSyncEnabled).mockReturnValue(urlSyncEnabled.promise);
+
+      const event = getListener('tabs.onUpdated')(
+        1,
+        { url: 'https://example.com/stale' },
+        { id: 1, url: 'https://example.com/stale', title: 'Stale' },
+      );
+      await Promise.resolve();
+
+      syncState.linkedTabs = [10, 11];
+      syncState.connectionStatuses = { 10: 'connected', 11: 'connected' };
+      syncState.mode = 'element';
+      syncState.sessionEpoch = 4;
+      urlSyncEnabled.resolve(true);
+      await event;
+
+      expect(sendMessage).not.toHaveBeenCalledWith(
+        'url:sync',
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(syncState.linkedTabs).toEqual([10, 11]);
+      expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
+    });
+
+    it('does not mutate a replacement session after a stale reconnect acknowledgement', async () => {
+      const reconnect = Promise.withResolvers<{ success: boolean; tabId: number }>();
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'error', 2: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.sessionEpoch = 5;
+      vi.mocked(sendMessage).mockReturnValue(reconnect.promise);
+
+      const event = getListener('tabs.onUpdated')(
+        1,
+        { status: 'complete' },
+        { id: 1, url: 'https://example.com/reload', title: 'Reloaded' },
+      );
+      await Promise.resolve();
+
+      syncState.linkedTabs = [10, 11];
+      syncState.connectionStatuses = { 10: 'connected', 11: 'connected' };
+      syncState.mode = 'element';
+      syncState.sessionEpoch = 6;
+      reconnect.resolve({ success: true, tabId: 1 });
+      await event;
+
+      expect(syncState.linkedTabs).toEqual([10, 11]);
+      expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+    });
+
     it('broadcasts URL sync to other linked tabs when URL sync is enabled', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2, 3];

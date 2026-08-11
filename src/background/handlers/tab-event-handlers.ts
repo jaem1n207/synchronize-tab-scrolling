@@ -9,7 +9,7 @@ import {
   type TranslatedPageMetadata,
   type TranslatedPageSignature,
 } from '~/shared/lib/translated-page-url-utils';
-import type { StartSyncMessage, UrlSyncMessage } from '~/shared/types/messages';
+import type { StartSyncContentMessage, UrlSyncMessage } from '~/shared/types/messages';
 import type { ManualMessageIdentity } from '~/shared/types/sync-session';
 
 import {
@@ -47,6 +47,36 @@ const MAX_ACTIVE_SYNC_METADATA_PROBES = 10;
 
 interface ActiveSyncMetadataMatch {
   normalizedUrl: string;
+}
+
+interface ManualSessionEventSnapshot {
+  sourceTabId: number;
+  sessionEpoch: number;
+  linkedTabIds: Array<number>;
+  targetTabIds: Array<number>;
+  mode: 'ratio' | 'element';
+}
+
+function captureManualSessionEvent(tabId: number): ManualSessionEventSnapshot | null {
+  if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
+    return null;
+  }
+
+  return {
+    sourceTabId: tabId,
+    sessionEpoch: syncState.sessionEpoch,
+    linkedTabIds: [...syncState.linkedTabs],
+    targetTabIds: syncState.linkedTabs.filter((linkedTabId) => linkedTabId !== tabId),
+    mode: syncState.mode || 'ratio',
+  };
+}
+
+function isCurrentManualSessionEvent(snapshot: ManualSessionEventSnapshot): boolean {
+  return (
+    syncState.isActive &&
+    syncState.sessionEpoch === snapshot.sessionEpoch &&
+    syncState.linkedTabs.includes(snapshot.sourceTabId)
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -174,7 +204,6 @@ export function registerTabEventHandlers(): void {
     if (readiness.manual.status !== 'ready') {
       return;
     }
-
     manualSyncOverriddenTabs.delete(removedTabId);
     clearPendingUrlSyncContextualHint(removedTabId);
 
@@ -342,6 +371,7 @@ export function registerTabEventHandlers(): void {
     if (readiness.manual.status !== 'ready') {
       return;
     }
+    const manualSessionEvent = captureManualSessionEvent(tabId);
 
     if (
       readiness.auto.status === 'ready' &&
@@ -454,7 +484,7 @@ export function registerTabEventHandlers(): void {
       }
     }
 
-    if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
+    if (!manualSessionEvent || !isCurrentManualSessionEvent(manualSessionEvent)) {
       return;
     }
 
@@ -463,24 +493,27 @@ export function registerTabEventHandlers(): void {
       logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { tabId });
 
       const urlSyncEnabled = await loadUrlSyncEnabled();
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
       if (urlSyncEnabled) {
-        const targetTabIds = syncState.linkedTabs.filter((id) => id !== tabId);
         const urlSyncMessage: UrlSyncMessage & ManualMessageIdentity = {
           isAutoSync: false,
-          sessionEpoch: syncState.sessionEpoch,
-          sourceTabId: tabId,
+          sessionEpoch: manualSessionEvent.sessionEpoch,
+          sourceTabId: manualSessionEvent.sourceTabId,
           url: changedUrl,
         };
-        await Promise.all(
-          targetTabIds.map((targetTabId) =>
-            sendMessage('url:sync', urlSyncMessage, {
-              context: 'content-script',
-              tabId: targetTabId,
-            }).catch((error) => {
-              logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
-            }),
-          ),
-        );
+        for (const targetTabId of manualSessionEvent.targetTabIds) {
+          if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+            return;
+          }
+          await sendMessage('url:sync', urlSyncMessage, {
+            context: 'content-script',
+            tabId: targetTabId,
+          }).catch((error) => {
+            logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
+          });
+        }
       }
     }
 
@@ -490,22 +523,35 @@ export function registerTabEventHandlers(): void {
 
     logger.info(`Synced tab ${tabId} was refreshed/updated, reconnecting`, { tabId });
 
+    if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+      return;
+    }
+
     try {
       const startMessage = {
-        tabIds: syncState.linkedTabs,
-        mode: syncState.mode || 'ratio',
-        currentTabId: tabId,
-        sessionEpoch: syncState.sessionEpoch,
-      } satisfies StartSyncMessage & { sessionEpoch: number };
+        tabIds: manualSessionEvent.linkedTabIds,
+        mode: manualSessionEvent.mode,
+        currentTabId: manualSessionEvent.sourceTabId,
+        sessionEpoch: manualSessionEvent.sessionEpoch,
+      } satisfies StartSyncContentMessage;
       await sendMessage('scroll:start', startMessage, { context: 'content-script', tabId });
 
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
       syncState.connectionStatuses[tabId] = 'connected';
       logger.info(`Successfully reconnected tab ${tabId}`);
 
       await persistCommittedSyncStateLegacy();
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
       await broadcastSyncStatus();
     } catch (error) {
       logger.error(`Failed to reconnect tab ${tabId}`, { error });
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
       syncState.connectionStatuses[tabId] = 'error';
       await persistCommittedSyncStateLegacy();
     }
@@ -517,23 +563,30 @@ export function registerTabEventHandlers(): void {
     if (readiness.manual.status !== 'ready') {
       return;
     }
+    const manualSessionEvent = captureManualSessionEvent(tabId);
 
-    if (syncState.isActive && syncState.linkedTabs.includes(tabId)) {
+    if (manualSessionEvent) {
       syncState.lastActiveSyncedTabId = tabId;
     }
 
-    if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
+    if (!manualSessionEvent) {
       return;
     }
 
     logger.debug(`Synced tab ${tabId} activated, checking content script health`);
 
     const isAlive = await isContentScriptAlive(tabId);
+    if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+      return;
+    }
 
     if (isAlive) {
       if (syncState.connectionStatuses[tabId] !== 'connected') {
         syncState.connectionStatuses[tabId] = 'connected';
         await persistCommittedSyncStateLegacy();
+        if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+          return;
+        }
         await broadcastSyncStatus();
       }
       logger.debug(`Tab ${tabId} content script is alive`);
@@ -544,11 +597,11 @@ export function registerTabEventHandlers(): void {
 
     try {
       const startMessage = {
-        tabIds: syncState.linkedTabs,
-        mode: syncState.mode || 'ratio',
+        tabIds: manualSessionEvent.linkedTabIds,
+        mode: manualSessionEvent.mode,
         currentTabId: tabId,
-        sessionEpoch: syncState.sessionEpoch,
-      } satisfies StartSyncMessage & { sessionEpoch: number };
+        sessionEpoch: manualSessionEvent.sessionEpoch,
+      } satisfies StartSyncContentMessage;
       const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
         'scroll:start',
         startMessage,
@@ -556,18 +609,30 @@ export function registerTabEventHandlers(): void {
         2_000,
       );
 
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
       if (response && response.success && response.tabId === tabId) {
         syncState.connectionStatuses[tabId] = 'connected';
         logger.info(`Successfully reconnected activated tab ${tabId}`);
         await persistCommittedSyncStateLegacy();
+        if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+          return;
+        }
         await broadcastSyncStatus();
         return;
       }
     } catch (error) {
       logger.debug(`Reconnection attempt failed for tab ${tabId}, trying re-injection`, { error });
+      if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+        return;
+      }
     }
 
     const reinjectSuccess = await reinjectContentScript(tabId);
+    if (!isCurrentManualSessionEvent(manualSessionEvent)) {
+      return;
+    }
 
     if (!reinjectSuccess) {
       logger.error(`Failed to recover tab ${tabId} after all attempts`);
