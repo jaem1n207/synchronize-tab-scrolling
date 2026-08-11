@@ -6,9 +6,13 @@
 
 ## 개요
 
-동기화 제안 토스트는 사용자가 팝업의 **같은 페이지 탭 자동 제안**을 켠 경우에만 표시됩니다. `autoSyncEnabled`의 기본값은 `false`이며, storage 값이 없거나 boolean이 아니거나 읽기에 실패하면 비활성 상태로 취급합니다.
+동기화 제안 토스트는 사용자가 팝업의 **같은 페이지 탭 자동 제안**을 켠 경우에만 표시됩니다. `autoSyncEnabled`의 기본값은 `false`이며, storage 값이 없거나 boolean이 아니거나 읽기에 실패하면 비활성 상태로 취급합니다. 최초 제안과 Add 제안은 표시 직전에도 `autoSyncState.enabled === true`를 확인합니다.
 
 Tab1+Tab2가 동기화 중인 상태에서 Tab3+Tab4가 다른 URL로 열리고 자동 제안이 켜져 있으면 동기화 제안 토스트가 표시됩니다. 사용자가 이 토스트를 수락하면 기존 동기화가 **조용히 교체**됩니다.
+
+표시되는 모든 제안은 그 시점의 committed manual `revision`을 `expectedRevision`으로
+보관합니다. 수락 응답은 transition gate 안에서 현재 revision과 다시 비교합니다. stale
+응답은 manual/auto 상태와 pending suggestion을 바꾸지 않고 거부합니다.
 
 이 과정에서 두 가지 문제가 발생할 수 있습니다:
 
@@ -49,31 +53,43 @@ Tab1+Tab2가 동기화 중인 상태에서 Tab3+Tab4가 다른 URL로 열리고 
 ### 메시지 흐름
 
 ```
-autoSyncEnabled 명시적 true 확인
+autoSyncEnabled 명시적 true 확인 + expectedRevision 캡처
     ↓
 사용자가 동기화 제안 수락
     ↓
 Background (sync-suggestion:response handler)
-    ├─ 기존 동기화 활성 확인 (syncState.isActive)
+    ├─ transition gate에서 expectedRevision 재검증
+    ├─ 기존 manual 동기화 활성 확인
     │
     ├─ [기존 동기화가 활성인 경우]
-    │   ├─ 기존 탭에 scroll:stop 전송 (Promise.allSettled, 1000ms 타임아웃)
-    │   ├─ manualSyncOverriddenTabs에서 기존 탭 제거
-    │   ├─ stopKeepAlive() 호출
-    │   ├─ addTabSuggestedTabs 초기화
-    │   └─ syncState 리셋
+    │   ├─ inactive revision+1 상태를 먼저 영속화
+    │   ├─ committed memory를 inactive로 갱신
+    │   └─ 기존 탭 cleanup과 manual override/keep-alive 정리
     │
-    └─ 새 동기화 시작 (scroll:start to new tabs)
+    ├─ LegacyAutoSyncAdapter로 수락한 auto group 시작
+    └─ inactive manual revision+1을 영속화한 뒤 memory commit
 ```
+
+auto group 시작 성공 뒤 manual-state 영속화가 실패하면 adapter가 시작한 auto group을
+rollback합니다. 이때 manual truth는 검증되지 않은 이전 세션으로 복구하지 않고, 이미
+durable하게 완료된 post-Stop inactive 상태에 남습니다. auto start 자체가 실패해도 같은
+inactive truth를 유지합니다. auto 전환에서는 manual Start를 호출하거나 `sessionEpoch`를
+증가시키지 않습니다.
+
+Add 제안 수락은 `addTabToManualSession()`으로 전달됩니다. 새 탭 하나에만 `scroll:start`를
+보내고 기존 linked tab을 다시 초기화하지 않으며, 성공한 topology commit만 revision을
+증가시킵니다.
 
 ### 관련 모듈
 
-| 모듈                                                                           | 역할                                                                     |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `auto-sync-handlers.ts` (line 146-176)                                         | 기존 동기화 정리 후 새 동기화 시작                                       |
-| `auto-sync-suggestions.ts` (`showSyncSuggestion`, `sendSuggestionToSingleTab`) | `hasExistingSync` 컨텍스트 포함                                          |
-| `sync-suggestion-toast.tsx`                                                    | 경고 UI 표시 (amber 배너 + "교체 후 동기화" 버튼)                        |
-| `messages.ts`                                                                  | `SyncSuggestionMessage`에 `hasExistingSync`, `existingSyncTabCount` 추가 |
+| 모듈                                                                           | 역할                                                                      |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `auto-sync-handlers.ts`                                                        | revision 검증 후 accepted Replace/Add를 transition gate로 전달            |
+| `legacy-auto-sync-adapter.ts`                                                  | accepted auto group Start/rollback과 inactive manual revision commit      |
+| `sync-session-orchestrator.ts`                                                 | durable manual Stop과 새 탭 하나만 초기화하는 Add                         |
+| `auto-sync-suggestions.ts` (`showSyncSuggestion`, `sendSuggestionToSingleTab`) | explicit opt-in gate, `expectedRevision`, `hasExistingSync` 컨텍스트 포함 |
+| `sync-suggestion-toast.tsx`                                                    | 경고 UI 표시 (amber 배너 + "교체 후 동기화" 버튼)                         |
+| `messages.ts` + `shim.d.ts`                                                    | initial/Add 표시와 모든 응답에 필수 `expectedRevision`                    |
 
 ---
 
@@ -114,28 +130,26 @@ amber 색상의 경고 배너가 추가되고, 버튼 레이블이 변경됩니�
 
 ## 코드 수정 시 주의사항
 
-### 1. 기존 동기화 정리 순서
+### 1. 기존 동기화 정리와 commit 순서
 
-> `scroll:stop`은 반드시 새 `scroll:start` 전에 완료되어야 합니다.
+> 기존 manual Stop은 accepted auto `scroll:start` 전에 durable하게 commit되어야 합니다.
 
 정리 순서가 잘못되면 기존 탭이 새 동기화 그룹의 스크롤 이벤트를 수신하거나, `scroll-sync-panel-root`가 고아 상태로 남습니다.
 
 ```typescript
-// ❌ BAD: 정리 없이 새 동기화 시작
-await startNewSync(newTabs);
+// ❌ BAD: stale 응답을 합치거나 manual Start로 auto 전환
+await startManualSession(context, acceptedTabs);
 
-// ✅ GOOD: 정리 후 새 동기화 시작
-await Promise.allSettled(
-  existingTabs.map((tabId) =>
-    withTimeout(sendMessage('scroll:stop', {}, `content-script@${tabId}`), 1000),
-  ),
-);
-await startNewSync(newTabs);
+// ✅ GOOD: revision 검증 → durable Stop → accepted auto Start
+await replaceManualWithAcceptedAutoSync(context, {
+  normalizedUrl,
+  tabIds: acceptedTabs,
+  expectedRevision,
+});
 ```
 
-`Promise.allSettled`를 사용하는 이유는 일부 탭이 이미 닫혔거나 응답하지 않아도 나머지 정리 작업이 계속 진행되어야 하기 때문입니다. `Promise.all`을 사용하면 하나의 탭이 실패할 때 전체 정리가 중단됩니다.
-
-타임아웃을 1000ms로 제한하는 이유는 비활성 탭이 응답하지 않을 때 무한 대기를 방지하기 위해서입니다.
+manual Stop은 inactive state를 먼저 영속화하므로 일부 content cleanup이 실패해도 세션을
+되살리지 않습니다. cleanup은 탭별 1000ms 제한과 retry scheduler를 사용합니다.
 
 ### 2. `hasExistingSync` 조건
 
@@ -170,15 +184,20 @@ const hasExistingSync = syncState.isActive && syncState.linkedTabs.length > 0;
 
 ### `auto-sync-handlers.test.ts`
 
-**"accepted response stops existing sync before starting new one"**
+다음을 직접 검증합니다.
 
-기존 동기화가 활성인 상태에서 제안을 수락했을 때, `scroll:stop`이 기존 탭에 전송된 후 `scroll:start`가 새 탭에 전송되는 순서를 검증합니다.
+- stale `expectedRevision`은 manual/auto/pending state를 바꾸지 않는지
+- replacement가 durable manual Stop 후 accepted auto group을 시작하는지
+- auto start 실패 시 post-Stop inactive truth를 유지하는지
+- Add 수락이 새 탭 하나만 초기화하고 기존 탭을 재시작하지 않는지
 
-검증 항목:
+### `legacy-auto-sync-adapter.test.ts`
 
-- `scroll:stop` 호출 횟수가 기존 탭 수와 일치하는지
-- `scroll:stop` 완료 후 `scroll:start`가 호출되는지
-- `syncState`가 새 탭 정보로 갱신되는지
+- accepted auto group의 `isAutoSync: true` Start
+- 최소 두 탭 성공 조건과 partial-success membership
+- group snapshot 변경 시 staged Start cleanup
+- manual revision persistence 실패 시 auto group rollback
+- 성공 시 inactive revision 증가와 `sessionEpoch` 보존
 
 ### `auto-sync-suggestions.test.ts`
 
@@ -191,3 +210,10 @@ const hasExistingSync = syncState.isActive && syncState.linkedTabs.length > 0;
 - `syncState.isActive && syncState.linkedTabs.length > 0`일 때 `hasExistingSync: true`
 - `existingSyncTabCount`가 `syncState.linkedTabs.length`와 일치하는지
 - 동기화가 비활성일 때 `hasExistingSync: false`
+
+### toast transport tests
+
+- standalone initial/Add accept, decline, snooze, permanent 응답이 표시 payload의
+  `expectedRevision`을 그대로 echo하는지
+- panel-mounted initial/Add accept/decline도 같은 revision을 echo하는지
+- auto-sync가 false 또는 malformed일 때 최초/Add 토스트가 표시되지 않는지
