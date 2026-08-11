@@ -190,8 +190,21 @@ export function registerConnectionHandlers(): void {
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
       const response: LegacySyncStatusResponse = {
+        status: 'unavailable',
+        reason:
+          readiness.manual.status === 'storage-error'
+            ? 'storage-error'
+            : readiness.manual.status === 'invalid-state'
+              ? 'invalid-state'
+              : 'session-state-unavailable',
+      };
+      return response;
+    }
+
+    if (!syncState.isActive) {
+      const response: LegacySyncStatusResponse = {
+        status: 'ready',
         success: false,
-        reason: 'session-state-unavailable',
         isActive: false,
         revision: syncState.revision,
         linkedTabs: [],
@@ -199,17 +212,6 @@ export function registerConnectionHandlers(): void {
         connectionStatuses: {},
       };
       return response;
-    }
-
-    if (!syncState.isActive) {
-      return {
-        success: false,
-        isActive: false,
-        revision: syncState.revision,
-        linkedTabs: [],
-        connectedTabs: [],
-        connectionStatuses: {},
-      };
     }
 
     const tabInfoPromises = syncState.linkedTabs.map(async (tabId) => {
@@ -231,7 +233,8 @@ export function registerConnectionHandlers(): void {
       (info): info is NonNullable<typeof info> => info !== null,
     );
 
-    return {
+    const response: LegacySyncStatusResponse = {
+      status: 'ready',
       success: true,
       isActive: true,
       revision: syncState.revision,
@@ -240,6 +243,7 @@ export function registerConnectionHandlers(): void {
       connectionStatuses: syncState.connectionStatuses,
       currentTabId: senderTabId,
     };
+    return response;
   });
 
   onMessage('sync:reconnect-session', async ({ data }) => {
@@ -287,16 +291,16 @@ export function registerConnectionHandlers(): void {
     const results = await Promise.all(
       reconnectTabIds.map((tabId) => reconnectManualTab(manualLifecycleController, tabId, false)),
     );
+    const rejected = results.find(({ result }) => result.status === 'rejected');
+    if (rejected?.result.status === 'rejected') {
+      return rejected.result;
+    }
     if (results.some(({ tabMissing }) => tabMissing)) {
       const result: ManualReconnectResult = {
         status: 'refresh-required',
         revision: getSyncStateSnapshot().revision,
       };
       return result;
-    }
-    const rejected = results.find(({ result }) => result.status === 'rejected');
-    if (rejected?.result.status === 'rejected') {
-      return rejected.result;
     }
     const result: ManualReconnectResult = {
       status: 'committed',

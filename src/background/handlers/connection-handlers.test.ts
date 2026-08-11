@@ -254,12 +254,28 @@ describe('registerConnectionHandlers', () => {
   });
 
   describe('sync:get-status', () => {
+    it('returns an unavailable discriminator without false inactive topology', async () => {
+      waitForBackgroundInitializationMock.mockResolvedValue({
+        manual: { status: 'storage-error' },
+        auto: { status: 'ready' },
+      });
+      const handler = getHandler('sync:get-status');
+
+      const result = await handler({ data: { tabId: 1 }, sender: { tabId: 1 } });
+
+      expect(result).toEqual({
+        status: 'unavailable',
+        reason: 'storage-error',
+      });
+    });
+
     it('returns inactive status when sync is not active', async () => {
       const handler = getHandler('sync:get-status');
 
       const result = await handler({ data: { tabId: 1 }, sender: { tabId: 1 } });
 
       expect(result).toEqual({
+        status: 'ready',
         success: false,
         isActive: false,
         revision: 0,
@@ -320,6 +336,7 @@ describe('registerConnectionHandlers', () => {
       const result = await handler({ data: { tabId: 1 }, sender: { tabId: 9 } });
 
       expect(result).toEqual({
+        status: 'ready',
         success: true,
         isActive: true,
         revision: 0,
@@ -374,6 +391,7 @@ describe('registerConnectionHandlers', () => {
       const result = await handler({ data: { tabId: 1 }, sender: { tabId: 1 } });
 
       expect(result).toEqual({
+        status: 'ready',
         success: true,
         isActive: true,
         revision: 0,
@@ -500,6 +518,31 @@ describe('registerConnectionHandlers', () => {
         expect(result).toEqual({ status: 'refresh-required', revision: 10 });
         expect(syncState.isActive).toBe(expectedActive);
         expect(syncState.linkedTabs).toEqual(expectedTabs);
+      },
+    );
+
+    it.each([
+      { linkedTabs: [1, 2, 3], name: '3-to-2 removal' },
+      { linkedTabs: [1, 2], name: '2-to-inactive Stop' },
+    ])(
+      'returns persistence failure instead of refresh-required for failed $name',
+      async ({ linkedTabs }) => {
+        syncState.isActive = true;
+        syncState.linkedTabs = linkedTabs;
+        syncState.connectionStatuses = Object.fromEntries(
+          linkedTabs.map((tabId) => [tabId, tabId === 1 ? 'error' : 'connected']),
+        );
+        syncState.revision = 9;
+        vi.mocked(browser.tabs.get).mockRejectedValue(new Error('missing'));
+        vi.mocked(persistSyncState).mockResolvedValue({ status: 'storage-error' });
+
+        const handler = getHandler('sync:reconnect-session');
+        const result = await handler({ data: { tabId: 0, expectedRevision: 9 }, sender: {} });
+
+        expect(result).toEqual({ status: 'rejected', reason: 'persistence-failed' });
+        expect(syncState.isActive).toBe(true);
+        expect(syncState.linkedTabs).toEqual(linkedTabs);
+        expect(syncState.revision).toBe(9);
       },
     );
   });
