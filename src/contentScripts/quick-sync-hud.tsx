@@ -29,29 +29,18 @@ interface ActiveHud {
   port?: CandidatePort;
 }
 
-type CandidateHudMessage = Extract<
-  QuickSyncHudMessage,
-  { outcome: 'candidate-selected' | 'same-candidate' | 'second-tab-failed' }
->;
-
 let hudHost: HTMLDivElement | null = null;
 let hudRoot: ReturnType<typeof createRoot> | null = null;
 let stylesheetReady: Promise<boolean> | null = null;
 let settleStylesheet: ((ready: boolean) => void) | null = null;
 let activeHud: ActiveHud | null = null;
+let disconnectedCandidate: QuickSyncHudMessage | null = null;
 let pendingGeneration: number | null = null;
 let feedbackSequence = 0;
+let announcedExpirationGeneration: number | null = null;
 let handlerRegistered = false;
 let initializationFailed = false;
 let cleanupTimer: ReturnType<typeof setTimeout> | undefined;
-
-function isCandidateMessage(message: QuickSyncHudMessage): message is CandidateHudMessage {
-  return (
-    message.outcome === 'candidate-selected' ||
-    message.outcome === 'same-candidate' ||
-    message.outcome === 'second-tab-failed'
-  );
-}
 
 function clearScheduledCleanup(): void {
   if (cleanupTimer !== undefined) {
@@ -64,6 +53,7 @@ function removeHudHost(disconnectPort: boolean): void {
   clearScheduledCleanup();
   const previous = activeHud;
   activeHud = null;
+  announcedExpirationGeneration = null;
   if (disconnectPort) {
     previous?.port?.disconnect();
   }
@@ -187,14 +177,10 @@ function handleLifetimeEnd(message: QuickSyncHudMessage): void {
   ) {
     return;
   }
-  if (isCandidateMessage(message)) {
-    scheduleExpirationAnnouncementCleanup(message);
-    return;
-  }
   removeHudHost(false);
 }
 
-function renderMessage(message: QuickSyncHudMessage): void {
+function renderMessage(message: QuickSyncHudMessage, semanticOutcome?: 'expired'): void {
   if (hudRoot === null) {
     throw new Error('quick-sync-hud-root-unavailable');
   }
@@ -204,6 +190,7 @@ function renderMessage(message: QuickSyncHudMessage): void {
       <QuickSyncHud
         key={`${message.generation}:${message.outcome}`}
         message={message}
+        semanticOutcome={semanticOutcome}
         onLifetimeEnd={() => handleLifetimeEnd(message)}
       />,
     );
@@ -218,13 +205,9 @@ function connectCandidatePort(message: QuickSyncHudMessage): CandidatePort | und
   const port = browser.runtime.connect({ name: getQuickSyncPortName(message.generation) });
   port.onDisconnect.addListener(() => {
     if (activeHud?.message.generation === message.generation && activeHud.port === port) {
-      if (message.expiresAt <= Date.now()) {
-        activeHud = { message };
-        renderMessage(message);
-        scheduleExpirationAnnouncementCleanup(message);
-        return;
-      }
+      const disconnectedMessage = activeHud.message;
       removeHudHost(false);
+      disconnectedCandidate = disconnectedMessage;
     }
   });
   return port;
@@ -239,21 +222,38 @@ async function handleClearMessage(
     removeHudHost(false);
     return { status: 'ready', generation: message.generation };
   }
-  if (activeHud?.message.generation !== message.generation) {
+  const matchedMessage =
+    activeHud?.message.generation === message.generation
+      ? activeHud.message
+      : disconnectedCandidate?.generation === message.generation
+        ? disconnectedCandidate
+        : null;
+  if (matchedMessage === null) {
     return { status: 'ready', generation: message.generation };
   }
 
-  if (
-    message.reason === 'expired' &&
-    isCandidateMessage(activeHud.message) &&
-    activeHud.message.expiresAt <= Date.now()
-  ) {
-    renderMessage(activeHud.message);
-    scheduleExpirationAnnouncementCleanup(activeHud.message);
+  if (message.reason === 'expired') {
+    if (announcedExpirationGeneration === message.generation) {
+      return { status: 'ready', generation: message.generation };
+    }
+    try {
+      ensureHudHost();
+    } catch {
+      disconnectedCandidate = null;
+      return { status: 'failed', generation: message.generation, reason: 'hud-unavailable' };
+    }
+    disconnectedCandidate = null;
+    activeHud = { message: matchedMessage };
+    announcedExpirationGeneration = message.generation;
+    renderMessage(matchedMessage, 'expired');
+    scheduleExpirationAnnouncementCleanup(matchedMessage);
     return { status: 'ready', generation: message.generation };
   }
 
-  removeHudHost(false);
+  disconnectedCandidate = null;
+  if (activeHud?.message.generation === message.generation) {
+    removeHudHost(false);
+  }
   return { status: 'ready', generation: message.generation };
 }
 
@@ -270,6 +270,8 @@ async function handleFeedback(
   feedbackSequence += 1;
   const requestSequence = feedbackSequence;
   pendingGeneration = message.generation;
+  disconnectedCandidate = null;
+  announcedExpirationGeneration = null;
   try {
     ensureHudHost();
   } catch {

@@ -355,7 +355,7 @@ describe('initQuickSyncHud', () => {
     expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
   });
 
-  it('ends the visible candidate at the absolute deadline and removes the host after one announcement', async () => {
+  it('waits for matching clear:expired before announcing expiration exactly once', async () => {
     const port = createPort();
     browserState.connect.mockReturnValue(port);
     const { initQuickSyncHud } = await import('./quick-sync-hud');
@@ -368,12 +368,22 @@ describe('initQuickSyncHud', () => {
     });
     await settleFeedback(candidatePromise, 'load');
 
-    act(() => {
-      vi.advanceTimersByTime(1_000);
-      port.triggerDisconnect();
-    });
+    act(() => vi.advanceTimersByTime(1_000));
 
-    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
+    expect(getHudUi().queryByRole('timer')).not.toBeInTheDocument();
+    expect(getHudUi().getAllByRole('status')).toHaveLength(1);
+    expect(getHudUi().getByRole('status')).not.toHaveTextContent(
+      '다른 탭을 선택할 수 있는 시간이 끝났어요.',
+    );
+
+    act(() => port.triggerDisconnect());
+
+    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(document.body).not.toHaveTextContent('다른 탭을 선택할 수 있는 시간이 끝났어요.');
+
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'expired' });
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'expired' });
+
     expect(getHudUi().getAllByRole('status')).toHaveLength(1);
     expect(getHudUi().getByRole('status')).toHaveTextContent(
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
@@ -382,6 +392,32 @@ describe('initQuickSyncHud', () => {
     act(() => vi.advanceTimersByTime(500));
 
     expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+  });
+
+  it('cleans up silently when a reserved attempt disconnects after the deadline then clears consumed', async () => {
+    const port = createPort();
+    browserState.connect.mockReturnValue(port);
+    const { initQuickSyncHud } = await import('./quick-sync-hud');
+    initQuickSyncHud();
+
+    const candidatePromise = sendFeedback({
+      outcome: 'candidate-selected',
+      generation: 7,
+      expiresAt: 21_000,
+    });
+    await settleFeedback(candidatePromise, 'load');
+
+    act(() => vi.advanceTimersByTime(1_000));
+
+    expect(getHudUi().getByRole('status')).not.toHaveTextContent(
+      '다른 탭을 선택할 수 있는 시간이 끝났어요.',
+    );
+
+    act(() => port.triggerDisconnect());
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'consumed' });
+
+    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(document.body).not.toHaveTextContent('다른 탭을 선택할 수 있는 시간이 끝났어요.');
   });
 
   it('does not let an older terminal timer clear a newer generation', async () => {
