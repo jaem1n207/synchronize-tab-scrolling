@@ -4,7 +4,6 @@ export {
   getSyncStateSnapshot,
   commitSyncState,
   persistSyncState,
-  persistCommittedSyncStateLegacy,
   restoreSyncState,
   broadcastSyncStatus,
 } from './sync-state';
