@@ -824,6 +824,9 @@
   "currentTabLocation": {
     "message": "मौजूदा टैब"
   },
+  "otherSyncedTab": {
+    "message": "दूसरा सिंक किया गया टैब"
+  },
   "currentWindowLocation": {
     "message": "मौजूदा विंडो"
   },
