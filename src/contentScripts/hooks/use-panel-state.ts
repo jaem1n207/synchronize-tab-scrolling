@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
+import { t } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadAutoSyncEnabled,
@@ -62,25 +63,29 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
 
   const loadSyncedTabsWithOffsets = React.useCallback(async () => {
     try {
-      const response = await sendMessage('sync:get-status', {}, 'background');
+      const response = await sendMessage(
+        'sync:get-status',
+        { source: 'content-script' },
+        'background',
+      );
 
-      if (response.status === 'unavailable') {
+      if (response.status === 'error') {
         setSyncStatusError('manualSyncStateUnavailable');
         return;
       }
 
-      if (!response.success || !response.isActive) {
+      if (response.status === 'inactive') {
         setSyncedTabs([]);
         setSyncStatusError(null);
         return;
       }
 
       const offsets = await loadManualScrollOffsets();
-      const tabs = response.linkedTabs.map((tab) => ({
-        id: tab.id,
-        title: tab.title,
-        offsetPixels: offsets[tab.id]?.pixels || 0,
-        isCurrent: tab.id === response.currentTabId,
+      const tabs = response.snapshot.tabs.map((tab) => ({
+        id: tab.tabId,
+        title: tab.availability === 'available' ? tab.title : t('activeSyncTabUnavailable'),
+        offsetPixels: offsets[tab.tabId]?.pixels ?? 0,
+        isCurrent: tab.availability === 'available' && tab.location === 'current-tab',
       }));
 
       setSyncedTabs(tabs);
