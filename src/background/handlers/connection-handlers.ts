@@ -203,6 +203,7 @@ function isPositiveSafeInteger(value: unknown): value is number {
 
 async function resolveSyncStatusViewer(
   request: unknown,
+  senderContext: unknown,
   senderTabId: unknown,
 ): Promise<{
   source: 'popup' | 'content-script';
@@ -214,6 +215,9 @@ async function resolveSyncStatusViewer(
 
   const source = Reflect.get(request, 'source');
   if (source === 'popup') {
+    if (senderContext !== 'popup') {
+      return null;
+    }
     const viewerTabId = Reflect.get(request, 'viewerTabId');
     const viewerWindowId = Reflect.get(request, 'viewerWindowId');
     return isPositiveSafeInteger(viewerTabId) && isPositiveSafeInteger(viewerWindowId)
@@ -224,7 +228,11 @@ async function resolveSyncStatusViewer(
       : null;
   }
 
-  if (source !== 'content-script' || !isPositiveSafeInteger(senderTabId)) {
+  if (
+    source !== 'content-script' ||
+    senderContext !== 'content-script' ||
+    !isPositiveSafeInteger(senderTabId)
+  ) {
     return null;
   }
 
@@ -275,7 +283,7 @@ export function registerConnectionHandlers(
       return response;
     }
 
-    const resolvedViewer = await resolveSyncStatusViewer(data, sender.tabId);
+    const resolvedViewer = await resolveSyncStatusViewer(data, sender.context, sender.tabId);
     if (resolvedViewer === null) {
       const response: SyncStatusResponseMessage = {
         status: 'error',

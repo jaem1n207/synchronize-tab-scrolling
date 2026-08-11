@@ -30,6 +30,7 @@ interface MessageData {
 
 interface MessageSender {
   tabId?: number;
+  context?: unknown;
 }
 
 interface HandlerRequest {
@@ -279,7 +280,7 @@ describe('registerConnectionHandlers', () => {
 
       const result = await handler({
         data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
-        sender: {},
+        sender: { context: 'popup' },
       });
 
       expect(result).toEqual({
@@ -297,7 +298,7 @@ describe('registerConnectionHandlers', () => {
 
       const result = await handler({
         data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
-        sender: {},
+        sender: { context: 'popup' },
       });
 
       expect(result).toEqual({
@@ -368,7 +369,7 @@ describe('registerConnectionHandlers', () => {
       const handler = getHandler('sync:get-status');
       const result = await handler({
         data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
-        sender: {},
+        sender: { context: 'popup' },
       });
 
       expect(result).toEqual({
@@ -437,7 +438,7 @@ describe('registerConnectionHandlers', () => {
       const handler = getHandler('sync:get-status');
       const result = await handler({
         data: { source: 'content-script' },
-        sender: { tabId: 1 },
+        sender: { context: 'content-script', tabId: 1 },
       });
 
       expect(result).toEqual({
@@ -462,16 +463,77 @@ describe('registerConnectionHandlers', () => {
       expect(JSON.stringify(result)).not.toContain('https://private.example/token');
     });
 
+    it('rejects a content script spoofing a popup request before topology access', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      const handler = getHandler('sync:get-status');
+
+      await expect(
+        handler({
+          data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+          sender: { context: 'content-script', tabId: 1 },
+        }),
+      ).resolves.toEqual({
+        status: 'error',
+        reason: 'invalid-viewer-context',
+      });
+      expect(getSyncStateSnapshot).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+    });
+
+    it('rejects a popup spoofing a content request before viewer hydration', async () => {
+      const handler = getHandler('sync:get-status');
+
+      await expect(
+        handler({
+          data: { source: 'content-script' },
+          sender: { context: 'popup', tabId: 1 },
+        }),
+      ).resolves.toEqual({
+        status: 'error',
+        reason: 'invalid-viewer-context',
+      });
+      expect(getSyncStateSnapshot).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        name: 'missing context',
+        data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+        sender: {},
+      },
+      {
+        name: 'unknown context',
+        data: { source: 'content-script' },
+        sender: { context: 'sidebar', tabId: 1 },
+      },
+      {
+        name: 'malformed context',
+        data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+        sender: { context: 42 },
+      },
+    ])('rejects $name before topology access', async ({ data, sender }) => {
+      const handler = getHandler('sync:get-status');
+
+      await expect(handler({ data, sender })).resolves.toEqual({
+        status: 'error',
+        reason: 'invalid-viewer-context',
+      });
+      expect(getSyncStateSnapshot).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+    });
+
     it.each([
       {
         name: 'missing popup tab id',
         data: { source: 'popup', viewerWindowId: 4 },
-        sender: {},
+        sender: { context: 'popup' },
       },
       {
         name: 'non-positive popup tab id',
         data: { source: 'popup', viewerTabId: 0, viewerWindowId: 4 },
-        sender: {},
+        sender: { context: 'popup' },
       },
       {
         name: 'unsafe popup window id',
@@ -480,12 +542,12 @@ describe('registerConnectionHandlers', () => {
           viewerTabId: 1,
           viewerWindowId: Number.MAX_SAFE_INTEGER + 1,
         },
-        sender: {},
+        sender: { context: 'popup' },
       },
       {
         name: 'missing content sender',
         data: { source: 'content-script' },
-        sender: {},
+        sender: { context: 'content-script' },
       },
     ])('rejects $name before reading or querying topology', async ({ data, sender }) => {
       const handler = getHandler('sync:get-status');
@@ -511,7 +573,10 @@ describe('registerConnectionHandlers', () => {
       const handler = getHandler('sync:get-status');
 
       await expect(
-        handler({ data: { source: 'content-script' }, sender: { tabId: 1 } }),
+        handler({
+          data: { source: 'content-script' },
+          sender: { context: 'content-script', tabId: 1 },
+        }),
       ).resolves.toEqual({
         status: 'error',
         reason: 'invalid-viewer-context',
@@ -536,15 +601,15 @@ describe('registerConnectionHandlers', () => {
 
       const matching = await handler({
         data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
-        sender: {},
+        sender: { context: 'popup' },
       });
       const otherViewer = await handler({
         data: { source: 'popup', viewerTabId: 2, viewerWindowId: 4 },
-        sender: {},
+        sender: { context: 'popup' },
       });
       const contentViewer = await handler({
         data: { source: 'content-script' },
-        sender: { tabId: 1 },
+        sender: { context: 'content-script', tabId: 1 },
       });
 
       expect(matching).toEqual({
@@ -583,7 +648,7 @@ describe('registerConnectionHandlers', () => {
       await expect(
         handler({
           data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
-          sender: {},
+          sender: { context: 'popup' },
         }),
       ).resolves.toEqual({
         status: 'inactive',
