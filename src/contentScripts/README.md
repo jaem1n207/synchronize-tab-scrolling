@@ -11,6 +11,7 @@ contentScripts/
 ├── keyboard-handler.ts      # Option/Alt key detection for manual scroll adjustment
 ├── panel.tsx                # React root for SyncControlPanel (Shadow DOM mount)
 ├── suggestion-toast.tsx     # React root for SyncSuggestionToast (Shadow DOM mount)
+├── quick-sync-hud.tsx       # Command-only feedback HUD + candidate Port lifecycle
 ├── lib/                     # Content script utilities
 │   ├── instant-programmatic-scroll.ts # Instant receiver-side scroll apply + scheduler
 │   ├── scroll-sync-state.ts           # Scroll sync state object and timing constants
@@ -29,7 +30,8 @@ contentScripts/
    animation frame, and applies the mapped target instantly
 6. **URL Navigation Apply**: Receives `url:sync`, resolves the active URL Sync mode, and navigates
    only when the shared resolver returns a safe target URL
-7. **UI Rendering**: Mounts React components inside Shadow DOM for sync controls and toast notifications
+7. **UI Rendering**: Mounts independent Shadow roots for sync controls, suggestion toasts, and
+   command-triggered Quick Sync feedback
 
 ## Receiver-Side Scroll Application
 
@@ -44,11 +46,20 @@ values. This keeps normal page anchor navigation and user-initiated smooth scrol
 
 ## Shadow DOM Isolation
 
-All UI components render inside a Shadow DOM to prevent style conflicts with the host page:
+Page overlays use three independent Shadow DOM roots to prevent style conflicts:
 
 - `panel.tsx` mounts `SyncControlPanel` in a shadow root
 - `suggestion-toast.tsx` mounts `SyncSuggestionToast` in a shadow root
+- `quick-sync-hud.tsx` mounts the non-interactive top-center Quick Sync HUD
 - Uses `import * as React from 'react'` pattern (differs from popup's named imports)
+
+The Quick Sync HUD appears only after the browser command. Candidate feedback opens a
+generation-bound `quick-sync-candidate:<generation>` runtime Port. Disconnect clears matching
+feedback immediately; countdown ticks do not emit repeated live-region announcements. The HUD has
+no controls, never takes focus, and does not reuse the passive auto-suggestion toast.
+
+See [`docs/guides/quick-sync-shortcut.md`](../../docs/guides/quick-sync-shortcut.md) for the exact
+10-second and Port lifecycle contract.
 
 ## Manual Scroll Adjustment
 
@@ -78,10 +89,11 @@ manual offset. Scroll sync remains active after the skipped navigation.
 
 ## Key Message Handlers (in scroll-sync.ts)
 
-| Message        | Direction            | Purpose                      |
-| -------------- | -------------------- | ---------------------------- |
-| `scroll:start` | Background → Content | Initialize sync session      |
-| `scroll:stop`  | Background → Content | Stop sync session            |
-| `scroll:sync`  | Content ↔ Background | Relay scroll positions       |
-| `scroll:ping`  | Background → Content | Health check                 |
-| `sync:status`  | Background → Content | Broadcast sync status update |
+| Message               | Direction            | Purpose                              |
+| --------------------- | -------------------- | ------------------------------------ |
+| `scroll:start`        | Background → Content | Initialize sync session              |
+| `scroll:stop`         | Background → Content | Stop sync session                    |
+| `scroll:sync`         | Content ↔ Background | Relay scroll positions               |
+| `scroll:ping`         | Background → Content | Health check                         |
+| `sync:status`         | Background → Content | Broadcast sync status update         |
+| `quick-sync:feedback` | Background → Content | Generation-bound command HUD outcome |
