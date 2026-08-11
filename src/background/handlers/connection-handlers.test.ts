@@ -6,9 +6,15 @@ import {
   isTabInActiveAutoSyncGroup,
   removeTabFromAllAutoSyncGroups,
 } from '../lib/auto-sync-groups';
-import { reinjectContentScript } from '../lib/content-script-manager';
+import { reinjectContentScript, reinjectManualReconnect } from '../lib/content-script-manager';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from '../lib/sync-state';
+import {
+  broadcastSyncStatus,
+  commitSyncState,
+  getSyncStateSnapshot,
+  persistSyncState,
+  syncState,
+} from '../lib/sync-state';
 
 import { registerConnectionHandlers } from './connection-handlers';
 
@@ -64,12 +70,22 @@ vi.mock('../lib/auto-sync-groups', () => ({
   isTabInActiveAutoSyncGroup: vi.fn(),
 }));
 
+vi.mock('../lib/auto-sync-state', () => ({
+  manualSyncOverriddenTabs: new Set<number>(),
+  withAutoSyncLock: vi.fn(async (operation: () => Promise<unknown>) => operation()),
+}));
+
 vi.mock('../lib/background-initialization', () => ({
   waitForBackgroundInitialization: waitForBackgroundInitializationMock,
 }));
 
 vi.mock('../lib/content-script-manager', () => ({
   reinjectContentScript: vi.fn(),
+  reinjectManualReconnect: vi.fn(),
+}));
+
+vi.mock('../lib/keep-alive', () => ({
+  stopKeepAlive: vi.fn(),
 }));
 
 vi.mock('../lib/messaging', () => ({
@@ -86,8 +102,27 @@ vi.mock('../lib/sync-state', () => ({
     revision: 0,
     sessionEpoch: 0,
   },
-  persistCommittedSyncStateLegacy: vi.fn(),
+  getSyncStateSnapshot: vi.fn(),
+  persistSyncState: vi.fn(),
+  commitSyncState: vi.fn(),
   broadcastSyncStatus: vi.fn(),
+}));
+
+vi.mock('../lib/sync-transition-gate', () => ({
+  syncTransitionGate: {
+    run: vi.fn(
+      async (
+        transition: (context: {
+          operationGeneration: number;
+          expectedRevision: number;
+        }) => Promise<unknown>,
+      ) =>
+        transition({
+          operationGeneration: 1,
+          expectedRevision: syncState.revision,
+        }),
+    ),
+  },
 }));
 
 function getHandler(messageId: string): MessageHandler {
@@ -121,8 +156,33 @@ describe('registerConnectionHandlers', () => {
     vi.mocked(isTabInActiveAutoSyncGroup).mockReturnValue(false);
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
     vi.mocked(reinjectContentScript).mockResolvedValue(true);
+    vi.mocked(reinjectManualReconnect).mockImplementation(async (token, isSessionCurrent) => {
+      const success = await vi.mocked(reinjectContentScript)(token.tabId, {
+        startMessage: token.startMessage,
+        isSessionCurrent,
+      });
+      return { success, tabId: token.tabId };
+    });
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
-    vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
+    vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
+      success: true,
+      tabId: destination.tabId,
+    }));
+    vi.mocked(getSyncStateSnapshot).mockImplementation(() => ({
+      ...syncState,
+      linkedTabs: [...syncState.linkedTabs],
+      connectionStatuses: { ...syncState.connectionStatuses },
+    }));
+    vi.mocked(persistSyncState).mockResolvedValue({ status: 'persisted' });
+    vi.mocked(commitSyncState).mockImplementation((nextState) => {
+      syncState.isActive = nextState.isActive;
+      syncState.linkedTabs = [...nextState.linkedTabs];
+      syncState.connectionStatuses = { ...nextState.connectionStatuses };
+      syncState.mode = nextState.mode;
+      syncState.lastActiveSyncedTabId = nextState.lastActiveSyncedTabId;
+      syncState.revision = nextState.revision;
+      syncState.sessionEpoch = nextState.sessionEpoch;
+    });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
@@ -130,16 +190,18 @@ describe('registerConnectionHandlers', () => {
   });
 
   describe('background readiness', () => {
-    it.each(['sync:get-status', 'scroll:reconnect', 'scroll:request-reinject'])(
-      '%s waits for initialization',
-      async (messageId) => {
-        const handler = getHandler(messageId);
+    it.each([
+      'sync:get-status',
+      'sync:reconnect-session',
+      'scroll:reconnect',
+      'scroll:request-reinject',
+    ])('%s waits for initialization', async (messageId) => {
+      const handler = getHandler(messageId);
 
-        await handler({ data: { tabId: 14 }, sender: { tabId: 14 } });
+      await handler({ data: { tabId: 14 }, sender: { tabId: 14 } });
 
-        expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(1);
-      },
-    );
+      expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(1);
+    });
 
     it('captures reconnect tab identity before awaiting readiness', async () => {
       const release = Promise.withResolvers<typeof readyBackground>();
@@ -199,7 +261,9 @@ describe('registerConnectionHandlers', () => {
       expect(result).toEqual({
         success: false,
         isActive: false,
+        revision: 0,
         linkedTabs: [],
+        connectedTabs: [],
         connectionStatuses: {},
       });
       expect(vi.mocked(browser.tabs.query)).not.toHaveBeenCalled();
@@ -213,30 +277,43 @@ describe('registerConnectionHandlers', () => {
         2: 'disconnected',
       };
 
-      vi.mocked(browser.tabs.query).mockResolvedValue([
-        {
-          id: 1,
-          index: 0,
-          highlighted: false,
-          active: true,
-          pinned: false,
-          incognito: false,
-          title: 'Tab One',
-          url: 'https://one.dev',
-          favIconUrl: 'one.ico',
-        },
-        {
-          id: 2,
-          index: 1,
-          highlighted: false,
-          active: false,
-          pinned: false,
-          incognito: false,
-          title: 'Tab Two',
-          url: 'https://two.dev',
-          favIconUrl: undefined,
-        },
-      ] as browser.Tabs.Tab[]);
+      const tabs = new Map<number, browser.Tabs.Tab>([
+        [
+          1,
+          {
+            id: 1,
+            index: 0,
+            highlighted: false,
+            active: true,
+            pinned: false,
+            incognito: false,
+            title: 'Tab One',
+            url: 'https://one.dev',
+            favIconUrl: 'one.ico',
+          },
+        ],
+        [
+          2,
+          {
+            id: 2,
+            index: 1,
+            highlighted: false,
+            active: false,
+            pinned: false,
+            incognito: false,
+            title: 'Tab Two',
+            url: 'https://two.dev',
+            favIconUrl: undefined,
+          },
+        ],
+      ]);
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
+        const tab = tabs.get(tabId);
+        if (!tab) {
+          throw new Error('Missing tab');
+        }
+        return tab;
+      });
 
       const handler = getHandler('sync:get-status');
       const result = await handler({ data: { tabId: 1 }, sender: { tabId: 9 } });
@@ -244,6 +321,7 @@ describe('registerConnectionHandlers', () => {
       expect(result).toEqual({
         success: true,
         isActive: true,
+        revision: 0,
         linkedTabs: [
           {
             id: 1,
@@ -274,8 +352,11 @@ describe('registerConnectionHandlers', () => {
       syncState.linkedTabs = [1, 3];
       syncState.connectionStatuses = { 1: 'connected', 3: 'connected' };
 
-      vi.mocked(browser.tabs.query).mockResolvedValue([
-        {
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
+        if (tabId !== 1) {
+          throw new Error('Missing tab');
+        }
+        return {
           id: 1,
           index: 0,
           highlighted: false,
@@ -285,8 +366,8 @@ describe('registerConnectionHandlers', () => {
           title: 'Only Present Tab',
           url: 'https://present.dev',
           favIconUrl: undefined,
-        },
-      ] as browser.Tabs.Tab[]);
+        };
+      });
 
       const handler = getHandler('sync:get-status');
       const result = await handler({ data: { tabId: 1 }, sender: { tabId: 1 } });
@@ -294,6 +375,7 @@ describe('registerConnectionHandlers', () => {
       expect(result).toEqual({
         success: true,
         isActive: true,
+        revision: 0,
         linkedTabs: [
           {
             id: 1,
@@ -322,6 +404,82 @@ describe('registerConnectionHandlers', () => {
         timestamp: 1_700_000_000_000,
         tabId: 17,
       });
+    });
+  });
+
+  describe('sync:reconnect-session', () => {
+    it('reconnects only unhealthy manual tabs with the frozen revision and epoch', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [5, 6, 7];
+      syncState.connectionStatuses = {
+        5: 'error',
+        6: 'connected',
+        7: 'disconnected',
+      };
+      syncState.mode = 'element';
+      syncState.revision = 12;
+      syncState.sessionEpoch = 8;
+      vi.mocked(browser.tabs.get).mockImplementation(
+        async (tabId) =>
+          ({
+            id: tabId,
+            index: 0,
+            highlighted: false,
+            active: false,
+            pinned: false,
+            incognito: false,
+          }) as browser.Tabs.Tab,
+      );
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
+        success: true,
+        tabId: destination.tabId,
+      }));
+      const handler = getHandler('sync:reconnect-session');
+      const data = { tabId: 0, expectedRevision: 12 };
+
+      const result = await handler({ data, sender: {} });
+
+      expect(result).toEqual({ status: 'committed', revision: 12 });
+      expect(sendMessageWithTimeout).toHaveBeenCalledTimes(2);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        {
+          tabIds: [5, 6, 7],
+          mode: 'element',
+          currentTabId: 5,
+          isAutoSync: false,
+          sessionEpoch: 8,
+        },
+        { context: 'content-script', tabId: 5 },
+        3_000,
+      );
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        {
+          tabIds: [5, 6, 7],
+          mode: 'element',
+          currentTabId: 7,
+          isAutoSync: false,
+          sessionEpoch: 8,
+        },
+        { context: 'content-script', tabId: 7 },
+        3_000,
+      );
+    });
+
+    it('rejects a stale popup reconnect before any tab I/O', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [5, 6];
+      syncState.connectionStatuses = { 5: 'error', 6: 'connected' };
+      syncState.revision = 13;
+      const handler = getHandler('sync:reconnect-session');
+      const data = { tabId: 0, expectedRevision: 12 };
+
+      const result = await handler({ data, sender: {} });
+
+      expect(result).toEqual({ status: 'rejected', reason: 'stale-revision' });
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
     });
   });
 
@@ -355,7 +513,7 @@ describe('registerConnectionHandlers', () => {
 
       expect(sendMessageWithTimeout).not.toHaveBeenCalled();
       expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -392,20 +550,9 @@ describe('registerConnectionHandlers', () => {
         acknowledgement.resolve(response);
         await result;
 
-        expect(sendMessageWithTimeout).toHaveBeenCalledWith(
-          'scroll:start',
-          {
-            tabIds: [5, 6],
-            mode: 'ratio',
-            currentTabId: 5,
-            isAutoSync: false,
-            sessionEpoch: 7,
-          },
-          { context: 'content-script', tabId: 5 },
-          3_000,
-        );
+        expect(sendMessageWithTimeout).not.toHaveBeenCalled();
         expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
-        expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+        expect(persistSyncState).not.toHaveBeenCalled();
         expect(broadcastSyncStatus).not.toHaveBeenCalled();
       },
     );
@@ -444,7 +591,7 @@ describe('registerConnectionHandlers', () => {
         3_000,
       );
       expect(syncState.connectionStatuses[5]).toBe('connected');
-      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
       expect(vi.mocked(broadcastSyncStatus)).toHaveBeenCalledTimes(1);
     });
 
@@ -477,7 +624,7 @@ describe('registerConnectionHandlers', () => {
         { context: 'content-script', tabId: 7 },
         3_000,
       );
-      expect(vi.mocked(persistCommittedSyncStateLegacy)).not.toHaveBeenCalled();
+      expect(vi.mocked(persistSyncState)).not.toHaveBeenCalled();
       expect(vi.mocked(broadcastSyncStatus)).not.toHaveBeenCalled();
     });
 
@@ -503,10 +650,10 @@ describe('registerConnectionHandlers', () => {
       const result = await handler({ data: { tabId: 4 }, sender: {} });
 
       expect(result).toEqual({ success: false, reason: 'Tab no longer exists' });
-      expect(syncState.linkedTabs).toEqual([10]);
+      expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses[4]).toBeUndefined();
-      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(removeTabFromAllAutoSyncGroups)).toHaveBeenCalledWith(4);
+      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(removeTabFromAllAutoSyncGroups)).not.toHaveBeenCalled();
     });
 
     it('marks manual sync tab as error for invalid acknowledgment', async () => {
@@ -527,9 +674,9 @@ describe('registerConnectionHandlers', () => {
       const handler = getHandler('scroll:reconnect');
       const result = await handler({ data: { tabId: 11 }, sender: {} });
 
-      expect(result).toEqual({ success: false, reason: 'Invalid acknowledgment' });
+      expect(result).toEqual({ success: false, reason: 'invalid-acknowledgement' });
       expect(syncState.connectionStatuses[11]).toBe('error');
-      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
     });
 
     it('marks manual sync tab as error when reconnection fails', async () => {
@@ -550,9 +697,9 @@ describe('registerConnectionHandlers', () => {
       const handler = getHandler('scroll:reconnect');
       const result = await handler({ data: { tabId: 21 }, sender: {} });
 
-      expect(result).toEqual({ success: false, reason: 'Connection failed' });
+      expect(result).toEqual({ success: false, reason: 'connection-timeout' });
       expect(syncState.connectionStatuses[21]).toBe('error');
-      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -580,7 +727,7 @@ describe('registerConnectionHandlers', () => {
         }),
       );
       expect(syncState.connectionStatuses[31]).toBe('connected');
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -638,7 +785,7 @@ describe('registerConnectionHandlers', () => {
         release.resolve();
 
         await expect(result).resolves.toEqual({ success: false });
-        expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+        expect(persistSyncState).not.toHaveBeenCalled();
         expect(broadcastSyncStatus).not.toHaveBeenCalled();
       },
     );
