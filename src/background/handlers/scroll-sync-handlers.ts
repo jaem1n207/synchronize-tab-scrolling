@@ -12,6 +12,7 @@ import type {
   ContextualHintShowMessage,
 } from '~/shared/types/contextual-hints';
 import type { StartSyncContentResponse } from '~/shared/types/messages';
+import type { SessionMessageIdentity } from '~/shared/types/sync-session';
 
 import {
   removeTabFromAllAutoSyncGroups,
@@ -33,6 +34,7 @@ import {
   savePendingUrlSyncContextualHint,
 } from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
+import { isAuthorizedManualSessionMessage } from '../lib/manual-session-authorization';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
 
@@ -43,6 +45,25 @@ const MANUAL_ADJUSTMENT_HINT_MESSAGE: ContextualHintShowMessage = {
   surface: 'webpage-overlay',
   source: 'sync-start',
 };
+
+function getAuthorizedRelayTargets(
+  identity: SessionMessageIdentity,
+  senderTabId: number | undefined,
+): Array<number> | null {
+  if (identity.isAutoSync) {
+    if (!Number.isSafeInteger(senderTabId) || senderTabId !== identity.sourceTabId) {
+      return null;
+    }
+    const targets = getAutoSyncGroupMembers(identity.sourceTabId);
+    return targets.length > 0 ? targets : null;
+  }
+
+  if (!isAuthorizedManualSessionMessage(syncState, senderTabId, identity)) {
+    return null;
+  }
+
+  return syncState.linkedTabs.filter((tabId) => tabId !== identity.sourceTabId);
+}
 
 function isValidScrollMetrics(
   metrics: StartSyncContentResponse['metrics'],
@@ -186,9 +207,17 @@ export function registerScrollSyncHandlers(): void {
         logger.debug(`Sending scroll:start to tab ${tabId}`);
 
         // Send message with timeout and capture acknowledgment
+        const contentStartRequest =
+          startRequest.isAutoSync === true
+            ? { ...startRequest, currentTabId: tabId }
+            : {
+                ...startRequest,
+                currentTabId: tabId,
+                sessionEpoch: syncState.sessionEpoch,
+              };
         const response = await sendMessageWithTimeout<StartSyncContentResponse>(
           'scroll:start',
-          { ...startRequest, currentTabId: tabId },
+          contentStartRequest,
           { context: 'content-script', tabId },
           1_000, // 1 second timeout
         );
@@ -364,27 +393,18 @@ export function registerScrollSyncHandlers(): void {
       return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
     }
 
+    const payload = data;
+    const targetTabIds = getAuthorizedRelayTargets(payload, sender.tabId);
+    if (targetTabIds === null) {
+      return Promise.resolve({ success: false, reason: 'unauthorized-session' });
+    }
+
     return (async () => {
-      const payload = data;
       logger.debug('Relaying scroll sync message', {
         sourceTabId: payload.sourceTabId,
         mode: payload.mode,
         hasSenderTab: sender.tabId !== undefined,
       });
-
-      // Manual sync tabs (existing logic)
-      let targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
-
-      // Also include auto-sync group members
-      const autoSyncTargets = getAutoSyncGroupMembers(payload.sourceTabId);
-      if (autoSyncTargets.length > 0) {
-        logger.debug('Adding auto-sync group members to relay targets', {
-          sourceTabId: payload.sourceTabId,
-          autoSyncTargets,
-        });
-        // Merge and deduplicate
-        targetTabIds = [...new Set([...targetTabIds, ...autoSyncTargets])];
-      }
 
       if (targetTabIds.length === 0) {
         logger.debug('No target tabs to relay scroll sync to');
@@ -402,13 +422,18 @@ export function registerScrollSyncHandlers(): void {
     })();
   });
 
-  onMessage('scroll:manual', ({ data }) => {
+  onMessage('scroll:manual', ({ data, sender }) => {
     if (getManualReadinessSnapshot() !== 'ready') {
       return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
     }
 
+    const payload = data;
+    const targets = getAuthorizedRelayTargets(payload, sender.tabId);
+    if (targets === null || payload.tabId !== payload.sourceTabId) {
+      return Promise.resolve({ success: false, reason: 'unauthorized-session' });
+    }
+
     return (async () => {
-      const payload = data;
       logger.debug('Manual scroll mode toggled', {
         tabId: payload.tabId,
         enabled: payload.enabled,
@@ -428,17 +453,43 @@ export function registerScrollSyncHandlers(): void {
     })();
   });
 
-  onMessage('url:sync', ({ data }) => {
+  onMessage('scroll:baseline-update', ({ data, sender }) => {
     if (getManualReadinessSnapshot() !== 'ready') {
       return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
     }
 
+    const targetTabIds = getAuthorizedRelayTargets(data, sender.tabId);
+    if (targetTabIds === null) {
+      return Promise.resolve({ success: false, reason: 'unauthorized-session' });
+    }
+
+    return Promise.all(
+      targetTabIds.map((tabId) =>
+        sendMessage('scroll:baseline-update', data, {
+          context: 'content-script',
+          tabId,
+        }).catch((error) => {
+          logger.debug(`Failed to relay baseline update to tab ${tabId}`, { error });
+        }),
+      ),
+    ).then(() => ({ success: true }));
+  });
+
+  onMessage('url:sync', ({ data, sender }) => {
+    if (getManualReadinessSnapshot() !== 'ready') {
+      return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
+    }
+
+    const payload = data;
+    const targetTabIds = getAuthorizedRelayTargets(payload, sender.tabId);
+    if (targetTabIds === null) {
+      return Promise.resolve({ success: false, reason: 'unauthorized-session' });
+    }
+
     return (async () => {
-      const payload = data;
       logger.info('Relaying URL sync message', { sourceTabId: payload.sourceTabId });
 
       // Broadcast to all synced tabs except the source
-      const targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
       const promises = targetTabIds.map((tabId) =>
         sendMessage('url:sync', data, { context: 'content-script', tabId }).catch((error) => {
           logger.debug(`Failed to relay URL sync to tab ${tabId}`, { error });

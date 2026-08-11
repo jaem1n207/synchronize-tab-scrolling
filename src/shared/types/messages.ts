@@ -14,6 +14,7 @@ import type {
   ContextualHintScrollMetrics,
   PendingUrlSyncContextualHintId,
 } from './contextual-hints';
+import type { SessionMessageIdentity } from './sync-session';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
 
 /**
@@ -32,6 +33,7 @@ export interface StartSyncMessage {
   /** When true, sync was initiated by auto-sync (not user action) */
   isAutoSync?: boolean;
   currentTabId?: number;
+  sessionEpoch?: number;
 }
 
 export type StartSyncConnectionResult = {
@@ -71,41 +73,46 @@ export interface StopSyncMessage {
 /**
  * Message to synchronize scroll position
  */
-export interface ScrollSyncMessage {
+export interface ScrollSyncPayload {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
-  sourceTabId: number;
   mode: SyncMode;
   timestamp: number;
 }
+
+export type ScrollSyncMessage = ScrollSyncPayload & SessionMessageIdentity;
 
 /**
  * Message to handle manual scroll adjustment (P1)
  * When user holds Option/Alt key to scroll individual tab
  */
-export interface ManualScrollMessage {
+export interface ManualScrollPayload {
   tabId: number;
   enabled: boolean;
 }
+
+export type ManualScrollMessage = ManualScrollPayload & SessionMessageIdentity;
 
 /**
  * Message to update sync baseline ratio across all tabs
  * Sent when a tab finishes manual adjustment to prevent jumps
  */
-export interface SyncBaselineUpdateMessage {
-  sourceTabId: number;
+export interface SyncBaselineUpdatePayload {
   baselineRatio: number;
   timestamp: number;
 }
 
+export type SyncBaselineUpdateMessage = SyncBaselineUpdatePayload & SessionMessageIdentity;
+
 /**
  * Message for URL navigation synchronization (P1)
  */
-export interface UrlSyncMessage {
+export interface UrlSyncPayload {
   url: string;
-  sourceTabId: number;
 }
+
+export type UrlSyncMessage = UrlSyncPayload & SessionMessageIdentity;
 
 /**
  * Connection health status for a synced tab

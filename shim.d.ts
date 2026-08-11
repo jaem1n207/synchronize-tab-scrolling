@@ -45,7 +45,7 @@ declare module 'webext-bridge' {
     'scroll:stop': ProtocolWithReturn<StopSyncMessage, unknown>;
     'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
     'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
-    'scroll:baseline-update': SyncBaselineUpdateMessage;
+    'scroll:baseline-update': ProtocolWithReturn<SyncBaselineUpdateMessage, unknown>;
     'scroll:ping': ProtocolWithReturn<ScrollPingMessage, unknown>;
     'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
     'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;

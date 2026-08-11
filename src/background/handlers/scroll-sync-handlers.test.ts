@@ -8,6 +8,7 @@ import type {
   StartSyncMessage,
   StartSyncResponse,
   StopSyncMessage,
+  SyncBaselineUpdateMessage,
   UrlSyncEnabledChangedMessage,
   UrlSyncModeChangedMessage,
   UrlSyncMessage,
@@ -129,6 +130,8 @@ vi.mock('../lib/sync-state', () => ({
     connectionStatuses: {} as Record<number, 'connected' | 'disconnected' | 'error'>,
     lastActiveSyncedTabId: null as number | null,
     mode: undefined as 'ratio' | 'element' | undefined,
+    revision: 0,
+    sessionEpoch: 0,
   },
   persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
@@ -174,6 +177,8 @@ describe('registerScrollSyncHandlers', () => {
     syncState.linkedTabs = [];
     syncState.connectionStatuses = {};
     syncState.mode = undefined;
+    syncState.revision = 0;
+    syncState.sessionEpoch = 0;
 
     autoSyncState.enabled = false;
     autoSyncState.groups.clear();
@@ -280,6 +285,7 @@ describe('registerScrollSyncHandlers', () => {
       await expectImmediateUnavailable(
         handler({
           data: {
+            isAutoSync: true,
             sourceTabId: 1,
             mode: 'ratio',
             scrollTop: 120,
@@ -304,7 +310,7 @@ describe('registerScrollSyncHandlers', () => {
 
       await expectImmediateUnavailable(
         handler({
-          data: { tabId: 7, enabled: true },
+          data: { isAutoSync: true, sourceTabId: 7, tabId: 7, enabled: true },
           sender: { tabId: 7 },
         }),
       );
@@ -323,7 +329,34 @@ describe('registerScrollSyncHandlers', () => {
 
       await expectImmediateUnavailable(
         handler({
-          data: { sourceTabId: 8, url: 'https://example.com/private' },
+          data: {
+            isAutoSync: true,
+            sourceTabId: 8,
+            url: 'https://example.com/private',
+          },
+          sender: { tabId: 8 },
+        }),
+      );
+
+      expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+    });
+
+    it('rejects baseline updates immediately while manual readiness is pending', async () => {
+      getManualReadinessSnapshotMock.mockReturnValue('pending');
+      const handler = getHandler<SyncBaselineUpdateMessage>('scroll:baseline-update');
+
+      await expectImmediateUnavailable(
+        handler({
+          data: {
+            baselineRatio: 0.4,
+            isAutoSync: false,
+            sessionEpoch: 2,
+            sourceTabId: 8,
+            timestamp: 10,
+          },
           sender: { tabId: 8 },
         }),
       );
@@ -816,10 +849,67 @@ describe('registerScrollSyncHandlers', () => {
   });
 
   describe('scroll:sync', () => {
+    it.each([
+      {
+        name: 'staged but uncommitted Add tab',
+        sender: { tabId: 3 },
+        sourceTabId: 3,
+        sessionEpoch: 4,
+      },
+      {
+        name: 'wrong sender',
+        sender: { tabId: 2 },
+        sourceTabId: 1,
+        sessionEpoch: 4,
+      },
+      {
+        name: 'missing sender',
+        sender: {},
+        sourceTabId: 1,
+        sessionEpoch: 4,
+      },
+      {
+        name: 'stale epoch',
+        sender: { tabId: 1 },
+        sourceTabId: 1,
+        sessionEpoch: 3,
+      },
+    ])('rejects $name without relay or state mutation', async (identity) => {
+      const handler = getHandler<ScrollSyncMessage>('scroll:sync');
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.sessionEpoch = 4;
+      const beforeStatuses = { ...syncState.connectionStatuses };
+
+      const result = await handler({
+        data: {
+          isAutoSync: false,
+          sourceTabId: identity.sourceTabId,
+          sessionEpoch: identity.sessionEpoch,
+          mode: 'ratio',
+          scrollTop: 120,
+          scrollHeight: 1000,
+          clientHeight: 600,
+          timestamp: 10,
+        },
+        sender: identity.sender,
+      });
+
+      expect(result).toEqual({ success: false, reason: 'unauthorized-session' });
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(getAutoSyncGroupMembers).not.toHaveBeenCalled();
+      expect(syncState.connectionStatuses).toEqual(beforeStatuses);
+    });
+
     it('relays scroll sync to linked tabs excluding the source tab', async () => {
       const handler = getHandler<ScrollSyncMessage>('scroll:sync');
+      syncState.isActive = true;
       syncState.linkedTabs = [1, 2, 3];
+      syncState.sessionEpoch = 5;
       const payload: ScrollSyncMessage = {
+        isAutoSync: false,
+        sessionEpoch: 5,
         sourceTabId: 2,
         mode: 'ratio',
         scrollTop: 120,
@@ -847,6 +937,7 @@ describe('registerScrollSyncHandlers', () => {
       syncState.linkedTabs = [21, 22];
       vi.mocked(getAutoSyncGroupMembers).mockReturnValue([22, 30, 31]);
       const payload: ScrollSyncMessage = {
+        isAutoSync: true,
         sourceTabId: 21,
         mode: 'ratio',
         scrollTop: 300,
@@ -874,8 +965,12 @@ describe('registerScrollSyncHandlers', () => {
 
     it('returns success without sending messages when there are no relay targets', async () => {
       const handler = getHandler<ScrollSyncMessage>('scroll:sync');
+      syncState.isActive = true;
       syncState.linkedTabs = [40];
+      syncState.sessionEpoch = 6;
       const payload: ScrollSyncMessage = {
+        isAutoSync: false,
+        sessionEpoch: 6,
         sourceTabId: 40,
         mode: 'ratio',
         scrollTop: 1,
@@ -894,12 +989,18 @@ describe('registerScrollSyncHandlers', () => {
   describe('scroll:manual', () => {
     it('forwards manual mode message to the requested tab', async () => {
       const handler = getHandler<ManualScrollMessage>('scroll:manual');
+      syncState.isActive = true;
+      syncState.linkedTabs = [55, 56];
+      syncState.sessionEpoch = 7;
       const payload: ManualScrollMessage = {
+        isAutoSync: false,
+        sourceTabId: 55,
+        sessionEpoch: 7,
         tabId: 55,
         enabled: true,
       };
 
-      const result = await handler({ data: payload, sender: {} });
+      const result = await handler({ data: payload, sender: { tabId: 55 } });
 
       expect(result).toEqual({ success: true });
       expect(sendMessage).toHaveBeenCalledWith('scroll:manual', payload, {
@@ -912,8 +1013,12 @@ describe('registerScrollSyncHandlers', () => {
   describe('url:sync', () => {
     it('relays URL sync to linked tabs except the source tab', async () => {
       const handler = getHandler<UrlSyncMessage>('url:sync');
+      syncState.isActive = true;
       syncState.linkedTabs = [61, 62, 63];
+      syncState.sessionEpoch = 8;
       const payload: UrlSyncMessage = {
+        isAutoSync: false,
+        sessionEpoch: 8,
         sourceTabId: 62,
         url: 'https://example.com/next-page',
       };
