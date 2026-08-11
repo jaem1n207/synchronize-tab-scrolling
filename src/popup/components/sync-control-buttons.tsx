@@ -17,6 +17,8 @@ import IconSquare from '~icons/lucide/square';
 
 interface SyncControlButtonsProps {
   isActive: boolean;
+  isStopping: boolean;
+  isReconnecting: boolean;
   selectedCount: number;
   hasConnectionError: boolean;
   onStart: () => void;
@@ -26,6 +28,8 @@ interface SyncControlButtonsProps {
 
 export function SyncControlButtons({
   isActive,
+  isStopping,
+  isReconnecting,
   selectedCount,
   hasConnectionError,
   onStart,
@@ -34,6 +38,7 @@ export function SyncControlButtons({
 }: SyncControlButtonsProps) {
   const { modKey } = useModifierKey();
   const canStart = selectedCount >= 2;
+  const isSyncMutationPending = isStopping || isReconnecting;
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, action: () => void, disabled: boolean) => {
@@ -79,15 +84,17 @@ export function SyncControlButtons({
           </Tooltip>
         ) : (
           <Button
-            aria-label={t('stopSynchronization')}
+            aria-busy={isStopping ? true : undefined}
+            aria-label={isStopping ? t('stoppingSynchronization') : t('stopSynchronization')}
             className="gap-2"
+            disabled={isSyncMutationPending}
             size="sm"
             variant="destructive"
             onClick={onStop}
-            onKeyDown={(e) => handleKeyDown(e, onStop, false)}
+            onKeyDown={(e) => handleKeyDown(e, onStop, isSyncMutationPending)}
           >
             <IconSquare aria-hidden="true" className="w-4 h-4" />
-            {t('stopSync')}
+            {isStopping ? t('stoppingSynchronization') : t('stopSync')}
             <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
               <Kbd>{modKey}</Kbd>
               <Kbd>S</Kbd>
@@ -99,17 +106,21 @@ export function SyncControlButtons({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                aria-label={t('resyncDisconnectedTabs')}
+                aria-busy={isReconnecting ? true : undefined}
+                aria-label={isReconnecting ? t('reconnecting') : t('resyncDisconnectedTabs')}
+                disabled={isSyncMutationPending}
                 size="sm"
                 variant="outline"
                 onClick={onResync}
-                onKeyDown={(e) => handleKeyDown(e, onResync, false)}
+                onKeyDown={(e) => handleKeyDown(e, onResync, isSyncMutationPending)}
               >
                 <IconRefreshCw aria-hidden="true" className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="text-xs">{t('resyncDisconnectedTabs')}</p>
+              <p className="text-xs">
+                {isReconnecting ? t('reconnecting') : t('resyncDisconnectedTabs')}
+              </p>
             </TooltipContent>
           </Tooltip>
         )}
