@@ -44,6 +44,8 @@ vi.mock('./sync-state', () => ({
     connectionStatuses: {} as Record<number, 'connected' | 'disconnected' | 'error'>,
     lastActiveSyncedTabId: null as number | null,
     mode: undefined as 'ratio' | 'element' | undefined,
+    revision: 0,
+    sessionEpoch: 0,
   },
   persistCommittedSyncStateLegacy: persistCommittedSyncStateLegacyMock,
   broadcastSyncStatus: broadcastSyncStatusMock,
@@ -54,6 +56,7 @@ describe('content-script-manager', () => {
     syncState.linkedTabs = [1, 2, 3];
     syncState.mode = undefined;
     syncState.connectionStatuses = {};
+    syncState.sessionEpoch = 8;
 
     persistCommittedSyncStateLegacyMock.mockResolvedValue({ status: 'persisted' });
     broadcastSyncStatusMock.mockResolvedValue(undefined);
@@ -124,6 +127,7 @@ describe('content-script-manager', () => {
           tabIds: [1, 2, 3],
           mode: 'ratio',
           currentTabId: 2,
+          sessionEpoch: 8,
         },
         { context: 'content-script', tabId: 2 },
         3000,
@@ -150,6 +154,7 @@ describe('content-script-manager', () => {
           tabIds: [1, 2, 3],
           mode: 'element',
           currentTabId: 3,
+          sessionEpoch: 8,
         },
         { context: 'content-script', tabId: 3 },
         3000,

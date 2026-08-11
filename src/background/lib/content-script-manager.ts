@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
+import type { StartSyncContentMessage } from '~/shared/types/messages';
 
 import { sendMessageWithTimeout } from './messaging';
 import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from './sync-state';
@@ -39,13 +40,15 @@ export async function reinjectContentScript(tabId: number): Promise<boolean> {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Now send scroll:start to initialize sync
+    const startMessage = {
+      tabIds: syncState.linkedTabs,
+      mode: syncState.mode || 'ratio',
+      currentTabId: tabId,
+      sessionEpoch: syncState.sessionEpoch,
+    } satisfies StartSyncContentMessage;
     const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
       'scroll:start',
-      {
-        tabIds: syncState.linkedTabs,
-        mode: syncState.mode || 'ratio',
-        currentTabId: tabId,
-      },
+      startMessage,
       { context: 'content-script', tabId },
       3_000,
     );
