@@ -20,6 +20,7 @@ import { registerConnectionHandlers } from './connection-handlers';
 
 interface TabPayload {
   tabId: number;
+  expectedRevision?: number;
 }
 
 interface MessageSender {
@@ -478,9 +479,73 @@ describe('registerConnectionHandlers', () => {
       expect(browser.tabs.get).not.toHaveBeenCalled();
       expect(sendMessageWithTimeout).not.toHaveBeenCalled();
     });
+
+    it.each([
+      { linkedTabs: [1, 2, 3], expectedActive: true, expectedTabs: [2, 3] },
+      { linkedTabs: [1, 2], expectedActive: false, expectedTabs: [] },
+    ])(
+      'returns refresh-required when a missing tab changes topology from $linkedTabs',
+      async ({ linkedTabs, expectedActive, expectedTabs }) => {
+        syncState.isActive = true;
+        syncState.linkedTabs = linkedTabs;
+        syncState.connectionStatuses = Object.fromEntries(
+          linkedTabs.map((tabId) => [tabId, tabId === 1 ? 'error' : 'connected']),
+        );
+        syncState.revision = 9;
+        vi.mocked(browser.tabs.get).mockRejectedValue(new Error('missing'));
+
+        const handler = getHandler('sync:reconnect-session');
+        const result = await handler({ data: { tabId: 0, expectedRevision: 9 }, sender: {} });
+
+        expect(result).toEqual({ status: 'refresh-required', revision: 10 });
+        expect(syncState.isActive).toBe(expectedActive);
+        expect(syncState.linkedTabs).toEqual(expectedTabs);
+      },
+    );
   });
 
   describe('scroll:reconnect', () => {
+    it.each([
+      { name: 'missing sender', dataTabId: 5, sender: {} },
+      { name: 'mismatched sender', dataTabId: 5, sender: { tabId: 6 } },
+    ])('rejects $name before initialization or tab I/O', async ({ dataTabId, sender }) => {
+      const handler = getHandler('scroll:reconnect');
+
+      const result = await handler({ data: { tabId: dataTabId }, sender });
+
+      expect(result).toEqual({ success: false, reason: 'Invalid tab identity' });
+      expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
+    });
+
+    it('accepts zero as an alias for the positive sender tab ID', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [5, 6];
+      syncState.connectionStatuses = { 5: 'error', 6: 'connected' };
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 5,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      });
+      const handler = getHandler('scroll:reconnect');
+
+      const result = await handler({ data: { tabId: 0 }, sender: { tabId: 5 } });
+
+      expect(result).toEqual({ success: true });
+      expect(browser.tabs.get).toHaveBeenCalledWith(5);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        expect.objectContaining({ currentTabId: 5 }),
+        { context: 'content-script', tabId: 5 },
+        3_000,
+      );
+    });
+
     it('does not send a manual reconnect after tabs.get resolves into a replacement session', async () => {
       const tabLookup = Promise.withResolvers<browser.Tabs.Tab>();
       syncState.isActive = true;
@@ -491,7 +556,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(browser.tabs.get).mockReturnValue(tabLookup.promise);
 
       const handler = getHandler('scroll:reconnect');
-      const result = handler({ data: { tabId: 5 }, sender: {} });
+      const result = handler({ data: { tabId: 5 }, sender: { tabId: 5 } });
       await Promise.resolve();
 
       syncState.linkedTabs = [10, 11];
@@ -536,7 +601,7 @@ describe('registerConnectionHandlers', () => {
         vi.mocked(sendMessageWithTimeout).mockReturnValue(acknowledgement.promise);
 
         const handler = getHandler('scroll:reconnect');
-        const result = handler({ data: { tabId: 5 }, sender: {} });
+        const result = handler({ data: { tabId: 5 }, sender: { tabId: 5 } });
         await Promise.resolve();
         await Promise.resolve();
 
@@ -572,7 +637,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 5 });
 
       const handler = getHandler('scroll:reconnect');
-      const result = await handler({ data: { tabId: 5 }, sender: {} });
+      const result = await handler({ data: { tabId: 5 }, sender: { tabId: 5 } });
 
       expect(result).toEqual({ success: true });
       expect(vi.mocked(sendMessageWithTimeout)).toHaveBeenCalledWith(
@@ -607,7 +672,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 7 });
 
       const handler = getHandler('scroll:reconnect');
-      const result = await handler({ data: { tabId: 7 }, sender: {} });
+      const result = await handler({ data: { tabId: 7 }, sender: { tabId: 7 } });
 
       expect(result).toEqual({ success: true });
       expect(vi.mocked(sendMessageWithTimeout)).toHaveBeenCalledWith(
@@ -628,7 +693,7 @@ describe('registerConnectionHandlers', () => {
     it('returns failure when tab is not in any sync', async () => {
       const handler = getHandler('scroll:reconnect');
 
-      const result = await handler({ data: { tabId: 12 }, sender: {} });
+      const result = await handler({ data: { tabId: 12 }, sender: { tabId: 12 } });
 
       expect(result).toEqual({ success: false, reason: 'Sync not active' });
       expect(vi.mocked(browser.tabs.get)).not.toHaveBeenCalled();
@@ -644,7 +709,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(browser.tabs.get).mockRejectedValue(new Error('No tab with id: 4'));
 
       const handler = getHandler('scroll:reconnect');
-      const result = await handler({ data: { tabId: 4 }, sender: {} });
+      const result = await handler({ data: { tabId: 4 }, sender: { tabId: 4 } });
 
       expect(result).toEqual({ success: false, reason: 'Tab no longer exists' });
       expect(syncState.linkedTabs).toEqual([]);
@@ -669,7 +734,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 999 });
 
       const handler = getHandler('scroll:reconnect');
-      const result = await handler({ data: { tabId: 11 }, sender: {} });
+      const result = await handler({ data: { tabId: 11 }, sender: { tabId: 11 } });
 
       expect(result).toEqual({ success: false, reason: 'invalid-acknowledgement' });
       expect(syncState.connectionStatuses[11]).toBe('error');
@@ -692,7 +757,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(sendMessageWithTimeout).mockRejectedValue(new Error('timeout'));
 
       const handler = getHandler('scroll:reconnect');
-      const result = await handler({ data: { tabId: 21 }, sender: {} });
+      const result = await handler({ data: { tabId: 21 }, sender: { tabId: 21 } });
 
       expect(result).toEqual({ success: false, reason: 'connection-timeout' });
       expect(syncState.connectionStatuses[21]).toBe('error');
@@ -707,7 +772,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(reinjectContentScript).mockResolvedValue(true);
 
       const handler = getHandler('scroll:request-reinject');
-      const result = await handler({ data: { tabId: 31 }, sender: {} });
+      const result = await handler({ data: { tabId: 31 }, sender: { tabId: 31 } });
 
       expect(result).toEqual({ success: true });
       expect(vi.mocked(reinjectContentScript)).toHaveBeenCalledWith(
@@ -734,7 +799,7 @@ describe('registerConnectionHandlers', () => {
       vi.mocked(reinjectContentScript).mockResolvedValue(true);
 
       const handler = getHandler('scroll:request-reinject');
-      const result = await handler({ data: { tabId: 40 }, sender: {} });
+      const result = await handler({ data: { tabId: 40 }, sender: { tabId: 40 } });
 
       expect(result).toEqual({ success: true });
       expect(reinjectContentScript).toHaveBeenCalledWith(
@@ -773,7 +838,8 @@ describe('registerConnectionHandlers', () => {
         });
 
         const handler = getHandler('scroll:request-reinject');
-        const result = handler({ data: { tabId: manual ? 31 : 40 }, sender: {} });
+        const tabId = manual ? 31 : 40;
+        const result = handler({ data: { tabId }, sender: { tabId } });
         await Promise.resolve();
 
         syncState.linkedTabs = [10, 11];
@@ -790,7 +856,7 @@ describe('registerConnectionHandlers', () => {
     it('returns failure when tab is not in any sync group', async () => {
       const handler = getHandler('scroll:request-reinject');
 
-      const result = await handler({ data: { tabId: 99 }, sender: {} });
+      const result = await handler({ data: { tabId: 99 }, sender: { tabId: 99 } });
 
       expect(result).toEqual({ success: false, reason: 'Tab not in sync' });
       expect(vi.mocked(reinjectContentScript)).not.toHaveBeenCalled();

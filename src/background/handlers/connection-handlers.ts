@@ -287,6 +287,13 @@ export function registerConnectionHandlers(): void {
     const results = await Promise.all(
       reconnectTabIds.map((tabId) => reconnectManualTab(manualLifecycleController, tabId, false)),
     );
+    if (results.some(({ tabMissing }) => tabMissing)) {
+      const result: ManualReconnectResult = {
+        status: 'refresh-required',
+        revision: getSyncStateSnapshot().revision,
+      };
+      return result;
+    }
     const rejected = results.find(({ result }) => result.status === 'rejected');
     if (rejected?.result.status === 'rejected') {
       return rejected.result;
@@ -306,7 +313,16 @@ export function registerConnectionHandlers(): void {
   });
 
   onMessage('scroll:reconnect', async ({ data, sender }) => {
-    const tabId = data.tabId === 0 ? sender.tabId : data.tabId;
+    const senderTabId = sender.tabId;
+    if (
+      !Number.isSafeInteger(senderTabId) ||
+      senderTabId === undefined ||
+      senderTabId <= 0 ||
+      (data.tabId !== 0 && data.tabId !== senderTabId)
+    ) {
+      return { success: false, reason: 'Invalid tab identity' };
+    }
+    const tabId = senderTabId;
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
       return { success: false, reason: 'session-state-unavailable' };
@@ -319,9 +335,6 @@ export function registerConnectionHandlers(): void {
 
     const manualRecovery = captureManualRecovery(tabId);
     if (manualRecovery) {
-      if (sender.tabId !== undefined && sender.tabId !== tabId) {
-        return { success: false, reason: 'Invalid tab identity' };
-      }
       const { result, tabMissing } = await reconnectManualTab(
         manualLifecycleController,
         tabId,
@@ -332,7 +345,10 @@ export function registerConnectionHandlers(): void {
       }
       return result.status === 'committed'
         ? { success: true }
-        : { success: false, reason: result.reason };
+        : {
+            success: false,
+            reason: result.status === 'refresh-required' ? 'Topology changed' : result.reason,
+          };
     }
 
     const autoRecovery = captureAutoRecovery(tabId);
