@@ -62,6 +62,13 @@ function createOrchestratorHarness(options: HarnessOptions) {
   const stopTargets: Array<number> = [];
   const overrideRollbacks: Array<ManualOverrideSnapshot> = [];
   const recentOutcomes: Array<'auto-sync-degraded'> = [];
+  const cleanupRetries: Array<{
+    tabId: number;
+    stoppedRevision: number;
+    stoppedSessionEpoch: number;
+    attemptIndex: number;
+  }> = [];
+  const cancelledCleanupTabIds: Array<number> = [];
   const failedInjectionTabIds = new Set(options.failedInjectionTabIds ?? []);
   const startResponses = options.startResponses ?? {};
 
@@ -155,6 +162,18 @@ function createOrchestratorHarness(options: HarnessOptions) {
     stopKeepAlive: () => {
       events.push('keep-alive:stop');
     },
+    clearManualOverrides: async (tabIds) => {
+      events.push(`override:clear:${tabIds.join(',')}`);
+    },
+    cleanupScheduler: {
+      schedule: (input) => {
+        cleanupRetries.push({ ...input });
+      },
+      cancelForTab: (tabId) => {
+        cancelledCleanupTabIds.push(tabId);
+      },
+      cancelAll: vi.fn(),
+    },
     broadcastStatus: async () => {
       events.push('status:broadcast');
     },
@@ -172,6 +191,8 @@ function createOrchestratorHarness(options: HarnessOptions) {
     stopTargets,
     overrideRollbacks,
     recentOutcomes,
+    cleanupRetries,
+    cancelledCleanupTabIds,
     get committedState() {
       return cloneState(committedState);
     },
@@ -678,5 +699,166 @@ describe('createSyncSessionOrchestrator', () => {
       warning: 'auto-sync-degraded',
     });
     expect(harness.recentOutcomes).toEqual(['auto-sync-degraded']);
+  });
+
+  it('durably commits inactive before stopping runtime and cleaning every committed tab', async () => {
+    const harness = createOrchestratorHarness({ initialState: activeState });
+
+    const result = await harness.orchestrator.stopManualSession(
+      { operationGeneration: 3, expectedRevision: 7 },
+      'popup',
+    );
+
+    expect(result).toEqual({ status: 'committed', revision: 8 });
+    expect(harness.committedState).toEqual({
+      isActive: false,
+      linkedTabs: [],
+      connectionStatuses: {},
+      lastActiveSyncedTabId: null,
+      revision: 8,
+      sessionEpoch: 4,
+    });
+    expect(harness.events).toEqual([
+      'state:persist',
+      'state:commit',
+      'keep-alive:stop',
+      'override:clear:11,22',
+      'status:broadcast',
+      'stop:11',
+      'stop:22',
+    ]);
+  });
+
+  it('leaves the active state untouched and sends no Stop when inactive persistence fails', async () => {
+    const harness = createOrchestratorHarness({
+      initialState: activeState,
+      persistFails: true,
+    });
+
+    const result = await harness.orchestrator.stopManualSession(
+      { operationGeneration: 3, expectedRevision: 7 },
+      'popup',
+    );
+
+    expect(result).toEqual({ status: 'rejected', reason: 'persistence-failed' });
+    expect(harness.committedState).toEqual(activeState);
+    expect(harness.stopTargets).toEqual([]);
+    expect(harness.events).toEqual(['state:persist-failed']);
+  });
+
+  it.each([
+    { name: 'invalid acknowledgement', response: 'invalid' },
+    { name: 'mismatched acknowledgement', response: 'mismatched' },
+    { name: 'thrown cleanup', response: 'throw' },
+  ] satisfies Array<{ name: string; response: StopResponse }>)(
+    'keeps Stop committed and schedules exact cleanup retry after $name',
+    async ({ response }) => {
+      const harness = createOrchestratorHarness({
+        initialState: activeState,
+        stopResponses: { 22: response },
+      });
+
+      const result = await harness.orchestrator.stopManualSession(
+        { operationGeneration: 3, expectedRevision: 7 },
+        'popup',
+      );
+
+      expect(result).toEqual({
+        status: 'committed',
+        revision: 8,
+        warning: 'cleanup-incomplete',
+      });
+      expect(harness.committedState.isActive).toBe(false);
+      expect(harness.cleanupRetries).toEqual([
+        {
+          tabId: 22,
+          stoppedRevision: 8,
+          stoppedSessionEpoch: 4,
+          attemptIndex: 0,
+        },
+      ]);
+    },
+  );
+
+  it('times out Stop cleanup after 1,000ms without resurrecting the session', async () => {
+    vi.useFakeTimers();
+    const harness = createOrchestratorHarness({
+      initialState: activeState,
+      stopResponses: { 22: 'timeout' },
+    });
+
+    const resultPromise = harness.orchestrator.stopManualSession(
+      { operationGeneration: 3, expectedRevision: 7 },
+      'popup',
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect(resultPromise).resolves.toEqual({
+      status: 'committed',
+      revision: 8,
+      warning: 'cleanup-incomplete',
+    });
+    expect(harness.committedState.isActive).toBe(false);
+    expect(harness.cleanupRetries.map((cleanup) => cleanup.tabId)).toEqual([22]);
+  });
+
+  it('freezes reconnect identity and ignores reverse completion from an older attempt', async () => {
+    const harness = createOrchestratorHarness({
+      initialState: {
+        ...activeState,
+        connectionStatuses: { 11: 'error', 22: 'connected' },
+      },
+    });
+    const first = harness.orchestrator.beginManualReconnect(
+      { operationGeneration: 4, expectedRevision: 7 },
+      11,
+    );
+    const second = harness.orchestrator.beginManualReconnect(
+      { operationGeneration: 5, expectedRevision: 7 },
+      11,
+    );
+
+    expect(first.status).toBe('ready');
+    expect(second.status).toBe('ready');
+    if (first.status !== 'ready' || second.status !== 'ready') {
+      throw new Error('Expected reconnect tokens');
+    }
+
+    const secondResult = await harness.orchestrator.finishManualReconnect(
+      { operationGeneration: 6, expectedRevision: 7 },
+      second.token,
+      { success: true, tabId: 11 },
+    );
+    const firstResult = await harness.orchestrator.finishManualReconnect(
+      { operationGeneration: 7, expectedRevision: 7 },
+      first.token,
+      { success: false, tabId: 11 },
+    );
+
+    expect(secondResult).toEqual({ status: 'committed', revision: 7 });
+    expect(firstResult).toEqual({ status: 'rejected', reason: 'stale-revision' });
+    expect(harness.committedState.connectionStatuses[11]).toBe('connected');
+    expect(harness.persistedStates).toHaveLength(1);
+  });
+
+  it('persists reconnect connection status before committing memory', async () => {
+    const harness = createOrchestratorHarness({ initialState: activeState });
+    const begin = harness.orchestrator.beginManualReconnect(
+      { operationGeneration: 4, expectedRevision: 7 },
+      11,
+    );
+    if (begin.status !== 'ready') {
+      throw new Error('Expected reconnect token');
+    }
+
+    const result = await harness.orchestrator.finishManualReconnect(
+      { operationGeneration: 5, expectedRevision: 7 },
+      begin.token,
+      { success: false, tabId: 11 },
+    );
+
+    expect(result).toEqual({ status: 'rejected', reason: 'invalid-acknowledgement' });
+    expect(harness.events.slice(-3)).toEqual(['state:persist', 'state:commit', 'status:broadcast']);
+    expect(harness.committedState.connectionStatuses[11]).toBe('error');
   });
 });
