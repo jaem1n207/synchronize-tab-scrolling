@@ -6,7 +6,7 @@ import browser from 'webextension-polyfill';
 import type {
   ManualReconnectResult,
   ManualStopResult,
-  SyncStatusResponseMessage,
+  PopupSyncStatusResponseMessage,
 } from '~/shared/types/sync-session';
 
 import { useManualSyncSession } from './use-manual-sync-session';
@@ -44,9 +44,10 @@ function createDeferred<T>(): Deferred<T> {
 function createActiveStatus(
   revision: number,
   firstTabStatus: 'connected' | 'disconnected' | 'error' = 'connected',
-): SyncStatusResponseMessage {
+): PopupSyncStatusResponseMessage {
   return {
     status: 'active',
+    source: 'popup',
     snapshot: {
       revision,
       sessionEpoch: 4,
@@ -79,9 +80,10 @@ function createActiveStatus(
   };
 }
 
-function createInactiveStatus(revision: number): SyncStatusResponseMessage {
+function createInactiveStatus(revision: number): PopupSyncStatusResponseMessage {
   return {
     status: 'inactive',
+    source: 'popup',
     revision,
     sessionEpoch: 5,
   };
@@ -106,7 +108,7 @@ beforeEach(() => {
 
 describe('useManualSyncSession status truth', () => {
   it('stays loading until the first authoritative status resolves', async () => {
-    const status = createDeferred<SyncStatusResponseMessage>();
+    const status = createDeferred<PopupSyncStatusResponseMessage>();
     sendMessageMock.mockReturnValue(status.promise);
 
     const { result } = renderHook(() => useManualSyncSession());
@@ -162,7 +164,7 @@ describe('useManualSyncSession status truth', () => {
   });
 
   it('prevents an older refetch response from replacing a newer response', async () => {
-    const olderStatus = createDeferred<SyncStatusResponseMessage>();
+    const olderStatus = createDeferred<PopupSyncStatusResponseMessage>();
     sendMessageMock
       .mockReturnValueOnce(olderStatus.promise)
       .mockResolvedValueOnce(createActiveStatus(12));
@@ -546,7 +548,7 @@ describe('useManualSyncSession recent Quick Sync outcome expiry', () => {
   it('expires the visible outcome while a newer status request is pending', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(25_000));
-    const pendingStatus = createDeferred<SyncStatusResponseMessage>();
+    const pendingStatus = createDeferred<PopupSyncStatusResponseMessage>();
     sendMessageMock
       .mockResolvedValueOnce({
         ...createInactiveStatus(45),

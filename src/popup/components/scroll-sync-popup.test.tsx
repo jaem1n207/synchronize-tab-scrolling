@@ -184,6 +184,7 @@ function createSession(
 function createActiveSession(): UseManualSyncSessionResult {
   return createSession({
     status: 'active',
+    source: 'popup',
     snapshot: {
       revision: 12,
       sessionEpoch: 4,
@@ -251,6 +252,7 @@ beforeEach(() => {
   useManualSyncSessionMock.mockReturnValue(
     createSession({
       status: 'inactive',
+      source: 'popup',
       revision: 1,
       sessionEpoch: 2,
     }),

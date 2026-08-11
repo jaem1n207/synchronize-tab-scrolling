@@ -5,13 +5,14 @@ import browser from 'webextension-polyfill';
 
 import type {
   ManualReconnectResult,
+  PopupSyncStatusResponseMessage,
   SyncStatusRequestMessage,
   SyncStatusResponseMessage,
 } from '~/shared/types/sync-session';
 
 export type PopupSessionState =
   | { status: 'loading' }
-  | SyncStatusResponseMessage
+  | PopupSyncStatusResponseMessage
   | { status: 'error'; reason: 'transport-error' };
 
 export interface UseManualSyncSessionResult {
@@ -55,11 +56,12 @@ async function resolvePopupViewerRequest(): Promise<SyncStatusRequestMessage> {
 }
 
 function removeRecentQuickSyncOutcome(
-  response: SyncStatusResponseMessage,
-): SyncStatusResponseMessage {
+  response: PopupSyncStatusResponseMessage,
+): PopupSyncStatusResponseMessage {
   if (response.status === 'active') {
     return {
       status: 'active',
+      source: 'popup',
       snapshot: response.snapshot,
     };
   }
@@ -67,6 +69,7 @@ function removeRecentQuickSyncOutcome(
   if (response.status === 'inactive') {
     return {
       status: 'inactive',
+      source: 'popup',
       revision: response.revision,
       sessionEpoch: response.sessionEpoch,
     };
@@ -76,6 +79,12 @@ function removeRecentQuickSyncOutcome(
     status: 'error',
     reason: response.reason,
   };
+}
+
+function isPopupSyncStatusResponse(
+  response: SyncStatusResponseMessage,
+): response is PopupSyncStatusResponseMessage {
+  return response.status === 'error' || response.source === 'popup';
 }
 
 function withOperationTimeout<T>(operation: Promise<T>): Promise<T> {
@@ -116,7 +125,7 @@ export function useManualSyncSession(): UseManualSyncSessionResult {
   }, []);
 
   const applyAuthoritativeState = useCallback(
-    (response: SyncStatusResponseMessage, generation: number): void => {
+    (response: PopupSyncStatusResponseMessage, generation: number): void => {
       if (!mountedRef.current || requestGenerationRef.current !== generation) {
         return;
       }
@@ -170,6 +179,9 @@ export function useManualSyncSession(): UseManualSyncSessionResult {
     try {
       const request = await resolvePopupViewerRequest();
       const response = await sendMessage('sync:get-status', request, 'background');
+      if (!isPopupSyncStatusResponse(response)) {
+        throw new Error('Unexpected content-script status response');
+      }
       applyAuthoritativeState(response, generation);
     } catch {
       if (mountedRef.current && requestGenerationRef.current === generation) {
