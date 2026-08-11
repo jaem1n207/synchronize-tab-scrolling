@@ -42,8 +42,9 @@ import type {
   QuickSyncFeedbackResponse,
 } from '~/shared/types/quick-sync';
 import type {
+  ContentSyncStatusRequestMessage,
+  PopupSyncStatusRequestMessage,
   ReconnectManualSessionMessage,
-  SyncStatusRequestMessage,
   SyncStatusResponseMessage,
 } from '~/shared/types/sync-session';
 
@@ -68,7 +69,10 @@ declare module 'webext-bridge' {
     'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
     'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;
     'sync:status': SyncStatusBroadcastMessage;
-    'sync:get-status': ProtocolWithReturn<SyncStatusRequestMessage, SyncStatusResponseMessage>;
+    'sync:get-status': ProtocolWithReturn<
+      PopupSyncStatusRequestMessage | ContentSyncStatusRequestMessage,
+      SyncStatusResponseMessage
+    >;
     'sync:reconnect-session': ProtocolWithReturn<
       ReconnectManualSessionMessage,
       ReconnectManualSessionResponse

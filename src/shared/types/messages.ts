@@ -16,11 +16,12 @@ import type {
 } from './contextual-hints';
 import type { DismissQuickSyncRecentOutcomeMessage, QuickSyncFeedbackMessage } from './quick-sync';
 import type {
+  ContentSyncStatusRequestMessage,
   ManualReconnectResult,
   ManualStopResult,
+  PopupSyncStatusRequestMessage,
   ReconnectManualSessionMessage,
   SessionMessageIdentity,
-  SyncStatusRequestMessage,
 } from './sync-session';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
 
@@ -413,7 +414,7 @@ export interface ProtocolMap {
   'scroll:reconnect': ScrollReconnectMessage;
   'scroll:request-reinject': ScrollRequestReinjectMessage;
   'sync:status': SyncStatusBroadcastMessage;
-  'sync:get-status': SyncStatusRequestMessage;
+  'sync:get-status': PopupSyncStatusRequestMessage | ContentSyncStatusRequestMessage;
   'sync:reconnect-session': ReconnectManualSessionMessage;
   'url:sync': UrlSyncMessage;
   'element:match': ElementMatchMessage;

@@ -1,13 +1,19 @@
 import type { ConnectionStatus, SyncMode } from './messages';
 import type { QuickSyncFailureReason, RecentQuickSyncOutcome } from './quick-sync';
 
+export interface PopupSyncStatusRequestMessage {
+  source: 'popup';
+  viewerTabId: number;
+  viewerWindowId: number;
+}
+
+export interface ContentSyncStatusRequestMessage {
+  source: 'content-script';
+}
+
 export type SyncStatusRequestMessage =
-  | {
-      source: 'popup';
-      viewerTabId: number;
-      viewerWindowId: number;
-    }
-  | { source: 'content-script' };
+  | PopupSyncStatusRequestMessage
+  | ContentSyncStatusRequestMessage;
 
 export interface SyncStatusViewerContext {
   viewerTabId: number;
@@ -30,7 +36,7 @@ export interface UnavailableManualSyncTab {
   connectionStatus: ConnectionStatus;
 }
 
-export interface ActiveManualSyncSnapshot {
+export interface PopupActiveManualSyncSnapshot {
   revision: number;
   sessionEpoch: number;
   mode: SyncMode;
@@ -38,23 +44,61 @@ export interface ActiveManualSyncSnapshot {
   tabs: Array<AvailableManualSyncTab | UnavailableManualSyncTab>;
 }
 
-export type SyncStatusResponseMessage =
+export interface ContentManualSyncTab {
+  location: 'current-tab' | 'other-tab';
+  connectionStatus: ConnectionStatus;
+}
+
+export interface ContentActiveManualSyncSnapshot {
+  revision: number;
+  sessionEpoch: number;
+  mode: SyncMode;
+  linkedTabCount: number;
+  tabs: Array<ContentManualSyncTab>;
+}
+
+interface SyncStatusErrorResponse {
+  status: 'error';
+  reason: 'storage-error' | 'invalid-state' | 'invalid-viewer-context';
+  source?: never;
+  recentQuickSyncOutcome?: never;
+}
+
+export type PopupSyncStatusResponseMessage =
   | {
       status: 'inactive';
+      source: 'popup';
       revision: number;
       sessionEpoch: number;
       recentQuickSyncOutcome?: RecentQuickSyncOutcome;
     }
   | {
       status: 'active';
-      snapshot: ActiveManualSyncSnapshot;
+      source: 'popup';
+      snapshot: PopupActiveManualSyncSnapshot;
       recentQuickSyncOutcome?: RecentQuickSyncOutcome;
     }
+  | SyncStatusErrorResponse;
+
+export type ContentSyncStatusResponseMessage =
   | {
-      status: 'error';
-      reason: 'storage-error' | 'invalid-state' | 'invalid-viewer-context';
-      recentQuickSyncOutcome?: RecentQuickSyncOutcome;
-    };
+      status: 'inactive';
+      source: 'content-script';
+      revision: number;
+      sessionEpoch: number;
+      recentQuickSyncOutcome?: never;
+    }
+  | {
+      status: 'active';
+      source: 'content-script';
+      snapshot: ContentActiveManualSyncSnapshot;
+      recentQuickSyncOutcome?: never;
+    }
+  | SyncStatusErrorResponse;
+
+export type SyncStatusResponseMessage =
+  | PopupSyncStatusResponseMessage
+  | ContentSyncStatusResponseMessage;
 
 export interface ManualMessageIdentity {
   isAutoSync: false;

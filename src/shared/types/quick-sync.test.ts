@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { QuickSyncFeedbackMessage, SyncStatusResponseMessage } from '~/shared/types';
+import type {
+  QuickSyncFeedbackMessage,
+  SyncStatusRequestMessage,
+  SyncStatusResponseMessage,
+} from '~/shared/types';
 import type {
   ProtocolMap,
   StartSyncContentMessage,
@@ -24,6 +28,12 @@ describe('Quick Sync message contracts', () => {
     expect(protocolIsExact).toBe(true);
   });
 
+  it('keeps the split sync status requests aligned with the exported protocol', () => {
+    const protocolIsExact: IsExact<ProtocolMap['sync:get-status'], SyncStatusRequestMessage> = true;
+
+    expect(protocolIsExact).toBe(true);
+  });
+
   it('keeps an absolute candidate deadline', () => {
     const message: QuickSyncFeedbackMessage = {
       outcome: 'candidate-selected',
@@ -41,6 +51,7 @@ describe('Quick Sync message contracts', () => {
   it('preserves unavailable linked tabs in an active snapshot', () => {
     const response: SyncStatusResponseMessage = {
       status: 'active',
+      source: 'popup',
       snapshot: {
         revision: 8,
         sessionEpoch: 2,
@@ -65,7 +76,7 @@ describe('Quick Sync message contracts', () => {
     };
 
     expect(response.status).toBe('active');
-    if (response.status === 'active') {
+    if (response.status === 'active' && response.source === 'popup') {
       expect(response.snapshot.linkedTabIds).toEqual([11, 22]);
       expect(response.snapshot.tabs[1]).toEqual({
         availability: 'unavailable',
