@@ -104,6 +104,7 @@ export type ManualStopResult =
 
 export type ManualReconnectResult =
   | { status: 'committed'; revision: number }
+  | { status: 'refresh-required'; revision: number }
   | ManualTransitionRejection;
 
 export interface ReconnectManualSessionMessage {

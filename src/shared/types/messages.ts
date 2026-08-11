@@ -15,6 +15,7 @@ import type {
   PendingUrlSyncContextualHintId,
 } from './contextual-hints';
 import type {
+  ManualReconnectResult,
   ManualStopResult,
   ReconnectManualSessionMessage,
   SessionMessageIdentity,
@@ -108,6 +109,8 @@ export interface StopSyncContentResponse {
 }
 
 export type StopSyncResponse = StopSyncContentResponse | ManualStopResult;
+
+export type ReconnectManualSessionResponse = ManualReconnectResult;
 
 /**
  * Message to synchronize scroll position
