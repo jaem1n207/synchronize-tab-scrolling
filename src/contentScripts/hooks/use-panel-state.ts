@@ -25,6 +25,7 @@ interface UsePanelStateParams {
 interface UsePanelStateReturn {
   isOpen: boolean;
   syncedTabs: SyncedTab[];
+  syncStatusError: 'manualSyncStateUnavailable' | null;
   autoSyncEnabled: boolean;
   isAutoSyncActive: boolean;
   autoSyncGroupCount: number;
@@ -40,6 +41,9 @@ const logger = new ExtensionLogger({ scope: 'sync-control-panel' });
 export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelStateReturn => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [syncedTabs, setSyncedTabs] = React.useState<SyncedTab[]>([]);
+  const [syncStatusError, setSyncStatusError] = React.useState<'manualSyncStateUnavailable' | null>(
+    null,
+  );
   const [autoSyncEnabled, setAutoSyncEnabled] = React.useState(false);
   const [isAutoSyncActive, setIsAutoSyncActive] = React.useState(false);
   const [autoSyncGroupCount, setAutoSyncGroupCount] = React.useState(0);
@@ -59,29 +63,31 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
   const loadSyncedTabsWithOffsets = React.useCallback(async () => {
     try {
       const response = await sendMessage('sync:get-status', {}, 'background');
-      const status = response as {
-        success: boolean;
-        linkedTabs?: Array<{ id: number; title: string; url: string; favIconUrl?: string }>;
-        currentTabId?: number;
-      } | null;
 
-      if (!status?.success || !status.linkedTabs) {
+      if (response.status === 'unavailable') {
+        setSyncStatusError('manualSyncStateUnavailable');
+        return;
+      }
+
+      if (!response.success || !response.isActive) {
         setSyncedTabs([]);
+        setSyncStatusError(null);
         return;
       }
 
       const offsets = await loadManualScrollOffsets();
-      const tabs = status.linkedTabs.map((tab) => ({
+      const tabs = response.linkedTabs.map((tab) => ({
         id: tab.id,
         title: tab.title,
         offsetPixels: offsets[tab.id]?.pixels || 0,
-        isCurrent: tab.id === status.currentTabId,
+        isCurrent: tab.id === response.currentTabId,
       }));
 
       setSyncedTabs(tabs);
+      setSyncStatusError(null);
     } catch (error) {
       await logger.error('Failed to load synced tabs with offsets:', error);
-      setSyncedTabs([]);
+      setSyncStatusError('manualSyncStateUnavailable');
     }
   }, []);
 
@@ -178,6 +184,7 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
   return {
     isOpen,
     syncedTabs,
+    syncStatusError,
     autoSyncEnabled,
     isAutoSyncActive,
     autoSyncGroupCount,
