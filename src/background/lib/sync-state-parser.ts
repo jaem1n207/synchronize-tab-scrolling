@@ -101,14 +101,9 @@ export function parseStoredSyncState(storedValue: unknown): ParseSyncStateResult
   }
 
   const storedStatusKeys = Object.keys(statusesProperty.value);
-  for (const statusKey of storedStatusKeys) {
-    const status: unknown = Reflect.get(statusesProperty.value, statusKey);
-    if (!isConnectionStatus(status)) {
-      return { status: 'invalid', reason: 'invalid-connection-statuses' };
-    }
-  }
+  const canonicalStatusKeys = new Set(linkedTabs.map((tabId) => String(tabId)));
+  let migrated = storedStatusKeys.some((statusKey) => !canonicalStatusKeys.has(statusKey));
 
-  let migrated = false;
   const connectionStatuses: Record<number, ConnectionStatus> = {};
   for (const tabId of linkedTabs) {
     const statusProperty = getOwnProperty(statusesProperty.value, String(tabId));
@@ -122,10 +117,6 @@ export function parseStoredSyncState(storedValue: unknown): ParseSyncStateResult
       return { status: 'invalid', reason: 'invalid-connection-statuses' };
     }
     connectionStatuses[tabId] = statusProperty.value;
-  }
-
-  if (storedStatusKeys.some((statusKey) => !linkedTabIds.has(Number(statusKey)))) {
-    migrated = true;
   }
 
   const modeProperty = getOwnProperty(storedValue, 'mode');

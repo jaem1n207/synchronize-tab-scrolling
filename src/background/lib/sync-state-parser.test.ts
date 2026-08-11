@@ -144,6 +144,60 @@ describe('parseStoredSyncState', () => {
     });
   });
 
+  it('drops noncanonical numeric status keys instead of conflating them with linked tabs', () => {
+    expect(
+      parseStoredSyncState(
+        createStoredState({
+          connectionStatuses: {
+            10: 'connected',
+            20: 'disconnected',
+            '1e1': 'error',
+            '010': 'connected',
+          },
+        }),
+      ),
+    ).toEqual({
+      status: 'valid',
+      migrated: true,
+      state: {
+        isActive: true,
+        linkedTabs: [10, 20],
+        connectionStatuses: { 10: 'connected', 20: 'disconnected' },
+        mode: 'ratio',
+        lastActiveSyncedTabId: 10,
+        revision: 2,
+        sessionEpoch: 1,
+      },
+    });
+  });
+
+  it('drops invalid advisory statuses on noncanonical and unlinked keys', () => {
+    expect(
+      parseStoredSyncState(
+        createStoredState({
+          connectionStatuses: {
+            10: 'connected',
+            20: 'disconnected',
+            '010': 'unknown',
+            999: 'unknown',
+          },
+        }),
+      ),
+    ).toEqual({
+      status: 'valid',
+      migrated: true,
+      state: {
+        isActive: true,
+        linkedTabs: [10, 20],
+        connectionStatuses: { 10: 'connected', 20: 'disconnected' },
+        mode: 'ratio',
+        lastActiveSyncedTabId: 10,
+        revision: 2,
+        sessionEpoch: 1,
+      },
+    });
+  });
+
   it.each(['semantic', null, 1])('rejects an explicitly unknown mode %#', (mode) => {
     expect(parseStoredSyncState(createStoredState({ mode }))).toEqual({
       status: 'invalid',
