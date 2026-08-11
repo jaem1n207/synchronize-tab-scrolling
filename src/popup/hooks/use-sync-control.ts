@@ -8,7 +8,11 @@ import { getFileSchemeAccessInfo } from '~/shared/lib/file-scheme-access';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadSelectedTabIds } from '~/shared/lib/storage';
 import { isFileUrl } from '~/shared/lib/url-utils';
-import type { StartSyncBackgroundResponse } from '~/shared/types/messages';
+import type {
+  LegacySyncStatusResponse,
+  StartSyncBackgroundResponse,
+  StopManualSyncMessage,
+} from '~/shared/types/messages';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 
@@ -18,6 +22,7 @@ const INITIAL_SYNC_STATUS: SyncStatus = {
   isActive: false,
   connectedTabs: [],
   connectionStatuses: {},
+  revision: 0,
 };
 
 type StartConnectionResults = Record<number, { success: boolean; error?: string }>;
@@ -51,7 +56,7 @@ interface UseSyncControlReturn {
   hasConnectionError: boolean;
   handleStart: () => void;
   handleStop: () => Promise<void>;
-  handleResync: () => void;
+  handleResync: () => Promise<void>;
   handleDismissError: () => void;
 }
 
@@ -66,6 +71,35 @@ export function useSyncControl({
 
   const syncStateRestoredRef = useRef(false);
 
+  const applyLegacySyncStatus = useCallback(
+    (response: LegacySyncStatusResponse): void => {
+      if (response.isActive) {
+        setSyncStatus({
+          isActive: true,
+          connectedTabs: [...response.connectedTabs],
+          connectionStatuses: { ...response.connectionStatuses },
+          revision: response.revision,
+        });
+        onSelectedTabIdsChange([...response.connectedTabs]);
+        return;
+      }
+
+      setSyncStatus({
+        isActive: false,
+        connectedTabs: [],
+        connectionStatuses: {},
+        revision: response.revision,
+      });
+    },
+    [onSelectedTabIdsChange],
+  );
+
+  const refreshSyncStatus = useCallback(async (): Promise<LegacySyncStatusResponse> => {
+    const response = await sendMessage('sync:get-status', {}, 'background');
+    applyLegacySyncStatus(response);
+    return response;
+  }, [applyLegacySyncStatus]);
+
   useEffect(() => {
     if (tabs.length === 0 || syncStateRestoredRef.current) return;
     syncStateRestoredRef.current = true;
@@ -74,23 +108,13 @@ export function useSyncControl({
       try {
         let hasActiveSync = false;
         let syncedTabIds: Array<number> = [];
+        let restoredRevision = INITIAL_SYNC_STATUS.revision;
         try {
-          const syncStatusResponse = await sendMessage('sync:get-status', {}, 'background');
-          const response = syncStatusResponse as {
-            success: boolean;
-            isActive: boolean;
-            connectedTabs?: Array<number>;
-            connectionStatuses?: Record<number, ConnectionStatus>;
-          };
-          if (response?.isActive) {
+          const response = await refreshSyncStatus();
+          restoredRevision = response.revision;
+          if (response.isActive) {
             hasActiveSync = true;
-            syncedTabIds = response.connectedTabs || [];
-            setSyncStatus({
-              isActive: true,
-              connectedTabs: syncedTabIds,
-              connectionStatuses: response.connectionStatuses || {},
-            });
-            onSelectedTabIdsChange(syncedTabIds);
+            syncedTabIds = [...response.connectedTabs];
           }
         } catch {
           // No active sync to restore - this is expected on first load
@@ -112,10 +136,21 @@ export function useSyncControl({
               logger.warn(
                 '[useSyncControl] Sync state inconsistent: fewer than 2 tabs available. Resetting sync status.',
               );
-              setSyncStatus(INITIAL_SYNC_STATUS);
-              sendMessage('scroll:stop', { tabIds: syncedTabIds }, 'background').catch((err) => {
-                logger.warn('[useSyncControl] Failed to stop sync in background:', err);
-              });
+              const stopMessage = {
+                expectedRevision: restoredRevision,
+              } satisfies StopManualSyncMessage;
+              sendMessage('scroll:stop', stopMessage, 'background')
+                .then((result) => {
+                  if ('status' in result && result.status === 'committed') {
+                    setSyncStatus({
+                      ...INITIAL_SYNC_STATUS,
+                      revision: result.revision,
+                    });
+                  }
+                })
+                .catch((err) => {
+                  logger.warn('[useSyncControl] Failed to stop sync in background:', err);
+                });
             }
           }
         } else {
@@ -130,7 +165,7 @@ export function useSyncControl({
     };
 
     restoreSyncState();
-  }, [tabs, onSelectedTabIdsChange]);
+  }, [tabs, onSelectedTabIdsChange, refreshSyncStatus]);
 
   const handleStartWithRetry = useCallback(
     async (isRetry = false) => {
@@ -255,6 +290,7 @@ export function useSyncControl({
           isActive: true,
           connectedTabs: response.connectedTabs,
           connectionStatuses: statuses,
+          revision: response.revision,
         });
 
         const connectedCount = response.connectedTabs.length;
@@ -323,33 +359,48 @@ export function useSyncControl({
     });
 
     try {
-      const stopPromise = sendMessage(
-        'scroll:stop',
-        { tabIds: syncStatus.connectedTabs },
-        'background',
-      );
+      const stopMessage = {
+        expectedRevision: syncStatus.revision,
+      } satisfies StopManualSyncMessage;
+      const stopPromise = sendMessage('scroll:stop', stopMessage, 'background');
 
       const TIMEOUT_SYMBOL = Symbol('timeout');
-      await Promise.race([
+      const result = await Promise.race([
         stopPromise,
-        new Promise((_, reject) => setTimeout(() => reject(TIMEOUT_SYMBOL), 1_000)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(TIMEOUT_SYMBOL), 1_000)),
       ]);
 
-      setSyncStatus(INITIAL_SYNC_STATUS);
+      if (!('status' in result)) {
+        throw new Error('Invalid background stop response');
+      }
 
-      setError({
-        message: t('successSyncStopped'),
-        severity: 'info',
-        timestamp: Date.now(),
-      });
-    } catch (err) {
-      setSyncStatus(INITIAL_SYNC_STATUS);
-
-      if (typeof err === 'symbol') {
-        logger.warn('Stop sync timed out, but local state was cleared successfully');
+      if (result.status === 'rejected') {
+        await refreshSyncStatus();
         setError({
-          message: t('successSyncStopped'),
-          severity: 'info',
+          message: t('warningStopSyncFailed', [result.reason]),
+          severity: 'warning',
+          timestamp: Date.now(),
+        });
+      } else {
+        setSyncStatus({
+          ...INITIAL_SYNC_STATUS,
+          revision: result.revision,
+        });
+        setError({
+          message:
+            result.warning === 'cleanup-incomplete'
+              ? t('warningStopSyncFailed', [result.warning])
+              : t('successSyncStopped'),
+          severity: result.warning === 'cleanup-incomplete' ? 'warning' : 'info',
+          timestamp: Date.now(),
+        });
+      }
+    } catch (err) {
+      if (typeof err === 'symbol') {
+        logger.warn('Stop sync timed out before an authoritative response');
+        setError({
+          message: t('warningStopSyncFailed', ['timeout']),
+          severity: 'warning',
           timestamp: Date.now(),
         });
       } else {
@@ -365,24 +416,65 @@ export function useSyncControl({
     }
 
     setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [syncStatus.connectedTabs, searchInputRef]);
+  }, [syncStatus.revision, searchInputRef, refreshSyncStatus]);
 
-  const handleResync = useCallback(() => {
-    const newStatuses = { ...syncStatus.connectionStatuses };
-    Object.keys(newStatuses).forEach((key) => {
-      const tabId = Number(key);
-      if (newStatuses[tabId] === 'disconnected' || newStatuses[tabId] === 'error') {
-        newStatuses[tabId] = 'connected';
-      }
+  const handleResync = useCallback(async () => {
+    setError({
+      message: t('reconnecting'),
+      severity: 'info',
+      timestamp: Date.now(),
     });
 
-    setSyncStatus((prev) => ({
-      ...prev,
-      connectionStatuses: newStatuses,
-    }));
+    try {
+      const result = await sendMessage(
+        'sync:reconnect-session',
+        { expectedRevision: syncStatus.revision },
+        'background',
+      );
+      if (result.status === 'rejected') {
+        await refreshSyncStatus();
+        setError({
+          message: t('reconnectionFailed'),
+          severity: 'warning',
+          timestamp: Date.now(),
+        });
+        return;
+      }
+
+      setSyncStatus((previous) => {
+        const connectionStatuses = { ...previous.connectionStatuses };
+        for (const key of Object.keys(connectionStatuses)) {
+          const tabId = Number(key);
+          if (
+            connectionStatuses[tabId] === 'disconnected' ||
+            connectionStatuses[tabId] === 'error'
+          ) {
+            connectionStatuses[tabId] = 'connected';
+          }
+        }
+
+        return {
+          ...previous,
+          connectionStatuses,
+          revision: result.revision,
+        };
+      });
+      setError({
+        message: t('reconnectionSuccessful'),
+        severity: 'info',
+        timestamp: Date.now(),
+      });
+    } catch (reconnectError) {
+      logger.error('Failed to reconnect sync:', reconnectError);
+      setError({
+        message: t('reconnectionFailed'),
+        severity: 'warning',
+        timestamp: Date.now(),
+      });
+    }
 
     setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [syncStatus.connectionStatuses, searchInputRef]);
+  }, [syncStatus.revision, searchInputRef, refreshSyncStatus]);
 
   const handleDismissError = useCallback(() => {
     setError(null);

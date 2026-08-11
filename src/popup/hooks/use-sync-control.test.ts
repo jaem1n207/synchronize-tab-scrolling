@@ -373,3 +373,196 @@ describe('useSyncControl local file failures', () => {
     unmount();
   });
 });
+
+describe('useSyncControl revision-aware lifecycle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    enableReactActEnvironment();
+    vi.mocked(getFileSchemeAccessInfo).mockResolvedValue({
+      canCheck: true,
+      allowed: true,
+      settingsUrl: 'chrome://extensions/?id=test-id',
+    });
+  });
+
+  it('restores the authoritative inactive revision instead of retaining the initial zero', async () => {
+    vi.mocked(sendMessage).mockResolvedValue({
+      success: false,
+      isActive: false,
+      revision: 7,
+      linkedTabs: [],
+      connectedTabs: [],
+      connectionStatuses: {},
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(7));
+    expect(result.current.syncStatus.isActive).toBe(false);
+
+    unmount();
+  });
+
+  it('stores the committed revision returned by Start', async () => {
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        return {
+          success: false,
+          isActive: false,
+          revision: 4,
+          linkedTabs: [],
+          connectedTabs: [],
+          connectionStatuses: {},
+        };
+      }
+
+      return {
+        success: true,
+        connectedTabs: [1, 2],
+        connectionResults: {
+          1: { success: true },
+          2: { success: true },
+        },
+        revision: 5,
+      };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(4));
+    await act(async () => {
+      result.current.handleStart();
+    });
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(5));
+    expect(result.current.syncStatus.isActive).toBe(true);
+
+    unmount();
+  });
+
+  it('sends the committed revision and preserves active truth after a rejected Stop', async () => {
+    let statusRequestCount = 0;
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        statusRequestCount += 1;
+        return {
+          success: true,
+          isActive: true,
+          revision: statusRequestCount === 1 ? 9 : 10,
+          linkedTabs: [],
+          connectedTabs: [1, 2],
+          connectionStatuses: { 1: 'connected', 2: 'connected' },
+        };
+      }
+
+      return { status: 'rejected', reason: 'stale-revision' };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(9));
+    await act(async () => {
+      await result.current.handleStop();
+    });
+
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      'scroll:stop',
+      { expectedRevision: 9 },
+      'background',
+    );
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(10));
+    expect(result.current.syncStatus.isActive).toBe(true);
+    expect(result.current.error?.severity).toBe('warning');
+
+    unmount();
+  });
+
+  it('commits inactive local truth and surfaces incomplete cleanup after Stop', async () => {
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        return {
+          success: true,
+          isActive: true,
+          revision: 12,
+          linkedTabs: [],
+          connectedTabs: [1, 2],
+          connectionStatuses: { 1: 'connected', 2: 'connected' },
+        };
+      }
+
+      return { status: 'committed', revision: 13, warning: 'cleanup-incomplete' };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(12));
+    await act(async () => {
+      await result.current.handleStop();
+    });
+
+    expect(result.current.syncStatus).toEqual({
+      isActive: false,
+      connectedTabs: [],
+      connectionStatuses: {},
+      revision: 13,
+    });
+    expect(result.current.error).toMatchObject({
+      message: 'warningStopSyncFailed:cleanup-incomplete',
+      severity: 'warning',
+    });
+
+    unmount();
+  });
+
+  it('reconnects with the committed revision and stores the returned revision', async () => {
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        return {
+          success: true,
+          isActive: true,
+          revision: 21,
+          linkedTabs: [],
+          connectedTabs: [1, 2],
+          connectionStatuses: { 1: 'error', 2: 'connected' },
+        };
+      }
+
+      return { status: 'committed', revision: 22 };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(21));
+    await act(async () => {
+      await result.current.handleResync();
+    });
+
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      'sync:reconnect-session',
+      { expectedRevision: 21 },
+      'background',
+    );
+    expect(result.current.syncStatus.revision).toBe(22);
+    expect(result.current.syncStatus.connectionStatuses).toEqual({
+      1: 'connected',
+      2: 'connected',
+    });
+
+    unmount();
+  });
+});

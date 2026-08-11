@@ -19,6 +19,7 @@ export interface SyncStatus {
   isActive: boolean;
   connectedTabs: Array<number>;
   connectionStatuses: Record<number, ConnectionStatus>;
+  revision: number;
 }
 
 export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'connecting';
