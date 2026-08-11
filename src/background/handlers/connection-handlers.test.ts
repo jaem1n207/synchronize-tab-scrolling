@@ -83,6 +83,8 @@ vi.mock('../lib/sync-state', () => ({
     connectionStatuses: {},
     mode: undefined,
     lastActiveSyncedTabId: null,
+    revision: 0,
+    sessionEpoch: 0,
   },
   persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
@@ -113,6 +115,8 @@ describe('registerConnectionHandlers', () => {
     syncState.connectionStatuses = {};
     syncState.mode = undefined;
     syncState.lastActiveSyncedTabId = null;
+    syncState.revision = 0;
+    syncState.sessionEpoch = 7;
 
     vi.mocked(isTabInActiveAutoSyncGroup).mockReturnValue(false);
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
@@ -350,6 +354,7 @@ describe('registerConnectionHandlers', () => {
           mode: 'ratio',
           currentTabId: 5,
           isAutoSync: false,
+          sessionEpoch: 7,
         },
         { context: 'content-script', tabId: 5 },
         3_000,

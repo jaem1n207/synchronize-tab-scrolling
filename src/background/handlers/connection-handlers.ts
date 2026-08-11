@@ -2,6 +2,7 @@ import { onMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
+import type { StartSyncContentMessage } from '~/shared/types/messages';
 
 import {
   removeTabFromAllAutoSyncGroups,
@@ -117,17 +118,35 @@ export function registerConnectionHandlers(): void {
         ? syncState.linkedTabs
         : Array.from(getAutoSyncGroupMembers(payload.tabId)).concat(payload.tabId);
 
-      const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
-        'scroll:start',
-        {
+      let response: { success: boolean; tabId: number } | undefined;
+      if (isInManualSync) {
+        const startMessage = {
           tabIds,
           mode: syncState.mode || 'ratio',
           currentTabId: payload.tabId,
-          isAutoSync: isInAutoSync && !isInManualSync,
-        },
-        { context: 'content-script', tabId: payload.tabId },
-        3_000,
-      );
+          isAutoSync: false,
+          sessionEpoch: syncState.sessionEpoch,
+        } satisfies StartSyncContentMessage;
+        response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+          'scroll:start',
+          startMessage,
+          { context: 'content-script', tabId: payload.tabId },
+          3_000,
+        );
+      } else {
+        const startMessage = {
+          tabIds,
+          mode: syncState.mode || 'ratio',
+          currentTabId: payload.tabId,
+          isAutoSync: true,
+        } satisfies StartSyncContentMessage;
+        response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
+          'scroll:start',
+          startMessage,
+          { context: 'content-script', tabId: payload.tabId },
+          3_000,
+        );
+      }
 
       if (response && response.success && response.tabId === payload.tabId) {
         if (isInManualSync) {
