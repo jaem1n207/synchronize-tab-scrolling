@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
-import type { StartSyncContentMessage } from '~/shared/types/messages';
+import type { StartSyncContentMessage, StopSyncContentResponse } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
 
 import {
@@ -10,6 +10,7 @@ import {
   type LegacyAutoSyncAdapter,
 } from './legacy-auto-sync-adapter';
 
+import type { PendingManualCleanup } from './sync-cleanup-retry';
 import type { SyncSessionOrchestrator } from './sync-session-orchestrator';
 
 function createState(overrides: Partial<SyncState> = {}): SyncState {
@@ -70,6 +71,7 @@ describe('replaceManualWithAcceptedAutoSync', () => {
     });
     rollbackAcceptedGroup.mockImplementation(async () => {
       events.push('auto:rollback');
+      return { status: 'cleaned' };
     });
     stopManualSession.mockImplementation(async () => {
       events.push('manual:stop');
@@ -169,6 +171,37 @@ describe('replaceManualWithAcceptedAutoSync', () => {
     expect(rollbackAcceptedGroup).not.toHaveBeenCalled();
   });
 
+  it('surfaces cleanup degradation from a failed accepted auto start', async () => {
+    state = createState({
+      isActive: true,
+      linkedTabs: [1, 2],
+      connectionStatuses: { 1: 'connected', 2: 'connected' },
+      mode: 'ratio',
+    });
+    startAcceptedGroup.mockImplementationOnce(async () => {
+      events.push('auto:start');
+      return { status: 'failed', warning: 'auto-sync-degraded' };
+    });
+
+    await expect(
+      replaceManualWithAcceptedAutoSync({ operationGeneration: 8, expectedRevision: 6 }, input, {
+        orchestrator,
+        legacyAutoSyncAdapter,
+        getState: () => state,
+        persistState,
+        commitState,
+      }),
+    ).resolves.toEqual({
+      status: 'rejected',
+      reason: 'auto-start-failed',
+      warning: 'auto-sync-degraded',
+    });
+
+    expect(state).toEqual(createState({ revision: 7 }));
+    expect(state.sessionEpoch).toBe(3);
+    expect(events).toEqual(['manual:stop', 'auto:start']);
+  });
+
   it('rolls back the accepted auto group when the inactive revision cannot persist', async () => {
     state = createState({
       isActive: true,
@@ -195,6 +228,41 @@ describe('replaceManualWithAcceptedAutoSync', () => {
     expect(state).toEqual(createState({ revision: 7 }));
     expect(commitState).not.toHaveBeenCalled();
   });
+
+  it('reports degraded rollback while preserving durable post-stop manual truth', async () => {
+    state = createState({
+      isActive: true,
+      linkedTabs: [1, 2],
+      connectionStatuses: { 1: 'connected', 2: 'connected' },
+      mode: 'ratio',
+    });
+    persistState.mockImplementationOnce(async (nextState: SyncState) => {
+      events.push(`persist:${nextState.revision}`);
+      return { status: 'storage-error' };
+    });
+    rollbackAcceptedGroup.mockImplementationOnce(async () => {
+      events.push('auto:rollback');
+      return { status: 'degraded' };
+    });
+
+    await expect(
+      replaceManualWithAcceptedAutoSync({ operationGeneration: 9, expectedRevision: 6 }, input, {
+        orchestrator,
+        legacyAutoSyncAdapter,
+        getState: () => state,
+        persistState,
+        commitState,
+      }),
+    ).resolves.toEqual({
+      status: 'rejected',
+      reason: 'persistence-failed',
+      warning: 'auto-sync-degraded',
+    });
+
+    expect(state).toEqual(createState({ revision: 7 }));
+    expect(state.sessionEpoch).toBe(3);
+    expect(commitState).not.toHaveBeenCalled();
+  });
 });
 
 describe('createLegacyAutoSyncAdapter', () => {
@@ -202,13 +270,21 @@ describe('createLegacyAutoSyncAdapter', () => {
   const groups = new Map<string, AutoSyncGroup>();
   const started: Array<{ tabId: number; message: StartSyncContentMessage }> = [];
   const stopped: Array<number> = [];
+  const activeRuntimeTabIds = new Set<number>();
+  const scheduledCleanup: Array<PendingManualCleanup> = [];
   const startResults = new Map<number, boolean>();
+  const stopResults = new Map<number, StopSyncContentResponse>();
+  const thrownStopIds = new Set<number>();
 
   beforeEach(() => {
     groups.clear();
     started.length = 0;
     stopped.length = 0;
+    activeRuntimeTabIds.clear();
+    scheduledCleanup.length = 0;
     startResults.clear();
+    stopResults.clear();
+    thrownStopIds.clear();
     groups.set(normalizedUrl, {
       tabIds: new Set([11, 22]),
       tabUrls: new Map([
@@ -223,12 +299,29 @@ describe('createLegacyAutoSyncAdapter', () => {
     return createLegacyAutoSyncAdapter({
       groups,
       withLock: async (operation) => operation(),
+      getState: () => createState(),
+      cleanupScheduler: {
+        schedule: (input) => {
+          scheduledCleanup.push(input);
+        },
+        cancelForTab: () => undefined,
+        cancelAll: () => undefined,
+      },
       sendStart: async (tabId, message) => {
         started.push({ tabId, message });
+        activeRuntimeTabIds.add(tabId);
         return startResults.get(tabId) ?? true;
       },
       sendStop: async (tabId) => {
         stopped.push(tabId);
+        if (thrownStopIds.has(tabId)) {
+          throw new Error('Stop failed');
+        }
+        const response = stopResults.get(tabId) ?? { success: true, tabId };
+        if (response.success && response.tabId === tabId) {
+          activeRuntimeTabIds.delete(tabId);
+        }
+        return response;
       },
     });
   }
@@ -267,7 +360,7 @@ describe('createLegacyAutoSyncAdapter', () => {
     ]);
   });
 
-  it('commits only the connected subset when at least two accepted tabs start', async () => {
+  it('requires every accepted tab to confirm Start and cleans every attempted runtime', async () => {
     groups.set(normalizedUrl, {
       tabIds: new Set([11, 22, 33]),
       tabUrls: new Map([
@@ -286,15 +379,16 @@ describe('createLegacyAutoSyncAdapter', () => {
         tabIds: [11, 22, 33],
         expectedRevision: 6,
       }),
-    ).resolves.toEqual({ status: 'started' });
+    ).resolves.toEqual({ status: 'failed' });
 
-    expect(Array.from(groups.get(normalizedUrl)?.tabIds ?? [])).toEqual([11, 22]);
-    expect(Array.from(groups.get(normalizedUrl)?.tabUrls?.keys() ?? [])).toEqual([11, 22]);
-    expect(groups.get(normalizedUrl)?.isActive).toBe(true);
-    expect(stopped).toEqual([]);
+    expect(Array.from(groups.get(normalizedUrl)?.tabIds ?? [])).toEqual([11, 22, 33]);
+    expect(Array.from(groups.get(normalizedUrl)?.tabUrls?.keys() ?? [])).toEqual([11, 22, 33]);
+    expect(groups.get(normalizedUrl)?.isActive).toBe(false);
+    expect(stopped).toEqual([11, 22, 33]);
+    expect(activeRuntimeTabIds.size).toBe(0);
   });
 
-  it('cleans staged tabs and leaves the group inactive when fewer than two start', async () => {
+  it('cleans a runtime that activates before its Start acknowledgement times out', async () => {
     startResults.set(22, false);
     const adapter = createAdapter();
 
@@ -308,15 +402,25 @@ describe('createLegacyAutoSyncAdapter', () => {
 
     expect(groups.get(normalizedUrl)?.isActive).toBe(false);
     expect(Array.from(groups.get(normalizedUrl)?.tabIds ?? [])).toEqual([11, 22]);
-    expect(stopped).toEqual([11]);
+    expect(stopped).toEqual([11, 22]);
+    expect(activeRuntimeTabIds.size).toBe(0);
   });
 
   it('rejects a changed group and cleans tabs started from the stale snapshot', async () => {
     const adapter = createLegacyAutoSyncAdapter({
       groups,
       withLock: async (operation) => operation(),
+      getState: () => createState(),
+      cleanupScheduler: {
+        schedule: (input) => {
+          scheduledCleanup.push(input);
+        },
+        cancelForTab: () => undefined,
+        cancelAll: () => undefined,
+      },
       sendStart: async (tabId, message) => {
         started.push({ tabId, message });
+        activeRuntimeTabIds.add(tabId);
         if (tabId === 11) {
           groups.get(normalizedUrl)?.tabIds.add(33);
         }
@@ -324,6 +428,8 @@ describe('createLegacyAutoSyncAdapter', () => {
       },
       sendStop: async (tabId) => {
         stopped.push(tabId);
+        activeRuntimeTabIds.delete(tabId);
+        return { success: true, tabId };
       },
     });
 
@@ -337,6 +443,50 @@ describe('createLegacyAutoSyncAdapter', () => {
 
     expect(groups.get(normalizedUrl)?.isActive).toBe(false);
     expect(stopped).toEqual([11, 22]);
+    expect(activeRuntimeTabIds.size).toBe(0);
+  });
+
+  it('reports degraded cleanup and schedules exact-ack Stop retries for attempted tabs', async () => {
+    startResults.set(22, false);
+    stopResults.set(22, { success: true, tabId: 99 });
+    const adapter = createAdapter();
+
+    await expect(
+      adapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 6,
+      }),
+    ).resolves.toEqual({ status: 'failed', warning: 'auto-sync-degraded' });
+
+    expect(stopped).toEqual([11, 22]);
+    expect(activeRuntimeTabIds.has(11)).toBe(false);
+    expect(activeRuntimeTabIds.has(22)).toBe(true);
+    expect(scheduledCleanup).toEqual([
+      {
+        tabId: 22,
+        stoppedRevision: 6,
+        stoppedSessionEpoch: 3,
+        attemptIndex: 0,
+      },
+    ]);
+  });
+
+  it('schedules retry when attempted cleanup throws', async () => {
+    startResults.set(22, false);
+    thrownStopIds.add(11);
+    const adapter = createAdapter();
+
+    await expect(
+      adapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 6,
+      }),
+    ).resolves.toEqual({ status: 'failed', warning: 'auto-sync-degraded' });
+
+    expect(stopped).toEqual([11, 22]);
+    expect(scheduledCleanup.map((input) => input.tabId)).toEqual([11]);
   });
 
   it('marks the accepted group inactive before cleaning every tab on rollback', async () => {
@@ -348,9 +498,28 @@ describe('createLegacyAutoSyncAdapter', () => {
     };
     await adapter.startAcceptedGroup(input);
 
-    await adapter.rollbackAcceptedGroup(input);
+    await expect(adapter.rollbackAcceptedGroup(input)).resolves.toEqual({ status: 'cleaned' });
 
     expect(groups.get(normalizedUrl)?.isActive).toBe(false);
     expect(stopped).toEqual([11, 22]);
+  });
+
+  it('reports and retries degraded rollback cleanup', async () => {
+    const adapter = createAdapter();
+    const input = {
+      normalizedUrl,
+      tabIds: [11, 22],
+      expectedRevision: 6,
+    };
+    await adapter.startAcceptedGroup(input);
+    stopResults.set(22, { success: false, tabId: 22 });
+
+    await expect(adapter.rollbackAcceptedGroup(input)).resolves.toEqual({
+      status: 'degraded',
+    });
+
+    expect(groups.get(normalizedUrl)?.isActive).toBe(false);
+    expect(stopped).toEqual([11, 22]);
+    expect(scheduledCleanup.map((cleanup) => cleanup.tabId)).toEqual([22]);
   });
 });

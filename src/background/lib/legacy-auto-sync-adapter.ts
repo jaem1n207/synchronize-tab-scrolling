@@ -1,7 +1,8 @@
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
-import type { StartSyncContentMessage } from '~/shared/types/messages';
+import type { StartSyncContentMessage, StopSyncContentResponse } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
 
+import type { ManualCleanupRetryScheduler } from './sync-cleanup-retry';
 import type { SyncSessionOrchestrator } from './sync-session-orchestrator';
 import type { PersistSyncStateResult } from './sync-state';
 import type { SyncTransitionContext } from './sync-transition-gate';
@@ -17,20 +18,25 @@ export type AcceptedAutoSyncResult =
   | {
       status: 'rejected';
       reason: 'stale-revision' | 'auto-start-failed' | 'persistence-failed';
+      warning?: 'auto-sync-degraded';
     };
+
+type AcceptedAutoSyncCleanupResult = { status: 'cleaned' } | { status: 'degraded' };
 
 export interface LegacyAutoSyncAdapter {
   startAcceptedGroup(
     input: AcceptedAutoSyncInput,
-  ): Promise<{ status: 'started' } | { status: 'failed' }>;
-  rollbackAcceptedGroup(input: AcceptedAutoSyncInput): Promise<void>;
+  ): Promise<{ status: 'started' } | { status: 'failed'; warning?: 'auto-sync-degraded' }>;
+  rollbackAcceptedGroup(input: AcceptedAutoSyncInput): Promise<AcceptedAutoSyncCleanupResult>;
 }
 
 interface CreateLegacyAutoSyncAdapterDependencies {
   groups: Map<string, AutoSyncGroup>;
   withLock: <T>(operation: () => Promise<T>) => Promise<T>;
+  getState: () => SyncState;
+  cleanupScheduler: ManualCleanupRetryScheduler;
   sendStart: (tabId: number, message: StartSyncContentMessage) => Promise<boolean>;
-  sendStop: (tabId: number) => Promise<void>;
+  sendStop: (tabId: number) => Promise<StopSyncContentResponse>;
 }
 
 interface ReplaceAcceptedAutoSyncDependencies {
@@ -63,8 +69,40 @@ function hasExactMembers(group: AutoSyncGroup, tabIds: ReadonlyArray<number>): b
 async function cleanupAcceptedTabs(
   dependencies: CreateLegacyAutoSyncAdapterDependencies,
   tabIds: ReadonlyArray<number>,
-): Promise<void> {
-  await Promise.all(tabIds.map((tabId) => dependencies.sendStop(tabId).catch(() => undefined)));
+): Promise<AcceptedAutoSyncCleanupResult> {
+  const state = dependencies.getState();
+  const results = await Promise.all(
+    tabIds.map(async (tabId) => {
+      const stopped = await dependencies.sendStop(tabId).then(
+        (response) => response.success && response.tabId === tabId,
+        () => false,
+      );
+
+      if (stopped) {
+        dependencies.cleanupScheduler.cancelForTab(tabId);
+        return true;
+      }
+
+      dependencies.cleanupScheduler.schedule({
+        tabId,
+        stoppedRevision: state.revision,
+        stoppedSessionEpoch: state.sessionEpoch,
+        attemptIndex: 0,
+      });
+      return false;
+    }),
+  );
+
+  return results.every(Boolean) ? { status: 'cleaned' } : { status: 'degraded' };
+}
+
+function createFailedStartResult(cleanup: AcceptedAutoSyncCleanupResult): {
+  status: 'failed';
+  warning?: 'auto-sync-degraded';
+} {
+  return cleanup.status === 'degraded'
+    ? { status: 'failed', warning: 'auto-sync-degraded' }
+    : { status: 'failed' };
 }
 
 export function createLegacyAutoSyncAdapter(
@@ -89,8 +127,10 @@ export function createLegacyAutoSyncAdapter(
         return { status: 'failed' };
       }
 
+      const attemptedTabIds: Array<number> = [];
       const connectedTabIds: Array<number> = [];
       for (const tabId of tabIds) {
+        attemptedTabIds.push(tabId);
         const connected = await dependencies
           .sendStart(tabId, {
             tabIds,
@@ -104,9 +144,9 @@ export function createLegacyAutoSyncAdapter(
         }
       }
 
-      if (connectedTabIds.length < 2) {
-        await cleanupAcceptedTabs(dependencies, connectedTabIds);
-        return { status: 'failed' };
+      if (connectedTabIds.length !== tabIds.length) {
+        const cleanup = await cleanupAcceptedTabs(dependencies, attemptedTabIds);
+        return createFailedStartResult(cleanup);
       }
 
       const committed = await dependencies.withLock(async () => {
@@ -115,21 +155,17 @@ export function createLegacyAutoSyncAdapter(
           return false;
         }
 
-        group.tabIds = new Set(connectedTabIds);
-        if (group.tabUrls) {
-          group.tabUrls = new Map(
-            Array.from(group.tabUrls.entries()).filter(([tabId]) =>
-              connectedTabIds.includes(tabId),
-            ),
-          );
-        }
         group.isActive = true;
         return true;
       });
 
       if (!committed) {
-        await cleanupAcceptedTabs(dependencies, connectedTabIds);
-        return { status: 'failed' };
+        const cleanup = await cleanupAcceptedTabs(dependencies, attemptedTabIds);
+        return createFailedStartResult(cleanup);
+      }
+
+      for (const tabId of connectedTabIds) {
+        dependencies.cleanupScheduler.cancelForTab(tabId);
       }
 
       return { status: 'started' };
@@ -142,7 +178,7 @@ export function createLegacyAutoSyncAdapter(
           group.isActive = false;
         }
       });
-      await cleanupAcceptedTabs(dependencies, input.tabIds);
+      return cleanupAcceptedTabs(dependencies, input.tabIds);
     },
   };
 }
@@ -176,14 +212,24 @@ export async function replaceManualWithAcceptedAutoSync(
 
   const startResult = await dependencies.legacyAutoSyncAdapter.startAcceptedGroup(input);
   if (startResult.status === 'failed') {
-    return { status: 'rejected', reason: 'auto-start-failed' };
+    return {
+      status: 'rejected',
+      reason: 'auto-start-failed',
+      ...(startResult.warning === undefined ? {} : { warning: startResult.warning }),
+    };
   }
 
   const candidate = createInactiveRevisionCandidate(dependencies.getState());
   const persistence = await dependencies.persistState(candidate);
   if (persistence.status === 'storage-error') {
-    await dependencies.legacyAutoSyncAdapter.rollbackAcceptedGroup(input).catch(() => undefined);
-    return { status: 'rejected', reason: 'persistence-failed' };
+    const rollback = await dependencies.legacyAutoSyncAdapter
+      .rollbackAcceptedGroup(input)
+      .catch((): AcceptedAutoSyncCleanupResult => ({ status: 'degraded' }));
+    return {
+      status: 'rejected',
+      reason: 'persistence-failed',
+      ...(rollback.status === 'degraded' ? { warning: 'auto-sync-degraded' } : {}),
+    };
   }
 
   dependencies.commitState(candidate);
