@@ -104,7 +104,7 @@ describe('validateI18nTrees', () => {
     expect(result.errors).toEqual([]);
   });
 
-  it('reports English key mismatches between the two locale trees', async () => {
+  it('reports an actionable English key mismatch between the two locale trees', async () => {
     const root = await createLocaleFixture();
     await writeMessages(root, 'extension/_locales', 'en', {
       extensionOnly: { message: 'Extension only' },
@@ -112,7 +112,41 @@ describe('validateI18nTrees', () => {
 
     const result = await validateI18nTrees(root);
 
-    expect(result.errors).toContain('English locale keys differ between locale trees');
+    expect(result.errors).toContain(
+      'src/shared/i18n/_locales/en/messages.json: missing key extensionOnly from extension English locale',
+    );
+    expect(result.errors).toContain(
+      'extension/_locales/en/messages.json: missing key sample from shared English locale',
+    );
+  });
+
+  it('reports every English key mismatch across both locale trees', async () => {
+    const root = await createLocaleFixture();
+    await writeMessages(root, 'extension/_locales', 'en', {
+      sample: sampleMessage.sample,
+      extensionFirst: { message: 'Extension first' },
+      extensionSecond: { message: 'Extension second' },
+    });
+    await writeMessages(root, 'src/shared/i18n/_locales', 'en', {
+      sample: sampleMessage.sample,
+      sharedFirst: { message: 'Shared first' },
+      sharedSecond: { message: 'Shared second' },
+    });
+
+    const result = await validateI18nTrees(root);
+
+    expect(result.errors).toContain(
+      'src/shared/i18n/_locales/en/messages.json: missing key extensionFirst from extension English locale',
+    );
+    expect(result.errors).toContain(
+      'src/shared/i18n/_locales/en/messages.json: missing key extensionSecond from extension English locale',
+    );
+    expect(result.errors).toContain(
+      'extension/_locales/en/messages.json: missing key sharedFirst from shared English locale',
+    );
+    expect(result.errors).toContain(
+      'extension/_locales/en/messages.json: missing key sharedSecond from shared English locale',
+    );
   });
 
   it('preserves empty-message validation for every supported locale file', async () => {

@@ -155,6 +155,28 @@ function validateEnglishParity(
   }
 }
 
+function validateCrossTreeEnglishParity(
+  extensionEnglish: LocaleFile,
+  sharedEnglish: LocaleFile,
+  errors: Array<string>,
+): void {
+  for (const key of sorted(extensionEnglish.entries.keys())) {
+    if (!sharedEnglish.entries.has(key)) {
+      errors.push(
+        `${sharedEnglish.relativeFilePath}: missing key ${key} from extension English locale`,
+      );
+    }
+  }
+
+  for (const key of sorted(sharedEnglish.entries.keys())) {
+    if (!extensionEnglish.entries.has(key)) {
+      errors.push(
+        `${extensionEnglish.relativeFilePath}: missing key ${key} from shared English locale`,
+      );
+    }
+  }
+}
+
 function validateCrossTreePlaceholders(
   locale: string,
   extensionFile: LocaleFile,
@@ -260,12 +282,8 @@ export async function validateI18nTrees(
   const extensionEnglish = extensionFiles?.get('en');
   const sharedEnglish = sharedFiles?.get('en');
 
-  if (
-    extensionEnglish &&
-    sharedEnglish &&
-    !haveSameValues(extensionEnglish.entries.keys(), sharedEnglish.entries.keys())
-  ) {
-    errors.push('English locale keys differ between locale trees');
+  if (extensionEnglish && sharedEnglish) {
+    validateCrossTreeEnglishParity(extensionEnglish, sharedEnglish, errors);
   }
 
   if (extensionFiles && sharedFiles) {
