@@ -824,6 +824,9 @@
   "currentTabLocation": {
     "message": "현재 탭"
   },
+  "otherSyncedTab": {
+    "message": "동기화 중인 다른 탭"
+  },
   "currentWindowLocation": {
     "message": "현재 창"
   },
