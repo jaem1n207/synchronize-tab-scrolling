@@ -11,6 +11,7 @@ import type {
   ElementMatchMessage,
   ExcludedDomainsChangedMessage,
   ManualScrollMessage,
+  LegacySyncStatusResponse,
   PanelPositionMessage,
   ScrollPingMessage,
   ScrollReconnectMessage,
@@ -22,6 +23,7 @@ import type {
   StartSyncMessage,
   StartSyncResponse,
   StopSyncMessage,
+  StopSyncResponse,
   SyncBaselineUpdateMessage,
   SyncStatusBroadcastMessage,
   SyncSuggestionMessage,
@@ -32,6 +34,10 @@ import type {
   UrlSyncMessage,
   UrlSyncModeChangedMessage,
 } from '~/shared/types/messages';
+import type {
+  ManualReconnectResult,
+  ReconnectManualSessionMessage,
+} from '~/shared/types/sync-session';
 
 import type { AttributifyAttributes } from 'unocss/preset-attributify';
 import type { ProtocolWithReturn } from 'webext-bridge';
@@ -46,7 +52,7 @@ declare module 'webext-bridge' {
       StartSyncMessage | StartSyncContentMessage,
       StartSyncResponse
     >;
-    'scroll:stop': ProtocolWithReturn<StopSyncMessage, unknown>;
+    'scroll:stop': ProtocolWithReturn<StopSyncMessage, StopSyncResponse>;
     'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
     'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
     'scroll:baseline-update': ProtocolWithReturn<SyncBaselineUpdateMessage, unknown>;
@@ -54,6 +60,11 @@ declare module 'webext-bridge' {
     'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
     'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;
     'sync:status': SyncStatusBroadcastMessage;
+    'sync:get-status': ProtocolWithReturn<Record<string, never>, LegacySyncStatusResponse>;
+    'sync:reconnect-session': ProtocolWithReturn<
+      ReconnectManualSessionMessage,
+      ManualReconnectResult
+    >;
     'url:sync': ProtocolWithReturn<UrlSyncMessage, unknown>;
     'element:match': ElementMatchMessage;
     'panel:position': PanelPositionMessage;

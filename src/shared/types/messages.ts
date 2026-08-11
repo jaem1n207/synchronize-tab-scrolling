@@ -14,7 +14,11 @@ import type {
   ContextualHintScrollMetrics,
   PendingUrlSyncContextualHintId,
 } from './contextual-hints';
-import type { SessionMessageIdentity } from './sync-session';
+import type {
+  ManualStopResult,
+  ReconnectManualSessionMessage,
+  SessionMessageIdentity,
+} from './sync-session';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
 
 /**
@@ -72,6 +76,7 @@ export type StartSyncBackgroundResponse = {
   success: boolean;
   connectedTabs: Array<number>;
   connectionResults: StartSyncConnectionResults;
+  revision: number;
   error?: string;
   warning?: 'auto-sync-degraded';
 };
@@ -81,11 +86,28 @@ export type StartSyncResponse = StartSyncContentResponse | StartSyncBackgroundRe
 /**
  * Message to stop scroll synchronization
  */
-export interface StopSyncMessage {
+export interface StopSyncContentMessage {
   tabIds?: Array<number>;
   /** When true, stop was initiated by auto-sync (not user action) */
   isAutoSync?: boolean;
+  expectedRevision?: never;
 }
+
+export interface StopManualSyncMessage {
+  expectedRevision: number;
+  tabIds?: never;
+  isAutoSync?: never;
+}
+
+export type StopSyncMessage = StopSyncContentMessage | StopManualSyncMessage;
+
+export interface StopSyncContentResponse {
+  success: boolean;
+  tabId?: number;
+  reason?: string;
+}
+
+export type StopSyncResponse = StopSyncContentResponse | ManualStopResult;
 
 /**
  * Message to synchronize scroll position
@@ -155,6 +177,17 @@ export interface SyncStatusBroadcastMessage {
   linkedTabs: Array<SyncedTabInfo>;
   connectionStatuses: Record<number, ConnectionStatus>;
   currentTabId: number;
+}
+
+export interface LegacySyncStatusResponse {
+  success: boolean;
+  isActive: boolean;
+  revision: number;
+  linkedTabs: Array<SyncedTabInfo>;
+  connectedTabs: Array<number>;
+  connectionStatuses: Record<number, ConnectionStatus>;
+  currentTabId?: number;
+  reason?: 'session-state-unavailable';
 }
 
 /**
@@ -378,6 +411,8 @@ export interface ProtocolMap {
   'scroll:reconnect': ScrollReconnectMessage;
   'scroll:request-reinject': ScrollRequestReinjectMessage;
   'sync:status': SyncStatusBroadcastMessage;
+  'sync:get-status': LegacySyncStatusResponse;
+  'sync:reconnect-session': ReconnectManualSessionMessage;
   'url:sync': UrlSyncMessage;
   'element:match': ElementMatchMessage;
   'panel:position': PanelPositionMessage;
