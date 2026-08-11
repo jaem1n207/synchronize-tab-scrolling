@@ -36,6 +36,12 @@ import type {
   UrlSyncModeChangedMessage,
 } from '~/shared/types/messages';
 import type {
+  DismissQuickSyncRecentOutcomeMessage,
+  DismissQuickSyncRecentOutcomeResponse,
+  QuickSyncFeedbackMessage,
+  QuickSyncFeedbackResponse,
+} from '~/shared/types/quick-sync';
+import type {
   ReconnectManualSessionMessage,
   SyncStatusRequestMessage,
   SyncStatusResponseMessage,
@@ -104,6 +110,11 @@ declare module 'webext-bridge' {
     'contextual-hint:consume-pending-url-sync': ProtocolWithReturn<
       ConsumePendingUrlSyncContextualHintMessage,
       ConsumePendingUrlSyncContextualHintResponse
+    >;
+    'quick-sync:feedback': ProtocolWithReturn<QuickSyncFeedbackMessage, QuickSyncFeedbackResponse>;
+    'quick-sync:dismiss-recent-outcome': ProtocolWithReturn<
+      DismissQuickSyncRecentOutcomeMessage,
+      DismissQuickSyncRecentOutcomeResponse
     >;
   }
 }

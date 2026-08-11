@@ -14,6 +14,7 @@ import type {
   ContextualHintScrollMetrics,
   PendingUrlSyncContextualHintId,
 } from './contextual-hints';
+import type { DismissQuickSyncRecentOutcomeMessage, QuickSyncFeedbackMessage } from './quick-sync';
 import type {
   ManualReconnectResult,
   ManualStopResult,
@@ -434,4 +435,6 @@ export interface ProtocolMap {
   'contextual-hint:show': ContextualHintShowMessage;
   'contextual-hint:save-pending-url-sync': SavePendingUrlSyncContextualHintMessage;
   'contextual-hint:consume-pending-url-sync': ConsumePendingUrlSyncContextualHintMessage;
+  'quick-sync:feedback': QuickSyncFeedbackMessage;
+  'quick-sync:dismiss-recent-outcome': DismissQuickSyncRecentOutcomeMessage;
 }
