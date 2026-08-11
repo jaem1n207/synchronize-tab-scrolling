@@ -84,14 +84,6 @@ export async function persistSyncState(nextState: SyncState): Promise<PersistSyn
   }
 }
 
-/**
- * Time-boxed bridge for legacy in-place mutations in the pre-orchestrator background consumers.
- * No new caller may use this API; Tasks 9-11 remove it after transactional migration.
- */
-export function persistCommittedSyncStateLegacy(): Promise<PersistSyncStateResult> {
-  return persistSyncState(getSyncStateSnapshot());
-}
-
 export async function restoreSyncState(): Promise<RestoreSyncStateResult> {
   let storedResult: unknown;
   try {

@@ -8,7 +8,6 @@ import {
   broadcastSyncStatus,
   commitSyncState,
   getSyncStateSnapshot,
-  persistCommittedSyncStateLegacy,
   persistSyncState,
   restoreSyncState,
   syncState,
@@ -180,19 +179,6 @@ describe('sync-state', () => {
       await persistSyncState(candidate);
 
       expect(getSyncStateSnapshot()).toEqual(committed);
-    });
-  });
-
-  describe('persistCommittedSyncStateLegacy', () => {
-    it('persists the current committed state through a separate legacy bridge', async () => {
-      const committed = createActiveState({ revision: 7 });
-      commitSyncState(committed);
-
-      await expect(persistCommittedSyncStateLegacy()).resolves.toEqual({
-        status: 'persisted',
-      });
-
-      expect(mockedBrowser.storage.local.set).toHaveBeenCalledWith({ syncState: committed });
     });
   });
 

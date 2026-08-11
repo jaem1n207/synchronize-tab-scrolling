@@ -37,7 +37,6 @@ import {
   broadcastSyncStatus,
   commitSyncState,
   getSyncStateSnapshot,
-  persistCommittedSyncStateLegacy,
   persistSyncState,
   syncState,
 } from '../lib/sync-state';
@@ -167,7 +166,6 @@ vi.mock('../lib/sync-state', () => ({
   getSyncStateSnapshot: vi.fn(),
   commitSyncState: vi.fn(),
   persistSyncState: vi.fn(),
-  persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
 }));
 
@@ -288,7 +286,6 @@ describe('registerScrollSyncHandlers', () => {
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(updateAutoSyncGroup).mockResolvedValue(null);
     vi.mocked(isContentScriptAlive).mockResolvedValue(true);
-    vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
     vi.mocked(getSyncStateSnapshot).mockImplementation(() => ({
       ...syncState,
       linkedTabs: [...syncState.linkedTabs],
@@ -383,7 +380,7 @@ describe('registerScrollSyncHandlers', () => {
       expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
       expect(sendMessage).not.toHaveBeenCalled();
       expect(browser.tabs.get).not.toHaveBeenCalled();
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
     });
 
     it('rejects scroll:manual immediately while manual readiness is unavailable', async () => {
@@ -401,7 +398,7 @@ describe('registerScrollSyncHandlers', () => {
       expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
       expect(sendMessage).not.toHaveBeenCalled();
       expect(browser.tabs.get).not.toHaveBeenCalled();
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
     });
 
     it('rejects url:sync immediately while manual readiness is pending', async () => {
@@ -424,7 +421,7 @@ describe('registerScrollSyncHandlers', () => {
       expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
       expect(sendMessage).not.toHaveBeenCalled();
       expect(browser.tabs.get).not.toHaveBeenCalled();
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
     });
 
     it('rejects baseline updates immediately while manual readiness is pending', async () => {
@@ -447,7 +444,7 @@ describe('registerScrollSyncHandlers', () => {
       expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
       expect(sendMessage).not.toHaveBeenCalled();
       expect(browser.tabs.get).not.toHaveBeenCalled();
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
     });
   });
 
@@ -659,7 +656,7 @@ describe('registerScrollSyncHandlers', () => {
       expect(startKeepAlive).not.toHaveBeenCalled();
     });
 
-    it('starts sync successfully when 2 or more tabs connect', async () => {
+    it('rejects obsolete background auto-start requests without changing manual state', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
       const payload: StartSyncMessage = {
         tabIds: [1, 2, 3],
@@ -670,29 +667,22 @@ describe('registerScrollSyncHandlers', () => {
       const result = await handler({ data: payload, sender: {} });
 
       expect(result).toEqual({
-        success: true,
-        connectedTabs: [1, 2, 3],
-        connectionResults: {
-          1: { success: true },
-          2: { success: true },
-          3: { success: true },
-        },
+        success: false,
+        connectedTabs: [],
+        connectionResults: {},
         revision: 0,
+        error: 'Accepted auto-sync must use the auto-sync adapter',
       });
-      expect(syncState.isActive).toBe(true);
-      expect(syncState.linkedTabs).toEqual([1, 2, 3]);
-      expect(syncState.mode).toBe('ratio');
-      expect(syncState.connectionStatuses).toEqual({
-        1: 'connected',
-        2: 'connected',
-        3: 'connected',
-      });
-      expect(startKeepAlive).toHaveBeenCalledTimes(1);
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
-      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
+      expect(syncState.isActive).toBe(false);
+      expect(syncState.linkedTabs).toEqual([]);
+      expect(syncState.connectionStatuses).toEqual({});
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(startKeepAlive).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
-    it('rolls back when fewer than 2 tabs connect', async () => {
+    it('does not stage or roll back tabs for obsolete background auto-start requests', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
       const payload: StartSyncMessage = {
         tabIds: [10, 20],
@@ -700,38 +690,22 @@ describe('registerScrollSyncHandlers', () => {
         isAutoSync: true,
       };
 
-      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => {
-        if (destination.tabId === 10) {
-          return { success: true, tabId: 10 };
-        }
-        throw new Error('Timeout after 1000ms');
-      });
-
       const result = await handler({ data: payload, sender: {} });
 
       expect(result).toEqual({
         success: false,
-        connectedTabs: [10],
-        connectionResults: {
-          10: { success: true },
-          20: { success: false, error: 'Timeout after 1000ms' },
-        },
+        connectedTabs: [],
+        connectionResults: {},
         revision: 0,
-        error: 'Failed to connect to at least 2 tabs',
+        error: 'Accepted auto-sync must use the auto-sync adapter',
       });
-      expect(sendMessage).toHaveBeenCalledWith(
-        'scroll:stop',
-        {},
-        {
-          context: 'content-script',
-          tabId: 10,
-        },
-      );
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
       expect(syncState.isActive).toBe(false);
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(startKeepAlive).not.toHaveBeenCalled();
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+      expect(persistSyncState).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -815,7 +789,10 @@ describe('registerScrollSyncHandlers', () => {
 
       const result = await handler({ data: payload, sender: {} });
 
-      expect(result).toMatchObject({ success: true, connectedTabs: [7, 8] });
+      expect(result).toMatchObject({
+        success: false,
+        error: 'Accepted auto-sync must use the auto-sync adapter',
+      });
       expect(manualSyncOverriddenTabs.has(7)).toBe(false);
       expect(manualSyncOverriddenTabs.has(8)).toBe(false);
       expect(manualSyncOverriddenTabs.has(99)).toBe(true);
@@ -827,7 +804,7 @@ describe('registerScrollSyncHandlers', () => {
       const payload: StartSyncMessage = {
         tabIds: [101, 102],
         mode: 'ratio',
-        isAutoSync: true,
+        isAutoSync: false,
       };
       vi.mocked(sendMessageWithTimeout).mockImplementation(
         async (_, __, destination): Promise<StartSyncResponse> => {
@@ -887,7 +864,7 @@ describe('registerScrollSyncHandlers', () => {
       );
 
       const result = await handler({
-        data: { tabIds: [201, 202], mode: 'ratio', isAutoSync: true },
+        data: { tabIds: [201, 202], mode: 'ratio', isAutoSync: false },
         sender: {},
       });
 
@@ -915,7 +892,7 @@ describe('registerScrollSyncHandlers', () => {
       );
 
       const result = await handler({
-        data: { tabIds: [301, 302], mode: 'ratio', isAutoSync: true },
+        data: { tabIds: [301, 302], mode: 'ratio', isAutoSync: false },
         sender: {},
       });
 
@@ -944,7 +921,7 @@ describe('registerScrollSyncHandlers', () => {
       );
 
       const result = await handler({
-        data: { tabIds: [501, 502], mode: 'ratio', isAutoSync: true },
+        data: { tabIds: [501, 502], mode: 'ratio', isAutoSync: false },
         sender: {},
       });
 
@@ -980,7 +957,7 @@ describe('registerScrollSyncHandlers', () => {
       });
 
       const result = await handler({
-        data: { tabIds: [401, 402], mode: 'ratio', isAutoSync: true },
+        data: { tabIds: [401, 402], mode: 'ratio', isAutoSync: false },
         sender: {},
       });
 
@@ -991,9 +968,9 @@ describe('registerScrollSyncHandlers', () => {
           401: { success: true },
           402: { success: true },
         },
-        revision: 0,
+        revision: 1,
       });
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
   });
@@ -1041,7 +1018,6 @@ describe('registerScrollSyncHandlers', () => {
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(syncState.mode).toBeUndefined();
-      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
     });
 
     it('deactivates auto-sync groups that include stopped tabs', async () => {

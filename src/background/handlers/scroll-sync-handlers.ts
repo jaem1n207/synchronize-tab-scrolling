@@ -15,7 +15,6 @@ import type {
   ConsumePendingUrlSyncContextualHintResponse,
   SavePendingUrlSyncContextualHintResponse,
   StartSyncConnectionResults,
-  StartSyncContentMessage,
   StartSyncContentResponse,
   StopManualSyncMessage,
 } from '~/shared/types/messages';
@@ -46,7 +45,6 @@ import {
   getSyncStateSnapshot,
   commitSyncState,
   persistSyncState,
-  persistCommittedSyncStateLegacy,
   broadcastSyncStatus,
 } from '../lib/sync-state';
 import { syncTransitionGate } from '../lib/sync-transition-gate';
@@ -440,140 +438,20 @@ export function registerScrollSyncHandlers(): void {
       isAutoSync: startRequest.isAutoSync ?? false,
     });
 
-    if (startRequest.isAutoSync !== true) {
-      return startPopupManualSession({
-        tabIds: startRequest.tabIds,
-        mode: startRequest.mode,
-      });
-    }
-
-    // Initialize connection statuses as 'connecting'
-    const connectionResults: Record<number, { success: boolean; error?: string }> = {};
-    const connectedScrollMetrics: Array<ContextualHintScrollMetrics> = [];
-
-    // Attempt to connect to each tab with timeout and acknowledgment validation
-    logger.info(`Connecting to ${startRequest.tabIds.length} tabs`, {
-      tabIds: startRequest.tabIds,
-    });
-
-    const promises = startRequest.tabIds.map(async (tabId) => {
-      try {
-        // Verify tab exists first
-        await browser.tabs.get(tabId);
-        logger.debug(`Verified tab ${tabId} exists`);
-
-        logger.debug(`Sending scroll:start to tab ${tabId}`);
-
-        // Send message with timeout and capture acknowledgment
-        const contentStartRequest = (
-          startRequest.isAutoSync === true
-            ? { ...startRequest, currentTabId: tabId, isAutoSync: true }
-            : {
-                ...startRequest,
-                currentTabId: tabId,
-                isAutoSync: false,
-                sessionEpoch: syncState.sessionEpoch,
-              }
-        ) satisfies StartSyncContentMessage;
-        const response = await sendMessageWithTimeout<StartSyncContentResponse>(
-          'scroll:start',
-          contentStartRequest,
-          { context: 'content-script', tabId },
-          1_000, // 1 second timeout
-        );
-
-        // Validate acknowledgment
-        if (response && response.success && response.tabId === tabId) {
-          logger.info(`Tab ${tabId} acknowledged connection successfully`);
-          connectionResults[tabId] = { success: true };
-          syncState.connectionStatuses[tabId] = 'connected';
-
-          if (isValidScrollMetrics(response.metrics, tabId)) {
-            connectedScrollMetrics.push(response.metrics);
-          } else {
-            logger.debug('Tab acknowledged without usable scroll metrics', {
-              tabId,
-              reason: 'invalid-scroll-metrics',
-            });
-          }
-        } else {
-          logger.error(`Tab ${tabId} returned invalid acknowledgment`);
-          connectionResults[tabId] = { success: false, error: 'Invalid acknowledgment' };
-          syncState.connectionStatuses[tabId] = 'error';
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.error(`Failed to connect to tab ${tabId}`, { error: errorMessage });
-        connectionResults[tabId] = { success: false, error: errorMessage };
-        syncState.connectionStatuses[tabId] = 'error';
-      }
-    });
-
-    await Promise.all(promises);
-
-    // Check if at least 2 tabs connected successfully
-    const successfulConnections = Object.entries(connectionResults).filter(
-      ([, result]) => result.success,
-    );
-    const connectedTabIds = successfulConnections.map(([tabId]) => Number(tabId));
-
-    logger.info('Connection results', {
-      total: startRequest.tabIds.length,
-      successful: successfulConnections.length,
-      failed: startRequest.tabIds.length - successfulConnections.length,
-      results: connectionResults,
-    });
-
-    if (connectedTabIds.length < 2) {
-      // Not enough tabs connected, rollback
-      logger.error('Failed to connect to enough tabs (need at least 2)');
-
-      // Send stop messages to any tabs that did connect
-      const stopPromises = connectedTabIds.map((tabId) =>
-        sendMessage('scroll:stop', {}, { context: 'content-script', tabId }).catch((error) => {
-          logger.error(`Failed to send rollback stop message to tab ${tabId}`, { error });
-        }),
-      );
-      await Promise.all(stopPromises);
-
-      // Don't update sync state
-      syncState.isActive = false;
-      syncState.linkedTabs = [];
-      syncState.connectionStatuses = {};
-
+    if (startRequest.isAutoSync === true) {
       return {
         success: false,
-        connectedTabs: connectedTabIds,
-        connectionResults,
+        connectedTabs: [],
+        connectionResults: {},
         revision: syncState.revision,
-        error: 'Failed to connect to at least 2 tabs',
+        error: 'Accepted auto-sync must use the auto-sync adapter',
       };
     }
 
-    // Update sync state with only successfully connected tabs
-    syncState.isActive = true;
-    syncState.linkedTabs = connectedTabIds;
-    syncState.mode = startRequest.mode;
-
-    // Start keep-alive mechanism to prevent service worker termination
-    startKeepAlive();
-
-    // Persist state to survive service worker restarts
-    await persistCommittedSyncStateLegacy();
-
-    // Broadcast status update to all connected tabs
-    logger.info('Broadcasting sync status to connected tabs');
-    await broadcastSyncStatus();
-    logger.info('Sync status broadcasted');
-
-    await maybeShowManualAdjustmentHint(connectedScrollMetrics, connectedTabIds);
-
-    return {
-      success: true,
-      connectedTabs: connectedTabIds,
-      connectionResults,
-      revision: syncState.revision,
-    };
+    return startPopupManualSession({
+      tabIds: startRequest.tabIds,
+      mode: startRequest.mode,
+    });
   });
 
   onMessage('scroll:stop', async ({ data }) => {
