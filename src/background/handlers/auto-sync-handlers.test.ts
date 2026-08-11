@@ -622,6 +622,9 @@ describe('registerAutoSyncHandlers', () => {
           if (messageId === 'scroll:start' && destination.tabId === 2) {
             throw new Error('No response');
           }
+          if (messageId === 'scroll:stop' && destination.tabId === 2) {
+            return { success: true, tabId: 99 };
+          }
           return { success: true, tabId: destination.tabId };
         },
       );
@@ -632,7 +635,11 @@ describe('registerAutoSyncHandlers', () => {
         sender: {},
       });
 
-      expect(response).toEqual({ success: false, reason: 'auto-start-failed' });
+      expect(response).toEqual({
+        success: false,
+        reason: 'auto-start-failed',
+        warning: 'auto-sync-degraded',
+      });
       expect(syncState.isActive).toBe(false);
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
@@ -640,6 +647,18 @@ describe('registerAutoSyncHandlers', () => {
       expect(manualSyncOverriddenTabs.has(2)).toBe(false);
       expect(autoSyncState.groups.has(normalizedUrl)).toBe(true);
       expect(autoSyncState.groups.get(normalizedUrl)?.isActive).toBe(false);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { isAutoSync: true },
+        { context: 'content-script', tabId: 1 },
+        1_000,
+      );
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { isAutoSync: true },
+        { context: 'content-script', tabId: 2 },
+        1_000,
+      );
       expect(persistSyncState).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });

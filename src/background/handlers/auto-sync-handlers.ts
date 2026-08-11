@@ -65,6 +65,20 @@ const suggestionCleanupScheduler = createManualCleanupRetryScheduler({
   clearTimer: (timer) => clearTimeout(timer),
 });
 
+const acceptedAutoCleanupScheduler = createManualCleanupRetryScheduler({
+  transitionGate: syncTransitionGate,
+  getState: getSyncStateSnapshot,
+  sendStop: (tabId) =>
+    sendMessageWithTimeout<{ success: boolean; tabId?: number; reason?: string }>(
+      'scroll:stop',
+      { isAutoSync: true },
+      { context: 'content-script', tabId },
+      1_000,
+    ),
+  setTimer: (callback, delay) => setTimeout(callback, delay),
+  clearTimer: (timer) => clearTimeout(timer),
+});
+
 async function clearSuggestionManualOverrides(tabIds: ReadonlyArray<number>): Promise<void> {
   await withAutoSyncLock(async () => {
     for (const tabId of tabIds) {
@@ -170,6 +184,8 @@ const acceptedSuggestionOrchestrator = createSyncSessionOrchestrator({
 const legacyAutoSyncAdapter = createLegacyAutoSyncAdapter({
   groups: autoSyncState.groups,
   withLock: withAutoSyncLock,
+  getState: getSyncStateSnapshot,
+  cleanupScheduler: acceptedAutoCleanupScheduler,
   sendStart: async (tabId, message) => {
     try {
       const response = await sendMessageWithTimeout<StartSyncContentResponse>(
@@ -188,14 +204,13 @@ const legacyAutoSyncAdapter = createLegacyAutoSyncAdapter({
       return false;
     }
   },
-  sendStop: async (tabId) => {
-    await sendMessageWithTimeout(
+  sendStop: (tabId) =>
+    sendMessageWithTimeout<{ success: boolean; tabId?: number; reason?: string }>(
       'scroll:stop',
       { isAutoSync: true },
       { context: 'content-script', tabId },
       1_000,
-    );
-  },
+    ),
 });
 
 function broadcastSuggestionDismiss(normalizedUrl: string, tabIds: ReadonlyArray<number>): void {
@@ -383,7 +398,11 @@ export function registerAutoSyncHandlers(): void {
         });
 
         if (result.status === 'rejected') {
-          return { success: false, reason: result.reason };
+          return {
+            success: false,
+            reason: result.reason,
+            ...(result.warning === undefined ? {} : { warning: result.warning }),
+          };
         }
 
         pendingSuggestions.delete(normalizedUrl);
