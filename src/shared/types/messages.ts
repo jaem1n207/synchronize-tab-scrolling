@@ -182,7 +182,8 @@ export interface SyncStatusBroadcastMessage {
   currentTabId: number;
 }
 
-export interface LegacySyncStatusResponse {
+export interface LegacySyncStatusReadyResponse {
+  status: 'ready';
   success: boolean;
   isActive: boolean;
   revision: number;
@@ -190,8 +191,16 @@ export interface LegacySyncStatusResponse {
   connectedTabs: Array<number>;
   connectionStatuses: Record<number, ConnectionStatus>;
   currentTabId?: number;
-  reason?: 'session-state-unavailable';
 }
+
+export interface LegacySyncStatusUnavailableResponse {
+  status: 'unavailable';
+  reason: 'session-state-unavailable' | 'storage-error' | 'invalid-state';
+}
+
+export type LegacySyncStatusResponse =
+  | LegacySyncStatusReadyResponse
+  | LegacySyncStatusUnavailableResponse;
 
 /**
  * Health check ping between background and content script
