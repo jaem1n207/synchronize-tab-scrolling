@@ -9,6 +9,8 @@ import {
   type TranslatedPageMetadata,
   type TranslatedPageSignature,
 } from '~/shared/lib/translated-page-url-utils';
+import type { StartSyncMessage, UrlSyncMessage } from '~/shared/types/messages';
+import type { ManualMessageIdentity } from '~/shared/types/sync-session';
 
 import {
   removeTabFromAllAutoSyncGroups,
@@ -463,13 +465,18 @@ export function registerTabEventHandlers(): void {
       const urlSyncEnabled = await loadUrlSyncEnabled();
       if (urlSyncEnabled) {
         const targetTabIds = syncState.linkedTabs.filter((id) => id !== tabId);
+        const urlSyncMessage: UrlSyncMessage & ManualMessageIdentity = {
+          isAutoSync: false,
+          sessionEpoch: syncState.sessionEpoch,
+          sourceTabId: tabId,
+          url: changedUrl,
+        };
         await Promise.all(
           targetTabIds.map((targetTabId) =>
-            sendMessage(
-              'url:sync',
-              { url: changedUrl, sourceTabId: tabId },
-              { context: 'content-script', tabId: targetTabId },
-            ).catch((error) => {
+            sendMessage('url:sync', urlSyncMessage, {
+              context: 'content-script',
+              tabId: targetTabId,
+            }).catch((error) => {
               logger.debug(`Failed to relay URL sync to tab ${targetTabId}`, { error });
             }),
           ),
@@ -484,15 +491,13 @@ export function registerTabEventHandlers(): void {
     logger.info(`Synced tab ${tabId} was refreshed/updated, reconnecting`, { tabId });
 
     try {
-      await sendMessage(
-        'scroll:start',
-        {
-          tabIds: syncState.linkedTabs,
-          mode: syncState.mode || 'ratio',
-          currentTabId: tabId,
-        },
-        { context: 'content-script', tabId },
-      );
+      const startMessage = {
+        tabIds: syncState.linkedTabs,
+        mode: syncState.mode || 'ratio',
+        currentTabId: tabId,
+        sessionEpoch: syncState.sessionEpoch,
+      } satisfies StartSyncMessage & { sessionEpoch: number };
+      await sendMessage('scroll:start', startMessage, { context: 'content-script', tabId });
 
       syncState.connectionStatuses[tabId] = 'connected';
       logger.info(`Successfully reconnected tab ${tabId}`);
@@ -538,13 +543,15 @@ export function registerTabEventHandlers(): void {
     logger.info(`Content script in tab ${tabId} not responding, attempting recovery`);
 
     try {
+      const startMessage = {
+        tabIds: syncState.linkedTabs,
+        mode: syncState.mode || 'ratio',
+        currentTabId: tabId,
+        sessionEpoch: syncState.sessionEpoch,
+      } satisfies StartSyncMessage & { sessionEpoch: number };
       const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
         'scroll:start',
-        {
-          tabIds: syncState.linkedTabs,
-          mode: syncState.mode || 'ratio',
-          currentTabId: tabId,
-        },
+        startMessage,
         { context: 'content-script', tabId },
         2_000,
       );

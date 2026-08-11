@@ -157,6 +157,8 @@ vi.mock('../lib/sync-state', () => ({
     connectionStatuses: {},
     mode: undefined,
     lastActiveSyncedTabId: null,
+    revision: 0,
+    sessionEpoch: 0,
   },
   persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
@@ -187,6 +189,8 @@ describe('registerTabEventHandlers', () => {
     syncState.connectionStatuses = {};
     syncState.mode = undefined;
     syncState.lastActiveSyncedTabId = null;
+    syncState.revision = 0;
+    syncState.sessionEpoch = 0;
 
     autoSyncState.enabled = false;
     autoSyncState.groups.clear();
@@ -531,12 +535,22 @@ describe('registerTabEventHandlers', () => {
 
       expect(sendMessage).toHaveBeenCalledWith(
         'url:sync',
-        { url: 'https://example.com/next', sourceTabId: 1 },
+        {
+          isAutoSync: false,
+          sessionEpoch: 0,
+          sourceTabId: 1,
+          url: 'https://example.com/next',
+        },
         { context: 'content-script', tabId: 2 },
       );
       expect(sendMessage).toHaveBeenCalledWith(
         'url:sync',
-        { url: 'https://example.com/next', sourceTabId: 1 },
+        {
+          isAutoSync: false,
+          sessionEpoch: 0,
+          sourceTabId: 1,
+          url: 'https://example.com/next',
+        },
         { context: 'content-script', tabId: 3 },
       );
     });
@@ -555,7 +569,7 @@ describe('registerTabEventHandlers', () => {
 
       expect(sendMessage).toHaveBeenCalledWith(
         'scroll:start',
-        { tabIds: [1, 2], mode: 'ratio', currentTabId: 1 },
+        { tabIds: [1, 2], mode: 'ratio', currentTabId: 1, sessionEpoch: 0 },
         { context: 'content-script', tabId: 1 },
       );
       expect(syncState.connectionStatuses[1]).toBe('connected');
@@ -941,7 +955,7 @@ describe('registerTabEventHandlers', () => {
 
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:start',
-        { tabIds: [15, 16], mode: 'ratio', currentTabId: 15 },
+        { tabIds: [15, 16], mode: 'ratio', currentTabId: 15, sessionEpoch: 0 },
         { context: 'content-script', tabId: 15 },
         2_000,
       );
