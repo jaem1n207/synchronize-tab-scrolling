@@ -137,6 +137,17 @@ function getHandler(messageId: string): MessageHandler {
   return handler as MessageHandler;
 }
 
+function findForbiddenSnapshotKeys(value: unknown): Array<string> {
+  if (typeof value !== 'object' || value === null) {
+    return [];
+  }
+
+  return Object.entries(value).flatMap(([key, nestedValue]) => {
+    const forbiddenKey = key === 'title' || key === 'favIconUrl' || key === 'url' ? [key] : [];
+    return [...forbiddenKey, ...findForbiddenSnapshotKeys(nestedValue)];
+  });
+}
+
 const readyBackground = {
   manual: { status: 'ready' as const },
   auto: { status: 'ready' as const },
@@ -291,6 +302,7 @@ describe('registerConnectionHandlers', () => {
 
       expect(result).toEqual({
         status: 'inactive',
+        source: 'popup',
         revision: 8,
         sessionEpoch: 3,
       });
@@ -361,6 +373,7 @@ describe('registerConnectionHandlers', () => {
 
       expect(result).toEqual({
         status: 'active',
+        source: 'popup',
         snapshot: {
           revision: 5,
           sessionEpoch: 2,
@@ -396,21 +409,28 @@ describe('registerConnectionHandlers', () => {
       expect(getSyncStateSnapshot).toHaveBeenCalledTimes(1);
     });
 
-    it('derives content-script viewer IDs from the validated sender tab', async () => {
+    it('returns a sanitized content snapshot without hydrating other linked tabs', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
-      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.connectionStatuses = { 1: 'connected', 2: 'disconnected' };
       syncState.mode = 'ratio';
+      syncState.revision = 6;
+      syncState.sessionEpoch = 3;
       vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
+        if (tabId !== 1) {
+          throw new Error('Content status must not hydrate another linked tab');
+        }
         return {
           id: tabId,
-          windowId: tabId === 1 ? 4 : 8,
+          windowId: 4,
           index: 0,
           highlighted: false,
-          active: tabId === 1,
+          active: true,
           pinned: false,
           incognito: false,
-          title: `Tab ${tabId}`,
+          title: 'Private viewer title',
+          favIconUrl: 'private-viewer.ico',
+          url: 'https://private.example/token',
         };
       });
 
@@ -420,16 +440,26 @@ describe('registerConnectionHandlers', () => {
         sender: { tabId: 1 },
       });
 
-      expect(result).toMatchObject({
+      expect(result).toEqual({
         status: 'active',
+        source: 'content-script',
         snapshot: {
+          revision: 6,
+          sessionEpoch: 3,
+          mode: 'ratio',
+          linkedTabCount: 2,
           tabs: [
-            { tabId: 1, location: 'current-tab' },
-            { tabId: 2, location: 'other-window' },
+            { location: 'current-tab', connectionStatus: 'connected' },
+            { location: 'other-tab', connectionStatus: 'disconnected' },
           ],
         },
       });
-      expect(browser.tabs.get).toHaveBeenNthCalledWith(1, 1);
+      expect(browser.tabs.get).toHaveBeenCalledTimes(1);
+      expect(browser.tabs.get).toHaveBeenCalledWith(1);
+      expect(findForbiddenSnapshotKeys(result)).toEqual([]);
+      expect(JSON.stringify(result)).not.toContain('Private viewer title');
+      expect(JSON.stringify(result)).not.toContain('private-viewer.ico');
+      expect(JSON.stringify(result)).not.toContain('https://private.example/token');
     });
 
     it.each([
@@ -519,12 +549,14 @@ describe('registerConnectionHandlers', () => {
 
       expect(matching).toEqual({
         status: 'inactive',
+        source: 'popup',
         revision: 0,
         sessionEpoch: 7,
         recentQuickSyncOutcome: recentOutcome,
       });
       expect(otherViewer).toEqual({
         status: 'inactive',
+        source: 'popup',
         revision: 0,
         sessionEpoch: 7,
       });
@@ -555,6 +587,7 @@ describe('registerConnectionHandlers', () => {
         }),
       ).resolves.toEqual({
         status: 'inactive',
+        source: 'popup',
         revision: 0,
         sessionEpoch: 7,
       });

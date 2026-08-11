@@ -25,7 +25,10 @@ import {
   createManualSessionLifecycleController,
   executeManualReconnect,
 } from '../lib/sync-session-orchestrator';
-import { buildManualSyncSnapshot } from '../lib/sync-session-snapshot';
+import {
+  buildContentManualSyncSnapshot,
+  buildManualSyncSnapshot,
+} from '../lib/sync-session-snapshot';
 import {
   syncState,
   getSyncStateSnapshot,
@@ -201,7 +204,10 @@ function isPositiveSafeInteger(value: unknown): value is number {
 async function resolveSyncStatusViewer(
   request: unknown,
   senderTabId: unknown,
-): Promise<SyncStatusViewerContext | null> {
+): Promise<{
+  source: 'popup' | 'content-script';
+  viewer: SyncStatusViewerContext;
+} | null> {
   if (typeof request !== 'object' || request === null) {
     return null;
   }
@@ -211,7 +217,10 @@ async function resolveSyncStatusViewer(
     const viewerTabId = Reflect.get(request, 'viewerTabId');
     const viewerWindowId = Reflect.get(request, 'viewerWindowId');
     return isPositiveSafeInteger(viewerTabId) && isPositiveSafeInteger(viewerWindowId)
-      ? { viewerTabId, viewerWindowId }
+      ? {
+          source: 'popup',
+          viewer: { viewerTabId, viewerWindowId },
+        }
       : null;
   }
 
@@ -225,8 +234,11 @@ async function resolveSyncStatusViewer(
       return null;
     }
     return {
-      viewerTabId: senderTabId,
-      viewerWindowId: senderTab.windowId,
+      source: 'content-script',
+      viewer: {
+        viewerTabId: senderTabId,
+        viewerWindowId: senderTab.windowId,
+      },
     };
   } catch {
     return null;
@@ -234,7 +246,7 @@ async function resolveSyncStatusViewer(
 }
 
 function getMatchingRecentOutcome(
-  requestSource: unknown,
+  requestSource: 'popup' | 'content-script',
   viewer: SyncStatusViewerContext,
   dependencies: ConnectionHandlerDependencies,
 ): RecentQuickSyncOutcome | undefined {
@@ -263,8 +275,8 @@ export function registerConnectionHandlers(
       return response;
     }
 
-    const viewer = await resolveSyncStatusViewer(data, sender.tabId);
-    if (viewer === null) {
+    const resolvedViewer = await resolveSyncStatusViewer(data, sender.tabId);
+    if (resolvedViewer === null) {
       const response: SyncStatusResponseMessage = {
         status: 'error',
         reason: 'invalid-viewer-context',
@@ -272,17 +284,34 @@ export function registerConnectionHandlers(
       return response;
     }
 
-    const requestSource =
-      typeof data === 'object' && data !== null ? Reflect.get(data, 'source') : undefined;
-    const recentQuickSyncOutcome = getMatchingRecentOutcome(requestSource, viewer, dependencies);
+    const { source, viewer } = resolvedViewer;
+    const recentQuickSyncOutcome = getMatchingRecentOutcome(source, viewer, dependencies);
     const state = getSyncStateSnapshot();
 
     if (!state.isActive) {
+      const response: SyncStatusResponseMessage =
+        source === 'popup'
+          ? {
+              status: 'inactive',
+              source,
+              revision: state.revision,
+              sessionEpoch: state.sessionEpoch,
+              ...(recentQuickSyncOutcome === undefined ? {} : { recentQuickSyncOutcome }),
+            }
+          : {
+              status: 'inactive',
+              source,
+              revision: state.revision,
+              sessionEpoch: state.sessionEpoch,
+            };
+      return response;
+    }
+
+    if (source === 'content-script') {
       const response: SyncStatusResponseMessage = {
-        status: 'inactive',
-        revision: state.revision,
-        sessionEpoch: state.sessionEpoch,
-        ...(recentQuickSyncOutcome === undefined ? {} : { recentQuickSyncOutcome }),
+        status: 'active',
+        source,
+        snapshot: buildContentManualSyncSnapshot(state, viewer.viewerTabId),
       };
       return response;
     }
@@ -290,6 +319,7 @@ export function registerConnectionHandlers(
     const snapshot = await buildManualSyncSnapshot(state, viewer);
     const response: SyncStatusResponseMessage = {
       status: 'active',
+      source,
       snapshot,
       ...(recentQuickSyncOutcome === undefined ? {} : { recentQuickSyncOutcome }),
     };
