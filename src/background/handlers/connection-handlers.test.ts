@@ -419,17 +419,14 @@ describe('registerConnectionHandlers', () => {
       syncState.mode = 'element';
       syncState.revision = 12;
       syncState.sessionEpoch = 8;
-      vi.mocked(browser.tabs.get).mockImplementation(
-        async (tabId) =>
-          ({
-            id: tabId,
-            index: 0,
-            highlighted: false,
-            active: false,
-            pinned: false,
-            incognito: false,
-          }) as browser.Tabs.Tab,
-      );
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => ({
+        id: tabId,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      }));
       vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
         success: true,
         tabId: destination.tabId,
