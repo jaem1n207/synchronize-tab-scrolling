@@ -11,6 +11,37 @@ const keepAliveState = {
   interval: null as ReturnType<typeof setInterval> | null,
 };
 
+interface ManualHealthSnapshot {
+  tabId: number;
+  linkedTabIds: Array<number>;
+  mode: 'ratio' | 'element';
+  sessionEpoch: number;
+}
+
+function captureManualHealth(tabId: number): ManualHealthSnapshot | null {
+  if (!syncState.isActive || !syncState.linkedTabs.includes(tabId)) {
+    return null;
+  }
+
+  return {
+    tabId,
+    linkedTabIds: [...syncState.linkedTabs],
+    mode: syncState.mode || 'ratio',
+    sessionEpoch: syncState.sessionEpoch,
+  };
+}
+
+function isCurrentManualHealth(snapshot: ManualHealthSnapshot): boolean {
+  return (
+    syncState.isActive &&
+    syncState.sessionEpoch === snapshot.sessionEpoch &&
+    syncState.linkedTabs.includes(snapshot.tabId) &&
+    syncState.linkedTabs.length === snapshot.linkedTabIds.length &&
+    snapshot.linkedTabIds.every((tabId) => syncState.linkedTabs.includes(tabId)) &&
+    (syncState.mode || 'ratio') === snapshot.mode
+  );
+}
+
 export function startKeepAlive(): void {
   if (keepAliveState.interval) {
     logger.debug('Keep-alive already running');
@@ -47,12 +78,30 @@ async function checkAllTabsHealth(): Promise<void> {
   });
 
   for (const tabId of syncState.linkedTabs) {
+    const manualHealth = captureManualHealth(tabId);
+    if (!manualHealth) {
+      continue;
+    }
     const isAlive = await isContentScriptAlive(tabId);
+    if (!isCurrentManualHealth(manualHealth)) {
+      continue;
+    }
 
     if (!isAlive && syncState.connectionStatuses[tabId] === 'connected') {
       logger.warn(`Tab ${tabId} lost connection during keep-alive check, attempting recovery`);
 
-      const success = await reinjectContentScript(tabId);
+      const success = await reinjectContentScript(tabId, {
+        startMessage: {
+          tabIds: manualHealth.linkedTabIds,
+          mode: manualHealth.mode,
+          currentTabId: tabId,
+          sessionEpoch: manualHealth.sessionEpoch,
+        },
+        isSessionCurrent: (): boolean => isCurrentManualHealth(manualHealth),
+      });
+      if (!isCurrentManualHealth(manualHealth)) {
+        continue;
+      }
       if (!success) {
         logger.error(`Failed to recover tab ${tabId} during keep-alive check`);
         syncState.connectionStatuses[tabId] = 'error';

@@ -24,6 +24,8 @@ const {
     linkedTabs: [] as Array<number>,
     connectionStatuses: {} as Record<number, SyncState['connectionStatuses'][number]>,
     lastActiveSyncedTabId: null as number | null,
+    mode: undefined as 'ratio' | 'element' | undefined,
+    sessionEpoch: 0,
   },
 }));
 
@@ -64,6 +66,8 @@ describe('keep-alive', () => {
     syncStateMock.linkedTabs = [];
     syncStateMock.connectionStatuses = {};
     syncStateMock.lastActiveSyncedTabId = null;
+    syncStateMock.mode = undefined;
+    syncStateMock.sessionEpoch = 0;
   });
 
   afterEach(() => {
@@ -182,7 +186,43 @@ describe('keep-alive', () => {
       await triggerKeepAliveTick();
 
       expect(reinjectContentScriptMock).toHaveBeenCalledTimes(1);
-      expect(reinjectContentScriptMock).toHaveBeenCalledWith(8);
+      expect(reinjectContentScriptMock).toHaveBeenCalledWith(
+        8,
+        expect.objectContaining({
+          startMessage: {
+            tabIds: [8],
+            mode: 'ratio',
+            currentTabId: 8,
+            sessionEpoch: 0,
+          },
+          isSessionCurrent: expect.any(Function),
+        }),
+      );
+    });
+
+    it('does not reinject after a health check crosses into a replacement manual session', async () => {
+      const healthCheck = Promise.withResolvers<boolean>();
+      syncStateMock.isActive = true;
+      syncStateMock.linkedTabs = [8, 9];
+      syncStateMock.connectionStatuses = { 8: 'connected', 9: 'connected' };
+      syncStateMock.mode = 'ratio';
+      syncStateMock.sessionEpoch = 3;
+      isContentScriptAliveMock.mockReturnValue(healthCheck.promise);
+
+      startKeepAlive();
+      vi.advanceTimersByTime(25_000);
+      await Promise.resolve();
+
+      syncStateMock.linkedTabs = [18, 19];
+      syncStateMock.connectionStatuses = { 18: 'connected', 19: 'connected' };
+      syncStateMock.mode = 'element';
+      syncStateMock.sessionEpoch = 4;
+      healthCheck.resolve(false);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(reinjectContentScriptMock).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacyMock).not.toHaveBeenCalled();
     });
 
     it('sets error status and persists state when reinjection fails', async () => {
