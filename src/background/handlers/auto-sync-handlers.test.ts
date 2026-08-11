@@ -57,6 +57,12 @@ const { waitForBackgroundInitializationMock } = vi.hoisted(() => ({
   waitForBackgroundInitializationMock: vi.fn(),
 }));
 
+const { quickSyncCoordinatorMock } = vi.hoisted(() => ({
+  quickSyncCoordinatorMock: {
+    invalidateCandidate: vi.fn().mockResolvedValue(false),
+  },
+}));
+
 vi.mock('webext-bridge/background', () => ({
   onMessage: onMessageMock,
 }));
@@ -156,6 +162,10 @@ vi.mock('../lib/sync-state', () => {
     broadcastSyncStatus: vi.fn(),
   };
 });
+
+vi.mock('./quick-sync-command-handler', () => ({
+  quickSyncCoordinator: quickSyncCoordinatorMock,
+}));
 
 function getRequiredHandler(messageId: string): RegisteredMessageHandler {
   const handler = messageHandlers.get(messageId);
@@ -411,6 +421,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(group.isActive).toBe(false);
       expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
       expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).not.toHaveBeenCalled();
     });
 
     it('accepted response starts auto sync, advances inactive revision, and broadcasts dismiss', async () => {
@@ -457,6 +468,10 @@ describe('registerAutoSyncHandlers', () => {
       );
       expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedRevision: 6 }),
+        'consumed',
+      );
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'sync-suggestion:dismiss',
         { normalizedUrl },
@@ -771,6 +786,7 @@ describe('registerAutoSyncHandlers', () => {
 
       expect(excludedDomains.size).toBe(0);
       expect(saveExcludedDomains).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).not.toHaveBeenCalled();
     });
   });
 
@@ -791,6 +807,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(syncState.linkedTabs).toEqual([1, 2]);
       expect(sendMessageWithTimeout).not.toHaveBeenCalled();
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).not.toHaveBeenCalled();
     });
 
     it('starts only the accepted new tab when adding it to the manual session', async () => {
@@ -830,6 +847,10 @@ describe('registerAutoSyncHandlers', () => {
         },
         { context: 'content-script', tabId: 3 },
         1_000,
+      );
+      expect(quickSyncCoordinatorMock.invalidateCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedRevision: 6 }),
+        'consumed',
       );
     });
 

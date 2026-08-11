@@ -47,6 +47,8 @@ import {
 } from '../lib/sync-state';
 import { syncTransitionGate } from '../lib/sync-transition-gate';
 
+import { quickSyncCoordinator } from './quick-sync-command-handler';
+
 import type { AcceptedAutoSyncResult } from '../lib/legacy-auto-sync-adapter';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-handlers' });
@@ -380,7 +382,7 @@ export function registerAutoSyncHandlers(): void {
             return { status: 'rejected', reason: 'auto-start-failed' };
           }
 
-          return replaceManualWithAcceptedAutoSync(
+          const transitionResult = await replaceManualWithAcceptedAutoSync(
             context,
             {
               normalizedUrl,
@@ -395,6 +397,10 @@ export function registerAutoSyncHandlers(): void {
               commitState: commitSyncState,
             },
           );
+          if (transitionResult.status === 'committed') {
+            await quickSyncCoordinator.invalidateCandidate(context, 'consumed');
+          }
+          return transitionResult;
         });
 
         if (result.status === 'rejected') {
@@ -475,11 +481,18 @@ export function registerAutoSyncHandlers(): void {
             return { status: 'rejected', reason: 'stale-revision' };
           }
 
-          return acceptedSuggestionOrchestrator.addTabToManualSession(context, {
-            tabId,
-            expectedRevision,
-            source: 'suggestion',
-          });
+          const transitionResult = await acceptedSuggestionOrchestrator.addTabToManualSession(
+            context,
+            {
+              tabId,
+              expectedRevision,
+              source: 'suggestion',
+            },
+          );
+          if (transitionResult.status === 'committed') {
+            await quickSyncCoordinator.invalidateCandidate(context, 'consumed');
+          }
+          return transitionResult;
         });
 
         if (result.status === 'rejected') {
