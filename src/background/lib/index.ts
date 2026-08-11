@@ -1,5 +1,16 @@
 export { sendMessageWithTimeout } from './messaging';
 export {
+  initializeBackground,
+  waitForBackgroundInitialization,
+  getManualReadinessSnapshot,
+  reconcileRestoredManualSession,
+} from './background-initialization';
+export type {
+  AutoSyncReadiness,
+  BackgroundReadiness,
+  ManualReadinessSnapshot,
+} from './background-initialization';
+export {
   syncState,
   getSyncStateSnapshot,
   commitSyncState,
@@ -39,3 +50,6 @@ export {
   broadcastAutoSyncGroupUpdate,
 } from './auto-sync-groups';
 export { initializeAutoSync, toggleAutoSync } from './auto-sync-lifecycle';
+export type { AutoSyncInitializationResult } from './auto-sync-lifecycle';
+export { createSyncTransitionGate, syncTransitionGate } from './sync-transition-gate';
+export type { SyncTransitionContext, SyncTransitionGate } from './sync-transition-gate';
