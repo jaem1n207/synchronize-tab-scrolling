@@ -4,6 +4,7 @@ export type QuickSyncFailureReason =
   | 'candidate-tab-missing'
   | 'connection-timeout'
   | 'invalid-acknowledgement'
+  | 'offset-reconciliation-failed'
   | 'persistence-failed'
   | 'auto-sync-degraded'
   | 'session-state-unavailable'

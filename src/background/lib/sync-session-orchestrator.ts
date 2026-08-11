@@ -132,7 +132,11 @@ export interface ManualSessionLifecycleController {
   ): Promise<ManualStopResult>;
 }
 
-type StartFailureReason = 'content-unreachable' | 'connection-timeout' | 'invalid-acknowledgement';
+type StartFailureReason =
+  | 'content-unreachable'
+  | 'connection-timeout'
+  | 'invalid-acknowledgement'
+  | 'offset-reconciliation-failed';
 
 type TimedResult<T> =
   | { status: 'completed'; value: T }
@@ -168,6 +172,14 @@ function getUniqueValidTabIds(tabIds: ReadonlyArray<number>): Array<number> {
 
 function isValidTabId(tabId: number): boolean {
   return Number.isSafeInteger(tabId) && tabId > 0;
+}
+
+function getStartAcknowledgementFailureReason(
+  acknowledgement: StartSyncContentResponse,
+): StartFailureReason {
+  return acknowledgement.reason === 'offset-reconciliation-failed'
+    ? acknowledgement.reason
+    : 'invalid-acknowledgement';
 }
 
 async function cleanupStagedTabs(
@@ -226,7 +238,13 @@ async function attemptStart(
   if (response.status !== 'completed') {
     return { status: 'rejected', reason: 'content-unreachable' };
   }
-  if (!response.value.success || response.value.tabId !== tabId) {
+  if (!response.value.success) {
+    return {
+      status: 'rejected',
+      reason: getStartAcknowledgementFailureReason(response.value),
+    };
+  }
+  if (response.value.tabId !== tabId) {
     return { status: 'rejected', reason: 'invalid-acknowledgement' };
   }
   return { status: 'connected' };
@@ -424,7 +442,10 @@ async function finishManualReconnectWithDependencies(
     ? { status: 'committed', revision: candidate.revision }
     : {
         status: 'rejected',
-        reason: acknowledgement === null ? 'connection-timeout' : 'invalid-acknowledgement',
+        reason:
+          acknowledgement === null
+            ? 'connection-timeout'
+            : getStartAcknowledgementFailureReason(acknowledgement),
       };
 }
 

@@ -275,6 +275,33 @@ describe('createSyncSessionOrchestrator', () => {
     expect(harness.overrideRollbacks).toHaveLength(1);
   });
 
+  it('preserves an explicit content offset reconciliation failure', async () => {
+    const harness = createOrchestratorHarness({
+      initialState: inactiveState,
+      startResponses: {
+        11: {
+          success: false,
+          tabId: 11,
+          reason: 'offset-reconciliation-failed',
+        },
+        22: { success: true, tabId: 22 },
+      },
+    });
+
+    const result = await harness.orchestrator.startManualSession(
+      { operationGeneration: 1, expectedRevision: 0 },
+      { tabIds: [11, 22], mode: 'ratio', source: 'quick-sync', requireAll: true },
+    );
+
+    expect(result).toEqual({
+      status: 'rejected',
+      reason: 'offset-reconciliation-failed',
+    });
+    expect(harness.committedState).toEqual(inactiveState);
+    expect(harness.stopTargets).toEqual([11, 22]);
+    expect(harness.overrideRollbacks).toHaveLength(1);
+  });
+
   it('adds only the new tab and preserves existing epoch and connection state', async () => {
     const harness = createOrchestratorHarness({ initialState: activeState });
 

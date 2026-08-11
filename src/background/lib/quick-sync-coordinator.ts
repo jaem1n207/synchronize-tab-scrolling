@@ -84,6 +84,7 @@ function toFailureReason(result: ManualStartResult | ManualAddResult): QuickSync
     case 'candidate-tab-missing':
     case 'connection-timeout':
     case 'invalid-acknowledgement':
+    case 'offset-reconciliation-failed':
     case 'persistence-failed':
     case 'auto-sync-degraded':
     case 'session-state-unavailable':
