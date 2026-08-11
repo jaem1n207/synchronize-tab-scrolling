@@ -8,11 +8,11 @@ import { getFileSchemeAccessInfo } from '~/shared/lib/file-scheme-access';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadSelectedTabIds } from '~/shared/lib/storage';
 import { isFileUrl } from '~/shared/lib/url-utils';
+import type { StartSyncBackgroundResponse, StopManualSyncMessage } from '~/shared/types/messages';
 import type {
-  LegacySyncStatusResponse,
-  StartSyncBackgroundResponse,
-  StopManualSyncMessage,
-} from '~/shared/types/messages';
+  SyncStatusRequestMessage,
+  SyncStatusResponseMessage,
+} from '~/shared/types/sync-session';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 
@@ -26,6 +26,30 @@ const INITIAL_SYNC_STATUS: SyncStatus = {
 };
 
 type StartConnectionResults = Record<number, { success: boolean; error?: string }>;
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+async function resolvePopupViewerRequest(): Promise<SyncStatusRequestMessage | null> {
+  const activeTabs = await browser.tabs.query({ active: true, currentWindow: true });
+  const viewerTab = activeTabs.find(
+    (tab) => isPositiveSafeInteger(tab.id) && isPositiveSafeInteger(tab.windowId),
+  );
+  if (
+    viewerTab === undefined ||
+    !isPositiveSafeInteger(viewerTab.id) ||
+    !isPositiveSafeInteger(viewerTab.windowId)
+  ) {
+    return null;
+  }
+
+  return {
+    source: 'popup',
+    viewerTabId: viewerTab.id,
+    viewerWindowId: viewerTab.windowId,
+  };
+}
 
 function hasFailedSelectedFileTab(
   selectedTabIds: Array<number>,
@@ -71,35 +95,38 @@ export function useSyncControl({
 
   const syncStateRestoredRef = useRef(false);
 
-  const applyLegacySyncStatus = useCallback(
-    (response: LegacySyncStatusResponse): void => {
-      if (response.status !== 'ready') {
-        return;
-      }
-      if (response.isActive) {
+  const applyCanonicalSyncStatus = useCallback(
+    (response: SyncStatusResponseMessage): void => {
+      if (response.status === 'active') {
+        const connectionStatuses: Record<number, ConnectionStatus> = {};
+        for (const tab of response.snapshot.tabs) {
+          connectionStatuses[tab.tabId] = tab.connectionStatus;
+        }
+
         setSyncStatus({
           isActive: true,
-          connectedTabs: [...response.connectedTabs],
-          connectionStatuses: { ...response.connectionStatuses },
-          revision: response.revision,
+          connectedTabs: [...response.snapshot.linkedTabIds],
+          connectionStatuses,
+          revision: response.snapshot.revision,
         });
-        onSelectedTabIdsChange([...response.connectedTabs]);
+        onSelectedTabIdsChange([...response.snapshot.linkedTabIds]);
         return;
       }
 
-      setSyncStatus({
-        isActive: false,
-        connectedTabs: [],
-        connectionStatuses: {},
-        revision: response.revision,
-      });
+      if (response.status === 'inactive') {
+        setSyncStatus({
+          isActive: false,
+          connectedTabs: [],
+          connectionStatuses: {},
+          revision: response.revision,
+        });
+      }
     },
     [onSelectedTabIdsChange],
   );
 
-  const refreshSyncStatus = useCallback(async (): Promise<LegacySyncStatusResponse> => {
-    const response = await sendMessage('sync:get-status', {}, 'background');
-    if (response.status === 'unavailable') {
+  const refreshSyncStatus = useCallback(async (): Promise<SyncStatusResponseMessage | null> => {
+    const showUnavailableState = (): void => {
       setError({
         message: t('manualSyncStateUnavailable'),
         severity: 'error',
@@ -108,19 +135,44 @@ export function useSyncControl({
           label: t('retry'),
           handler: () => {
             refreshSyncStatus().catch((refreshError) => {
-              logger.error('Failed to refresh unavailable manual sync state:', refreshError);
+              logger.error('Failed to refresh unavailable manual sync state', {
+                reason:
+                  refreshError instanceof Error
+                    ? 'status-refresh-rejected'
+                    : 'status-refresh-unknown-failure',
+              });
             });
           },
         },
       });
+    };
+
+    try {
+      const request = await resolvePopupViewerRequest();
+      if (request === null) {
+        showUnavailableState();
+        return null;
+      }
+
+      const response = await sendMessage('sync:get-status', request, 'background');
+      if (response.status === 'error') {
+        showUnavailableState();
+        return response;
+      }
+
+      applyCanonicalSyncStatus(response);
+      setError((currentError) =>
+        currentError?.message === t('manualSyncStateUnavailable') ? null : currentError,
+      );
       return response;
+    } catch {
+      logger.error('Failed to request manual sync status', {
+        reason: 'status-request-failed',
+      });
+      showUnavailableState();
+      return null;
     }
-    applyLegacySyncStatus(response);
-    setError((currentError) =>
-      currentError?.message === t('manualSyncStateUnavailable') ? null : currentError,
-    );
-    return response;
-  }, [applyLegacySyncStatus]);
+  }, [applyCanonicalSyncStatus]);
 
   useEffect(() => {
     if (tabs.length === 0 || syncStateRestoredRef.current) return;
@@ -131,10 +183,10 @@ export function useSyncControl({
         let hasActiveSync = false;
         try {
           const response = await refreshSyncStatus();
-          if (response.status === 'unavailable') {
+          if (response === null || response.status === 'error') {
             return;
           }
-          if (response.isActive) {
+          if (response.status === 'active') {
             hasActiveSync = true;
           }
         } catch {
@@ -366,7 +418,7 @@ export function useSyncControl({
 
       if (result.status === 'rejected') {
         const refreshed = await refreshSyncStatus();
-        if (refreshed.status === 'unavailable') {
+        if (refreshed === null || refreshed.status === 'error') {
           return;
         }
         setError({
@@ -426,7 +478,7 @@ export function useSyncControl({
       );
       if (result.status === 'refresh-required') {
         const refreshed = await refreshSyncStatus();
-        if (refreshed.status === 'unavailable') {
+        if (refreshed === null || refreshed.status === 'error') {
           return;
         }
         setError({
@@ -438,7 +490,7 @@ export function useSyncControl({
       }
       if (result.status === 'rejected') {
         const refreshed = await refreshSyncStatus();
-        if (refreshed.status === 'unavailable') {
+        if (refreshed === null || refreshed.status === 'error') {
           return;
         }
         setError({
