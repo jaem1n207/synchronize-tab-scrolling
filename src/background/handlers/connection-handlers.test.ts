@@ -350,7 +350,7 @@ describe('registerConnectionHandlers', () => {
         active: false,
         pinned: false,
         incognito: false,
-      } as browser.Tabs.Tab);
+      } satisfies browser.Tabs.Tab);
       await result;
 
       expect(sendMessageWithTimeout).not.toHaveBeenCalled();
@@ -377,7 +377,7 @@ describe('registerConnectionHandlers', () => {
           active: false,
           pinned: false,
           incognito: false,
-        } as browser.Tabs.Tab);
+        } satisfies browser.Tabs.Tab);
         vi.mocked(sendMessageWithTimeout).mockReturnValue(acknowledgement.promise);
 
         const handler = getHandler('scroll:reconnect');
