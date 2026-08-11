@@ -13,6 +13,44 @@ export const SUPPORTED_EXTENSION_LOCALES: ReadonlyArray<string> = [
   'hi',
 ];
 
+export const QUICK_SYNC_REQUIRED_MESSAGES: Readonly<Record<string, ReadonlyArray<string>>> = {
+  quickSyncCommandDescription: [],
+  quickSyncCandidateSelectedTitle: [],
+  quickSyncCandidateInstruction: ['remainingSeconds'],
+  quickSyncSameCandidateTitle: [],
+  quickSyncConnectingTitle: [],
+  quickSyncSecondTabRetryInstruction: ['remainingSeconds'],
+  quickSyncStartSucceededTitle: ['tabCount'],
+  quickSyncAddSucceededTitle: ['tabCount'],
+  quickSyncAlreadyIncludedTitle: ['tabCount'],
+  quickSyncSecondTabFailedTitle: [],
+  quickSyncAddFailedTitle: [],
+  quickSyncExistingTabsContinue: ['tabCount'],
+  quickSyncUnsupportedTab: [],
+  quickSyncCandidateExpiredAnnouncement: [],
+  activeSyncHeading: [],
+  activeSyncSummary: ['tabCount'],
+  activeSyncAddInstruction: ['shortcutLabel'],
+  activeSyncTabsHeading: [],
+  activeSyncEditNotice: [],
+  currentTabLocation: [],
+  currentWindowLocation: [],
+  otherWindowLocation: [],
+  reassignQuickSyncShortcut: [],
+  quickSyncShortcutUnassigned: [],
+  quickSyncShortcutUnavailable: [],
+  activeSyncTabUnavailable: [],
+  quickSyncShortcutAssignedSummary: ['shortcutLabel'],
+  quickSyncShortcutSettingsFallbackChromium: ['settingsUrl'],
+  quickSyncShortcutSettingsFallbackFirefox: [],
+  manualSyncStateUnavailable: [],
+  retryStatusCheck: [],
+  syncCleanupIncomplete: [],
+  quickSyncShortcutHeading: [],
+  autoSyncRecoveryDegraded: [],
+  autoSyncReplacementFailed: [],
+};
+
 export interface I18nValidationResult {
   errors: Array<string>;
 }

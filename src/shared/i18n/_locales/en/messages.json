@@ -723,5 +723,160 @@
   },
   "contextualHintHideAction": {
     "message": "Hide this hint"
+  },
+  "quickSyncCommandDescription": {
+    "message": "Start scroll sync or add this tab"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "1 tab selected for sync"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "Press the same shortcut in another tab within $REMAININGSECONDS$ seconds to sync scrolling with this tab.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "This tab is already selected"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "Connecting tabs…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "Scroll sync started · $TABCOUNT$ tabs",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "This tab was added to sync · $TABCOUNT$ tabs",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "This tab is already in the current sync · $TABCOUNT$ tabs",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "Couldn’t connect this tab"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "Press the same shortcut in another tab within $REMAININGSECONDS$ seconds to try again.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "Couldn’t add this tab"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "The existing $TABCOUNT$ tabs are still syncing.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "Scroll sync isn’t available on this tab"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "The time to select another tab has ended."
+  },
+  "activeSyncHeading": {
+    "message": "Scroll sync is active"
+  },
+  "activeSyncSummary": {
+    "message": "Scrolling is synchronized across $TABCOUNT$ tabs.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "Press $SHORTCUTLABEL$ in another tab to sync it too.",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "Tabs scrolling together"
+  },
+  "activeSyncEditNotice": {
+    "message": "To add or remove tabs in this popup, stop synchronization first."
+  },
+  "currentTabLocation": {
+    "message": "Current tab"
+  },
+  "currentWindowLocation": {
+    "message": "Current window"
+  },
+  "otherWindowLocation": {
+    "message": "Other window"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "Reassign shortcut"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "No Quick Sync shortcut is assigned."
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "Couldn’t load the Quick Sync shortcut."
+  },
+  "activeSyncTabUnavailable": {
+    "message": "Couldn’t load tab details"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "Enter $SETTINGSURL$ in the address bar to reassign the shortcut.",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "In Add-ons Manager, open the gear menu and choose Manage Extension Shortcuts."
+  },
+  "manualSyncStateUnavailable": {
+    "message": "Can’t verify the synchronization state."
+  },
+  "retryStatusCheck": {
+    "message": "Check again"
+  },
+  "syncCleanupIncomplete": {
+    "message": "Couldn’t clean up sync controls in some tabs. Reload those tabs to remove them."
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Quick Sync shortcut"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync: $SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "Couldn’t fully restore automatic sync state. Manual sync was not changed."
+  },
+  "autoSyncReplacementFailed": {
+    "message": "Couldn’t start the suggested synchronization. The previous synchronization remains stopped."
   }
 }

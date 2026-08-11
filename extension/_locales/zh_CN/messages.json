@@ -723,5 +723,160 @@
   },
   "contextualHintHideAction": {
     "message": "隐藏此提示"
+  },
+  "quickSyncCommandDescription": {
+    "message": "开始滚动同步或添加此标签页"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "已选择 1 个要同步的标签页"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "请在 $REMAININGSECONDS$ 秒内于另一个标签页按下相同快捷键，使其与此标签页同步滚动。",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "此标签页已被选择"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "正在连接标签页…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "已开始滚动同步 · 当前 $TABCOUNT$ 个标签页",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "已将此标签页添加到同步 · 当前 $TABCOUNT$ 个标签页",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "此标签页已在当前同步中 · 当前 $TABCOUNT$ 个标签页",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "无法连接此标签页"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "请在 $REMAININGSECONDS$ 秒内于另一个标签页按下相同快捷键以重试。",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "无法添加此标签页"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "现有的 $TABCOUNT$ 个标签页仍在同步。",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "此标签页不支持滚动同步"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "选择另一个标签页的时间已结束。"
+  },
+  "activeSyncHeading": {
+    "message": "正在同步滚动"
+  },
+  "activeSyncSummary": {
+    "message": "当前 $TABCOUNT$ 个标签页会同步滚动。",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "在另一个标签页按下 $SHORTCUTLABEL$，即可将其加入同步。",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "同步滚动的标签页"
+  },
+  "activeSyncEditNotice": {
+    "message": "若要在此弹出窗口中添加或移除标签页，请先停止同步。"
+  },
+  "currentTabLocation": {
+    "message": "当前标签页"
+  },
+  "currentWindowLocation": {
+    "message": "当前窗口"
+  },
+  "otherWindowLocation": {
+    "message": "其他窗口"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "重新设置快捷键"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "尚未设置 Quick Sync 快捷键。"
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "无法加载 Quick Sync 快捷键。"
+  },
+  "activeSyncTabUnavailable": {
+    "message": "无法加载标签页信息"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "请在地址栏输入 $SETTINGSURL$ 以重新设置快捷键。",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "请在附加组件管理器中打开齿轮菜单，然后选择“管理扩展快捷键”。"
+  },
+  "manualSyncStateUnavailable": {
+    "message": "无法确认同步状态。"
+  },
+  "retryStatusCheck": {
+    "message": "重新检查"
+  },
+  "syncCleanupIncomplete": {
+    "message": "无法清理部分标签页中的同步控件。请重新加载这些标签页以将其移除。"
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Quick Sync 快捷键"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync：$SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "无法完全恢复自动同步状态。手动同步未发生更改。"
+  },
+  "autoSyncReplacementFailed": {
+    "message": "无法启动建议的同步。之前的同步仍处于停止状态。"
   }
 }

@@ -4,7 +4,11 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SUPPORTED_EXTENSION_LOCALES, validateI18nTrees } from './i18n-validation';
+import {
+  QUICK_SYNC_REQUIRED_MESSAGES,
+  SUPPORTED_EXTENSION_LOCALES,
+  validateI18nTrees,
+} from './i18n-validation';
 
 const temporaryRoots: Array<string> = [];
 const sampleMessage = {
@@ -70,6 +74,14 @@ afterEach(async () => {
 });
 
 describe('validateI18nTrees', () => {
+  it('enforces the Quick Sync key and placeholder contract', async () => {
+    const result = await validateI18nTrees(process.cwd(), {
+      requiredMessages: QUICK_SYNC_REQUIRED_MESSAGES,
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('requires the same nine locales in both trees', async () => {
     const root = await createLocaleFixture({
       omit: { tree: 'extension/_locales', locale: 'hi' },

@@ -723,5 +723,160 @@
   },
   "contextualHintHideAction": {
     "message": "Ocultar esta ayuda"
+  },
+  "quickSyncCommandDescription": {
+    "message": "Iniciar la sincronización de desplazamiento o añadir esta pestaña"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "1 pestaña seleccionada para sincronizar"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "En los próximos $REMAININGSECONDS$ segundos, usa el mismo atajo en otra pestaña para sincronizar su desplazamiento con esta.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "Esta pestaña ya está seleccionada"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "Conectando pestañas…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "Sincronización iniciada · $TABCOUNT$ pestañas actualmente",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "Esta pestaña se añadió · $TABCOUNT$ pestañas actualmente",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "Esta pestaña ya está en la sincronización actual · $TABCOUNT$ pestañas actualmente",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "No se pudo conectar esta pestaña"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "En los próximos $REMAININGSECONDS$ segundos, usa el mismo atajo en otra pestaña para volver a intentarlo.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "No se pudo añadir esta pestaña"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "Las $TABCOUNT$ pestañas existentes siguen sincronizadas.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "La sincronización de desplazamiento no está disponible en esta pestaña"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "Se acabó el tiempo para seleccionar otra pestaña."
+  },
+  "activeSyncHeading": {
+    "message": "Sincronización de desplazamiento activa"
+  },
+  "activeSyncSummary": {
+    "message": "El desplazamiento está sincronizado en $TABCOUNT$ pestañas.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "Pulsa $SHORTCUTLABEL$ en otra pestaña para sincronizarla también.",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "Pestañas que se desplazan juntas"
+  },
+  "activeSyncEditNotice": {
+    "message": "Para añadir o quitar pestañas en esta ventana, detén primero la sincronización."
+  },
+  "currentTabLocation": {
+    "message": "Pestaña actual"
+  },
+  "currentWindowLocation": {
+    "message": "Ventana actual"
+  },
+  "otherWindowLocation": {
+    "message": "Otra ventana"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "Reasignar atajo"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "No hay ningún atajo de Quick Sync asignado."
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "No se pudo cargar el atajo de Quick Sync."
+  },
+  "activeSyncTabUnavailable": {
+    "message": "No se pudo cargar la información de la pestaña"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "Escribe $SETTINGSURL$ en la barra de direcciones para reasignar el atajo.",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "En el Administrador de complementos, abre el menú del engranaje y elige Gestionar atajos de extensiones."
+  },
+  "manualSyncStateUnavailable": {
+    "message": "No se pudo comprobar el estado de la sincronización."
+  },
+  "retryStatusCheck": {
+    "message": "Volver a comprobar"
+  },
+  "syncCleanupIncomplete": {
+    "message": "No se pudieron limpiar los controles de sincronización en algunas pestañas. Recárgalas para quitarlos."
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Atajo de Quick Sync"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync: $SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "No se pudo restaurar por completo la sincronización automática. La sincronización manual no cambió."
+  },
+  "autoSyncReplacementFailed": {
+    "message": "No se pudo iniciar la sincronización sugerida. La sincronización anterior sigue detenida."
   }
 }

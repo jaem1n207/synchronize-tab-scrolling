@@ -723,5 +723,160 @@
   },
   "contextualHintHideAction": {
     "message": "Diesen Hinweis ausblenden"
+  },
+  "quickSyncCommandDescription": {
+    "message": "Scroll-Synchronisierung starten oder diesen Tab hinzufügen"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "1 Tab für die Synchronisierung ausgewählt"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "Drücke innerhalb von $REMAININGSECONDS$ Sekunden in einem anderen Tab dasselbe Tastenkürzel, um ihn mit diesem Tab zu synchronisieren.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "Dieser Tab ist bereits ausgewählt"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "Tabs werden verbunden…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "Scroll-Synchronisierung gestartet · Aktuell $TABCOUNT$ Tabs",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "Dieser Tab wurde hinzugefügt · Aktuell $TABCOUNT$ Tabs",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "Dieser Tab ist bereits synchronisiert · Aktuell $TABCOUNT$ Tabs",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "Dieser Tab konnte nicht verbunden werden"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "Drücke innerhalb von $REMAININGSECONDS$ Sekunden in einem anderen Tab dasselbe Tastenkürzel, um es erneut zu versuchen.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "Dieser Tab konnte nicht hinzugefügt werden"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "Die vorhandenen $TABCOUNT$ Tabs werden weiter synchronisiert.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "Scroll-Synchronisierung ist in diesem Tab nicht verfügbar"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "Die Zeit zum Auswählen eines weiteren Tabs ist abgelaufen."
+  },
+  "activeSyncHeading": {
+    "message": "Scroll-Synchronisierung aktiv"
+  },
+  "activeSyncSummary": {
+    "message": "Der Bildlauf ist in $TABCOUNT$ Tabs synchronisiert.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "Drücke $SHORTCUTLABEL$ in einem anderen Tab, um ihn ebenfalls zu synchronisieren.",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "Gemeinsam scrollende Tabs"
+  },
+  "activeSyncEditNotice": {
+    "message": "Um Tabs in diesem Pop-up hinzuzufügen oder zu entfernen, beende zuerst die Synchronisierung."
+  },
+  "currentTabLocation": {
+    "message": "Aktueller Tab"
+  },
+  "currentWindowLocation": {
+    "message": "Aktuelles Fenster"
+  },
+  "otherWindowLocation": {
+    "message": "Anderes Fenster"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "Tastenkürzel neu zuweisen"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "Für Quick Sync ist kein Tastenkürzel zugewiesen."
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "Das Quick-Sync-Tastenkürzel konnte nicht geladen werden."
+  },
+  "activeSyncTabUnavailable": {
+    "message": "Tab-Informationen konnten nicht geladen werden"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "Gib $SETTINGSURL$ in die Adressleiste ein, um das Tastenkürzel neu zuzuweisen.",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "Öffne im Add-ons-Manager das Zahnradmenü und wähle „Tastenkombinationen von Erweiterungen verwalten“."
+  },
+  "manualSyncStateUnavailable": {
+    "message": "Der Synchronisierungsstatus konnte nicht geprüft werden."
+  },
+  "retryStatusCheck": {
+    "message": "Erneut prüfen"
+  },
+  "syncCleanupIncomplete": {
+    "message": "Die Synchronisierungssteuerung konnte in einigen Tabs nicht entfernt werden. Lade diese Tabs neu."
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Quick-Sync-Tastenkürzel"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync: $SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "Der Zustand der automatischen Synchronisierung konnte nicht vollständig wiederhergestellt werden. Die manuelle Synchronisierung wurde nicht geändert."
+  },
+  "autoSyncReplacementFailed": {
+    "message": "Die vorgeschlagene Synchronisierung konnte nicht gestartet werden. Die vorherige Synchronisierung bleibt beendet."
   }
 }
