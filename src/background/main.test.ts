@@ -8,6 +8,7 @@ const {
   restoreSyncStateMock,
   registerAutoSyncHandlersMock,
   registerConnectionHandlersMock,
+  registerQuickSyncCommandHandlerMock,
   registerScrollSyncHandlersMock,
   registerTabEventHandlersMock,
 } = vi.hoisted(() => ({
@@ -18,6 +19,7 @@ const {
   restoreSyncStateMock: vi.fn(),
   registerAutoSyncHandlersMock: vi.fn(),
   registerConnectionHandlersMock: vi.fn(),
+  registerQuickSyncCommandHandlerMock: vi.fn(),
   registerScrollSyncHandlersMock: vi.fn(),
   registerTabEventHandlersMock: vi.fn(),
 }));
@@ -41,12 +43,19 @@ vi.mock('~/shared/lib/logger', () => ({
 vi.mock('./handlers', () => ({
   registerAutoSyncHandlers: registerAutoSyncHandlersMock,
   registerConnectionHandlers: registerConnectionHandlersMock,
+  registerQuickSyncCommandHandler: registerQuickSyncCommandHandlerMock,
   registerScrollSyncHandlers: registerScrollSyncHandlersMock,
   registerTabEventHandlers: registerTabEventHandlersMock,
 }));
 
 vi.mock('./lib/background-initialization', () => ({
   initializeBackground: initializeBackgroundMock,
+}));
+
+vi.mock('./lib/quick-sync-feedback', () => ({
+  recentQuickSyncOutcomeStore: {
+    read: vi.fn(),
+  },
 }));
 
 vi.mock('./lib/auto-sync-lifecycle', () => ({
@@ -86,6 +95,9 @@ describe('background main startup', () => {
     registerConnectionHandlersMock.mockImplementation(() => {
       events.push('connection');
     });
+    registerQuickSyncCommandHandlerMock.mockImplementation(() => {
+      events.push('quick-sync');
+    });
     registerAutoSyncHandlersMock.mockImplementation(() => {
       events.push('auto');
     });
@@ -105,6 +117,18 @@ describe('background main startup', () => {
   it('registers every listener synchronously before initialization starts', async () => {
     await import('./main');
 
-    expect(events).toEqual(['runtime', 'scroll', 'connection', 'auto', 'tab', 'initialize']);
+    expect(events).toEqual([
+      'runtime',
+      'quick-sync',
+      'scroll',
+      'connection',
+      'auto',
+      'tab',
+      'initialize',
+    ]);
+    expect(registerConnectionHandlersMock).toHaveBeenCalledWith({
+      getRecentQuickSyncOutcome: expect.any(Function),
+      now: Date.now,
+    });
   });
 });

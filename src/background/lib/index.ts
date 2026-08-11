@@ -63,3 +63,13 @@ export type {
   SyncSessionOrchestratorDependencies,
 } from './sync-session-orchestrator';
 export { buildManualSyncSnapshot } from './sync-session-snapshot';
+export { createQuickSyncCandidateStore, quickSyncCandidateStore } from './quick-sync-candidate';
+export { createQuickSyncCoordinator } from './quick-sync-coordinator';
+export {
+  createQuickSyncBadgeController,
+  createQuickSyncFeedbackSender,
+  createQuickSyncHandshakeRegistry,
+  createRecentQuickSyncOutcomeStore,
+  quickSyncHandshakeRegistry,
+  recentQuickSyncOutcomeStore,
+} from './quick-sync-feedback';

@@ -5,10 +5,12 @@ import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   registerAutoSyncHandlers,
   registerConnectionHandlers,
+  registerQuickSyncCommandHandler,
   registerScrollSyncHandlers,
   registerTabEventHandlers,
 } from './handlers';
 import { initializeBackground } from './lib/background-initialization';
+import { recentQuickSyncOutcomeStore } from './lib/quick-sync-feedback';
 
 const logger = new ExtensionLogger({ scope: 'background' });
 
@@ -28,8 +30,12 @@ browser.runtime.onInstalled.addListener((): void => {
 // Register all message handlers and event listeners
 logger.info('Background script loaded, registering message handlers');
 
+registerQuickSyncCommandHandler();
 registerScrollSyncHandlers();
-registerConnectionHandlers();
+registerConnectionHandlers({
+  getRecentQuickSyncOutcome: recentQuickSyncOutcomeStore.read,
+  now: Date.now,
+});
 registerAutoSyncHandlers();
 registerTabEventHandlers();
 
