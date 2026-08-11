@@ -13,6 +13,7 @@ export interface SyncState {
   isAutoSync: boolean;
   mode: SyncMode;
   tabId: number;
+  sessionEpoch: number;
   isManualScrollEnabled: boolean;
   lastNavigationUrl: string;
   lastSyncedRatio: number;
@@ -46,6 +47,7 @@ export function createInitialSyncState(): SyncState {
     isAutoSync: false,
     mode: 'ratio',
     tabId: 0,
+    sessionEpoch: 0,
     isManualScrollEnabled: false,
     lastNavigationUrl: window.location.href,
     lastSyncedRatio: 0,
