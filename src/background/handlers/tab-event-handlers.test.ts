@@ -61,7 +61,10 @@ type EventListeners = {
 
 const eventListeners: EventListeners = {};
 
-const { waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+const { quickSyncCoordinatorMock, waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+  quickSyncCoordinatorMock: {
+    invalidateCandidateForTab: vi.fn().mockResolvedValue(false),
+  },
   waitForBackgroundInitializationMock: vi.fn(),
 }));
 
@@ -193,6 +196,10 @@ vi.mock('../lib/sync-transition-gate', () => ({
         }),
     ),
   },
+}));
+
+vi.mock('./quick-sync-command-handler', () => ({
+  quickSyncCoordinator: quickSyncCoordinatorMock,
 }));
 
 function getListener<K extends keyof EventListeners>(key: K): NonNullable<EventListeners[K]> {
@@ -389,6 +396,15 @@ describe('registerTabEventHandlers', () => {
   });
 
   describe('tabs.onRemoved', () => {
+    it('invalidates only a candidate owned by the removed tab through the transition gate', async () => {
+      await getListener('tabs.onRemoved')(7);
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).toHaveBeenCalledWith(
+        expect.objectContaining({ operationGeneration: 1 }),
+        7,
+      );
+    });
+
     it('removes tab from manualSyncOverriddenTabs', async () => {
       manualSyncOverriddenTabs.add(7);
 
@@ -511,6 +527,31 @@ describe('registerTabEventHandlers', () => {
       await getListener('tabs.onRemoved')(1);
 
       expect(updateAutoSyncGroup).toHaveBeenCalledWith(2, 'https://example.com/rejoin');
+    });
+  });
+
+  describe('Quick Sync navigation invalidation', () => {
+    it('invalidates a candidate on top-level URL navigation through the transition gate', async () => {
+      await getListener('tabs.onUpdated')(
+        7,
+        { url: 'https://example.com/next' },
+        { id: 7, url: 'https://example.com/next' },
+      );
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).toHaveBeenCalledWith(
+        expect.objectContaining({ operationGeneration: 1 }),
+        7,
+      );
+    });
+
+    it('does not invalidate a candidate for a status-only update', async () => {
+      await getListener('tabs.onUpdated')(
+        7,
+        { status: 'complete' },
+        { id: 7, url: 'https://example.com/current' },
+      );
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).not.toHaveBeenCalled();
     });
   });
 

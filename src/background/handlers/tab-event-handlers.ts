@@ -54,6 +54,8 @@ import {
 } from '../lib/sync-state';
 import { syncTransitionGate } from '../lib/sync-transition-gate';
 
+import { quickSyncCoordinator } from './quick-sync-command-handler';
+
 import type {
   ManualSessionLifecycleController,
   ReconnectAttemptToken,
@@ -346,6 +348,9 @@ export function registerTabEventHandlers(): void {
     if (readiness.manual.status !== 'ready') {
       return;
     }
+    await syncTransitionGate.run((context) =>
+      quickSyncCoordinator.invalidateCandidateForTab(context, removedTabId),
+    );
     clearPendingUrlSyncContextualHint(removedTabId);
 
     if (readiness.auto.status === 'ready' && autoSyncState.enabled) {
@@ -485,6 +490,11 @@ export function registerTabEventHandlers(): void {
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
       return;
+    }
+    if (changeInfo.url) {
+      await syncTransitionGate.run((context) =>
+        quickSyncCoordinator.invalidateCandidateForTab(context, tabId),
+      );
     }
     const manualSessionEvent = captureManualSessionEvent(tabId);
 
