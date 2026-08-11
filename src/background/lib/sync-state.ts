@@ -116,6 +116,13 @@ export async function restoreSyncState(): Promise<RestoreSyncStateResult> {
     return { status: 'invalid-state', reason: parsedState.reason };
   }
 
+  if (parsedState.migrated) {
+    const persistResult = await persistSyncState(parsedState.state);
+    if (persistResult.status === 'storage-error') {
+      return persistResult;
+    }
+  }
+
   commitSyncState(parsedState.state);
   logger.info('Sync state restored from storage', {
     linkedTabCount: parsedState.state.linkedTabs.length,

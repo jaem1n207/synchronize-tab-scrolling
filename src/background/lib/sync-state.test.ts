@@ -197,7 +197,9 @@ describe('sync-state', () => {
   });
 
   describe('restoreSyncState', () => {
-    it('parses and commits a valid stored state without reconnecting tabs', async () => {
+    it('persists a migrated stored state before committing it without reconnecting tabs', async () => {
+      const previouslyCommitted = createActiveState({ revision: 9 });
+      commitSyncState(previouslyCommitted);
       mockedBrowser.storage.local.get.mockResolvedValueOnce({
         syncState: {
           isActive: true,
@@ -206,10 +208,13 @@ describe('sync-state', () => {
           lastActiveSyncedTabId: 7,
         },
       });
+      mockedBrowser.storage.local.set.mockImplementationOnce(async () => {
+        expect(getSyncStateSnapshot()).toEqual(previouslyCommitted);
+      });
 
       await expect(restoreSyncState()).resolves.toEqual({ status: 'ready' });
 
-      expect(getSyncStateSnapshot()).toEqual({
+      const repairedState = {
         isActive: true,
         linkedTabs: [7, 8],
         connectionStatuses: { 7: 'connected', 8: 'error' },
@@ -217,7 +222,9 @@ describe('sync-state', () => {
         lastActiveSyncedTabId: 7,
         revision: 0,
         sessionEpoch: 0,
-      });
+      };
+      expect(mockedBrowser.storage.local.set).toHaveBeenCalledWith({ syncState: repairedState });
+      expect(getSyncStateSnapshot()).toEqual(repairedState);
       expect(mockedBrowser.tabs.query).not.toHaveBeenCalled();
       expect(mockedSendMessage).not.toHaveBeenCalled();
       expect(loggerMock.info).toHaveBeenCalledWith('Sync state restored from storage', {
@@ -225,6 +232,26 @@ describe('sync-state', () => {
         revision: 0,
         sessionEpoch: 0,
       });
+    });
+
+    it('preserves committed memory when a migrated-state repair write fails', async () => {
+      const previouslyCommitted = createActiveState({ revision: 12 });
+      commitSyncState(previouslyCommitted);
+      mockedBrowser.storage.local.get.mockResolvedValueOnce({
+        syncState: {
+          isActive: true,
+          linkedTabs: [7, 8],
+          connectionStatuses: { 7: 'connected' },
+          lastActiveSyncedTabId: 7,
+        },
+      });
+      mockedBrowser.storage.local.set.mockRejectedValueOnce(new Error('storage set failed'));
+
+      await expect(restoreSyncState()).resolves.toEqual({ status: 'storage-error' });
+
+      expect(getSyncStateSnapshot()).toEqual(previouslyCommitted);
+      expect(mockedBrowser.tabs.query).not.toHaveBeenCalled();
+      expect(mockedSendMessage).not.toHaveBeenCalled();
     });
 
     it('commits the safe default when storage has no syncState', async () => {
