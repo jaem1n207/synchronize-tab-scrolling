@@ -34,6 +34,7 @@ export const QUICK_SYNC_REQUIRED_MESSAGES: Readonly<Record<string, ReadonlyArray
   activeSyncTabsHeading: [],
   activeSyncEditNotice: [],
   currentTabLocation: [],
+  otherSyncedTab: [],
   currentWindowLocation: [],
   otherWindowLocation: [],
   reassignQuickSyncShortcut: [],
