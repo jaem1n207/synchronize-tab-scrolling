@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import browser from 'webextension-polyfill';
 
+import type { RecentQuickSyncOutcome } from '~/shared/types/quick-sync';
+
 import {
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
@@ -18,9 +20,12 @@ import {
 
 import { registerConnectionHandlers } from './connection-handlers';
 
-interface TabPayload {
-  tabId: number;
+interface MessageData {
+  tabId?: number;
   expectedRevision?: number;
+  source?: string;
+  viewerTabId?: number;
+  viewerWindowId?: number;
 }
 
 interface MessageSender {
@@ -28,7 +33,7 @@ interface MessageSender {
 }
 
 interface HandlerRequest {
-  data: TabPayload;
+  data: MessageData;
   sender: MessageSender;
 }
 
@@ -254,51 +259,63 @@ describe('registerConnectionHandlers', () => {
   });
 
   describe('sync:get-status', () => {
-    it('returns an unavailable discriminator without false inactive topology', async () => {
+    it('returns an error discriminator without false inactive topology', async () => {
       waitForBackgroundInitializationMock.mockResolvedValue({
         manual: { status: 'storage-error' },
         auto: { status: 'ready' },
       });
       const handler = getHandler('sync:get-status');
 
-      const result = await handler({ data: { tabId: 1 }, sender: { tabId: 1 } });
+      const result = await handler({
+        data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+        sender: {},
+      });
 
       expect(result).toEqual({
-        status: 'unavailable',
+        status: 'error',
         reason: 'storage-error',
       });
+      expect(getSyncStateSnapshot).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
     });
 
-    it('returns inactive status when sync is not active', async () => {
+    it('returns canonical inactive status from one committed snapshot', async () => {
+      syncState.revision = 8;
+      syncState.sessionEpoch = 3;
       const handler = getHandler('sync:get-status');
 
-      const result = await handler({ data: { tabId: 1 }, sender: { tabId: 1 } });
+      const result = await handler({
+        data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+        sender: {},
+      });
 
       expect(result).toEqual({
-        status: 'ready',
-        success: false,
-        isActive: false,
-        revision: 0,
-        linkedTabs: [],
-        connectedTabs: [],
-        connectionStatuses: {},
+        status: 'inactive',
+        revision: 8,
+        sessionEpoch: 3,
       });
-      expect(vi.mocked(browser.tabs.query)).not.toHaveBeenCalled();
+      expect(getSyncStateSnapshot).toHaveBeenCalledTimes(1);
+      expect(browser.tabs.get).not.toHaveBeenCalled();
     });
 
-    it('returns linked tabs and connection statuses when sync is active', async () => {
+    it('returns the authoritative active snapshot without URL fields', async () => {
       syncState.isActive = true;
-      syncState.linkedTabs = [1, 2];
+      syncState.linkedTabs = [1, 2, 3];
       syncState.connectionStatuses = {
         1: 'connected',
         2: 'disconnected',
+        3: 'error',
       };
+      syncState.mode = 'ratio';
+      syncState.revision = 5;
+      syncState.sessionEpoch = 2;
 
       const tabs = new Map<number, browser.Tabs.Tab>([
         [
           1,
           {
             id: 1,
+            windowId: 4,
             index: 0,
             highlighted: false,
             active: true,
@@ -313,6 +330,7 @@ describe('registerConnectionHandlers', () => {
           2,
           {
             id: 2,
+            windowId: 9,
             index: 1,
             highlighted: false,
             active: false,
@@ -325,6 +343,9 @@ describe('registerConnectionHandlers', () => {
         ],
       ]);
       vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
+        if (tabId === 3) {
+          throw new Error('Missing tab');
+        }
         const tab = tabs.get(tabId);
         if (!tab) {
           throw new Error('Missing tab');
@@ -333,80 +354,209 @@ describe('registerConnectionHandlers', () => {
       });
 
       const handler = getHandler('sync:get-status');
-      const result = await handler({ data: { tabId: 1 }, sender: { tabId: 9 } });
+      const result = await handler({
+        data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+        sender: {},
+      });
 
       expect(result).toEqual({
-        status: 'ready',
-        success: true,
-        isActive: true,
-        revision: 0,
-        linkedTabs: [
-          {
-            id: 1,
-            title: 'Tab One',
-            url: 'https://one.dev',
-            favIconUrl: 'one.ico',
-            eligible: true,
-          },
-          {
-            id: 2,
-            title: 'Tab Two',
-            url: 'https://two.dev',
-            favIconUrl: undefined,
-            eligible: true,
-          },
-        ],
-        connectedTabs: [1, 2],
-        connectionStatuses: {
-          1: 'connected',
-          2: 'disconnected',
+        status: 'active',
+        snapshot: {
+          revision: 5,
+          sessionEpoch: 2,
+          mode: 'ratio',
+          linkedTabIds: [1, 2, 3],
+          tabs: [
+            {
+              availability: 'available',
+              tabId: 1,
+              title: 'Tab One',
+              favIconUrl: 'one.ico',
+              windowId: 4,
+              location: 'current-tab',
+              connectionStatus: 'connected',
+            },
+            {
+              availability: 'available',
+              tabId: 2,
+              title: 'Tab Two',
+              windowId: 9,
+              location: 'other-window',
+              connectionStatus: 'disconnected',
+            },
+            {
+              availability: 'unavailable',
+              tabId: 3,
+              connectionStatus: 'error',
+            },
+          ],
         },
-        currentTabId: 9,
       });
+      expect(JSON.stringify(result)).not.toContain('https://');
+      expect(getSyncStateSnapshot).toHaveBeenCalledTimes(1);
     });
 
-    it('skips missing tabs in queried results gracefully', async () => {
+    it('derives content-script viewer IDs from the validated sender tab', async () => {
       syncState.isActive = true;
-      syncState.linkedTabs = [1, 3];
-      syncState.connectionStatuses = { 1: 'connected', 3: 'connected' };
-
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
       vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
-        if (tabId !== 1) {
-          throw new Error('Missing tab');
-        }
         return {
-          id: 1,
+          id: tabId,
+          windowId: tabId === 1 ? 4 : 8,
           index: 0,
           highlighted: false,
-          active: true,
+          active: tabId === 1,
           pinned: false,
           incognito: false,
-          title: 'Only Present Tab',
-          url: 'https://present.dev',
-          favIconUrl: undefined,
+          title: `Tab ${tabId}`,
         };
       });
 
       const handler = getHandler('sync:get-status');
-      const result = await handler({ data: { tabId: 1 }, sender: { tabId: 1 } });
+      const result = await handler({
+        data: { source: 'content-script' },
+        sender: { tabId: 1 },
+      });
 
-      expect(result).toEqual({
-        status: 'ready',
-        success: true,
-        isActive: true,
+      expect(result).toMatchObject({
+        status: 'active',
+        snapshot: {
+          tabs: [
+            { tabId: 1, location: 'current-tab' },
+            { tabId: 2, location: 'other-window' },
+          ],
+        },
+      });
+      expect(browser.tabs.get).toHaveBeenNthCalledWith(1, 1);
+    });
+
+    it.each([
+      {
+        name: 'missing popup tab id',
+        data: { source: 'popup', viewerWindowId: 4 },
+        sender: {},
+      },
+      {
+        name: 'non-positive popup tab id',
+        data: { source: 'popup', viewerTabId: 0, viewerWindowId: 4 },
+        sender: {},
+      },
+      {
+        name: 'unsafe popup window id',
+        data: {
+          source: 'popup',
+          viewerTabId: 1,
+          viewerWindowId: Number.MAX_SAFE_INTEGER + 1,
+        },
+        sender: {},
+      },
+      {
+        name: 'missing content sender',
+        data: { source: 'content-script' },
+        sender: {},
+      },
+    ])('rejects $name before reading or querying topology', async ({ data, sender }) => {
+      const handler = getHandler('sync:get-status');
+
+      await expect(handler({ data, sender })).resolves.toEqual({
+        status: 'error',
+        reason: 'invalid-viewer-context',
+      });
+      expect(getSyncStateSnapshot).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+    });
+
+    it('rejects mismatched content sender metadata before reading topology', async () => {
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 2,
+        windowId: 4,
+        index: 0,
+        highlighted: false,
+        active: true,
+        pinned: false,
+        incognito: false,
+      });
+      const handler = getHandler('sync:get-status');
+
+      await expect(
+        handler({ data: { source: 'content-script' }, sender: { tabId: 1 } }),
+      ).resolves.toEqual({
+        status: 'error',
+        reason: 'invalid-viewer-context',
+      });
+      expect(getSyncStateSnapshot).not.toHaveBeenCalled();
+      expect(browser.tabs.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('includes a non-expired recent outcome only for its popup viewer', async () => {
+      const recentOutcome: RecentQuickSyncOutcome = {
+        tabId: 1,
+        resultKind: 'start-failed',
+        reason: 'connection-timeout',
+        expiresAt: 2_000,
+      };
+      messageHandlers.clear();
+      registerConnectionHandlers({
+        getRecentQuickSyncOutcome: () => recentOutcome,
+        now: () => 1_000,
+      });
+      const handler = getHandler('sync:get-status');
+
+      const matching = await handler({
+        data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+        sender: {},
+      });
+      const otherViewer = await handler({
+        data: { source: 'popup', viewerTabId: 2, viewerWindowId: 4 },
+        sender: {},
+      });
+      const contentViewer = await handler({
+        data: { source: 'content-script' },
+        sender: { tabId: 1 },
+      });
+
+      expect(matching).toEqual({
+        status: 'inactive',
         revision: 0,
-        linkedTabs: [
-          {
-            id: 1,
-            title: 'Only Present Tab',
-            url: 'https://present.dev',
-            favIconUrl: undefined,
-            eligible: true,
-          },
-        ],
-        connectedTabs: [1, 3],
-        connectionStatuses: { 1: 'connected', 3: 'connected' },
-        currentTabId: 1,
+        sessionEpoch: 7,
+        recentQuickSyncOutcome: recentOutcome,
+      });
+      expect(otherViewer).toEqual({
+        status: 'inactive',
+        revision: 0,
+        sessionEpoch: 7,
+      });
+      expect(contentViewer).toEqual({
+        status: 'error',
+        reason: 'invalid-viewer-context',
+      });
+    });
+
+    it('does not include an expired matching popup outcome', async () => {
+      const recentOutcome: RecentQuickSyncOutcome = {
+        tabId: 1,
+        resultKind: 'add-failed',
+        reason: 'content-unreachable',
+        expiresAt: 1_000,
+      };
+      messageHandlers.clear();
+      registerConnectionHandlers({
+        getRecentQuickSyncOutcome: () => recentOutcome,
+        now: () => 1_000,
+      });
+      const handler = getHandler('sync:get-status');
+
+      await expect(
+        handler({
+          data: { source: 'popup', viewerTabId: 1, viewerWindowId: 4 },
+          sender: {},
+        }),
+      ).resolves.toEqual({
+        status: 'inactive',
+        revision: 0,
+        sessionEpoch: 7,
       });
     });
   });

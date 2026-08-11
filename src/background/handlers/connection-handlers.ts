@@ -2,12 +2,13 @@ import { onMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
+import type { StartSyncContentMessage, StartSyncContentResponse } from '~/shared/types/messages';
+import type { RecentQuickSyncOutcome } from '~/shared/types/quick-sync';
 import type {
-  LegacySyncStatusResponse,
-  StartSyncContentMessage,
-  StartSyncContentResponse,
-} from '~/shared/types/messages';
-import type { ManualReconnectResult } from '~/shared/types/sync-session';
+  ManualReconnectResult,
+  SyncStatusResponseMessage,
+  SyncStatusViewerContext,
+} from '~/shared/types/sync-session';
 
 import {
   removeTabFromAllAutoSyncGroups,
@@ -24,6 +25,7 @@ import {
   createManualSessionLifecycleController,
   executeManualReconnect,
 } from '../lib/sync-session-orchestrator';
+import { buildManualSyncSnapshot } from '../lib/sync-session-snapshot';
 import {
   syncState,
   getSyncStateSnapshot,
@@ -182,66 +184,114 @@ function isCurrentAutoRecovery(snapshot: AutoRecoverySnapshot): boolean {
   );
 }
 
-export function registerConnectionHandlers(): void {
+export interface ConnectionHandlerDependencies {
+  getRecentQuickSyncOutcome: () => RecentQuickSyncOutcome | undefined;
+  now: () => number;
+}
+
+const defaultConnectionHandlerDependencies: ConnectionHandlerDependencies = {
+  getRecentQuickSyncOutcome: () => undefined,
+  now: Date.now,
+};
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+async function resolveSyncStatusViewer(
+  request: unknown,
+  senderTabId: unknown,
+): Promise<SyncStatusViewerContext | null> {
+  if (typeof request !== 'object' || request === null) {
+    return null;
+  }
+
+  const source = Reflect.get(request, 'source');
+  if (source === 'popup') {
+    const viewerTabId = Reflect.get(request, 'viewerTabId');
+    const viewerWindowId = Reflect.get(request, 'viewerWindowId');
+    return isPositiveSafeInteger(viewerTabId) && isPositiveSafeInteger(viewerWindowId)
+      ? { viewerTabId, viewerWindowId }
+      : null;
+  }
+
+  if (source !== 'content-script' || !isPositiveSafeInteger(senderTabId)) {
+    return null;
+  }
+
+  try {
+    const senderTab = await browser.tabs.get(senderTabId);
+    if (senderTab.id !== senderTabId || !isPositiveSafeInteger(senderTab.windowId)) {
+      return null;
+    }
+    return {
+      viewerTabId: senderTabId,
+      viewerWindowId: senderTab.windowId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getMatchingRecentOutcome(
+  requestSource: unknown,
+  viewer: SyncStatusViewerContext,
+  dependencies: ConnectionHandlerDependencies,
+): RecentQuickSyncOutcome | undefined {
+  if (requestSource !== 'popup') {
+    return undefined;
+  }
+
+  const outcome = dependencies.getRecentQuickSyncOutcome();
+  return outcome?.tabId === viewer.viewerTabId && outcome.expiresAt > dependencies.now()
+    ? outcome
+    : undefined;
+}
+
+export function registerConnectionHandlers(
+  dependencies: ConnectionHandlerDependencies = defaultConnectionHandlerDependencies,
+): void {
   const manualLifecycleController = createConnectionLifecycleController();
 
-  onMessage('sync:get-status', async ({ sender }) => {
-    const senderTabId = sender.tabId;
+  onMessage('sync:get-status', async ({ data, sender }) => {
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
-      const response: LegacySyncStatusResponse = {
-        status: 'unavailable',
-        reason:
-          readiness.manual.status === 'storage-error'
-            ? 'storage-error'
-            : readiness.manual.status === 'invalid-state'
-              ? 'invalid-state'
-              : 'session-state-unavailable',
+      const response: SyncStatusResponseMessage = {
+        status: 'error',
+        reason: readiness.manual.status === 'storage-error' ? 'storage-error' : 'invalid-state',
       };
       return response;
     }
 
-    if (!syncState.isActive) {
-      const response: LegacySyncStatusResponse = {
-        status: 'ready',
-        success: false,
-        isActive: false,
-        revision: syncState.revision,
-        linkedTabs: [],
-        connectedTabs: [],
-        connectionStatuses: {},
+    const viewer = await resolveSyncStatusViewer(data, sender.tabId);
+    if (viewer === null) {
+      const response: SyncStatusResponseMessage = {
+        status: 'error',
+        reason: 'invalid-viewer-context',
       };
       return response;
     }
 
-    const tabInfoPromises = syncState.linkedTabs.map(async (tabId) => {
-      try {
-        const tab = await browser.tabs.get(tabId);
-        return {
-          id: tabId,
-          title: tab.title || 'Untitled',
-          url: tab.url || '',
-          favIconUrl: tab.favIconUrl,
-          eligible: true,
-        };
-      } catch {
-        return null;
-      }
-    });
+    const requestSource =
+      typeof data === 'object' && data !== null ? Reflect.get(data, 'source') : undefined;
+    const recentQuickSyncOutcome = getMatchingRecentOutcome(requestSource, viewer, dependencies);
+    const state = getSyncStateSnapshot();
 
-    const linkedTabsInfo = (await Promise.all(tabInfoPromises)).filter(
-      (info): info is NonNullable<typeof info> => info !== null,
-    );
+    if (!state.isActive) {
+      const response: SyncStatusResponseMessage = {
+        status: 'inactive',
+        revision: state.revision,
+        sessionEpoch: state.sessionEpoch,
+        ...(recentQuickSyncOutcome === undefined ? {} : { recentQuickSyncOutcome }),
+      };
+      return response;
+    }
 
-    const response: LegacySyncStatusResponse = {
-      status: 'ready',
-      success: true,
-      isActive: true,
-      revision: syncState.revision,
-      linkedTabs: linkedTabsInfo,
-      connectedTabs: syncState.linkedTabs,
-      connectionStatuses: syncState.connectionStatuses,
-      currentTabId: senderTabId,
+    const snapshot = await buildManualSyncSnapshot(state, viewer);
+    const response: SyncStatusResponseMessage = {
+      status: 'active',
+      snapshot,
+      ...(recentQuickSyncOutcome === undefined ? {} : { recentQuickSyncOutcome }),
     };
     return response;
   });
