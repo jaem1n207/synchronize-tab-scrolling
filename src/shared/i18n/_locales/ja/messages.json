@@ -824,6 +824,9 @@
   "currentTabLocation": {
     "message": "現在のタブ"
   },
+  "otherSyncedTab": {
+    "message": "同期中の別のタブ"
+  },
   "currentWindowLocation": {
     "message": "現在のウィンドウ"
   },
