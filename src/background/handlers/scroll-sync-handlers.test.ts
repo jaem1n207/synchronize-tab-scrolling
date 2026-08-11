@@ -515,6 +515,7 @@ describe('registerScrollSyncHandlers', () => {
           11: { success: true },
           22: { success: true },
         },
+        revision: 1,
       });
       expect(transitionEvents.slice(0, 2)).toEqual(['transition-gate', 'auto-lock']);
       expect(syncTransitionGate.run).toHaveBeenCalledTimes(1);
@@ -544,8 +545,8 @@ describe('registerScrollSyncHandlers', () => {
 
     it('preserves popup partial connection details while cleaning the rejected staged tab', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
-      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) =>
-        destination.tabId === 33
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (message, __, destination) =>
+        message === 'scroll:start' && destination.tabId === 33
           ? { success: false, tabId: 33 }
           : { success: true, tabId: destination.tabId },
       );
@@ -563,36 +564,29 @@ describe('registerScrollSyncHandlers', () => {
           22: { success: true },
           33: { success: false, error: 'Invalid acknowledgment' },
         },
+        revision: 1,
       });
       expect(syncState.revision).toBe(1);
       expect(syncState.sessionEpoch).toBe(1);
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:stop',
         { tabIds: [33], isAutoSync: false },
         { context: 'content-script', tabId: 33 },
+        1_000,
       );
     });
 
     it('passes through an invalid staged Stop acknowledgement as a degraded popup warning', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
-      vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) =>
-        destination.tabId === 33
-          ? { success: false, tabId: 33 }
-          : { success: true, tabId: destination.tabId },
-      );
-      sendMessageMock.mockImplementation(
-        async (messageId: string, _data: unknown, destination: unknown) => {
-          if (
-            messageId === 'scroll:stop' &&
-            typeof destination === 'object' &&
-            destination !== null
-          ) {
-            const tabId = Reflect.get(destination, 'tabId');
-            return { success: false, tabId };
-          }
-          return { success: true };
-        },
-      );
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (message, __, destination) => {
+        if (message === 'scroll:start' && destination.tabId === 33) {
+          return { success: false, tabId: 33 };
+        }
+        if (message === 'scroll:stop') {
+          return { success: false, tabId: destination.tabId };
+        }
+        return { success: true, tabId: destination.tabId };
+      });
 
       const result = await handler({
         data: { tabIds: [11, 22, 33], mode: 'ratio' },
@@ -607,6 +601,7 @@ describe('registerScrollSyncHandlers', () => {
           22: { success: true },
           33: { success: false, error: 'Invalid acknowledgment' },
         },
+        revision: 1,
         warning: 'auto-sync-degraded',
       });
       expect(syncState.linkedTabs).toEqual([11, 22]);
@@ -650,6 +645,7 @@ describe('registerScrollSyncHandlers', () => {
           11: { success: true },
           22: { success: true },
         },
+        revision: 0,
         error: 'Failed to persist synchronization state',
       });
       expect(syncState).toMatchObject({
@@ -681,6 +677,7 @@ describe('registerScrollSyncHandlers', () => {
           2: { success: true },
           3: { success: true },
         },
+        revision: 0,
       });
       expect(syncState.isActive).toBe(true);
       expect(syncState.linkedTabs).toEqual([1, 2, 3]);
@@ -719,6 +716,7 @@ describe('registerScrollSyncHandlers', () => {
           10: { success: true },
           20: { success: false, error: 'Timeout after 1000ms' },
         },
+        revision: 0,
         error: 'Failed to connect to at least 2 tabs',
       });
       expect(sendMessage).toHaveBeenCalledWith(
@@ -993,6 +991,7 @@ describe('registerScrollSyncHandlers', () => {
           401: { success: true },
           402: { success: true },
         },
+        revision: 0,
       });
       expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
@@ -1000,35 +999,49 @@ describe('registerScrollSyncHandlers', () => {
   });
 
   describe('scroll:stop', () => {
-    it('stops sync and clears sync state', async () => {
-      const handler = getHandler<StopSyncMessage>('scroll:stop');
+    it('ignores caller tab IDs and durably stops every committed linked tab', async () => {
+      const handler = getHandler<{ expectedRevision: number; tabIds: Array<number> }>(
+        'scroll:stop',
+      );
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
       syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
       syncState.mode = 'ratio';
+      syncState.revision = 7;
+      syncState.sessionEpoch = 4;
 
       const result = await handler({
-        data: { tabIds: [1, 2], isAutoSync: true },
+        data: { expectedRevision: 7, tabIds: [999] },
         sender: {},
       });
 
-      expect(result).toEqual({ success: true });
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(result).toEqual({ status: 'committed', revision: 8 });
+      expect(persistSyncState).toHaveBeenCalledWith({
+        isActive: false,
+        linkedTabs: [],
+        connectionStatuses: {},
+        lastActiveSyncedTabId: null,
+        revision: 8,
+        sessionEpoch: 4,
+      });
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:stop',
-        { tabIds: [1, 2], isAutoSync: true },
+        { tabIds: [1], isAutoSync: false },
         { context: 'content-script', tabId: 1 },
+        1_000,
       );
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:stop',
-        { tabIds: [1, 2], isAutoSync: true },
+        { tabIds: [2], isAutoSync: false },
         { context: 'content-script', tabId: 2 },
+        1_000,
       );
       expect(stopKeepAlive).toHaveBeenCalledTimes(1);
       expect(syncState.isActive).toBe(false);
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(syncState.mode).toBeUndefined();
-      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
     });
 
     it('deactivates auto-sync groups that include stopped tabs', async () => {
@@ -1053,47 +1066,78 @@ describe('registerScrollSyncHandlers', () => {
       expect(autoSyncState.groups.get('https://group-c.com')?.isActive).toBe(false);
     });
 
-    it('clears addTabSuggestedTabs on sync stop', async () => {
+    it('rejects a stale popup Stop without sending content cleanup', async () => {
       const handler = getHandler<StopSyncMessage>('scroll:stop');
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
-      addTabSuggestedTabs.add(10);
-      addTabSuggestedTabs.add(20);
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.revision = 8;
 
-      await handler({
-        data: { tabIds: [1, 2], isAutoSync: true },
+      const result = await handler({
+        data: { expectedRevision: 7 },
         sender: {},
       });
 
-      expect(addTabSuggestedTabs.size).toBe(0);
+      expect(result).toEqual({ status: 'rejected', reason: 'stale-revision' });
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalledWith(
+        'scroll:stop',
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(syncState.isActive).toBe(true);
     });
 
-    it('re-adds tabs to auto-sync groups on manual sync stop when auto-sync is enabled', async () => {
+    it('preserves the active session when durable Stop persistence fails', async () => {
       const handler = getHandler<StopSyncMessage>('scroll:stop');
-      autoSyncState.enabled = true;
-      manualSyncOverriddenTabs.add(11);
-      manualSyncOverriddenTabs.add(12);
-      vi.mocked(browser.tabs.get).mockImplementation(
-        async (tabId: number) =>
-          ({
-            id: tabId,
-            index: 0,
-            highlighted: false,
-            active: false,
-            pinned: false,
-            incognito: false,
-            url: `https://readd.com/${tabId}`,
-            title: `Tab ${tabId}`,
-          }) as browser.Tabs.Tab,
+      syncState.isActive = true;
+      syncState.linkedTabs = [11, 12];
+      syncState.connectionStatuses = { 11: 'connected', 12: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.revision = 9;
+      syncState.sessionEpoch = 5;
+      vi.mocked(persistSyncState).mockResolvedValue({ status: 'storage-error' });
+
+      const result = await handler({ data: { expectedRevision: 9 }, sender: {} });
+
+      expect(result).toEqual({ status: 'rejected', reason: 'persistence-failed' });
+      expect(syncState).toMatchObject({
+        isActive: true,
+        linkedTabs: [11, 12],
+        revision: 9,
+        sessionEpoch: 5,
+      });
+      expect(stopKeepAlive).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalledWith(
+        'scroll:stop',
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('reports incomplete cleanup for a mismatched Stop acknowledgement', async () => {
+      const handler = getHandler<StopSyncMessage>('scroll:stop');
+      syncState.isActive = true;
+      syncState.linkedTabs = [11, 12];
+      syncState.connectionStatuses = { 11: 'connected', 12: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.revision = 9;
+      syncState.sessionEpoch = 5;
+      vi.mocked(sendMessageWithTimeout).mockImplementation(async (message, _, destination) =>
+        message === 'scroll:stop'
+          ? { success: true, tabId: destination.tabId === 12 ? 99 : destination.tabId }
+          : { success: true, tabId: destination.tabId },
       );
 
-      await handler({ data: { tabIds: [11, 12], isAutoSync: false }, sender: {} });
+      const result = await handler({ data: { expectedRevision: 9 }, sender: {} });
 
-      expect(manualSyncOverriddenTabs.has(11)).toBe(false);
-      expect(manualSyncOverriddenTabs.has(12)).toBe(false);
-      expect(updateAutoSyncGroup).toHaveBeenCalledTimes(2);
-      expect(updateAutoSyncGroup).toHaveBeenNthCalledWith(1, 11, 'https://readd.com/11');
-      expect(updateAutoSyncGroup).toHaveBeenNthCalledWith(2, 12, 'https://readd.com/12');
+      expect(result).toEqual({
+        status: 'committed',
+        revision: 10,
+        warning: 'cleanup-incomplete',
+      });
     });
   });
 
