@@ -43,6 +43,19 @@ const unavailableCases: Array<[QuickSyncShortcutState, string]> = [
   [{ status: 'unavailable' }, 'quickSyncShortcutUnavailable'],
 ];
 
+const assignmentTransitionCases: Array<[QuickSyncShortcutState, string]> = [
+  [
+    {
+      status: 'assigned',
+      rawShortcut: 'Command+Alt+Period',
+      label: '⌘ ⌥ .',
+    },
+    'quickSyncShortcutAssignedSummary:⌘ ⌥ .',
+  ],
+  [{ status: 'unassigned' }, 'quickSyncShortcutUnassigned'],
+  [{ status: 'unavailable' }, 'quickSyncShortcutUnavailable'],
+];
+
 describe('QuickSyncShortcutStatus', () => {
   it('renders a truthful loading state without a fallback shortcut or navigation', () => {
     const { onOpenSettings } = renderStatus({ status: 'loading' });
@@ -53,6 +66,28 @@ describe('QuickSyncShortcutStatus', () => {
     expect(screen.queryByText(/Command|Ctrl|⌘|⇧/)).not.toBeInTheDocument();
     expect(onOpenSettings).not.toHaveBeenCalled();
   });
+
+  it.each(assignmentTransitionCases)(
+    'announces the loading transition to %s through the same stable assignment status',
+    (assignment, expectedMessage) => {
+      const view = renderStatus({ status: 'loading' });
+      const assignmentStatus = screen.getByRole('status');
+
+      expect(assignmentStatus).toHaveAttribute('aria-live', 'polite');
+      expect(assignmentStatus).toHaveAttribute('aria-atomic', 'true');
+
+      view.rerender(
+        <QuickSyncShortcutStatus
+          assignment={assignment}
+          settingsResult={{ status: 'idle' }}
+          onOpenSettings={view.onOpenSettings}
+        />,
+      );
+
+      expect(screen.getByRole('status')).toBe(assignmentStatus);
+      expect(assignmentStatus).toHaveTextContent(expectedMessage);
+    },
+  );
 
   it('shows only the browser-reported assigned shortcut and never claims it is conflict-free', () => {
     renderStatus({
@@ -87,7 +122,9 @@ describe('QuickSyncShortcutStatus', () => {
   it('disables and marks the CTA busy while settings are opening', () => {
     renderStatus({ status: 'unassigned' }, { status: 'opening' });
 
-    expect(screen.getByRole('status')).toHaveTextContent('loading');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent('quickSyncShortcutUnassigned');
+    expect(screen.getByText('loading')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'reassignQuickSyncShortcut' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'reassignQuickSyncShortcut' })).toHaveAttribute(
       'aria-busy',
