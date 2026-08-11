@@ -11,7 +11,7 @@ import type {
   ContextualHintScrollMetrics,
   ContextualHintShowMessage,
 } from '~/shared/types/contextual-hints';
-import type { StartSyncContentResponse } from '~/shared/types/messages';
+import type { StartSyncContentMessage, StartSyncContentResponse } from '~/shared/types/messages';
 import type { SessionMessageIdentity } from '~/shared/types/sync-session';
 
 import {
@@ -207,14 +207,16 @@ export function registerScrollSyncHandlers(): void {
         logger.debug(`Sending scroll:start to tab ${tabId}`);
 
         // Send message with timeout and capture acknowledgment
-        const contentStartRequest =
+        const contentStartRequest = (
           startRequest.isAutoSync === true
-            ? { ...startRequest, currentTabId: tabId }
+            ? { ...startRequest, currentTabId: tabId, isAutoSync: true }
             : {
                 ...startRequest,
                 currentTabId: tabId,
+                isAutoSync: false,
                 sessionEpoch: syncState.sessionEpoch,
-              };
+              }
+        ) satisfies StartSyncContentMessage;
         const response = await sendMessageWithTimeout<StartSyncContentResponse>(
           'scroll:start',
           contentStartRequest,

@@ -27,14 +27,30 @@ export type SyncMode = 'ratio' | 'element';
 /**
  * Message to start scroll synchronization
  */
-export interface StartSyncMessage {
+interface StartSyncBase {
   tabIds: Array<number>;
   mode: SyncMode;
+  currentTabId?: number;
+}
+
+export interface StartSyncMessage extends StartSyncBase {
   /** When true, sync was initiated by auto-sync (not user action) */
   isAutoSync?: boolean;
-  currentTabId?: number;
-  sessionEpoch?: number;
 }
+
+export interface ManualStartSyncContentMessage extends StartSyncBase {
+  currentTabId: number;
+  isAutoSync?: false;
+  sessionEpoch: number;
+}
+
+export interface AutoStartSyncContentMessage extends StartSyncBase {
+  currentTabId: number;
+  isAutoSync: true;
+  sessionEpoch?: never;
+}
+
+export type StartSyncContentMessage = ManualStartSyncContentMessage | AutoStartSyncContentMessage;
 
 export type StartSyncConnectionResult = {
   success: boolean;

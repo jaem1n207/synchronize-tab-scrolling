@@ -34,7 +34,12 @@ import type {
   ContextualHintShowMessage,
   WebpageOverlayContextualHintId,
 } from '~/shared/types/contextual-hints';
-import type { ScrollSyncMessage, StartSyncMessage, UrlSyncMessage } from '~/shared/types/messages';
+import type {
+  ScrollSyncMessage,
+  StartSyncContentMessage,
+  StartSyncMessage,
+  UrlSyncMessage,
+} from '~/shared/types/messages';
 import type { SessionMessageIdentity } from '~/shared/types/sync-session';
 import type {
   UrlSyncMode,
@@ -894,22 +899,23 @@ export function initScrollSync() {
 
   // Listen for start sync message
   onMessage('scroll:start', async ({ data }) => {
-    const payload: StartSyncMessage & { sessionEpoch?: number } = data;
+    const payload: StartSyncContentMessage | StartSyncMessage = data;
     const isAutoSync = payload.isAutoSync === true;
+    const sessionEpoch = 'sessionEpoch' in payload ? payload.sessionEpoch : undefined;
     let committedSessionEpoch = 0;
 
     if (!isAutoSync) {
       if (
-        typeof payload.sessionEpoch !== 'number' ||
-        !Number.isSafeInteger(payload.sessionEpoch) ||
-        payload.sessionEpoch < 0
+        typeof sessionEpoch !== 'number' ||
+        !Number.isSafeInteger(sessionEpoch) ||
+        sessionEpoch < 0
       ) {
         return {
           success: false,
           tabId: payload.currentTabId ?? 0,
         };
       }
-      committedSessionEpoch = payload.sessionEpoch;
+      committedSessionEpoch = sessionEpoch;
     }
 
     // Hide pre-sync suggestion toasts without clearing contextual onboarding shown after navigation.
