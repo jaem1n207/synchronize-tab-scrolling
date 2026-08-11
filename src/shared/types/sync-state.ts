@@ -10,4 +10,6 @@ export interface SyncState {
   connectionStatuses: Record<number, ConnectionStatus>;
   mode?: SyncMode;
   lastActiveSyncedTabId: number | null;
+  revision: number;
+  sessionEpoch: number;
 }

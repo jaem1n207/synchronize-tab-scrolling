@@ -24,7 +24,7 @@ import {
 } from '../lib/auto-sync-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from '../lib/sync-state';
 
 import { registerAutoSyncHandlers } from './auto-sync-handlers';
 
@@ -117,7 +117,7 @@ vi.mock('../lib/sync-state', () => ({
     lastActiveSyncedTabId: null,
     mode: undefined as 'ratio' | 'element' | undefined,
   },
-  persistSyncState: vi.fn(),
+  persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
 }));
 
@@ -181,7 +181,7 @@ describe('registerAutoSyncHandlers', () => {
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(updateAutoSyncGroup).mockResolvedValue('https://example.com/page');
     vi.mocked(withAutoSyncLock).mockImplementation((fn: () => Promise<unknown>) => fn());
-    vi.mocked(persistSyncState).mockResolvedValue();
+    vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
 
     registerAutoSyncHandlers();
@@ -319,7 +319,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(autoSyncState.groups.has(normalizedUrl)).toBe(false);
       expect(syncState.isActive).toBe(true);
       expect(syncState.linkedTabs).toEqual([10, 20]);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'sync-suggestion:dismiss',
@@ -457,7 +457,7 @@ describe('registerAutoSyncHandlers', () => {
 
       expect(response).toEqual({ success: true });
       expect(dismissedUrlGroups.has(normalizedUrl)).toBe(true);
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -491,7 +491,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(manualSyncOverriddenTabs.has(1)).toBe(false);
       expect(manualSyncOverriddenTabs.has(2)).toBe(false);
       expect(autoSyncState.groups.has(normalizedUrl)).toBe(true);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -629,7 +629,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(manualSyncOverriddenTabs.has(3)).toBe(true);
       expect(removeTabFromAllAutoSyncGroups).toHaveBeenCalledWith(3);
       expect(syncState.linkedTabs).toEqual([1, 2, 3]);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'sync-suggestion:dismiss-add-tab',
@@ -692,7 +692,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(manualSyncOverriddenTabs.has(1)).toBe(true);
       expect(manualSyncOverriddenTabs.has(2)).toBe(true);
       expect(manualSyncOverriddenTabs.has(3)).toBe(false);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -707,7 +707,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(manualSyncOverriddenTabs.has(300)).toBe(false);
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
       expect(syncState.linkedTabs).toEqual([100, 200]);
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
       expect(sendMessageWithTimeout).toHaveBeenCalledTimes(3);
     });
@@ -723,7 +723,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(response).toEqual({ success: false, error: 'Error: Tab no longer exists' });
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
       expect(syncState.linkedTabs).toEqual([1, 2]);
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -739,7 +739,7 @@ describe('registerAutoSyncHandlers', () => {
       expect(browser.tabs.get).not.toHaveBeenCalled();
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
       expect(syncState.linkedTabs).toEqual([1, 2, 3]);
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 

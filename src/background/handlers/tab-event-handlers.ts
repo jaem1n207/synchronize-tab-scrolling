@@ -36,7 +36,7 @@ import { isContentScriptAlive, reinjectContentScript } from '../lib/content-scri
 import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
+import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/tab-event-handlers' });
 const ACTIVE_SYNC_METADATA_TIMEOUT_MS = 500;
@@ -222,7 +222,7 @@ export function registerTabEventHandlers(): void {
       syncState.linkedTabs = [];
       syncState.connectionStatuses = {};
       syncState.mode = undefined;
-      await persistSyncState();
+      await persistCommittedSyncStateLegacy();
 
       // ✅ FIX: Re-add remaining tabs to auto-sync groups if auto-sync is enabled
       if (autoSyncState.enabled) {
@@ -239,7 +239,7 @@ export function registerTabEventHandlers(): void {
       }
     } else {
       logger.info(`Continuing sync with ${syncState.linkedTabs.length} tabs`);
-      await persistSyncState();
+      await persistCommittedSyncStateLegacy();
       await broadcastSyncStatus();
     }
   });
@@ -459,12 +459,12 @@ export function registerTabEventHandlers(): void {
       syncState.connectionStatuses[tabId] = 'connected';
       logger.info(`Successfully reconnected tab ${tabId}`);
 
-      await persistSyncState();
+      await persistCommittedSyncStateLegacy();
       await broadcastSyncStatus();
     } catch (error) {
       logger.error(`Failed to reconnect tab ${tabId}`, { error });
       syncState.connectionStatuses[tabId] = 'error';
-      await persistSyncState();
+      await persistCommittedSyncStateLegacy();
     }
   });
 
@@ -484,7 +484,7 @@ export function registerTabEventHandlers(): void {
     if (isAlive) {
       if (syncState.connectionStatuses[tabId] !== 'connected') {
         syncState.connectionStatuses[tabId] = 'connected';
-        await persistSyncState();
+        await persistCommittedSyncStateLegacy();
         await broadcastSyncStatus();
       }
       logger.debug(`Tab ${tabId} content script is alive`);
@@ -508,7 +508,7 @@ export function registerTabEventHandlers(): void {
       if (response && response.success && response.tabId === tabId) {
         syncState.connectionStatuses[tabId] = 'connected';
         logger.info(`Successfully reconnected activated tab ${tabId}`);
-        await persistSyncState();
+        await persistCommittedSyncStateLegacy();
         await broadcastSyncStatus();
         return;
       }
@@ -521,7 +521,7 @@ export function registerTabEventHandlers(): void {
     if (!reinjectSuccess) {
       logger.error(`Failed to recover tab ${tabId} after all attempts`);
       syncState.connectionStatuses[tabId] = 'error';
-      await persistSyncState();
+      await persistCommittedSyncStateLegacy();
       await broadcastSyncStatus();
     }
   });

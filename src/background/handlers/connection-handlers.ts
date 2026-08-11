@@ -10,7 +10,7 @@ import {
 } from '../lib/auto-sync-groups';
 import { reinjectContentScript } from '../lib/content-script-manager';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
+import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/connection-handlers' });
 
@@ -86,7 +86,7 @@ export function registerConnectionHandlers(): void {
       if (isInManualSync) {
         syncState.linkedTabs = syncState.linkedTabs.filter((id) => id !== payload.tabId);
         delete syncState.connectionStatuses[payload.tabId];
-        await persistSyncState();
+        await persistCommittedSyncStateLegacy();
       }
       if (isInAutoSync) {
         await removeTabFromAllAutoSyncGroups(payload.tabId);
@@ -114,7 +114,7 @@ export function registerConnectionHandlers(): void {
       if (response && response.success && response.tabId === payload.tabId) {
         if (isInManualSync) {
           syncState.connectionStatuses[payload.tabId] = 'connected';
-          await persistSyncState();
+          await persistCommittedSyncStateLegacy();
           await broadcastSyncStatus();
         }
         logger.info(`Tab ${payload.tabId} reconnected successfully after idle recovery`, {
@@ -126,7 +126,7 @@ export function registerConnectionHandlers(): void {
         logger.error('Invalid reconnection acknowledgment', { tabId: payload.tabId });
         if (isInManualSync) {
           syncState.connectionStatuses[payload.tabId] = 'error';
-          await persistSyncState();
+          await persistCommittedSyncStateLegacy();
         }
         return { success: false, reason: 'Invalid acknowledgment' };
       }
@@ -134,7 +134,7 @@ export function registerConnectionHandlers(): void {
       logger.error(`Failed to reconnect tab ${payload.tabId}`, { error });
       if (isInManualSync) {
         syncState.connectionStatuses[payload.tabId] = 'error';
-        await persistSyncState();
+        await persistCommittedSyncStateLegacy();
       }
       return { success: false, reason: 'Connection failed' };
     }

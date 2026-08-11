@@ -30,7 +30,7 @@ import {
 } from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
+import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/scroll-sync-handlers' });
 const MANUAL_ADJUSTMENT_HINT_ID = 'manual-scroll-adjustment';
@@ -251,7 +251,7 @@ export function registerScrollSyncHandlers(): void {
     startKeepAlive();
 
     // Persist state to survive service worker restarts
-    await persistSyncState();
+    await persistCommittedSyncStateLegacy();
 
     // Broadcast status update to all connected tabs
     logger.info('Broadcasting sync status to connected tabs');
@@ -328,7 +328,7 @@ export function registerScrollSyncHandlers(): void {
     syncState.mode = undefined;
     addTabSuggestedTabs.clear();
 
-    await persistSyncState();
+    await persistCommittedSyncStateLegacy();
 
     return { success: true };
   });

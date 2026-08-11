@@ -8,7 +8,7 @@ import {
 } from '../lib/auto-sync-groups';
 import { reinjectContentScript } from '../lib/content-script-manager';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from '../lib/sync-state';
 
 import { registerConnectionHandlers } from './connection-handlers';
 
@@ -76,7 +76,7 @@ vi.mock('../lib/sync-state', () => ({
     mode: undefined,
     lastActiveSyncedTabId: null,
   },
-  persistSyncState: vi.fn(),
+  persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
 }));
 
@@ -105,7 +105,7 @@ describe('registerConnectionHandlers', () => {
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
     vi.mocked(reinjectContentScript).mockResolvedValue(true);
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
-    vi.mocked(persistSyncState).mockResolvedValue();
+    vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
 
     registerConnectionHandlers();
@@ -280,7 +280,7 @@ describe('registerConnectionHandlers', () => {
         3_000,
       );
       expect(syncState.connectionStatuses[5]).toBe('connected');
-      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
       expect(vi.mocked(broadcastSyncStatus)).toHaveBeenCalledTimes(1);
     });
 
@@ -313,7 +313,7 @@ describe('registerConnectionHandlers', () => {
         { context: 'content-script', tabId: 7 },
         3_000,
       );
-      expect(vi.mocked(persistSyncState)).not.toHaveBeenCalled();
+      expect(vi.mocked(persistCommittedSyncStateLegacy)).not.toHaveBeenCalled();
       expect(vi.mocked(broadcastSyncStatus)).not.toHaveBeenCalled();
     });
 
@@ -341,7 +341,7 @@ describe('registerConnectionHandlers', () => {
       expect(result).toEqual({ success: false, reason: 'Tab no longer exists' });
       expect(syncState.linkedTabs).toEqual([10]);
       expect(syncState.connectionStatuses[4]).toBeUndefined();
-      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
       expect(vi.mocked(removeTabFromAllAutoSyncGroups)).toHaveBeenCalledWith(4);
     });
 
@@ -365,7 +365,7 @@ describe('registerConnectionHandlers', () => {
 
       expect(result).toEqual({ success: false, reason: 'Invalid acknowledgment' });
       expect(syncState.connectionStatuses[11]).toBe('error');
-      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
     });
 
     it('marks manual sync tab as error when reconnection fails', async () => {
@@ -388,7 +388,7 @@ describe('registerConnectionHandlers', () => {
 
       expect(result).toEqual({ success: false, reason: 'Connection failed' });
       expect(syncState.connectionStatuses[21]).toBe('error');
-      expect(vi.mocked(persistSyncState)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(persistCommittedSyncStateLegacy)).toHaveBeenCalledTimes(1);
     });
   });
 

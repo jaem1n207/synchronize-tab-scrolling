@@ -30,7 +30,7 @@ import {
 } from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from '../lib/sync-state';
 
 import { registerScrollSyncHandlers } from './scroll-sync-handlers';
 
@@ -120,7 +120,7 @@ vi.mock('../lib/sync-state', () => ({
     lastActiveSyncedTabId: null as number | null,
     mode: undefined as 'ratio' | 'element' | undefined,
   },
-  persistSyncState: vi.fn(),
+  persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
 }));
 
@@ -183,7 +183,7 @@ describe('registerScrollSyncHandlers', () => {
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(updateAutoSyncGroup).mockResolvedValue(null);
-    vi.mocked(persistSyncState).mockResolvedValue();
+    vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     isContextualHintDismissedMock.mockResolvedValue(false);
     vi.mocked(consumePendingUrlSyncContextualHint).mockReset();
@@ -270,7 +270,7 @@ describe('registerScrollSyncHandlers', () => {
         3: 'connected',
       });
       expect(startKeepAlive).toHaveBeenCalledTimes(1);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -312,7 +312,7 @@ describe('registerScrollSyncHandlers', () => {
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(startKeepAlive).not.toHaveBeenCalled();
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -570,7 +570,7 @@ describe('registerScrollSyncHandlers', () => {
           402: { success: true },
         },
       });
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
   });
@@ -604,7 +604,7 @@ describe('registerScrollSyncHandlers', () => {
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(syncState.mode).toBeUndefined();
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
     });
 
     it('deactivates auto-sync groups that include stopped tabs', async () => {

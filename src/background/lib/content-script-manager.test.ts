@@ -2,17 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { isContentScriptAlive, reinjectContentScript } from './content-script-manager';
 import { sendMessageWithTimeout } from './messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from './sync-state';
+import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from './sync-state';
 
 const {
   executeScriptMock,
   sendMessageWithTimeoutMock,
-  persistSyncStateMock,
+  persistCommittedSyncStateLegacyMock,
   broadcastSyncStatusMock,
 } = vi.hoisted(() => ({
   executeScriptMock: vi.fn(),
   sendMessageWithTimeoutMock: vi.fn(),
-  persistSyncStateMock: vi.fn(),
+  persistCommittedSyncStateLegacyMock: vi.fn(),
   broadcastSyncStatusMock: vi.fn(),
 }));
 
@@ -45,7 +45,7 @@ vi.mock('./sync-state', () => ({
     lastActiveSyncedTabId: null as number | null,
     mode: undefined as 'ratio' | 'element' | undefined,
   },
-  persistSyncState: persistSyncStateMock,
+  persistCommittedSyncStateLegacy: persistCommittedSyncStateLegacyMock,
   broadcastSyncStatus: broadcastSyncStatusMock,
 }));
 
@@ -55,7 +55,7 @@ describe('content-script-manager', () => {
     syncState.mode = undefined;
     syncState.connectionStatuses = {};
 
-    persistSyncStateMock.mockResolvedValue(undefined);
+    persistCommittedSyncStateLegacyMock.mockResolvedValue({ status: 'persisted' });
     broadcastSyncStatusMock.mockResolvedValue(undefined);
   });
 
@@ -129,7 +129,7 @@ describe('content-script-manager', () => {
         3000,
       );
       expect(syncState.connectionStatuses[2]).toBe('connected');
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -162,7 +162,7 @@ describe('content-script-manager', () => {
       await expect(reinjectContentScript(4)).resolves.toBe(false);
 
       expect(sendMessageWithTimeoutMock).not.toHaveBeenCalled();
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -178,7 +178,7 @@ describe('content-script-manager', () => {
       await expect(promise).resolves.toBe(false);
 
       expect(syncState.connectionStatuses[5]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -194,7 +194,7 @@ describe('content-script-manager', () => {
       await expect(promise).resolves.toBe(false);
 
       expect(syncState.connectionStatuses[6]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -210,7 +210,7 @@ describe('content-script-manager', () => {
       await expect(promise).resolves.toBe(false);
 
       expect(syncState.connectionStatuses[7]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -226,7 +226,7 @@ describe('content-script-manager', () => {
       await expect(promise).resolves.toBe(false);
 
       expect(syncState.connectionStatuses[8]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 

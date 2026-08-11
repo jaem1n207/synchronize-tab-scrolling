@@ -1,7 +1,7 @@
 import { ExtensionLogger } from '~/shared/lib/logger';
 
 import { isContentScriptAlive, reinjectContentScript } from './content-script-manager';
-import { persistSyncState, syncState } from './sync-state';
+import { persistCommittedSyncStateLegacy, syncState } from './sync-state';
 
 const logger = new ExtensionLogger({ scope: 'keep-alive' });
 
@@ -56,7 +56,7 @@ async function checkAllTabsHealth(): Promise<void> {
       if (!success) {
         logger.error(`Failed to recover tab ${tabId} during keep-alive check`);
         syncState.connectionStatuses[tabId] = 'error';
-        await persistSyncState();
+        await persistCommittedSyncStateLegacy();
       }
     }
   }

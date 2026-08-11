@@ -9,7 +9,7 @@ const {
   loggerErrorMock,
   isContentScriptAliveMock,
   reinjectContentScriptMock,
-  persistSyncStateMock,
+  persistCommittedSyncStateLegacyMock,
   syncStateMock,
 } = vi.hoisted(() => ({
   loggerDebugMock: vi.fn(),
@@ -18,7 +18,7 @@ const {
   loggerErrorMock: vi.fn(),
   isContentScriptAliveMock: vi.fn(),
   reinjectContentScriptMock: vi.fn(),
-  persistSyncStateMock: vi.fn(),
+  persistCommittedSyncStateLegacyMock: vi.fn(),
   syncStateMock: {
     isActive: false as boolean,
     linkedTabs: [] as Array<number>,
@@ -43,7 +43,7 @@ vi.mock('./content-script-manager', () => ({
 
 vi.mock('./sync-state', () => ({
   syncState: syncStateMock,
-  persistSyncState: persistSyncStateMock,
+  persistCommittedSyncStateLegacy: persistCommittedSyncStateLegacyMock,
 }));
 
 import { startKeepAlive, stopKeepAlive } from './keep-alive';
@@ -168,7 +168,7 @@ describe('keep-alive', () => {
       await triggerKeepAliveTick();
 
       expect(reinjectContentScriptMock).not.toHaveBeenCalled();
-      expect(persistSyncStateMock).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacyMock).not.toHaveBeenCalled();
     });
 
     it('reinjects when tab is not alive and status is connected', async () => {
@@ -196,7 +196,7 @@ describe('keep-alive', () => {
       await triggerKeepAliveTick();
 
       expect(syncStateMock.connectionStatuses[13]).toBe('error');
-      expect(persistSyncStateMock).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacyMock).toHaveBeenCalledTimes(1);
     });
 
     it('does not persist state when reinjection succeeds', async () => {
@@ -209,7 +209,7 @@ describe('keep-alive', () => {
       startKeepAlive();
       await triggerKeepAliveTick();
 
-      expect(persistSyncStateMock).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacyMock).not.toHaveBeenCalled();
     });
 
     it('skips reinjection when tab is not connected', async () => {
@@ -222,7 +222,7 @@ describe('keep-alive', () => {
       await triggerKeepAliveTick();
 
       expect(reinjectContentScriptMock).not.toHaveBeenCalled();
-      expect(persistSyncStateMock).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacyMock).not.toHaveBeenCalled();
     });
 
     it('skips health checks when sync is inactive', async () => {

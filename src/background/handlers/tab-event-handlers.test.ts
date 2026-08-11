@@ -24,7 +24,7 @@ import { isContentScriptAlive, reinjectContentScript } from '../lib/content-scri
 import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from '../lib/sync-state';
 
 import { registerTabEventHandlers } from './tab-event-handlers';
 
@@ -150,7 +150,7 @@ vi.mock('../lib/sync-state', () => ({
     mode: undefined,
     lastActiveSyncedTabId: null,
   },
-  persistSyncState: vi.fn(),
+  persistCommittedSyncStateLegacy: vi.fn(),
   broadcastSyncStatus: vi.fn(),
 }));
 
@@ -206,7 +206,7 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(isContentScriptAlive).mockResolvedValue(true);
     vi.mocked(reinjectContentScript).mockResolvedValue(true);
     vi.mocked(stopKeepAlive).mockImplementation(() => {});
-    vi.mocked(persistSyncState).mockResolvedValue();
+    vi.mocked(persistCommittedSyncStateLegacy).mockResolvedValue({ status: 'persisted' });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     vi.mocked(showAddTabSuggestion).mockResolvedValue();
     vi.mocked(showSyncSuggestion).mockResolvedValue();
@@ -274,7 +274,7 @@ describe('registerTabEventHandlers', () => {
         { context: 'content-script', tabId: 20 },
       );
       expect(stopKeepAlive).toHaveBeenCalledTimes(1);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(manualSyncOverriddenTabs.has(20)).toBe(false);
     });
 
@@ -288,7 +288,7 @@ describe('registerTabEventHandlers', () => {
       expect(syncState.linkedTabs).toEqual([2, 3]);
       expect(syncState.connectionStatuses[1]).toBeUndefined();
       expect(syncState.isActive).toBe(true);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(stopKeepAlive).not.toHaveBeenCalled();
     });
@@ -302,7 +302,7 @@ describe('registerTabEventHandlers', () => {
 
       expect(syncState.linkedTabs).toEqual([1, 2]);
       expect(syncState.connectionStatuses).toEqual({ 1: 'connected', 2: 'connected' });
-      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
@@ -461,7 +461,7 @@ describe('registerTabEventHandlers', () => {
         { context: 'content-script', tabId: 1 },
       );
       expect(syncState.connectionStatuses[1]).toBe('connected');
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
@@ -848,7 +848,7 @@ describe('registerTabEventHandlers', () => {
         2_000,
       );
       expect(syncState.connectionStatuses[15]).toBe('connected');
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(reinjectContentScript).not.toHaveBeenCalled();
     });
@@ -862,7 +862,7 @@ describe('registerTabEventHandlers', () => {
       await getListener('tabs.onActivated')({ tabId: 30 });
 
       expect(syncState.connectionStatuses[30]).toBe('connected');
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
   });

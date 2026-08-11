@@ -25,7 +25,7 @@ import {
 } from '../lib/auto-sync-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { syncState, persistSyncState, broadcastSyncStatus } from '../lib/sync-state';
+import { syncState, persistCommittedSyncStateLegacy, broadcastSyncStatus } from '../lib/sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-handlers' });
 
@@ -68,7 +68,7 @@ async function stopManualSyncAndReturnTabsToAutoSync(tabIds: Array<number>): Pro
   syncState.connectionStatuses = {};
   syncState.mode = undefined;
 
-  await persistSyncState();
+  await persistCommittedSyncStateLegacy();
 }
 
 async function rollbackFailedSuggestionStart(connectedTabIds: Array<number>): Promise<void> {
@@ -83,7 +83,7 @@ async function rollbackFailedSuggestionStart(connectedTabIds: Array<number>): Pr
   syncState.connectionStatuses = {};
   syncState.mode = undefined;
 
-  await persistSyncState();
+  await persistCommittedSyncStateLegacy();
   await broadcastSyncStatus();
 }
 
@@ -269,7 +269,7 @@ export function registerAutoSyncHandlers(): void {
               autoSyncState.groups.delete(normalizedUrl);
             });
             syncState.linkedTabs = connectedTabIds;
-            await persistSyncState();
+            await persistCommittedSyncStateLegacy();
             await broadcastSyncStatus();
             logger.info('[AUTO-SYNC] Manual sync started from suggestion', { connectedTabIds });
           } else {
@@ -407,14 +407,14 @@ export function registerAutoSyncHandlers(): void {
             syncState.linkedTabs = [];
             syncState.connectionStatuses = {};
             syncState.mode = undefined;
-            await persistSyncState();
+            await persistCommittedSyncStateLegacy();
             await broadcastSyncStatus();
 
             return { success: false, error: 'Not enough tabs connected' };
           }
 
           syncState.linkedTabs = connectedTabIds;
-          await persistSyncState();
+          await persistCommittedSyncStateLegacy();
           await broadcastSyncStatus();
 
           logger.info('[AUTO-SYNC] Added tab to manual sync', {

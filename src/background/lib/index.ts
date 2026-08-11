@@ -1,5 +1,16 @@
 export { sendMessageWithTimeout } from './messaging';
-export { syncState, persistSyncState, restoreSyncState, broadcastSyncStatus } from './sync-state';
+export {
+  syncState,
+  getSyncStateSnapshot,
+  commitSyncState,
+  persistSyncState,
+  persistCommittedSyncStateLegacy,
+  restoreSyncState,
+  broadcastSyncStatus,
+} from './sync-state';
+export type { PersistSyncStateResult, RestoreSyncStateResult } from './sync-state';
+export { parseStoredSyncState } from './sync-state-parser';
+export type { ParseSyncStateResult, SyncStateValidationReason } from './sync-state-parser';
 export { isContentScriptAlive, reinjectContentScript } from './content-script-manager';
 export { startKeepAlive, stopKeepAlive } from './keep-alive';
 export {

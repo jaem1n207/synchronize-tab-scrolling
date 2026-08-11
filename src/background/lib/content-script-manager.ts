@@ -3,7 +3,7 @@ import browser from 'webextension-polyfill';
 import { ExtensionLogger } from '~/shared/lib/logger';
 
 import { sendMessageWithTimeout } from './messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from './sync-state';
+import { broadcastSyncStatus, persistCommittedSyncStateLegacy, syncState } from './sync-state';
 
 const logger = new ExtensionLogger({ scope: 'content-script-manager' });
 
@@ -53,7 +53,7 @@ export async function reinjectContentScript(tabId: number): Promise<boolean> {
     if (response && response.success && response.tabId === tabId) {
       syncState.connectionStatuses[tabId] = 'connected';
       logger.info(`Tab ${tabId} reconnected after content script re-injection`);
-      await persistSyncState();
+      await persistCommittedSyncStateLegacy();
       await broadcastSyncStatus();
       return true;
     }
