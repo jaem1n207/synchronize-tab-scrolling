@@ -24,6 +24,7 @@ const {
   reconnectMock,
   refetchMock,
   stopMock,
+  popupUiState,
   useManualSyncSessionMock,
   useSyncControlMock,
 } = vi.hoisted(() => ({
@@ -32,12 +33,11 @@ const {
   reconnectMock: vi.fn(),
   refetchMock: vi.fn(),
   stopMock: vi.fn(),
+  popupUiState: {
+    actionsMenuOpen: false,
+  },
   useManualSyncSessionMock: vi.fn(),
   useSyncControlMock: vi.fn(),
-}));
-
-vi.mock('~/shared/hooks/use-keyboard-shortcuts', () => ({
-  useKeyboardShortcuts: vi.fn(),
 }));
 
 vi.mock('~/shared/hooks/use-modifier-key', () => ({
@@ -87,7 +87,7 @@ vi.mock('../hooks', () => ({
   usePopupState: () => ({
     selectedTabIds: [1, 2],
     setSelectedTabIds: vi.fn(),
-    actionsMenuOpen: false,
+    actionsMenuOpen: popupUiState.actionsMenuOpen,
     setActionsMenuOpen: vi.fn(),
     searchInputRef: { current: null },
     sortBy: 'similarity',
@@ -162,6 +162,7 @@ function createSession(
     state,
     isStopping: false,
     isReconnecting: false,
+    isMutating: false,
     warning: undefined,
     refetch: refetchMock,
     stop: stopMock,
@@ -207,6 +208,7 @@ function createActiveSession(): UseManualSyncSessionResult {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  popupUiState.actionsMenuOpen = false;
   refetchMock.mockResolvedValue(undefined);
   stopMock.mockResolvedValue(undefined);
   reconnectMock.mockResolvedValue(undefined);
@@ -325,6 +327,83 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 
     await act(async () => resolveStop());
+  });
+
+  it('blocks reconnect and the popup shortcut while Stop is pending, then re-enables controls', async () => {
+    const user = userEvent.setup();
+    const activeSession = createActiveSession();
+    useManualSyncSessionMock.mockReturnValue(activeSession);
+    const { rerender } = render(<ScrollSyncPopup />);
+
+    await user.click(screen.getByRole('button', { name: 'stopSynchronization' }));
+    expect(stopMock).toHaveBeenCalledOnce();
+
+    useManualSyncSessionMock.mockReturnValue(
+      createSession(activeSession.state, {
+        isStopping: true,
+        isMutating: true,
+      }),
+    );
+    rerender(<ScrollSyncPopup />);
+
+    const stopButton = screen.getByRole('button', { name: 'stoppingSynchronization' });
+    const reconnectButton = screen.getByRole('button', { name: 'resyncDisconnectedTabs' });
+    expect(stopButton).toBeDisabled();
+    expect(reconnectButton).toBeDisabled();
+
+    await user.click(reconnectButton);
+    await user.keyboard('{Control>}s{/Control}');
+    expect(reconnectMock).not.toHaveBeenCalled();
+    expect(stopMock).toHaveBeenCalledOnce();
+
+    useManualSyncSessionMock.mockReturnValue(activeSession);
+    rerender(<ScrollSyncPopup />);
+    expect(screen.getByRole('button', { name: 'stopSynchronization' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'resyncDisconnectedTabs' })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: 'resyncDisconnectedTabs' }));
+    expect(reconnectMock).toHaveBeenCalledOnce();
+  });
+
+  it('blocks Stop, Actions Stop, and the popup shortcut while reconnect is pending', async () => {
+    const user = userEvent.setup();
+    const activeSession = createActiveSession();
+    useManualSyncSessionMock.mockReturnValue(activeSession);
+    const { rerender } = render(<ScrollSyncPopup />);
+
+    await user.click(screen.getByRole('button', { name: 'resyncDisconnectedTabs' }));
+    expect(reconnectMock).toHaveBeenCalledOnce();
+
+    useManualSyncSessionMock.mockReturnValue(
+      createSession(activeSession.state, {
+        isReconnecting: true,
+        isMutating: true,
+      }),
+    );
+    rerender(<ScrollSyncPopup />);
+
+    const stopButton = screen.getByRole('button', { name: 'stopSynchronization' });
+    const reconnectButton = screen.getByRole('button', { name: 'reconnecting' });
+    expect(stopButton).toBeDisabled();
+    expect(reconnectButton).toBeDisabled();
+
+    await user.click(stopButton);
+    await user.keyboard('{Control>}s{/Control}');
+    expect(stopMock).not.toHaveBeenCalled();
+
+    popupUiState.actionsMenuOpen = true;
+    rerender(<ScrollSyncPopup />);
+    const actionsStop = screen.getByRole('option', { name: /stopSync/ });
+    expect(actionsStop).toHaveAttribute('aria-disabled', 'true');
+    await user.click(actionsStop);
+    expect(stopMock).not.toHaveBeenCalled();
+
+    useManualSyncSessionMock.mockReturnValue(activeSession);
+    rerender(<ScrollSyncPopup />);
+    expect(screen.getByRole('option', { name: /stopSync/ })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 
   it('renders a committed cleanup warning without fabricating inactive state', () => {

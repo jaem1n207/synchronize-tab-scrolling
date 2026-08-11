@@ -133,12 +133,17 @@ export function ScrollSyncPopup() {
         key: 's',
         mod: true,
         handler: () => {
+          if (session.isMutating) {
+            return;
+          }
+
           if (isActive) {
             void session.stop();
           } else if (isInactive && selectedTabIds.length >= 2) {
             handleStart();
           }
         },
+        enabled: !session.isMutating,
       },
       {
         key: 'x',
@@ -287,13 +292,19 @@ export function ScrollSyncPopup() {
               <SyncControlButtons
                 hasConnectionError={hasConnectionError}
                 isActive={isActive}
+                isReconnecting={session.isReconnecting}
+                isStopping={session.isStopping}
                 selectedCount={isActive ? activeTabCount : selectedTabIds.length}
                 onResync={() => {
-                  void session.reconnect();
+                  if (!session.isMutating) {
+                    void session.reconnect();
+                  }
                 }}
                 onStart={handleStart}
                 onStop={() => {
-                  void session.stop();
+                  if (!session.isMutating) {
+                    void session.stop();
+                  }
                 }}
               />
               <ActionsMenu
@@ -301,6 +312,7 @@ export function ScrollSyncPopup() {
                 autoSyncTabCount={autoSyncTabCount}
                 excludedDomainsCount={excludedDomains.length}
                 isSyncActive={isActive}
+                isSyncMutationPending={session.isMutating}
                 open={actionsMenuOpen}
                 sameDomainFilter={sameDomainFilter}
                 selectedCount={isActive ? activeTabCount : selectedTabIds.length}
@@ -312,7 +324,9 @@ export function ScrollSyncPopup() {
                 onSortChange={setSortBy}
                 onStartSync={handleStart}
                 onStopSync={() => {
-                  void session.stop();
+                  if (!session.isMutating) {
+                    void session.stop();
+                  }
                 }}
                 onToggleAllTabs={handleToggleAllTabs}
               />
