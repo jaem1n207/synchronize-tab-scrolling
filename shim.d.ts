@@ -19,9 +19,10 @@ import type {
   ScrollSyncMessage,
   SavePendingUrlSyncContextualHintMessage,
   SavePendingUrlSyncContextualHintResponse,
+  StartSyncBackgroundResponse,
   StartSyncContentMessage,
+  StartSyncContentResponse,
   StartSyncMessage,
-  StartSyncResponse,
   StopSyncMessage,
   StopSyncResponse,
   SyncBaselineUpdateMessage,
@@ -58,7 +59,7 @@ declare module 'webext-bridge' {
   export interface ProtocolMap {
     'scroll:start': ProtocolWithReturn<
       StartSyncMessage | StartSyncContentMessage,
-      StartSyncResponse
+      StartSyncContentResponse | StartSyncBackgroundResponse
     >;
     'scroll:stop': ProtocolWithReturn<StopSyncMessage, StopSyncResponse>;
     'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;

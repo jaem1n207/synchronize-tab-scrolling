@@ -533,6 +533,9 @@ describe('Scenario: content runtime operation generations', () => {
   it('stops only the captured runtime when stop resumes after a newer start', async () => {
     installImmediateAnimationFrame();
     setDocumentScrollMetrics(2000, 1000);
+    mocks.storageData.set('manualScrollOffsets', {
+      82: { ratio: 0.2, pixels: 200 },
+    });
     await startContentSync(82, { sessionEpoch: 5 });
 
     const olderOffsetClear = deferNextStorageSet();
@@ -549,25 +552,28 @@ describe('Scenario: content runtime operation generations', () => {
       expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
     });
 
-    mocks.storageData.set('manualScrollOffsets', {
-      82: { ratio: 0.2, pixels: 200 },
-    });
-    const newerStart = await invokeContentMessage('scroll:start', {
+    const storageReadsBeforeNewerStart = mocks.storageGetMock.mock.calls.length;
+    const newerStart = invokeContentMessage('scroll:start', {
       mode: 'ratio',
       currentTabId: 82,
       tabIds: [82, 84],
       sessionEpoch: 6,
     });
-    expect(newerStart).toEqual(expect.objectContaining({ success: true, tabId: 82 }));
-    expect(getScrollSyncState().sessionEpoch).toBe(6);
+    await flushAsync();
+    const storageReadsWhileClearPending =
+      mocks.storageGetMock.mock.calls.length - storageReadsBeforeNewerStart;
 
     olderOffsetClear.resolve();
+    await expect(newerStart).resolves.toEqual(
+      expect.objectContaining({ success: true, tabId: 82 }),
+    );
     await expect(olderStop).resolves.toEqual({
       success: false,
       tabId: 82,
       reason: 'stale-operation',
     });
 
+    expect(storageReadsWhileClearPending).toBe(0);
     expect(getScrollSyncState()).toEqual(
       expect.objectContaining({
         isActive: true,
@@ -599,6 +605,9 @@ describe('Scenario: content runtime operation generations', () => {
     setDocumentScrollMetrics(2000, 1000);
     await saveUrlSyncEnabled(true);
     await saveUrlSyncMode('follow-changed-tab');
+    mocks.storageData.set('manualScrollOffsets', {
+      83: { ratio: 0.2, pixels: 200 },
+    });
     await startContentSync(83, { sessionEpoch: 7 });
 
     const olderOffsetClear = deferNextStorageSet();
@@ -616,24 +625,27 @@ describe('Scenario: content runtime operation generations', () => {
       expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
     });
 
-    mocks.storageData.set('manualScrollOffsets', {
-      83: { ratio: 0.2, pixels: 200 },
-    });
-    const newerStart = await invokeContentMessage('scroll:start', {
+    const storageReadsBeforeNewerStart = mocks.storageGetMock.mock.calls.length;
+    const newerStart = invokeContentMessage('scroll:start', {
       mode: 'ratio',
       currentTabId: 83,
       tabIds: [83, 85],
       sessionEpoch: 8,
     });
-    expect(newerStart).toEqual(expect.objectContaining({ success: true, tabId: 83 }));
-    expect(getScrollSyncState().sessionEpoch).toBe(8);
+    await flushAsync();
+    const storageReadsWhileClearPending =
+      mocks.storageGetMock.mock.calls.length - storageReadsBeforeNewerStart;
 
     olderOffsetClear.resolve();
+    await expect(newerStart).resolves.toEqual(
+      expect.objectContaining({ success: true, tabId: 83 }),
+    );
     await expect(olderUrlSync).resolves.toEqual({
       success: false,
       reason: 'stale-operation',
     });
 
+    expect(storageReadsWhileClearPending).toBe(0);
     expect(window.location.href).toBe('http://localhost/start');
     expect(getScrollSyncState()).toEqual(
       expect.objectContaining({
@@ -661,79 +673,134 @@ describe('Scenario: content runtime operation generations', () => {
     expect(document.documentElement.scrollTop).toBe(700);
   });
 
-  it('keeps a third start aligned when it begins during stale offset repair', async () => {
+  it('does not clear an offset while URL contextual-hint persistence is pending', async () => {
     installImmediateAnimationFrame();
     setDocumentScrollMetrics(2000, 1000);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('follow-changed-tab');
+    mocks.storageData.set('manualScrollOffsets', {
+      84: { ratio: 0.25, pixels: 250 },
+    });
     await startContentSync(84, { sessionEpoch: 9 });
+
+    const pendingHintSave = createDeferred<{ status: 'success' }>();
+    mocks.sendMessageContentMock.mockImplementation((messageId: string) => {
+      if (messageId === 'contextual-hint:save-pending-url-sync') {
+        return pendingHintSave.promise;
+      }
+      return Promise.resolve(undefined);
+    });
+    mocks.storageSetMock.mockClear();
+
+    const olderUrlSync = invokeContentMessage('url:sync', {
+      url: 'http://localhost/stale-hint-target',
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 9,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+        'contextual-hint:save-pending-url-sync',
+        { hintId: 'page-change-synced' },
+        'background',
+      );
+    });
+    const offsetWritesWhileHintPending = mocks.storageSetMock.mock.calls.length;
+
+    const replacementStart = await invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 84,
+      tabIds: [84, 86],
+      sessionEpoch: 10,
+    });
+    expect(replacementStart).toEqual(expect.objectContaining({ success: true, tabId: 84 }));
+    expect(mocks.storageSetMock).not.toHaveBeenCalled();
+
+    pendingHintSave.resolve({ status: 'success' });
+    await expect(olderUrlSync).resolves.toEqual({
+      success: false,
+      reason: 'stale-operation',
+    });
+
+    expect(offsetWritesWhileHintPending).toBe(0);
+    expect(window.location.href).toBe('http://localhost/start');
+    await expect(getManualScrollOffset(84)).resolves.toEqual({ ratio: 0.25, pixels: 250 });
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 10,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(750);
+  });
+
+  it('keeps the latest replacement aligned while starts wait for a stale clear', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    mocks.storageData.set('manualScrollOffsets', {
+      85: { ratio: 0.2, pixels: 200 },
+    });
+    await startContentSync(85, { sessionEpoch: 11 });
 
     const olderOffsetClear = deferNextStorageSet();
     mocks.storageSetMock.mockClear();
 
     const olderStop = invokeContentMessage('scroll:stop', {
-      tabIds: [84],
+      tabIds: [85],
       isAutoSync: false,
     });
     await vi.waitFor(() => {
       expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
     });
 
-    mocks.storageData.set('manualScrollOffsets', {
-      84: { ratio: 0.2, pixels: 200 },
-    });
-    await expect(
-      invokeContentMessage('scroll:start', {
-        mode: 'ratio',
-        currentTabId: 84,
-        tabIds: [84, 86],
-        sessionEpoch: 10,
-      }),
-    ).resolves.toEqual(expect.objectContaining({ success: true, tabId: 84 }));
-
-    const offsetRepairSave = deferNextStorageSet();
-    olderOffsetClear.resolve();
-    await vi.waitFor(() => {
-      expect(mocks.storageSetMock).toHaveBeenCalledTimes(2);
-    });
-
-    const thirdOffsetLoad = createDeferred<void>();
-    const storageGetCallsBeforeThirdStart = mocks.storageGetMock.mock.calls.length;
-    mocks.storageGetMock.mockImplementationOnce(() => {
-      const offsetAtRead = mocks.storageData.get('manualScrollOffsets');
-      const result = offsetAtRead === undefined ? {} : { manualScrollOffsets: offsetAtRead };
-      return thirdOffsetLoad.promise.then(() => result);
-    });
-
-    const thirdStart = invokeContentMessage('scroll:start', {
+    const storageReadsBeforeReplacements = mocks.storageGetMock.mock.calls.length;
+    const firstReplacement = invokeContentMessage('scroll:start', {
       mode: 'ratio',
-      currentTabId: 84,
-      tabIds: [84, 87],
-      sessionEpoch: 11,
+      currentTabId: 85,
+      tabIds: [85, 87],
+      sessionEpoch: 12,
     });
     await flushAsync();
+    const latestReplacement = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 85,
+      tabIds: [85, 88],
+      sessionEpoch: 13,
+    });
+    await flushAsync();
+    const storageReadsWhileClearPending =
+      mocks.storageGetMock.mock.calls.length - storageReadsBeforeReplacements;
 
-    offsetRepairSave.resolve();
-    await expect(olderStop).resolves.toEqual({
+    olderOffsetClear.resolve();
+    await expect(firstReplacement).resolves.toEqual({
       success: false,
-      tabId: 84,
+      tabId: 85,
       reason: 'stale-operation',
     });
-    await vi.waitFor(() => {
-      expect(mocks.storageGetMock.mock.calls.length).toBeGreaterThan(
-        storageGetCallsBeforeThirdStart,
-      );
+    await expect(latestReplacement).resolves.toEqual(
+      expect.objectContaining({ success: true, tabId: 85 }),
+    );
+    await expect(olderStop).resolves.toEqual({
+      success: false,
+      tabId: 85,
+      reason: 'stale-operation',
     });
 
-    thirdOffsetLoad.resolve();
-    await expect(thirdStart).resolves.toEqual(
-      expect.objectContaining({ success: true, tabId: 84 }),
-    );
-    expect(getScrollSyncState().sessionEpoch).toBe(11);
-    await expect(getManualScrollOffset(84)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
+    expect(storageReadsWhileClearPending).toBe(0);
+    expect(getScrollSyncState().sessionEpoch).toBe(13);
+    await expect(getManualScrollOffset(85)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
 
     await invokeContentMessage('scroll:sync', {
       sourceTabId: 99,
       isAutoSync: false,
-      sessionEpoch: 11,
+      sessionEpoch: 13,
       mode: 'ratio',
       scrollTop: 500,
       scrollHeight: 2000,
@@ -743,6 +810,206 @@ describe('Scenario: content runtime operation generations', () => {
     await flushAsync();
 
     expect(document.documentElement.scrollTop).toBe(700);
+  });
+
+  it('navigates as part of the same successful receiver clear transaction', async () => {
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('follow-changed-tab');
+    mocks.storageData.set('manualScrollOffsets', {
+      89: { ratio: 0.2, pixels: 200 },
+    });
+    await startContentSync(89, { sessionEpoch: 14 });
+
+    const receiverClear = deferNextStorageSet();
+    const navigation = invokeContentMessage('url:sync', {
+      url: 'http://localhost/committed-target',
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 14,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalled();
+    });
+    expect(window.location.href).toBe('http://localhost/start');
+
+    receiverClear.resolve();
+    await expect(navigation).resolves.toBeUndefined();
+
+    expect(window.location.href).toBe('http://localhost/committed-target');
+    await expect(getManualScrollOffset(89)).resolves.toEqual({ ratio: 0, pixels: 0 });
+  });
+
+  it('bounds a failed stale-clear repair and retries the retained repair on a later start', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    mocks.storageData.set('manualScrollOffsets', {
+      86: { ratio: 0.2, pixels: 200 },
+    });
+    await startContentSync(86, { sessionEpoch: 14 });
+
+    const olderOffsetClear = deferNextStorageSet();
+    mocks.storageSetMock.mockClear();
+    vi.mocked(showPanel).mockClear();
+
+    let olderStopSettled = false;
+    const olderStop = invokeContentMessage('scroll:stop', {
+      tabIds: [86],
+      isAutoSync: false,
+    }).then((result) => {
+      olderStopSettled = true;
+      return result;
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    const compensationError = new Error('compensation failed');
+    mocks.storageSetMock.mockRejectedValue(compensationError);
+    let firstReplacementSettled = false;
+    const firstReplacement = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 86,
+      tabIds: [86, 89],
+      sessionEpoch: 15,
+    }).then((result) => {
+      firstReplacementSettled = true;
+      return result;
+    });
+
+    olderOffsetClear.resolve();
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    });
+    const settledBeforeRecovery = await Promise.race([
+      Promise.all([firstReplacement, olderStop]).then(() => true),
+      new Promise<boolean>((resolve) => {
+        window.setTimeout(() => {
+          resolve(false);
+        }, 25);
+      }),
+    ]);
+    const wasInactiveBeforeRecovery = !getScrollSyncState().isActive;
+    const panelShowsBeforeRecovery = vi.mocked(showPanel).mock.calls.length;
+    const storageWritesBeforeRecovery = mocks.storageSetMock.mock.calls.length;
+
+    mocks.storageSetMock.mockImplementation(async (data: Record<string, unknown>) => {
+      for (const [key, value] of Object.entries(data)) {
+        mocks.storageData.set(key, value);
+      }
+    });
+    const recoveredStart = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 86,
+      tabIds: [86, 90],
+      sessionEpoch: 16,
+    });
+
+    await expect(firstReplacement).resolves.toEqual({
+      success: false,
+      tabId: 86,
+      reason: 'offset-reconciliation-failed',
+    });
+    await expect(olderStop).resolves.toEqual({
+      success: false,
+      tabId: 86,
+      reason: 'offset-reconciliation-failed',
+    });
+    await expect(recoveredStart).resolves.toEqual(
+      expect.objectContaining({ success: true, tabId: 86 }),
+    );
+    expect(settledBeforeRecovery).toBe(true);
+    expect(firstReplacementSettled).toBe(true);
+    expect(olderStopSettled).toBe(true);
+    expect(wasInactiveBeforeRecovery).toBe(true);
+    expect(panelShowsBeforeRecovery).toBe(0);
+    expect(storageWritesBeforeRecovery).toBe(4);
+    expect(vi.mocked(showPanel)).toHaveBeenCalledTimes(1);
+    expect(getScrollSyncState().sessionEpoch).toBe(16);
+    await expect(getManualScrollOffset(86)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 99,
+      isAutoSync: false,
+      sessionEpoch: 16,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(700);
+  });
+
+  it('hides the stopped runtime panel when its offset clear fails', async () => {
+    mocks.storageData.set('manualScrollOffsets', {
+      87: { ratio: 0.2, pixels: 200 },
+    });
+    await startContentSync(87, { sessionEpoch: 17 });
+
+    vi.mocked(hidePanel).mockClear();
+    mocks.storageSetMock.mockRejectedValueOnce(new Error('clear failed'));
+
+    await expect(
+      invokeContentMessage('scroll:stop', {
+        tabIds: [87],
+        isAutoSync: false,
+      }),
+    ).resolves.toEqual({
+      success: false,
+      tabId: 87,
+      reason: 'offset-clear-failed',
+    });
+
+    expect(getScrollSyncState().isActive).toBe(false);
+    expect(vi.mocked(hidePanel)).toHaveBeenCalledTimes(1);
+    await expect(getManualScrollOffset(87)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
+  });
+
+  it('does not hide a replacement panel when an older stop offset clear fails', async () => {
+    mocks.storageData.set('manualScrollOffsets', {
+      88: { ratio: 0.2, pixels: 200 },
+    });
+    await startContentSync(88, { sessionEpoch: 18 });
+
+    const olderClear = createDeferred<void>();
+    mocks.storageSetMock.mockImplementationOnce(async () => {
+      await olderClear.promise;
+      throw new Error('clear failed');
+    });
+    vi.mocked(hidePanel).mockClear();
+    vi.mocked(showPanel).mockClear();
+
+    const olderStop = invokeContentMessage('scroll:stop', {
+      tabIds: [88],
+      isAutoSync: false,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalled();
+    });
+
+    const replacementStart = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 88,
+      tabIds: [88, 91],
+      sessionEpoch: 19,
+    });
+    olderClear.resolve();
+
+    await expect(replacementStart).resolves.toEqual(
+      expect.objectContaining({ success: true, tabId: 88 }),
+    );
+    await expect(olderStop).resolves.toEqual({
+      success: false,
+      tabId: 88,
+      reason: 'stale-operation',
+    });
+
+    expect(getScrollSyncState().sessionEpoch).toBe(19);
+    expect(vi.mocked(hidePanel)).not.toHaveBeenCalled();
+    expect(vi.mocked(showPanel)).toHaveBeenCalledTimes(1);
+    await expect(getManualScrollOffset(88)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
   });
 });
 

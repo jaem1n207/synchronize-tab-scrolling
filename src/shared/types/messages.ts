@@ -74,7 +74,7 @@ export type StartSyncContentResponse = {
   success: boolean;
   tabId: number;
   metrics?: ContextualHintScrollMetrics;
-  reason?: 'stale-operation';
+  reason?: 'stale-operation' | 'offset-reconciliation-failed';
 };
 
 export type StartSyncBackgroundResponse = {
