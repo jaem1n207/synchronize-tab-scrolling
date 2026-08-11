@@ -406,6 +406,36 @@ describe('useSyncControl revision-aware lifecycle', () => {
     unmount();
   });
 
+  it('preserves a cross-window authoritative session when discovery sees only one linked tab', async () => {
+    vi.mocked(sendMessage).mockResolvedValue({
+      success: true,
+      isActive: true,
+      revision: 8,
+      linkedTabs: [],
+      connectedTabs: [1, 22],
+      connectionStatuses: { 1: 'connected', 22: 'connected' },
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(8));
+    expect(result.current.syncStatus).toEqual({
+      isActive: true,
+      connectedTabs: [1, 22],
+      connectionStatuses: { 1: 'connected', 22: 'connected' },
+      revision: 8,
+    });
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'scroll:stop',
+      expect.anything(),
+      'background',
+    );
+
+    unmount();
+  });
+
   it('stores the committed revision returned by Start', async () => {
     vi.mocked(sendMessage).mockImplementation(async (message) => {
       if (message === 'sync:get-status') {
@@ -563,6 +593,69 @@ describe('useSyncControl revision-aware lifecycle', () => {
       2: 'connected',
     });
 
+    unmount();
+  });
+
+  it.each([
+    {
+      name: '3-to-2 topology removal',
+      refreshed: {
+        success: true,
+        isActive: true,
+        revision: 22,
+        linkedTabs: [],
+        connectedTabs: [2, 3],
+        connectionStatuses: { 2: 'connected', 3: 'connected' },
+      },
+    },
+    {
+      name: '2-to-inactive durable Stop',
+      refreshed: {
+        success: false,
+        isActive: false,
+        revision: 22,
+        linkedTabs: [],
+        connectedTabs: [],
+        connectionStatuses: {},
+      },
+    },
+  ])('refreshes authoritative popup truth after $name', async ({ refreshed }) => {
+    let statusRequests = 0;
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        statusRequests += 1;
+        return statusRequests === 1
+          ? {
+              success: true,
+              isActive: true,
+              revision: 21,
+              linkedTabs: [],
+              connectedTabs: [1, 2, 3],
+              connectionStatuses: { 1: 'error', 2: 'connected', 3: 'connected' },
+            }
+          : refreshed;
+      }
+      return { status: 'refresh-required', revision: 22 };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+      { id: 3, title: 'three', url: 'https://example.com/three', eligible: true },
+    ]);
+
+    await waitFor(() => expect(result.current.syncStatus.revision).toBe(21));
+    await act(async () => {
+      await result.current.handleResync();
+    });
+
+    expect(statusRequests).toBe(2);
+    expect(result.current.syncStatus).toEqual({
+      isActive: refreshed.isActive,
+      connectedTabs: refreshed.connectedTabs,
+      connectionStatuses: refreshed.connectionStatuses,
+      revision: 22,
+    });
     unmount();
   });
 });

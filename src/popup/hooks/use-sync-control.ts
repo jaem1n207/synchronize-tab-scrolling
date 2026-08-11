@@ -107,53 +107,18 @@ export function useSyncControl({
     const restoreSyncState = async () => {
       try {
         let hasActiveSync = false;
-        let syncedTabIds: Array<number> = [];
-        let restoredRevision = INITIAL_SYNC_STATUS.revision;
         try {
           const response = await refreshSyncStatus();
-          restoredRevision = response.revision;
           if (response.isActive) {
             hasActiveSync = true;
-            syncedTabIds = [...response.connectedTabs];
           }
         } catch {
           // No active sync to restore - this is expected on first load
         }
 
         const savedTabIds = await loadSelectedTabIds();
-        const availableTabIds = new Set(tabs.map((tab) => tab.id));
-
-        if (hasActiveSync) {
-          const validSelectedIds = syncedTabIds.filter((id) => availableTabIds.has(id));
-
-          if (validSelectedIds.length !== syncedTabIds.length) {
-            logger.warn(
-              '[useSyncControl] Some synced tabs no longer available, updating selection',
-            );
-            onSelectedTabIdsChange(validSelectedIds);
-
-            if (validSelectedIds.length < 2) {
-              logger.warn(
-                '[useSyncControl] Sync state inconsistent: fewer than 2 tabs available. Resetting sync status.',
-              );
-              const stopMessage = {
-                expectedRevision: restoredRevision,
-              } satisfies StopManualSyncMessage;
-              sendMessage('scroll:stop', stopMessage, 'background')
-                .then((result) => {
-                  if ('status' in result && result.status === 'committed') {
-                    setSyncStatus({
-                      ...INITIAL_SYNC_STATUS,
-                      revision: result.revision,
-                    });
-                  }
-                })
-                .catch((err) => {
-                  logger.warn('[useSyncControl] Failed to stop sync in background:', err);
-                });
-            }
-          }
-        } else {
+        if (!hasActiveSync) {
+          const availableTabIds = new Set(tabs.map((tab) => tab.id));
           const restoredSelection = savedTabIds.filter((id) => availableTabIds.has(id));
           if (restoredSelection.length > 0) {
             onSelectedTabIdsChange(restoredSelection);
@@ -431,6 +396,15 @@ export function useSyncControl({
         { expectedRevision: syncStatus.revision },
         'background',
       );
+      if (result.status === 'refresh-required') {
+        await refreshSyncStatus();
+        setError({
+          message: t('reconnectionSuccessful'),
+          severity: 'info',
+          timestamp: Date.now(),
+        });
+        return;
+      }
       if (result.status === 'rejected') {
         await refreshSyncStatus();
         setError({
