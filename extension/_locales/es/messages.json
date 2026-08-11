@@ -824,6 +824,9 @@
   "currentTabLocation": {
     "message": "Pestaña actual"
   },
+  "otherSyncedTab": {
+    "message": "Otra pestaña sincronizada"
+  },
   "currentWindowLocation": {
     "message": "Ventana actual"
   },
