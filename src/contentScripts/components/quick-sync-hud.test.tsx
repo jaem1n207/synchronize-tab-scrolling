@@ -136,7 +136,8 @@ describe('QuickSyncHud', () => {
     act(() => vi.advanceTimersByTime(1));
 
     expect(screen.queryByRole('timer')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(screen.getByRole('status')).toHaveTextContent('동기화할 탭 1개 선택됨');
+    expect(screen.getByRole('status')).not.toHaveTextContent(
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
     );
   });
@@ -165,7 +166,8 @@ describe('QuickSyncHud', () => {
     act(() => vi.advanceTimersByTime(6_000));
 
     expect(screen.queryByRole('timer')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(screen.getByRole('status')).toHaveTextContent('이 탭은 이미 선택되어 있어요');
+    expect(screen.getByRole('status')).not.toHaveTextContent(
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
     );
   });
@@ -190,14 +192,22 @@ describe('QuickSyncHud', () => {
     },
   );
 
-  it('announces a true expiration exactly once', () => {
-    renderHud({
+  it('announces expiration exactly once only after an authoritative semantic outcome', () => {
+    const message: QuickSyncHudMessage = {
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 21_000,
-    });
+    };
+    const view = renderHud(message);
 
     act(() => vi.advanceTimersByTime(1_000));
+
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.getByRole('status')).not.toHaveTextContent(
+      '다른 탭을 선택할 수 있는 시간이 끝났어요.',
+    );
+
+    view.rerender(<QuickSyncHud message={message} semanticOutcome="expired" />);
 
     expect(screen.getAllByRole('status')).toHaveLength(1);
     expect(screen.getByRole('status')).toHaveTextContent(

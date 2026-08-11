@@ -13,6 +13,7 @@ export type QuickSyncHudMessage = Exclude<QuickSyncFeedbackMessage, { outcome: '
 interface QuickSyncHudProps {
   message: QuickSyncHudMessage;
   onLifetimeEnd?: () => void;
+  semanticOutcome?: 'expired';
 }
 
 interface HudCopy {
@@ -126,7 +127,7 @@ function isCandidateLifetime(message: QuickSyncHudMessage): boolean {
   );
 }
 
-export function QuickSyncHud({ message, onLifetimeEnd }: QuickSyncHudProps) {
+export function QuickSyncHud({ message, onLifetimeEnd, semanticOutcome }: QuickSyncHudProps) {
   const lifetimeRef = useRef<Lifetime>(getLifetime(message, Date.now()));
   const nextIdentity = `${message.generation}:${message.outcome}`;
   if (lifetimeRef.current.identity !== nextIdentity) {
@@ -135,7 +136,7 @@ export function QuickSyncHud({ message, onLifetimeEnd }: QuickSyncHudProps) {
 
   const lifetime = lifetimeRef.current;
   const [clock, setClock] = useState(Date.now());
-  const [expiredIdentity, setExpiredIdentity] = useState<string | null>(null);
+  const [endedIdentity, setEndedIdentity] = useState<string | null>(null);
   const remainingSeconds =
     lifetime.deadline === null ? null : getRemainingSeconds(lifetime.deadline, clock);
   const copy = getCopy(message, remainingSeconds);
@@ -147,9 +148,10 @@ export function QuickSyncHud({ message, onLifetimeEnd }: QuickSyncHudProps) {
     };
   }
   const announcement = announcementRef.current.text;
+  const hasCandidateLifetime = isCandidateLifetime(message);
 
   useEffect(() => {
-    setExpiredIdentity(null);
+    setEndedIdentity(null);
     if (lifetime.deadline === null) {
       return;
     }
@@ -159,8 +161,10 @@ export function QuickSyncHud({ message, onLifetimeEnd }: QuickSyncHudProps) {
       const now = Date.now();
       if (lifetime.deadline !== null && now >= lifetime.deadline) {
         setClock(now);
-        setExpiredIdentity(lifetime.identity);
-        onLifetimeEnd?.();
+        if (!hasCandidateLifetime) {
+          setEndedIdentity(lifetime.identity);
+          onLifetimeEnd?.();
+        }
         return;
       }
 
@@ -183,20 +187,17 @@ export function QuickSyncHud({ message, onLifetimeEnd }: QuickSyncHudProps) {
         clearTimeout(timer);
       }
     };
-  }, [lifetime, onLifetimeEnd]);
+  }, [hasCandidateLifetime, lifetime, onLifetimeEnd]);
 
-  const hasExpired =
-    expiredIdentity === lifetime.identity ||
-    (lifetime.deadline !== null && remainingSeconds === null);
-  if (hasExpired) {
-    if (!isCandidateLifetime(message)) {
-      return null;
-    }
+  if (semanticOutcome === 'expired') {
     return (
       <p aria-atomic="true" aria-live="polite" className="sr-only" role="status">
         {t('quickSyncCandidateExpiredAnnouncement')}
       </p>
     );
+  }
+  if (endedIdentity === lifetime.identity) {
+    return null;
   }
 
   const reducedMotion = prefersReducedMotion();
