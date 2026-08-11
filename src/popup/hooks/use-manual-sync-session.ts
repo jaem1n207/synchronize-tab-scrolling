@@ -18,6 +18,7 @@ export interface UseManualSyncSessionResult {
   state: PopupSessionState;
   isStopping: boolean;
   isReconnecting: boolean;
+  isMutating: boolean;
   warning?: 'cleanup-incomplete';
   refetch: () => Promise<void>;
   stop: () => Promise<void>;
@@ -25,6 +26,8 @@ export interface UseManualSyncSessionResult {
 }
 
 const OPERATION_TIMEOUT_MS = 1_000;
+
+class OperationTimeoutError extends Error {}
 
 function isPositiveSafeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
@@ -78,7 +81,7 @@ function removeRecentQuickSyncOutcome(
 function withOperationTimeout<T>(operation: Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timeout = setTimeout(
-      () => reject(new Error('Manual session operation timed out')),
+      () => reject(new OperationTimeoutError('Manual session operation timed out')),
       OPERATION_TIMEOUT_MS,
     );
 
@@ -102,6 +105,7 @@ export function useManualSyncSession(): UseManualSyncSessionResult {
   const [warning, setWarning] = useState<'cleanup-incomplete'>();
   const requestGenerationRef = useRef(0);
   const outcomeExpiryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const mutationInFlightRef = useRef(false);
   const mountedRef = useRef(true);
 
   const clearOutcomeExpiryTimer = useCallback((): void => {
@@ -132,7 +136,7 @@ export function useManualSyncSession(): UseManualSyncSessionResult {
 
       setState(response);
       outcomeExpiryTimerRef.current = setTimeout(() => {
-        if (!mountedRef.current || requestGenerationRef.current !== generation) {
+        if (!mountedRef.current) {
           return;
         }
 
@@ -145,6 +149,7 @@ export function useManualSyncSession(): UseManualSyncSessionResult {
           }
           if (
             currentState.recentQuickSyncOutcome === undefined ||
+            currentState.recentQuickSyncOutcome.tabId !== recentOutcome.tabId ||
             currentState.recentQuickSyncOutcome.expiresAt !== recentOutcome.expiresAt
           ) {
             return currentState;
@@ -189,10 +194,11 @@ export function useManualSyncSession(): UseManualSyncSessionResult {
   }, [clearOutcomeExpiryTimer, refetch]);
 
   const stop = useCallback(async (): Promise<void> => {
-    if (state.status !== 'active' || isStopping) {
+    if (state.status !== 'active' || mutationInFlightRef.current) {
       return;
     }
 
+    mutationInFlightRef.current = true;
     setIsStopping(true);
     setWarning(undefined);
     try {
@@ -213,36 +219,57 @@ export function useManualSyncSession(): UseManualSyncSessionResult {
       if (mountedRef.current) {
         setIsStopping(false);
       }
+      mutationInFlightRef.current = false;
     }
-  }, [isStopping, refetch, state]);
+  }, [refetch, state]);
 
   const reconnect = useCallback(async (): Promise<void> => {
-    if (state.status !== 'active' || isReconnecting) {
+    if (state.status !== 'active' || mutationInFlightRef.current) {
       return;
     }
 
+    mutationInFlightRef.current = true;
     setIsReconnecting(true);
+    const operation: Promise<ManualReconnectResult> = sendMessage(
+      'sync:reconnect-session',
+      { expectedRevision: state.snapshot.revision },
+      'background',
+    );
+    const settlement = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    let timedOut = false;
     try {
-      const operation: Promise<ManualReconnectResult> = sendMessage(
-        'sync:reconnect-session',
-        { expectedRevision: state.snapshot.revision },
-        'background',
-      );
       await withOperationTimeout(operation);
-    } catch {
+    } catch (operationError) {
+      timedOut = operationError instanceof OperationTimeoutError;
       // The authoritative refetch below determines the visible result.
-    } finally {
-      await refetch();
-      if (mountedRef.current) {
-        setIsReconnecting(false);
-      }
     }
-  }, [isReconnecting, refetch, state]);
+
+    await refetch();
+    if (timedOut) {
+      void settlement.then(async () => {
+        await refetch();
+        if (mountedRef.current) {
+          setIsReconnecting(false);
+        }
+        mutationInFlightRef.current = false;
+      });
+      return;
+    }
+
+    if (mountedRef.current) {
+      setIsReconnecting(false);
+    }
+    mutationInFlightRef.current = false;
+  }, [refetch, state]);
 
   return {
     state,
     isStopping,
     isReconnecting,
+    isMutating: isStopping || isReconnecting,
     warning,
     refetch,
     stop,

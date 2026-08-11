@@ -89,7 +89,8 @@ function createInactiveStatus(revision: number): SyncStatusResponseMessage {
 
 beforeEach(() => {
   vi.useRealTimers();
-  vi.clearAllMocks();
+  sendMessageMock.mockReset();
+  tabsQueryMock.mockReset();
   tabsQueryMock.mockResolvedValue([
     {
       id: 11,
@@ -228,6 +229,34 @@ describe('useManualSyncSession authoritative transitions', () => {
     expect(result.current.warning).toBeUndefined();
   });
 
+  it('does not start reconnect while Stop owns the mutation lock', async () => {
+    const stopResult = createDeferred<ManualStopResult>();
+    sendMessageMock
+      .mockResolvedValueOnce(createActiveStatus(16))
+      .mockReturnValueOnce(stopResult.promise)
+      .mockResolvedValueOnce(createActiveStatus(17));
+
+    const { result } = renderHook(() => useManualSyncSession());
+    await waitFor(() => expect(result.current.state.status).toBe('active'));
+
+    let stopPromise = Promise.resolve();
+    act(() => {
+      stopPromise = result.current.stop();
+      void result.current.reconnect();
+    });
+
+    expect(result.current.isMutating).toBe(true);
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'sync:reconnect-session',
+      expect.anything(),
+      'background',
+    );
+
+    stopResult.resolve({ status: 'committed', revision: 17 });
+    await act(async () => stopPromise);
+    expect(result.current.isMutating).toBe(false);
+  });
+
   it('refetches and preserves active truth after Stop times out', async () => {
     vi.useFakeTimers();
     sendMessageMock
@@ -318,6 +347,34 @@ describe('useManualSyncSession authoritative transitions', () => {
     expect(result.current.state).toEqual(createActiveStatus(25, 'connected'));
   });
 
+  it('does not start Stop while reconnect owns the mutation lock', async () => {
+    const reconnectResult = createDeferred<ManualReconnectResult>();
+    sendMessageMock
+      .mockResolvedValueOnce(createActiveStatus(26, 'error'))
+      .mockReturnValueOnce(reconnectResult.promise)
+      .mockResolvedValueOnce(createActiveStatus(27, 'connected'));
+
+    const { result } = renderHook(() => useManualSyncSession());
+    await waitFor(() => expect(result.current.state.status).toBe('active'));
+
+    let reconnectPromise = Promise.resolve();
+    act(() => {
+      reconnectPromise = result.current.reconnect();
+      void result.current.stop();
+    });
+
+    expect(result.current.isMutating).toBe(true);
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'scroll:stop',
+      expect.anything(),
+      'background',
+    );
+
+    reconnectResult.resolve({ status: 'committed', revision: 27 });
+    await act(async () => reconnectPromise);
+    expect(result.current.isMutating).toBe(false);
+  });
+
   it('refetches after reconnect times out', async () => {
     vi.useFakeTimers();
     sendMessageMock
@@ -342,6 +399,51 @@ describe('useManualSyncSession authoritative transitions', () => {
     });
 
     expect(result.current.state).toEqual(createActiveStatus(28, 'error'));
+  });
+
+  it('refetches again when reconnect commits after the local timeout', async () => {
+    vi.useFakeTimers();
+    const reconnectResult = createDeferred<ManualReconnectResult>();
+    sendMessageMock
+      .mockResolvedValueOnce(createActiveStatus(50, 'error'))
+      .mockReturnValueOnce(reconnectResult.promise)
+      .mockResolvedValueOnce(createActiveStatus(50, 'disconnected'))
+      .mockResolvedValueOnce(createActiveStatus(51, 'connected'));
+
+    const { result } = renderHook(() => useManualSyncSession());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    let reconnectPromise = Promise.resolve();
+    act(() => {
+      reconnectPromise = result.current.reconnect();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+      await reconnectPromise;
+    });
+
+    expect(result.current.state).toEqual(createActiveStatus(50, 'disconnected'));
+    expect(result.current.isMutating).toBe(true);
+    await act(async () => result.current.stop());
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'scroll:stop',
+      expect.anything(),
+      'background',
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_500);
+      reconnectResult.resolve({ status: 'committed', revision: 51 });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.state).toEqual(createActiveStatus(51, 'connected'));
+    expect(result.current.isMutating).toBe(false);
+    expect(sendMessageMock).toHaveBeenCalledTimes(4);
   });
 
   it('does not issue Stop or reconnect without an active snapshot revision', async () => {
@@ -439,6 +541,43 @@ describe('useManualSyncSession recent Quick Sync outcome expiry', () => {
         ? result.current.state.recentQuickSyncOutcome?.expiresAt
         : undefined,
     ).toBe(20_200);
+  });
+
+  it('expires the visible outcome while a newer status request is pending', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(25_000));
+    const pendingStatus = createDeferred<SyncStatusResponseMessage>();
+    sendMessageMock
+      .mockResolvedValueOnce({
+        ...createInactiveStatus(45),
+        recentQuickSyncOutcome: {
+          tabId: 11,
+          resultKind: 'candidate-failed',
+          reason: 'hud-unavailable',
+          expiresAt: 25_100,
+        },
+      })
+      .mockReturnValueOnce(pendingStatus.promise);
+
+    const { result } = renderHook(() => useManualSyncSession());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    let refetchPromise = Promise.resolve();
+    act(() => {
+      refetchPromise = result.current.refetch();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    expect(result.current.state).toEqual(createInactiveStatus(45));
+
+    pendingStatus.resolve(createInactiveStatus(46));
+    await act(async () => refetchPromise);
+    expect(result.current.state).toEqual(createInactiveStatus(46));
   });
 
   it('keeps an explicit status error after its recent outcome expires', async () => {
