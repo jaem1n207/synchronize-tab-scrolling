@@ -282,6 +282,19 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
+  it('disables every loading skeleton pulse when reduced motion is requested', () => {
+    useManualSyncSessionMock.mockReturnValue(createSession({ status: 'loading' }));
+
+    render(<ScrollSyncPopup />);
+
+    const skeleton = screen.getByRole('status');
+    const animatedElements = skeleton.querySelectorAll('.animate-pulse');
+    expect(animatedElements).toHaveLength(3);
+    animatedElements.forEach((element) => {
+      expect(element).toHaveClass('motion-reduce:animate-none');
+    });
+  });
+
   it('shows a persistent status error and retries the authoritative read', async () => {
     const user = userEvent.setup();
     useManualSyncSessionMock.mockReturnValue(

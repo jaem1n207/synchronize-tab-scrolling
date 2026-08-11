@@ -41,9 +41,18 @@ function PopupSessionSkeleton() {
       role="status"
     >
       <span className="sr-only">{t('loading')}</span>
-      <div aria-hidden="true" className="h-6 w-36 animate-pulse rounded-md bg-muted" />
-      <div aria-hidden="true" className="h-12 animate-pulse rounded-lg bg-muted/70" />
-      <div aria-hidden="true" className="min-h-0 flex-1 animate-pulse rounded-lg bg-muted/50" />
+      <div
+        aria-hidden="true"
+        className="h-6 w-36 animate-pulse rounded-md bg-muted motion-reduce:animate-none"
+      />
+      <div
+        aria-hidden="true"
+        className="h-12 animate-pulse rounded-lg bg-muted/70 motion-reduce:animate-none"
+      />
+      <div
+        aria-hidden="true"
+        className="min-h-0 flex-1 animate-pulse rounded-lg bg-muted/50 motion-reduce:animate-none"
+      />
     </div>
   );
 }
