@@ -79,6 +79,12 @@ const { transitionEvents } = vi.hoisted((): { transitionEvents: Array<string> } 
   transitionEvents: [],
 }));
 
+const { quickSyncCoordinatorMock } = vi.hoisted(() => ({
+  quickSyncCoordinatorMock: {
+    invalidateCandidate: vi.fn().mockResolvedValue(false),
+  },
+}));
+
 vi.mock('webext-bridge/background', () => ({
   onMessage: onMessageMock,
   sendMessage: sendMessageMock,
@@ -186,6 +192,10 @@ vi.mock('../lib/sync-transition-gate', () => ({
       },
     ),
   },
+}));
+
+vi.mock('./quick-sync-command-handler', () => ({
+  quickSyncCoordinator: quickSyncCoordinatorMock,
 }));
 
 function getHandler<TData>(messageId: string): RegisteredMessageHandler<TData> {
@@ -497,6 +507,33 @@ describe('registerScrollSyncHandlers', () => {
   });
 
   describe('scroll:start', () => {
+    it('invalidates the candidate inside the committed popup Start transition', async () => {
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+
+      await handler({
+        data: { tabIds: [11, 22], mode: 'ratio' },
+        sender: {},
+      });
+
+      expect(quickSyncCoordinatorMock.invalidateCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({ operationGeneration: 1 }),
+        'consumed',
+      );
+      expect(syncTransitionGate.run).toHaveBeenCalledTimes(1);
+    });
+
+    it('retains the candidate when popup Start persistence is rejected', async () => {
+      vi.mocked(persistSyncState).mockResolvedValue({ status: 'storage-error' });
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+
+      await handler({
+        data: { tabIds: [11, 22], mode: 'ratio' },
+        sender: {},
+      });
+
+      expect(quickSyncCoordinatorMock.invalidateCandidate).not.toHaveBeenCalled();
+    });
+
     it('runs popup manual Start through the transition gate before the auto lock', async () => {
       const handler = getHandler<StartSyncMessage>('scroll:start');
 

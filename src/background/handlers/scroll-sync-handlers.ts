@@ -49,6 +49,8 @@ import {
 } from '../lib/sync-state';
 import { syncTransitionGate } from '../lib/sync-transition-gate';
 
+import { quickSyncCoordinator } from './quick-sync-command-handler';
+
 const logger = new ExtensionLogger({ scope: 'background/scroll-sync-handlers' });
 const MANUAL_ADJUSTMENT_HINT_ID = 'manual-scroll-adjustment';
 const MANUAL_ADJUSTMENT_HINT_MESSAGE: ContextualHintShowMessage = {
@@ -341,14 +343,18 @@ async function startPopupManualSession(startRequest: {
     recordRecentOutcome: () => undefined,
   });
 
-  const result = await syncTransitionGate.run((context) =>
-    orchestrator.startManualSession(context, {
+  const result = await syncTransitionGate.run(async (context) => {
+    const transitionResult = await orchestrator.startManualSession(context, {
       tabIds: [...startRequest.tabIds],
       mode: startRequest.mode,
       source: 'popup',
       requireAll: false,
-    }),
-  );
+    });
+    if (transitionResult.status === 'committed') {
+      await quickSyncCoordinator.invalidateCandidate(context, 'consumed');
+    }
+    return transitionResult;
+  });
 
   for (const tabId of startRequest.tabIds) {
     if (connectionResults[tabId] === undefined) {
