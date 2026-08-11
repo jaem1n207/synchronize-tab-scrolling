@@ -1,52 +1,52 @@
 # Popup UI Components
 
-This directory contains the UI components for the scroll synchronization control panel, following the PRD requirements and accessibility standards.
+This directory contains the extension popup. It preserves the manual tab picker while rendering
+authoritative cross-window session state when synchronization is active.
 
 ## Component Architecture
 
-### Main Components
+| Component                                   | Responsibility                                                              |
+| ------------------------------------------- | --------------------------------------------------------------------------- |
+| `components/scroll-sync-popup.tsx`          | Root composition, inactive/active branching, popup-local keyboard shortcuts |
+| `components/tab-command-palette.tsx`        | Inactive current-window search, eligibility, and selection                  |
+| `components/active-sync-session.tsx`        | Authoritative cross-window linked-tab list, Reconnect, and Stop             |
+| `components/quick-sync-shortcut-status.tsx` | Assigned/unassigned/unavailable Quick Sync state                            |
+| `components/quick-sync-recent-outcome.tsx`  | Non-persisted delayed recovery for command failures                         |
+| `components/actions-menu.tsx`               | Explicit auto-suggestion opt-in and inactive picker actions                 |
+| `components/sync-control-buttons.tsx`       | Inactive Start control                                                      |
+| `shared/components/url-sync-settings.tsx`   | URL Sync configuration for inactive and active states                       |
 
-1. **ScrollSyncPopup** (`components/ScrollSyncPopup.tsx`)
-   - Main entry point for the popup UI
-   - Manages state for tab selection, sync status, and panel visibility
-   - Coordinates all child components
+State and mutations live in hooks under `hooks/`:
 
-2. **DraggableControlPanel** (`components/DraggableControlPanel.tsx`)
-   - Draggable panel container with minimize/maximize functionality
-   - Auto-snap to viewport edges (left/right) with 200ms ease-out-quad animation
-   - Minimize: 30x30px button with 250ms ease-out-cubic animation
-   - Respects `prefers-reduced-motion` for accessibility
+- `use-manual-sync-session.ts` reads authoritative `loading | inactive | active | error` state and
+  refetches after Stop/Reconnect.
+- `use-sync-control.ts` owns popup Start only.
+- `use-tab-discovery.ts` discovers current-window picker rows only; it is not session topology.
+- `use-quick-sync-shortcut.ts` reads assignment truth from `commands.getAll()` and feature-detects
+  optional change events.
+- `use-auto-sync.ts` keeps same-page suggestions explicit opt-in.
 
-3. **TabSelectionList** (`components/TabSelectionList.tsx`)
-   - Displays eligible tabs with titles and favicons
-   - Shows ineligible tabs with explanation tooltips
-   - Shows local-file privacy notes and Chromium file-access settings actions when needed
-   - Keeps the selection requirement/status visually grouped with the tab list
-   - Visual feedback for selection state (checkmarks)
-   - Full keyboard navigation support
+## Quick Sync Responsibilities
 
-4. **LinkedSitesPanel** (`components/LinkedSitesPanel.tsx`)
-   - Collapsible list of synchronized tabs (collapsed by default)
-   - Connection status indicators per tab
-   - Click-to-switch functionality
-   - Real-time status updates
+### Inactive popup
 
-5. **SyncControlButtons** (`components/SyncControlButtons.tsx`)
-   - Start/Stop sync button with state management
-   - Disabled when < 2 tabs selected
-   - Re-sync button when connection errors detected
-   - Visual feedback for active sync state
+- Keep search, filters, selection chips, checkboxes, Start, Actions, URL Sync settings, and
+  popup-local `Cmd/Ctrl+S`.
+- Show Quick Sync as an additional browser-wide shortcut, never a replacement Start button.
+- Display the exact assignment returned by `commands.getAll()`, including honest unassigned and
+  unavailable states.
 
-6. **UrlSyncSettings** (`shared/components/url-sync-settings.tsx`)
-   - Compact **Sync page changes** control placed above the Start Sync button
-   - Keeps URL navigation behavior secondary to tab selection
-   - Expands inline to switch between **Follow changed tab** and **Keep each tab's website**
-   - Uses fixed-domain examples instead of user page data
+### Active popup
 
-7. **StatusIndicator** (`components/StatusIndicator.tsx`)
-   - Visual connection status indicators
-   - States: connected (pulsing green), disconnected (gray), error (pulsing red)
-   - Includes ARIA labels for screen readers
+- Replace picker controls with the authoritative background snapshot.
+- Show linked tabs from every browser window with `current-tab`, `current-window`, or
+  `other-window` location.
+- Keep unavailable metadata rows without converting the whole session to inactive.
+- Keep URL Sync settings, real Reconnect when needed, and Stop.
+- Refetch after mutation rather than manufacturing local success.
+
+The full command, transaction, remap, and QA contract is documented in
+[`docs/guides/quick-sync-shortcut.md`](../../docs/guides/quick-sync-shortcut.md).
 
 ## Animation Guidelines
 
@@ -91,30 +91,10 @@ All animations follow PRD specifications:
 - Error messages associated with controls
 - Tooltips provide context for restrictions
 
-## Type Definitions
+## State and Privacy Boundaries
 
-See `types.ts` for core type definitions:
-
-- `TabInfo`: Tab metadata and eligibility
-- `UnavailableTabAction`: Actionable CTA metadata for unavailable rows
-- `SyncStatus`: Synchronization state
-- `ConnectionStatus`: Per-tab connection states
-- `PanelPosition`: Panel positioning data
-
-## Usage Example
-
-```tsx
-import { ScrollSyncPopup } from './components/ScrollSyncPopup';
-
-function App() {
-  return <ScrollSyncPopup />;
-}
-```
-
-## Future Enhancements
-
-- Integration with browser tabs API
-- Persistent panel position via storage API
-- Multi-language support (i18n)
-- Advanced sync mode selection UI
-- Performance metrics display
+- Picker rows may use tab URL/title locally for discovery and display, but must not log or export
+  them.
+- Active snapshot display needs title/favicon/window metadata but no raw URL.
+- A status read failure is `error`, not `inactive`.
+- Storage values and `commands` capabilities are runtime-validated or feature-detected.
