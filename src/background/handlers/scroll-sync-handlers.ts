@@ -25,6 +25,10 @@ import {
   addTabSuggestedTabs,
 } from '../lib/auto-sync-state';
 import {
+  getManualReadinessSnapshot,
+  waitForBackgroundInitialization,
+} from '../lib/background-initialization';
+import {
   consumePendingUrlSyncContextualHint,
   savePendingUrlSyncContextualHint,
 } from '../lib/contextual-hint-state';
@@ -123,7 +127,21 @@ export function registerScrollSyncHandlers(): void {
     };
   });
 
-  onMessage('scroll:start', async ({ data: startRequest }) => {
+  onMessage('scroll:start', async ({ data }) => {
+    const startRequest = {
+      ...data,
+      tabIds: [...data.tabIds],
+    };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return {
+        success: false,
+        connectedTabs: [],
+        connectionResults: {},
+        error: 'Session state unavailable',
+      };
+    }
+
     logger.info('Received scroll:start message', {
       requestedTabCount: startRequest.tabIds.length,
       mode: startRequest.mode,
@@ -268,7 +286,15 @@ export function registerScrollSyncHandlers(): void {
   });
 
   onMessage('scroll:stop', async ({ data }) => {
-    const payload = data;
+    const payload = {
+      ...data,
+      ...(data.tabIds === undefined ? {} : { tabIds: [...data.tabIds] }),
+    };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return { success: false, reason: 'session-state-unavailable' };
+    }
+
     const tabIds = payload.tabIds ?? [];
     logger.info('Stopping scroll sync for tabs', {
       tabCount: tabIds.length,
@@ -333,83 +359,106 @@ export function registerScrollSyncHandlers(): void {
     return { success: true };
   });
 
-  onMessage('scroll:sync', async ({ data, sender }) => {
-    const payload = data;
-    logger.debug('Relaying scroll sync message', {
-      sourceTabId: payload.sourceTabId,
-      mode: payload.mode,
-      hasSenderTab: sender.tabId !== undefined,
-    });
+  onMessage('scroll:sync', ({ data, sender }) => {
+    if (getManualReadinessSnapshot() !== 'ready') {
+      return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
+    }
 
-    // Manual sync tabs (existing logic)
-    let targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
-
-    // Also include auto-sync group members
-    const autoSyncTargets = getAutoSyncGroupMembers(payload.sourceTabId);
-    if (autoSyncTargets.length > 0) {
-      logger.debug('Adding auto-sync group members to relay targets', {
+    return (async () => {
+      const payload = data;
+      logger.debug('Relaying scroll sync message', {
         sourceTabId: payload.sourceTabId,
-        autoSyncTargets,
+        mode: payload.mode,
+        hasSenderTab: sender.tabId !== undefined,
       });
-      // Merge and deduplicate
-      targetTabIds = [...new Set([...targetTabIds, ...autoSyncTargets])];
-    }
 
-    if (targetTabIds.length === 0) {
-      logger.debug('No target tabs to relay scroll sync to');
+      // Manual sync tabs (existing logic)
+      let targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
+
+      // Also include auto-sync group members
+      const autoSyncTargets = getAutoSyncGroupMembers(payload.sourceTabId);
+      if (autoSyncTargets.length > 0) {
+        logger.debug('Adding auto-sync group members to relay targets', {
+          sourceTabId: payload.sourceTabId,
+          autoSyncTargets,
+        });
+        // Merge and deduplicate
+        targetTabIds = [...new Set([...targetTabIds, ...autoSyncTargets])];
+      }
+
+      if (targetTabIds.length === 0) {
+        logger.debug('No target tabs to relay scroll sync to');
+        return { success: true };
+      }
+
+      const promises = targetTabIds.map((tabId) =>
+        sendMessage('scroll:sync', data, { context: 'content-script', tabId }).catch((error) => {
+          logger.debug(`Failed to relay scroll sync to tab ${tabId}`, { error });
+        }),
+      );
+
+      await Promise.all(promises);
       return { success: true };
-    }
-
-    const promises = targetTabIds.map((tabId) =>
-      sendMessage('scroll:sync', data, { context: 'content-script', tabId }).catch((error) => {
-        logger.debug(`Failed to relay scroll sync to tab ${tabId}`, { error });
-      }),
-    );
-
-    await Promise.all(promises);
-    return { success: true };
+    })();
   });
 
-  onMessage('scroll:manual', async ({ data }) => {
-    const payload = data;
-    logger.debug('Manual scroll mode toggled', {
-      tabId: payload.tabId,
-      enabled: payload.enabled,
-    });
+  onMessage('scroll:manual', ({ data }) => {
+    if (getManualReadinessSnapshot() !== 'ready') {
+      return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
+    }
 
-    // Send manual mode change to the specific tab only
-    try {
-      await sendMessage('scroll:manual', data, {
-        context: 'content-script',
+    return (async () => {
+      const payload = data;
+      logger.debug('Manual scroll mode toggled', {
         tabId: payload.tabId,
+        enabled: payload.enabled,
       });
-    } catch (error) {
-      logger.debug(`Failed to send manual mode to tab ${payload.tabId}`, { error });
-    }
 
-    return { success: true };
+      // Send manual mode change to the specific tab only
+      try {
+        await sendMessage('scroll:manual', data, {
+          context: 'content-script',
+          tabId: payload.tabId,
+        });
+      } catch (error) {
+        logger.debug(`Failed to send manual mode to tab ${payload.tabId}`, { error });
+      }
+
+      return { success: true };
+    })();
   });
 
-  onMessage('url:sync', async ({ data }) => {
-    const payload = data;
-    logger.info('Relaying URL sync message', { sourceTabId: payload.sourceTabId });
+  onMessage('url:sync', ({ data }) => {
+    if (getManualReadinessSnapshot() !== 'ready') {
+      return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
+    }
 
-    // Broadcast to all synced tabs except the source
-    const targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
-    const promises = targetTabIds.map((tabId) =>
-      sendMessage('url:sync', data, { context: 'content-script', tabId }).catch((error) => {
-        logger.debug(`Failed to relay URL sync to tab ${tabId}`, { error });
-      }),
-    );
+    return (async () => {
+      const payload = data;
+      logger.info('Relaying URL sync message', { sourceTabId: payload.sourceTabId });
 
-    await Promise.all(promises);
-    return { success: true };
+      // Broadcast to all synced tabs except the source
+      const targetTabIds = syncState.linkedTabs.filter((tabId) => tabId !== payload.sourceTabId);
+      const promises = targetTabIds.map((tabId) =>
+        sendMessage('url:sync', data, { context: 'content-script', tabId }).catch((error) => {
+          logger.debug(`Failed to relay URL sync to tab ${tabId}`, { error });
+        }),
+      );
+
+      await Promise.all(promises);
+      return { success: true };
+    })();
   });
 
   // Handler for URL sync enabled state change broadcast
   onMessage('sync:url-enabled-changed', async ({ data, sender }) => {
-    const payload = data;
     const sourceTabId = sender.tabId;
+    const payload = { ...data };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return { success: false, reason: 'session-state-unavailable' };
+    }
+
     logger.info('Relaying URL sync enabled change', { enabled: payload.enabled, sourceTabId });
 
     // Broadcast to all synced tabs except the source
@@ -427,8 +476,13 @@ export function registerScrollSyncHandlers(): void {
   });
 
   onMessage('sync:url-mode-changed', async ({ data, sender }) => {
-    const payload = data;
     const sourceTabId = sender.tabId;
+    const payload = { ...data };
+    const readiness = await waitForBackgroundInitialization();
+    if (readiness.manual.status !== 'ready') {
+      return { success: false, reason: 'session-state-unavailable' };
+    }
+
     logger.info('Relaying URL sync mode change', { mode: payload.mode, sourceTabId });
 
     const targetTabIds =

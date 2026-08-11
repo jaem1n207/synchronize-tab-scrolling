@@ -54,6 +54,11 @@ const { isContextualHintDismissedMock } = vi.hoisted(() => ({
   isContextualHintDismissedMock: vi.fn(),
 }));
 
+const { getManualReadinessSnapshotMock, waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+  getManualReadinessSnapshotMock: vi.fn(),
+  waitForBackgroundInitializationMock: vi.fn(),
+}));
+
 vi.mock('webext-bridge/background', () => ({
   onMessage: onMessageMock,
   sendMessage: sendMessageMock,
@@ -85,6 +90,11 @@ vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
   getAutoSyncGroupMembers: vi.fn(),
   updateAutoSyncGroup: vi.fn(),
+}));
+
+vi.mock('../lib/background-initialization', () => ({
+  getManualReadinessSnapshot: getManualReadinessSnapshotMock,
+  waitForBackgroundInitialization: waitForBackgroundInitializationMock,
 }));
 
 vi.mock('../lib/auto-sync-state', () => ({
@@ -131,6 +141,28 @@ function getHandler<TData>(messageId: string): RegisteredMessageHandler<TData> {
   }
 
   return handler as RegisteredMessageHandler<TData>;
+}
+
+const readyBackground = {
+  manual: { status: 'ready' as const },
+  auto: { status: 'ready' as const },
+};
+
+async function expectImmediateUnavailable(result: Promise<unknown>): Promise<void> {
+  const fallback = Promise.withResolvers<{ status: 'next-microtask' }>();
+  const observedPromise = Promise.race([
+    result.then((value) => ({ status: 'settled' as const, value })),
+    fallback.promise,
+  ]);
+  queueMicrotask(() => {
+    fallback.resolve({ status: 'next-microtask' });
+  });
+  const observed = await observedPromise;
+
+  expect(observed).toEqual({
+    status: 'settled',
+    value: { success: false, reason: 'session-state-unavailable' },
+  });
 }
 
 describe('registerScrollSyncHandlers', () => {
@@ -189,8 +221,118 @@ describe('registerScrollSyncHandlers', () => {
     vi.mocked(consumePendingUrlSyncContextualHint).mockReset();
     vi.mocked(consumePendingUrlSyncContextualHint).mockReturnValue(null);
     vi.mocked(savePendingUrlSyncContextualHint).mockReset();
+    getManualReadinessSnapshotMock.mockReturnValue('ready');
+    waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
     registerScrollSyncHandlers();
+  });
+
+  describe('background readiness', () => {
+    it.each([
+      {
+        messageId: 'scroll:start',
+        data: { tabIds: [1, 2], mode: 'ratio' },
+      },
+      {
+        messageId: 'scroll:stop',
+        data: { tabIds: [] },
+      },
+      {
+        messageId: 'sync:url-enabled-changed',
+        data: { enabled: true },
+      },
+      {
+        messageId: 'sync:url-mode-changed',
+        data: { mode: 'ratio' },
+      },
+    ])('$messageId waits for background initialization', async ({ messageId, data }) => {
+      const handler = getHandler<unknown>(messageId);
+
+      await handler({ data, sender: { tabId: 1 } });
+
+      expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not start tab I/O before scroll:start readiness resolves', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      const handler = getHandler<StartSyncMessage>('scroll:start');
+
+      const result = handler({
+        data: { tabIds: [1, 2], mode: 'ratio' },
+        sender: { tabId: 1 },
+      });
+      await Promise.resolve();
+
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+
+      release.resolve(readyBackground);
+      await result;
+    });
+
+    it('rejects scroll:sync immediately while manual readiness is pending', async () => {
+      getManualReadinessSnapshotMock.mockReturnValue('pending');
+      waitForBackgroundInitializationMock.mockReturnValue(new Promise(() => undefined));
+      syncState.linkedTabs = [1, 2];
+      const handler = getHandler<ScrollSyncMessage>('scroll:sync');
+
+      await expectImmediateUnavailable(
+        handler({
+          data: {
+            sourceTabId: 1,
+            mode: 'ratio',
+            scrollTop: 120,
+            scrollHeight: 1000,
+            clientHeight: 600,
+            timestamp: 10,
+          },
+          sender: { tabId: 1 },
+        }),
+      );
+
+      expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+    });
+
+    it('rejects scroll:manual immediately while manual readiness is unavailable', async () => {
+      getManualReadinessSnapshotMock.mockReturnValue('unavailable');
+      waitForBackgroundInitializationMock.mockReturnValue(new Promise(() => undefined));
+      const handler = getHandler<ManualScrollMessage>('scroll:manual');
+
+      await expectImmediateUnavailable(
+        handler({
+          data: { tabId: 7, enabled: true },
+          sender: { tabId: 7 },
+        }),
+      );
+
+      expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+    });
+
+    it('rejects url:sync immediately while manual readiness is pending', async () => {
+      getManualReadinessSnapshotMock.mockReturnValue('pending');
+      waitForBackgroundInitializationMock.mockReturnValue(new Promise(() => undefined));
+      syncState.linkedTabs = [8, 9];
+      const handler = getHandler<UrlSyncMessage>('url:sync');
+
+      await expectImmediateUnavailable(
+        handler({
+          data: { sourceTabId: 8, url: 'https://example.com/private' },
+          sender: { tabId: 8 },
+        }),
+      );
+
+      expect(waitForBackgroundInitializationMock).not.toHaveBeenCalled();
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+    });
   });
 
   describe('contextual-hint:save-pending-url-sync', () => {
