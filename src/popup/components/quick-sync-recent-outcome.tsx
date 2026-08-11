@@ -18,6 +18,22 @@ function getOutcomeCopy(outcome: RecentQuickSyncOutcome): {
   title: string;
   supportingText?: string;
 } {
+  switch (outcome.reason) {
+    case 'unsupported-page':
+      return { title: t('quickSyncUnsupportedTab') };
+    case 'auto-sync-degraded':
+      return { title: t('autoSyncRecoveryDegraded') };
+    case 'session-state-unavailable':
+      return { title: t('manualSyncStateUnavailable') };
+    case 'content-unreachable':
+    case 'candidate-tab-missing':
+    case 'connection-timeout':
+    case 'invalid-acknowledgement':
+    case 'persistence-failed':
+    case 'hud-unavailable':
+      break;
+  }
+
   switch (outcome.resultKind) {
     case 'unsupported':
       return { title: t('quickSyncUnsupportedTab') };

@@ -78,6 +78,25 @@ describe('QuickSyncRecentOutcome', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('quickSyncExistingTabsContinue:3');
   });
 
+  it.each([
+    ['unsupported-page', 'quickSyncUnsupportedTab'],
+    ['auto-sync-degraded', 'autoSyncRecoveryDegraded'],
+    ['session-state-unavailable', 'manualSyncStateUnavailable'],
+  ] satisfies Array<[RecentQuickSyncOutcome['reason'], string]>)(
+    'uses the approved %s reason copy instead of a generic operation failure',
+    (reason, expectedCopy) => {
+      render(
+        <QuickSyncRecentOutcome
+          outcome={createOutcome({ reason })}
+          onAuthoritativeRefetch={vi.fn().mockResolvedValue(undefined)}
+        />,
+      );
+
+      expect(screen.getByRole('alert')).toHaveTextContent(expectedCopy);
+      expect(screen.getByRole('alert')).not.toHaveTextContent('quickSyncAddFailedTitle');
+    },
+  );
+
   it('does not render an expired outcome', () => {
     render(
       <QuickSyncRecentOutcome
