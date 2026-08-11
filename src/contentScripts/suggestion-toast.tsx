@@ -477,7 +477,11 @@ function renderToast() {
     try {
       await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: currentSuggestion.normalizedUrl, accepted: true },
+        {
+          normalizedUrl: currentSuggestion.normalizedUrl,
+          accepted: true,
+          expectedRevision: currentSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -498,7 +502,12 @@ function renderToast() {
     try {
       await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: currentSuggestion.normalizedUrl, accepted: false, snooze },
+        {
+          normalizedUrl: currentSuggestion.normalizedUrl,
+          accepted: false,
+          snooze,
+          expectedRevision: currentSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -518,7 +527,12 @@ function renderToast() {
     try {
       await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: currentSuggestion.normalizedUrl, accepted: false, permanent: true },
+        {
+          normalizedUrl: currentSuggestion.normalizedUrl,
+          accepted: false,
+          permanent: true,
+          expectedRevision: currentSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -542,6 +556,7 @@ function renderToast() {
           tabId: currentAddTabSuggestion.tabId,
           accepted: true,
           normalizedUrl: currentAddTabSuggestion.normalizedUrl,
+          expectedRevision: currentAddTabSuggestion.expectedRevision,
         },
         'background',
       );
@@ -567,6 +582,7 @@ function renderToast() {
           accepted: false,
           snooze,
           normalizedUrl: currentAddTabSuggestion.normalizedUrl,
+          expectedRevision: currentAddTabSuggestion.expectedRevision,
         },
         'background',
       );
@@ -592,6 +608,7 @@ function renderToast() {
           accepted: false,
           permanent: true,
           normalizedUrl: currentAddTabSuggestion.normalizedUrl,
+          expectedRevision: currentAddTabSuggestion.expectedRevision,
         },
         'background',
       );
