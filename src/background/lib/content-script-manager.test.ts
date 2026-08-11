@@ -2,8 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { StartSyncContentMessage } from '~/shared/types/messages';
 
-import { isContentScriptAlive, reinjectContentScript } from './content-script-manager';
+import {
+  isContentScriptAlive,
+  reinjectContentScript,
+  reinjectManualReconnect,
+} from './content-script-manager';
 import { sendMessageWithTimeout } from './messaging';
+
+import type { ReconnectAttemptToken } from './sync-session-orchestrator';
 
 const { executeScriptMock, sendMessageWithTimeoutMock } = vi.hoisted(() => ({
   executeScriptMock: vi.fn(),
@@ -277,6 +283,39 @@ describe('content-script-manager', () => {
       acknowledgement.resolve({ success: true, tabId: 10 });
 
       await expect(promise).resolves.toBe(false);
+    });
+  });
+
+  describe('reinjectManualReconnect', () => {
+    it('returns an exact acknowledgement for the frozen reconnect token', async () => {
+      vi.useFakeTimers();
+      executeScriptMock.mockResolvedValue(undefined);
+      sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 12 });
+      const token: ReconnectAttemptToken = {
+        tabId: 12,
+        revision: 9,
+        sessionEpoch: 4,
+        attemptGeneration: 3,
+        startMessage: {
+          tabIds: [12, 13],
+          mode: 'element',
+          currentTabId: 12,
+          isAutoSync: false,
+          sessionEpoch: 4,
+        },
+      };
+
+      const promise = reinjectManualReconnect(token, () => true);
+      await Promise.resolve();
+      vi.advanceTimersByTime(500);
+
+      await expect(promise).resolves.toEqual({ success: true, tabId: 12 });
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        token.startMessage,
+        { context: 'content-script', tabId: 12 },
+        3_000,
+      );
     });
   });
 });

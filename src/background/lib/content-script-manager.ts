@@ -1,9 +1,11 @@
 import browser from 'webextension-polyfill';
 
 import { ExtensionLogger } from '~/shared/lib/logger';
-import type { StartSyncContentMessage } from '~/shared/types/messages';
+import type { StartSyncContentMessage, StartSyncContentResponse } from '~/shared/types/messages';
 
 import { sendMessageWithTimeout } from './messaging';
+
+import type { ReconnectAttemptToken } from './sync-session-orchestrator';
 
 const logger = new ExtensionLogger({ scope: 'content-script-manager' });
 
@@ -102,4 +104,15 @@ export async function reinjectContentScript(
     logger.error(`Failed to re-inject content script into tab ${tabId}`, { error });
     return false;
   }
+}
+
+export async function reinjectManualReconnect(
+  token: ReconnectAttemptToken,
+  isSessionCurrent: () => boolean,
+): Promise<StartSyncContentResponse> {
+  const success = await reinjectContentScript(token.tabId, {
+    startMessage: token.startMessage,
+    isSessionCurrent,
+  });
+  return { success, tabId: token.tabId };
 }
