@@ -62,3 +62,4 @@ export type {
   SyncSessionOrchestrator,
   SyncSessionOrchestratorDependencies,
 } from './sync-session-orchestrator';
+export { buildManualSyncSnapshot } from './sync-session-snapshot';
