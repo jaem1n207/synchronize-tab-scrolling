@@ -4,8 +4,6 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/content-script';
 
-import { loadManualScrollOffsets } from '~/shared/lib/storage';
-
 import { usePanelState } from './use-panel-state';
 
 const { sendMessageMock, onMessageMock } = vi.hoisted(() => ({
@@ -38,13 +36,11 @@ vi.mock('~/shared/lib/logger', () => ({
 
 interface PanelState {
   syncedTabs: Array<{
-    id: number;
-    title: string;
-    offsetPixels: number;
-    isCurrent: boolean;
+    location: 'current-tab' | 'other-tab';
+    connectionStatus: 'connected' | 'disconnected' | 'error';
   }>;
   syncStatusError: 'manualSyncStateUnavailable' | null;
-  loadSyncedTabsWithOffsets: () => Promise<void>;
+  loadSyncedTabs: () => Promise<void>;
 }
 
 function renderPanelState(): { current: () => PanelState; unmount: () => void } {
@@ -83,31 +79,23 @@ function mockStatusResponses(responses: Array<unknown>): void {
 
 const activeResponse = {
   status: 'active',
+  source: 'content-script',
   snapshot: {
     revision: 4,
     sessionEpoch: 2,
     mode: 'ratio',
-    linkedTabIds: [1, 2, 3],
+    linkedTabCount: 3,
     tabs: [
       {
-        availability: 'available',
-        tabId: 1,
-        title: 'One',
-        windowId: 4,
-        location: 'other-window',
+        location: 'other-tab',
         connectionStatus: 'connected',
       },
       {
-        availability: 'available',
-        tabId: 2,
-        title: 'Two',
-        windowId: 8,
         location: 'current-tab',
         connectionStatus: 'connected',
       },
       {
-        availability: 'unavailable',
-        tabId: 3,
+        location: 'other-tab',
         connectionStatus: 'error',
       },
     ],
@@ -122,16 +110,13 @@ describe('usePanelState manual sync status', () => {
       value: true,
       writable: true,
     });
-    vi.mocked(loadManualScrollOffsets).mockResolvedValue({
-      1: { pixels: 12, ratio: 0 },
-    });
   });
 
-  it('requests canonical content status and applies every authoritative row', async () => {
+  it('requests canonical content status and applies only sanitized authoritative rows', async () => {
     mockStatusResponses([activeResponse]);
     const hook = renderPanelState();
 
-    await act(async () => hook.current().loadSyncedTabsWithOffsets());
+    await act(async () => hook.current().loadSyncedTabs());
 
     expect(sendMessage).toHaveBeenCalledWith(
       'sync:get-status',
@@ -139,14 +124,9 @@ describe('usePanelState manual sync status', () => {
       'background',
     );
     expect(hook.current().syncedTabs).toEqual([
-      { id: 1, title: 'One', offsetPixels: 12, isCurrent: false },
-      { id: 2, title: 'Two', offsetPixels: 0, isCurrent: true },
-      {
-        id: 3,
-        title: 'activeSyncTabUnavailable',
-        offsetPixels: 0,
-        isCurrent: false,
-      },
+      { location: 'other-tab', connectionStatus: 'connected' },
+      { location: 'current-tab', connectionStatus: 'connected' },
+      { location: 'other-tab', connectionStatus: 'error' },
     ]);
     expect(hook.current().syncStatusError).toBeNull();
     hook.unmount();
@@ -157,14 +137,15 @@ describe('usePanelState manual sync status', () => {
       activeResponse,
       {
         status: 'inactive',
+        source: 'content-script',
         revision: 5,
         sessionEpoch: 2,
       },
     ]);
     const hook = renderPanelState();
-    await act(async () => hook.current().loadSyncedTabsWithOffsets());
+    await act(async () => hook.current().loadSyncedTabs());
 
-    await act(async () => hook.current().loadSyncedTabsWithOffsets());
+    await act(async () => hook.current().loadSyncedTabs());
 
     expect(hook.current().syncedTabs).toEqual([]);
     expect(hook.current().syncStatusError).toBeNull();
@@ -174,10 +155,10 @@ describe('usePanelState manual sync status', () => {
   it('preserves prior tabs when authoritative status is an error', async () => {
     mockStatusResponses([activeResponse, { status: 'error', reason: 'storage-error' }]);
     const hook = renderPanelState();
-    await act(async () => hook.current().loadSyncedTabsWithOffsets());
+    await act(async () => hook.current().loadSyncedTabs());
     const priorTabs = hook.current().syncedTabs;
 
-    await act(async () => hook.current().loadSyncedTabsWithOffsets());
+    await act(async () => hook.current().loadSyncedTabs());
 
     expect(hook.current().syncedTabs).toEqual(priorTabs);
     expect(hook.current().syncStatusError).toBe('manualSyncStateUnavailable');
@@ -187,11 +168,11 @@ describe('usePanelState manual sync status', () => {
   it('preserves prior tabs when status transport fails', async () => {
     mockStatusResponses([activeResponse]);
     const hook = renderPanelState();
-    await act(async () => hook.current().loadSyncedTabsWithOffsets());
+    await act(async () => hook.current().loadSyncedTabs());
     const priorTabs = hook.current().syncedTabs;
     vi.mocked(sendMessage).mockRejectedValueOnce(new Error('transport failed'));
 
-    await act(async () => hook.current().loadSyncedTabsWithOffsets());
+    await act(async () => hook.current().loadSyncedTabs());
 
     expect(hook.current().syncedTabs).toEqual(priorTabs);
     expect(hook.current().syncStatusError).toBe('manualSyncStateUnavailable');

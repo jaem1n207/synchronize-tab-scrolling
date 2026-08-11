@@ -2,21 +2,15 @@ import * as React from 'react';
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
-import { t } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
-import {
-  loadAutoSyncEnabled,
-  loadManualScrollOffsets,
-  saveAutoSyncEnabled,
-} from '~/shared/lib/storage';
+import { loadAutoSyncEnabled, saveAutoSyncEnabled } from '~/shared/lib/storage';
+import type { ConnectionStatus } from '~/shared/types/messages';
 
 import { getAutoSyncStatus } from '../scroll-sync';
 
 export interface SyncedTab {
-  id: number;
-  title: string;
-  offsetPixels: number;
-  isCurrent: boolean;
+  location: 'current-tab' | 'other-tab';
+  connectionStatus: ConnectionStatus;
 }
 
 interface UsePanelStateParams {
@@ -32,7 +26,7 @@ interface UsePanelStateReturn {
   autoSyncGroupCount: number;
   ctrlOnlyRef: React.RefObject<boolean>;
   handleOpenChange: (open: boolean) => void;
-  loadSyncedTabsWithOffsets: () => Promise<void>;
+  loadSyncedTabs: () => Promise<void>;
   fetchAutoSyncDetailedStatus: () => Promise<void>;
   handleAutoSyncToggle: (enabled: boolean) => Promise<void>;
 }
@@ -61,7 +55,7 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
     [wasDraggedRef],
   );
 
-  const loadSyncedTabsWithOffsets = React.useCallback(async () => {
+  const loadSyncedTabs = React.useCallback(async () => {
     try {
       const response = await sendMessage(
         'sync:get-status',
@@ -69,7 +63,7 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
         'background',
       );
 
-      if (response.status === 'error') {
+      if (response.status === 'error' || response.source !== 'content-script') {
         setSyncStatusError('manualSyncStateUnavailable');
         return;
       }
@@ -80,27 +74,24 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
         return;
       }
 
-      const offsets = await loadManualScrollOffsets();
       const tabs = response.snapshot.tabs.map((tab) => ({
-        id: tab.tabId,
-        title: tab.availability === 'available' ? tab.title : t('activeSyncTabUnavailable'),
-        offsetPixels: offsets[tab.tabId]?.pixels ?? 0,
-        isCurrent: tab.availability === 'available' && tab.location === 'current-tab',
+        location: tab.location,
+        connectionStatus: tab.connectionStatus,
       }));
 
       setSyncedTabs(tabs);
       setSyncStatusError(null);
     } catch (error) {
-      await logger.error('Failed to load synced tabs with offsets:', error);
+      await logger.error('Failed to load synchronized tab status:', error);
       setSyncStatusError('manualSyncStateUnavailable');
     }
   }, []);
 
   React.useEffect(() => {
     if (isOpen) {
-      loadSyncedTabsWithOffsets();
+      loadSyncedTabs();
     }
-  }, [isOpen, loadSyncedTabsWithOffsets]);
+  }, [isOpen, loadSyncedTabs]);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -195,7 +186,7 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
     autoSyncGroupCount,
     ctrlOnlyRef,
     handleOpenChange,
-    loadSyncedTabsWithOffsets,
+    loadSyncedTabs,
     fetchAutoSyncDetailedStatus,
     handleAutoSyncToggle,
   };
