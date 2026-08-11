@@ -8,26 +8,32 @@ import { useQuickSyncShortcut } from './use-quick-sync-shortcut';
 
 type CommandChangedListener = (changeInfo: browser.Commands.OnChangedChangeInfoType) => void;
 
-const browserMocks = vi.hoisted(() => ({
-  commandChangedListeners: new Set<CommandChangedListener>(),
-  getAll: vi.fn<() => Promise<Array<browser.Commands.Command>>>(),
-  openShortcutSettings: vi.fn<() => Promise<void>>(),
-  tabsCreate: vi.fn(),
-}));
+const browserMocks = vi.hoisted(() => {
+  const commandChangedListeners = new Set<CommandChangedListener>();
+  const onChanged = {
+    addListener: vi.fn((listener: CommandChangedListener) => {
+      commandChangedListeners.add(listener);
+    }),
+    removeListener: vi.fn((listener: CommandChangedListener) => {
+      commandChangedListeners.delete(listener);
+    }),
+  };
+
+  return {
+    commandChangedListeners,
+    getAll: vi.fn<() => Promise<Array<browser.Commands.Command>>>(),
+    onChanged,
+    openShortcutSettings: vi.fn<() => Promise<void>>(),
+    tabsCreate: vi.fn(),
+  };
+});
 
 vi.mock('webextension-polyfill', () => ({
   default: {
     commands: {
       getAll: browserMocks.getAll,
       openShortcutSettings: browserMocks.openShortcutSettings,
-      onChanged: {
-        addListener: vi.fn((listener: CommandChangedListener) => {
-          browserMocks.commandChangedListeners.add(listener);
-        }),
-        removeListener: vi.fn((listener: CommandChangedListener) => {
-          browserMocks.commandChangedListeners.delete(listener);
-        }),
-      },
+      onChanged: browserMocks.onChanged,
     },
     tabs: {
       create: browserMocks.tabsCreate,
@@ -141,6 +147,12 @@ describe('useQuickSyncShortcut assignment', () => {
     browserMocks.openShortcutSettings.mockReset();
     browserMocks.tabsCreate.mockReset();
     browserMocks.commandChangedListeners.clear();
+    browserMocks.onChanged.addListener.mockClear();
+    browserMocks.onChanged.removeListener.mockClear();
+    Object.defineProperty(browser.commands, 'onChanged', {
+      configurable: true,
+      value: browserMocks.onChanged,
+    });
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     browserMocks.getAll.mockResolvedValue(assignedCommand());
     browserMocks.openShortcutSettings.mockResolvedValue();
@@ -197,6 +209,39 @@ describe('useQuickSyncShortcut assignment', () => {
     unmount();
   });
 
+  it('loads the assignment when shortcut change events are unavailable', async () => {
+    Object.defineProperty(browser.commands, 'onChanged', {
+      configurable: true,
+      value: undefined,
+    });
+
+    let unmount: (() => void) | undefined;
+    try {
+      const rendered = renderHook(() => useQuickSyncShortcut());
+      unmount = rendered.unmount;
+
+      await waitFor(() => {
+        expect(rendered.result.current.assignment).toEqual({
+          status: 'assigned',
+          rawShortcut: 'Command+Alt+Period',
+          label: '⌘ ⌥ .',
+        });
+      });
+      expect(browserMocks.getAll).toHaveBeenCalledOnce();
+      expect(browserMocks.onChanged.addListener).not.toHaveBeenCalled();
+
+      unmount();
+      unmount = undefined;
+      expect(browserMocks.onChanged.removeListener).not.toHaveBeenCalled();
+    } finally {
+      unmount?.();
+      Object.defineProperty(browser.commands, 'onChanged', {
+        configurable: true,
+        value: browserMocks.onChanged,
+      });
+    }
+  });
+
   it('refreshes the authoritative assignment on exact command changes and cleans up', async () => {
     browserMocks.getAll
       .mockResolvedValueOnce(assignedCommand())
@@ -240,6 +285,12 @@ describe('useQuickSyncShortcut remapping', () => {
     browserMocks.openShortcutSettings.mockReset();
     browserMocks.tabsCreate.mockReset();
     browserMocks.commandChangedListeners.clear();
+    browserMocks.onChanged.addListener.mockClear();
+    browserMocks.onChanged.removeListener.mockClear();
+    Object.defineProperty(browser.commands, 'onChanged', {
+      configurable: true,
+      value: browserMocks.onChanged,
+    });
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     browserMocks.getAll.mockResolvedValue(assignedCommand());
     browserMocks.openShortcutSettings.mockResolvedValue();

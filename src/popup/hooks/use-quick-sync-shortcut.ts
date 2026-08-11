@@ -31,8 +31,26 @@ export interface UseQuickSyncShortcutResult {
   openSettings: () => Promise<ShortcutSettingsResult>;
 }
 
+interface CommandChangeEvent {
+  addListener: (listener: (changeInfo: browser.Commands.OnChangedChangeInfoType) => void) => void;
+  removeListener: (
+    listener: (changeInfo: browser.Commands.OnChangedChangeInfoType) => void,
+  ) => void;
+}
+
 function getShortcutPlatform(): 'mac' | 'other' {
   return /\bMacintosh\b|\bMac OS X\b/.test(navigator.userAgent) ? 'mac' : 'other';
+}
+
+function isCommandChangeEvent(value: unknown): value is CommandChangeEvent {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'addListener' in value &&
+    typeof value.addListener === 'function' &&
+    'removeListener' in value &&
+    typeof value.removeListener === 'function'
+  );
 }
 
 export function useQuickSyncShortcut(): UseQuickSyncShortcutResult {
@@ -65,13 +83,18 @@ export function useQuickSyncShortcut(): UseQuickSyncShortcutResult {
       }
     };
 
-    browser.commands.onChanged.addListener(handleCommandChange);
+    const commandChangeEvent: unknown = browser.commands.onChanged;
+    if (isCommandChangeEvent(commandChangeEvent)) {
+      commandChangeEvent.addListener(handleCommandChange);
+    }
     void refreshAssignment();
 
     return () => {
       disposed = true;
       mountedRef.current = false;
-      browser.commands.onChanged.removeListener(handleCommandChange);
+      if (isCommandChangeEvent(commandChangeEvent)) {
+        commandChangeEvent.removeListener(handleCommandChange);
+      }
     };
   }, []);
 
