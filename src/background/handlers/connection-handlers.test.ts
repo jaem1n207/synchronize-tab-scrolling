@@ -326,6 +326,90 @@ describe('registerConnectionHandlers', () => {
   });
 
   describe('scroll:reconnect', () => {
+    it('does not send a manual reconnect after tabs.get resolves into a replacement session', async () => {
+      const tabLookup = Promise.withResolvers<browser.Tabs.Tab>();
+      syncState.isActive = true;
+      syncState.linkedTabs = [5, 6];
+      syncState.connectionStatuses = { 5: 'error', 6: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.sessionEpoch = 7;
+      vi.mocked(browser.tabs.get).mockReturnValue(tabLookup.promise);
+
+      const handler = getHandler('scroll:reconnect');
+      const result = handler({ data: { tabId: 5 }, sender: {} });
+      await Promise.resolve();
+
+      syncState.linkedTabs = [10, 11];
+      syncState.connectionStatuses = { 10: 'connected', 11: 'connected' };
+      syncState.mode = 'element';
+      syncState.sessionEpoch = 8;
+      tabLookup.resolve({
+        id: 5,
+        index: 0,
+        highlighted: false,
+        active: false,
+        pinned: false,
+        incognito: false,
+      } as browser.Tabs.Tab);
+      await result;
+
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
+      expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: 'successful', response: { success: true, tabId: 5 } },
+      { name: 'failed', response: { success: false, tabId: 5 } },
+    ])(
+      'does not let a $name stale manual acknowledgement mutate its replacement session',
+      async ({ response }) => {
+        const acknowledgement = Promise.withResolvers<{ success: boolean; tabId: number }>();
+        syncState.isActive = true;
+        syncState.linkedTabs = [5, 6];
+        syncState.connectionStatuses = { 5: 'error', 6: 'connected' };
+        syncState.mode = 'ratio';
+        syncState.sessionEpoch = 7;
+        vi.mocked(browser.tabs.get).mockResolvedValue({
+          id: 5,
+          index: 0,
+          highlighted: false,
+          active: false,
+          pinned: false,
+          incognito: false,
+        } as browser.Tabs.Tab);
+        vi.mocked(sendMessageWithTimeout).mockReturnValue(acknowledgement.promise);
+
+        const handler = getHandler('scroll:reconnect');
+        const result = handler({ data: { tabId: 5 }, sender: {} });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        syncState.linkedTabs = [10, 11];
+        syncState.connectionStatuses = { 10: 'connected', 11: 'connected' };
+        syncState.mode = 'element';
+        syncState.sessionEpoch = 8;
+        acknowledgement.resolve(response);
+        await result;
+
+        expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+          'scroll:start',
+          {
+            tabIds: [5, 6],
+            mode: 'ratio',
+            currentTabId: 5,
+            isAutoSync: false,
+            sessionEpoch: 7,
+          },
+          { context: 'content-script', tabId: 5 },
+          3_000,
+        );
+        expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
+        expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+        expect(broadcastSyncStatus).not.toHaveBeenCalled();
+      },
+    );
+
     it('reconnects tab in manual sync and updates connection status', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [5, 6];
@@ -482,8 +566,82 @@ describe('registerConnectionHandlers', () => {
       const result = await handler({ data: { tabId: 31 }, sender: {} });
 
       expect(result).toEqual({ success: true });
-      expect(vi.mocked(reinjectContentScript)).toHaveBeenCalledWith(31);
+      expect(vi.mocked(reinjectContentScript)).toHaveBeenCalledWith(
+        31,
+        expect.objectContaining({
+          startMessage: {
+            tabIds: [31],
+            mode: 'ratio',
+            currentTabId: 31,
+            isAutoSync: false,
+            sessionEpoch: 7,
+          },
+          isSessionCurrent: expect.any(Function),
+        }),
+      );
+      expect(syncState.connectionStatuses[31]).toBe('connected');
+      expect(persistCommittedSyncStateLegacy).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
+
+    it('reinjects an auto-only tab with an epoch-free active-group payload', async () => {
+      vi.mocked(isTabInActiveAutoSyncGroup).mockReturnValue(true);
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([41, 42]);
+      vi.mocked(reinjectContentScript).mockResolvedValue(true);
+
+      const handler = getHandler('scroll:request-reinject');
+      const result = await handler({ data: { tabId: 40 }, sender: {} });
+
+      expect(result).toEqual({ success: true });
+      expect(reinjectContentScript).toHaveBeenCalledWith(
+        40,
+        expect.objectContaining({
+          startMessage: {
+            tabIds: [41, 42, 40],
+            mode: 'ratio',
+            currentTabId: 40,
+            isAutoSync: true,
+          },
+          isSessionCurrent: expect.any(Function),
+        }),
+      );
+    });
+
+    it.each([
+      { name: 'manual', manual: true },
+      { name: 'automatic', manual: false },
+    ])(
+      'returns false when the captured $name reinjection session is replaced',
+      async ({ manual }) => {
+        const release = Promise.withResolvers<void>();
+        let autoSessionCurrent = !manual;
+        if (manual) {
+          syncState.isActive = true;
+          syncState.linkedTabs = [31, 32];
+          syncState.sessionEpoch = 7;
+        } else {
+          vi.mocked(isTabInActiveAutoSyncGroup).mockImplementation(() => autoSessionCurrent);
+          vi.mocked(getAutoSyncGroupMembers).mockReturnValue([41, 42]);
+        }
+        vi.mocked(reinjectContentScript).mockImplementation(async (_tabId, context) => {
+          await release.promise;
+          return context.isSessionCurrent();
+        });
+
+        const handler = getHandler('scroll:request-reinject');
+        const result = handler({ data: { tabId: manual ? 31 : 40 }, sender: {} });
+        await Promise.resolve();
+
+        syncState.linkedTabs = [10, 11];
+        syncState.sessionEpoch = 8;
+        autoSessionCurrent = false;
+        release.resolve();
+
+        await expect(result).resolves.toEqual({ success: false });
+        expect(persistCommittedSyncStateLegacy).not.toHaveBeenCalled();
+        expect(broadcastSyncStatus).not.toHaveBeenCalled();
+      },
+    );
 
     it('returns failure when tab is not in any sync group', async () => {
       const handler = getHandler('scroll:request-reinject');
