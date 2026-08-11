@@ -15,15 +15,6 @@ export interface TabInfo {
   lastAccessed?: number; // Timestamp when tab was last accessed
 }
 
-export interface SyncStatus {
-  isActive: boolean;
-  connectedTabs: Array<number>;
-  connectionStatuses: Record<number, ConnectionStatus>;
-  revision: number;
-}
-
-export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'connecting';
-
 export type ErrorSeverity = 'info' | 'warning' | 'error';
 
 export interface ErrorState {
