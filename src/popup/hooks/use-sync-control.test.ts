@@ -266,4 +266,75 @@ describe('useSyncControl local file failures', () => {
 
     unmount();
   });
+
+  it('shows auto-sync recovery warning without claiming success after a rejected Start', async () => {
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        return { success: true, isActive: false };
+      }
+
+      return {
+        success: false,
+        connectedTabs: [],
+        connectionResults: {
+          1: { success: false, error: 'Invalid acknowledgement' },
+          2: { success: false, error: 'Invalid acknowledgement' },
+        },
+        error: 'Failed to start synchronization',
+        warning: 'auto-sync-degraded',
+      };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await act(async () => {
+      result.current.handleStart();
+    });
+
+    await waitFor(() => expect(result.current.error?.message).toBe('autoSyncRecoveryDegraded'));
+    expect(result.current.error?.severity).toBe('warning');
+    expect(result.current.syncStatus.isActive).toBe(false);
+
+    unmount();
+  });
+
+  it('keeps committed Start state but surfaces auto-sync recovery warning', async () => {
+    vi.mocked(sendMessage).mockImplementation(async (message) => {
+      if (message === 'sync:get-status') {
+        return { success: true, isActive: false };
+      }
+
+      return {
+        success: true,
+        connectedTabs: [1, 2],
+        connectionResults: {
+          1: { success: true },
+          2: { success: true },
+        },
+        warning: 'auto-sync-degraded',
+      };
+    });
+
+    const { result, unmount } = renderUseSyncControl([
+      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+    ]);
+
+    await act(async () => {
+      result.current.handleStart();
+    });
+
+    await waitFor(() => expect(result.current.error?.message).toBe('autoSyncRecoveryDegraded'));
+    expect(result.current.error?.severity).toBe('warning');
+    expect(result.current.syncStatus).toEqual({
+      isActive: true,
+      connectedTabs: [1, 2],
+      connectionStatuses: { 1: 'connected', 2: 'connected' },
+    });
+
+    unmount();
+  });
 });

@@ -8,6 +8,7 @@ import { getFileSchemeAccessInfo } from '~/shared/lib/file-scheme-access';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadSelectedTabIds } from '~/shared/lib/storage';
 import { isFileUrl } from '~/shared/lib/url-utils';
+import type { StartSyncBackgroundResponse } from '~/shared/types/messages';
 
 import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
 
@@ -198,7 +199,7 @@ export function useSyncControl({
           timestamp: Date.now(),
         });
 
-        const response = (await sendMessage(
+        const startResponse = await sendMessage(
           'scroll:start',
           {
             tabIds: selectedTabIds,
@@ -206,15 +207,23 @@ export function useSyncControl({
             currentTabId: selectedTabIds[0],
           },
           'background',
-        )) as {
-          success: boolean;
-          connectedTabs: Array<number>;
-          connectionResults: StartConnectionResults;
-          error?: string;
-        };
+        );
+        if (!('connectedTabs' in startResponse) || !('connectionResults' in startResponse)) {
+          throw new Error('Invalid background start response');
+        }
+        const response: StartSyncBackgroundResponse = startResponse;
 
         if (!response.success) {
           if (await showFileAccessGuidance(response.connectionResults || {})) {
+            return;
+          }
+
+          if (response.warning === 'auto-sync-degraded') {
+            setError({
+              message: t('autoSyncRecoveryDegraded'),
+              severity: 'warning',
+              timestamp: Date.now(),
+            });
             return;
           }
 
@@ -250,6 +259,15 @@ export function useSyncControl({
 
         const connectedCount = response.connectedTabs.length;
         const attemptedCount = selectedTabIds.length;
+
+        if (response.warning === 'auto-sync-degraded') {
+          setError({
+            message: t('autoSyncRecoveryDegraded'),
+            severity: 'warning',
+            timestamp: Date.now(),
+          });
+          return;
+        }
 
         if (connectedCount < attemptedCount) {
           if (await showFileAccessGuidance(response.connectionResults || {})) {
