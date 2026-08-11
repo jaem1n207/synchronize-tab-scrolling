@@ -231,7 +231,11 @@ function PanelApp() {
     try {
       await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: syncSuggestion.normalizedUrl, accepted: true },
+        {
+          normalizedUrl: syncSuggestion.normalizedUrl,
+          accepted: true,
+          expectedRevision: syncSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -252,7 +256,11 @@ function PanelApp() {
     try {
       await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: syncSuggestion.normalizedUrl, accepted: false },
+        {
+          normalizedUrl: syncSuggestion.normalizedUrl,
+          accepted: false,
+          expectedRevision: syncSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -272,7 +280,11 @@ function PanelApp() {
     try {
       await sendMessage(
         'sync-suggestion:add-tab-response',
-        { tabId: addTabSuggestion.tabId, accepted: true },
+        {
+          tabId: addTabSuggestion.tabId,
+          accepted: true,
+          expectedRevision: addTabSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -292,7 +304,11 @@ function PanelApp() {
     try {
       await sendMessage(
         'sync-suggestion:add-tab-response',
-        { tabId: addTabSuggestion.tabId, accepted: false },
+        {
+          tabId: addTabSuggestion.tabId,
+          accepted: false,
+          expectedRevision: addTabSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
