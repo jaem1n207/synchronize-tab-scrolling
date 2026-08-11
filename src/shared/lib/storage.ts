@@ -203,9 +203,12 @@ function isNonNegativeFiniteNumber(value: number): boolean {
   return Number.isFinite(value) && value >= 0;
 }
 
-function enqueueManualScrollOffsetWrite(operation: () => Promise<void>): Promise<void> {
+function enqueueManualScrollOffsetWrite<Result>(operation: () => Promise<Result>): Promise<Result> {
   const writeOperation = manualScrollOffsetWriteQueue.then(operation, operation);
-  manualScrollOffsetWriteQueue = writeOperation.catch(() => undefined);
+  manualScrollOffsetWriteQueue = writeOperation.then(
+    () => undefined,
+    () => undefined,
+  );
   return writeOperation;
 }
 
@@ -300,34 +303,38 @@ function readManualScrollOffset(value: unknown): ManualScrollOffset | null {
  * Load manual scroll offsets for all tabs
  * @returns Record of tabId to offset data (supports both legacy number format and new object format)
  */
+export async function loadManualScrollOffsetsStrict(): Promise<Record<number, ManualScrollOffset>> {
+  const result = await browser.storage.local.get(STORAGE_KEYS.MANUAL_SCROLL_OFFSETS);
+  const stored = result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS];
+
+  if (!isRecord(stored)) return {};
+
+  const converted: Record<number, ManualScrollOffset> = {};
+  for (const [tabId, value] of Object.entries(stored)) {
+    const numericTabId = Number(tabId);
+    if (!Number.isFinite(numericTabId)) {
+      await logger.warn('Skipping invalid manual scroll offset entry', {
+        reason: 'invalid-tab-id',
+      });
+      continue;
+    }
+
+    const parsedOffset = readManualScrollOffset(value);
+    if (parsedOffset) {
+      converted[numericTabId] = parsedOffset;
+    } else {
+      await logger.warn('Skipping invalid manual scroll offset entry', {
+        reason: 'invalid-offset',
+        tabId: numericTabId,
+      });
+    }
+  }
+  return converted;
+}
+
 export async function loadManualScrollOffsets(): Promise<Record<number, ManualScrollOffset>> {
   try {
-    const result = await browser.storage.local.get(STORAGE_KEYS.MANUAL_SCROLL_OFFSETS);
-    const stored = result[STORAGE_KEYS.MANUAL_SCROLL_OFFSETS];
-
-    if (!isRecord(stored)) return {};
-
-    const converted: Record<number, ManualScrollOffset> = {};
-    for (const [tabId, value] of Object.entries(stored)) {
-      const numericTabId = Number(tabId);
-      if (!Number.isFinite(numericTabId)) {
-        await logger.warn('Skipping invalid manual scroll offset entry', {
-          reason: 'invalid-tab-id',
-        });
-        continue;
-      }
-
-      const parsedOffset = readManualScrollOffset(value);
-      if (parsedOffset) {
-        converted[numericTabId] = parsedOffset;
-      } else {
-        await logger.warn('Skipping invalid manual scroll offset entry', {
-          reason: 'invalid-offset',
-          tabId: numericTabId,
-        });
-      }
-    }
-    return converted;
+    return await loadManualScrollOffsetsStrict();
   } catch (error) {
     await logger.error('Failed to load manual scroll offsets:', error);
     return {};
@@ -346,16 +353,25 @@ export async function saveManualScrollOffset(
   pixels: number,
   anchor?: ManualScrollAnchor,
 ): Promise<void> {
+  try {
+    await saveManualScrollOffsetStrict(tabId, ratio, pixels, anchor);
+  } catch (error) {
+    await logger.error('Failed to save manual scroll offset:', error);
+  }
+}
+
+export async function saveManualScrollOffsetStrict(
+  tabId: number,
+  ratio: number,
+  pixels: number,
+  anchor?: ManualScrollAnchor,
+): Promise<void> {
   await enqueueManualScrollOffsetWrite(async () => {
-    try {
-      const offsets = await loadManualScrollOffsets();
-      offsets[tabId] = anchor ? { ratio, pixels, anchor } : { ratio, pixels };
-      await browser.storage.local.set({
-        [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
-      });
-    } catch (error) {
-      await logger.error('Failed to save manual scroll offset:', error);
-    }
+    const offsets = await loadManualScrollOffsetsStrict();
+    offsets[tabId] = anchor ? { ratio, pixels, anchor } : { ratio, pixels };
+    await browser.storage.local.set({
+      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
+    });
   });
 }
 
@@ -379,16 +395,24 @@ export async function getManualScrollOffset(tabId: number): Promise<ManualScroll
  * @param tabId - The tab ID
  */
 export async function clearManualScrollOffset(tabId: number): Promise<void> {
-  await enqueueManualScrollOffsetWrite(async () => {
-    try {
-      const offsets = await loadManualScrollOffsets();
-      delete offsets[tabId];
-      await browser.storage.local.set({
-        [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
-      });
-    } catch (error) {
-      await logger.error('Failed to clear manual scroll offset:', error);
-    }
+  try {
+    await clearManualScrollOffsetStrict(tabId);
+  } catch (error) {
+    await logger.error('Failed to clear manual scroll offset:', error);
+  }
+}
+
+export async function clearManualScrollOffsetStrict(
+  tabId: number,
+): Promise<ManualScrollOffset | null> {
+  return enqueueManualScrollOffsetWrite(async () => {
+    const offsets = await loadManualScrollOffsetsStrict();
+    const removedOffset = offsets[tabId] ?? null;
+    delete offsets[tabId];
+    await browser.storage.local.set({
+      [STORAGE_KEYS.MANUAL_SCROLL_OFFSETS]: offsets,
+    });
+    return removedOffset;
   });
 }
 

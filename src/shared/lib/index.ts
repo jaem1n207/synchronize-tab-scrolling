@@ -57,6 +57,7 @@ export type { ManualScrollOffset, UrlSyncModeRepairResult } from './storage';
 export {
   clearAllManualScrollOffsets,
   clearManualScrollOffset,
+  clearManualScrollOffsetStrict,
   clearStorage,
   getManualScrollOffset,
   isContextualHintDismissed,
@@ -65,6 +66,7 @@ export {
   loadDismissedContextualHintIds,
   loadExcludedDomains,
   loadManualScrollOffsets,
+  loadManualScrollOffsetsStrict,
   loadPanelMinimized,
   loadSelectedTabIds,
   loadSyncMode,
@@ -76,6 +78,7 @@ export {
   saveDismissedContextualHintId,
   saveExcludedDomains,
   saveManualScrollOffset,
+  saveManualScrollOffsetStrict,
   savePanelMinimized,
   saveSelectedTabIds,
   saveSyncMode,
