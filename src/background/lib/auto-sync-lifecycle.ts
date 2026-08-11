@@ -31,13 +31,22 @@ import { showSyncSuggestion } from './auto-sync-suggestions';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-lifecycle' });
 
+export type AutoSyncInitializationResult =
+  | { status: 'ready'; enabled: boolean }
+  | {
+      status: 'failed';
+      reason: 'already-initializing' | 'initialization-failed';
+    };
+
 /**
  * Initialize auto-sync state from storage and scan existing tabs
  */
-export async function initializeAutoSync(overrideEnabled?: boolean): Promise<void> {
+export async function initializeAutoSync(
+  overrideEnabled?: boolean,
+): Promise<AutoSyncInitializationResult> {
   if (autoSyncFlags.isInitializing) {
     logger.info('[AUTO-SYNC] initializeAutoSync skipped - already initializing');
-    return;
+    return { status: 'failed', reason: 'already-initializing' };
   }
 
   autoSyncFlags.isInitializing = true;
@@ -73,7 +82,7 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
 
     if (!autoSyncState.enabled) {
       logger.info('[AUTO-SYNC] Auto-sync is disabled, skipping initialization');
-      return;
+      return { status: 'ready', enabled: false };
     }
 
     const tabs = await browser.tabs.query({});
@@ -167,8 +176,12 @@ export async function initializeAutoSync(overrideEnabled?: boolean): Promise<voi
         matchConfidence: group.matchConfidence,
       })),
     });
-  } catch (error) {
-    logger.error('[AUTO-SYNC] Failed to initialize auto-sync', { error });
+    return { status: 'ready', enabled: true };
+  } catch {
+    logger.error('[AUTO-SYNC] Failed to initialize auto-sync', {
+      reason: 'initialization-failed',
+    });
+    return { status: 'failed', reason: 'initialization-failed' };
   } finally {
     autoSyncFlags.isInitializing = false;
   }

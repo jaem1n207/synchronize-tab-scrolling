@@ -205,7 +205,10 @@ describe('auto-sync-lifecycle', () => {
     it('skips when already initializing', async () => {
       autoSyncFlagsMock.isInitializing = true;
 
-      await initializeAutoSync();
+      await expect(initializeAutoSync()).resolves.toEqual({
+        status: 'failed',
+        reason: 'already-initializing',
+      });
 
       expect(loadAutoSyncEnabledMock).not.toHaveBeenCalled();
       expect(loadAutoSyncExcludedUrlsMock).not.toHaveBeenCalled();
@@ -293,7 +296,10 @@ describe('auto-sync-lifecycle', () => {
     it('returns early when auto-sync is disabled', async () => {
       loadAutoSyncEnabledMock.mockResolvedValue(false);
 
-      await initializeAutoSync();
+      await expect(initializeAutoSync()).resolves.toEqual({
+        status: 'ready',
+        enabled: false,
+      });
 
       expect(tabsQueryMock).not.toHaveBeenCalled();
       expect(updateAutoSyncGroupMock).not.toHaveBeenCalled();
@@ -544,15 +550,18 @@ describe('auto-sync-lifecycle', () => {
     it('broadcasts group updates after initialization completes', async () => {
       const promise = initializeAutoSync(true);
       await flushAllTimers();
-      await promise;
+      await expect(promise).resolves.toEqual({ status: 'ready', enabled: true });
 
       expect(broadcastAutoSyncGroupUpdateMock).toHaveBeenCalledTimes(1);
     });
 
-    it('resets isInitializing even when an initialization error occurs', async () => {
+    it('returns an explicit failure and resets isInitializing when initialization errors', async () => {
       loadAutoSyncExcludedUrlsMock.mockRejectedValue(new Error('storage failure'));
 
-      await initializeAutoSync(true);
+      await expect(initializeAutoSync(true)).resolves.toEqual({
+        status: 'failed',
+        reason: 'initialization-failed',
+      });
 
       expect(autoSyncFlagsMock.isInitializing).toBe(false);
       expect(loggerErrorMock).toHaveBeenCalledTimes(1);
