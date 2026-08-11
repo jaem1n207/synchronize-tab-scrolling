@@ -274,29 +274,27 @@ export const SyncControlPanel = ({
                   <Switch checked={autoSyncEnabled} onCheckedChange={handleAutoSyncToggle} />
                 </div>
 
-                {/* Synced Tabs list with offsets */}
+                {/* Sanitized synchronized-tab topology */}
                 {syncedTabs.length > 0 && (
                   <div className="space-y-2 border-t border-border/70 pt-3">
                     <div className="text-xs text-muted-foreground">{t('syncedTabs')}</div>
-                    {syncedTabs.map((tab) => (
-                      <div key={tab.id} className="flex items-center justify-between text-sm">
-                        <span
-                          className={cn('truncate max-w-[200px]', tab.isCurrent && 'font-medium')}
-                        >
-                          {tab.title}
-                          {tab.isCurrent && ` (${t('current')})`}
-                        </span>
+                    {syncedTabs.map((tab, index) => (
+                      <div
+                        key={`${tab.location}-${index}`}
+                        className="flex items-center justify-between gap-3 text-sm"
+                      >
                         <span
                           className={cn(
-                            'text-xs font-mono',
-                            tab.offsetPixels > 0 && 'text-green-500',
-                            tab.offsetPixels < 0 && 'text-red-500',
-                            tab.offsetPixels === 0 && 'text-muted-foreground',
+                            'truncate',
+                            tab.location === 'current-tab' && 'font-medium',
                           )}
                         >
-                          {tab.offsetPixels >= 0
-                            ? `+${tab.offsetPixels}px`
-                            : `${tab.offsetPixels}px`}
+                          {tab.location === 'current-tab'
+                            ? t('currentTabLocation')
+                            : t('otherSyncedTab')}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {t(tab.connectionStatus)}
                         </span>
                       </div>
                     ))}

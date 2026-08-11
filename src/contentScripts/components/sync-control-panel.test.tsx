@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 
 import { SyncControlPanel } from './sync-control-panel';
 
@@ -78,15 +78,30 @@ describe('SyncControlPanel', () => {
     expect(onUrlSyncSettingsTokenHandled).toHaveBeenCalledTimes(1);
   });
 
-  it('preserves panel controls while rendering an unavailable authoritative row', () => {
+  it('renders generic synchronized rows without exposing fixture titles in the open DOM', () => {
+    const createPanel = () => (
+      <SyncControlPanel
+        urlSyncEnabled={true}
+        urlSyncMode="follow-changed-tab"
+        urlSyncNotice={null}
+        onUrlSyncEnabledChange={vi.fn()}
+        onUrlSyncModeChange={vi.fn()}
+      />
+    );
+    const view = render(createPanel());
+
     usePanelStateMock.mockReturnValue({
       isOpen: true,
       syncedTabs: [
         {
-          id: 33,
-          title: 'activeSyncTabUnavailable',
-          offsetPixels: 0,
-          isCurrent: false,
+          location: 'current-tab',
+          connectionStatus: 'connected',
+          title: 'Private current-tab fixture title',
+        },
+        {
+          location: 'other-tab',
+          connectionStatus: 'disconnected',
+          title: 'Private other-tab fixture title',
         },
       ],
       syncStatusError: null,
@@ -96,18 +111,18 @@ describe('SyncControlPanel', () => {
       handleOpenChange: handleOpenChangeMock,
       handleAutoSyncToggle: vi.fn(),
     });
+    view.rerender(createPanel());
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const shadowRoot = host.attachShadow({ mode: 'open' });
+    shadowRoot.appendChild(view.container);
 
-    render(
-      <SyncControlPanel
-        urlSyncEnabled={true}
-        urlSyncMode="follow-changed-tab"
-        urlSyncNotice={null}
-        onUrlSyncEnabledChange={vi.fn()}
-        onUrlSyncModeChange={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText('activeSyncTabUnavailable')).toBeInTheDocument();
-    expect(screen.getByText('autoSyncSameUrl')).toBeInTheDocument();
+    expect(shadowRoot.textContent).toContain('currentTabLocation');
+    expect(shadowRoot.textContent).toContain('otherSyncedTab');
+    expect(shadowRoot.textContent).toContain('connected');
+    expect(shadowRoot.textContent).toContain('disconnected');
+    expect(shadowRoot.textContent).not.toContain('Private current-tab fixture title');
+    expect(shadowRoot.textContent).not.toContain('Private other-tab fixture title');
+    expect(shadowRoot.textContent).toContain('autoSyncSameUrl');
   });
 });
