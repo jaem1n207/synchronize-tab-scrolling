@@ -76,6 +76,14 @@ durable하게 완료된 post-Stop inactive 상태에 남습니다. auto start �
 inactive truth를 유지합니다. auto 전환에서는 manual Start를 호출하거나 `sessionEpoch`를
 증가시키지 않습니다.
 
+accepted auto group은 require-all로 시작합니다. content runtime은 ACK보다 먼저 활성화될 수
+있으므로 timeout, invalid ACK, 전송 실패, group snapshot 충돌이 발생하면 ACK 성공 여부와
+무관하게 Start를 시도한 모든 탭에 1000ms 제한의 `scroll:stop`을 보냅니다. Stop은 요청한
+tab ID의 정확한 성공 ACK만 cleanup 완료로 인정합니다. 실패하거나 ACK가 일치하지 않으면
+Task 10의 transition-gated retry scheduler가 1초, 3초, 10초 간격으로 재시도하며, 더 최신
+manual session epoch 또는 해당 탭을 포함한 active manual session을 발견하면 취소합니다.
+cleanup이 완전하지 않은 acceptance/rollback은 `auto-sync-degraded` warning을 반환합니다.
+
 Add 제안 수락은 `addTabToManualSession()`으로 전달됩니다. 새 탭 하나에만 `scroll:start`를
 보내고 기존 linked tab을 다시 초기화하지 않으며, 성공한 topology commit만 revision을
 증가시킵니다.
@@ -193,10 +201,11 @@ const hasExistingSync = syncState.isActive && syncState.linkedTabs.length > 0;
 
 ### `legacy-auto-sync-adapter.test.ts`
 
-- accepted auto group의 `isAutoSync: true` Start
-- 최소 두 탭 성공 조건과 partial-success membership
-- group snapshot 변경 시 staged Start cleanup
-- manual revision persistence 실패 시 auto group rollback
+- accepted auto group의 `isAutoSync: true` require-all Start
+- timeout/invalid ACK/partial success에서 attempted tab 전체 cleanup
+- group snapshot 변경 시 attempted runtime 전체 cleanup
+- Stop ACK 불일치/throw 시 gated retry와 `auto-sync-degraded` 결과
+- manual revision persistence 실패 시 auto group rollback과 cleanup degradation 전파
 - 성공 시 inactive revision 증가와 `sessionEpoch` 보존
 
 ### `auto-sync-suggestions.test.ts`
