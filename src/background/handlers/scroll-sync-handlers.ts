@@ -225,6 +225,7 @@ function getPopupStartError(
     | 'candidate-tab-missing'
     | 'connection-timeout'
     | 'invalid-acknowledgement'
+    | 'offset-reconciliation-failed'
     | 'persistence-failed'
     | 'auto-sync-degraded'
     | 'session-state-unavailable'
@@ -237,6 +238,8 @@ function getPopupStartError(
       return 'Timeout after 1000ms';
     case 'invalid-acknowledgement':
       return 'Invalid acknowledgment';
+    case 'offset-reconciliation-failed':
+      return 'Failed to restore the saved manual scroll position';
     case 'persistence-failed':
       return 'Failed to persist synchronization state';
     case 'stale-revision':
@@ -303,7 +306,10 @@ async function startPopupManualSession(startRequest: {
         } else {
           connectionResults[tabId] = {
             success: false,
-            error: 'Invalid acknowledgment',
+            error:
+              response.reason === 'offset-reconciliation-failed'
+                ? getPopupStartError(response.reason)
+                : 'Invalid acknowledgment',
           };
         }
         return response;
