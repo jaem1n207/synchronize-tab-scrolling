@@ -29,6 +29,7 @@ import {
   isDomainSnoozed,
   isDomainPermanentlyExcluded,
 } from './auto-sync-suggestions';
+import { isTabProvisionallyManuallyOverridden } from './manual-override-adapter';
 import { sendMessageWithTimeout } from './messaging';
 import {
   findTranslatedPageCandidateGroup,
@@ -40,6 +41,10 @@ const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
 const CONTENT_SCRIPT_FILE = 'dist/contentScripts/index.global.js';
 const CONTENT_SCRIPT_SETTLE_DELAY_MS = 100;
 const MAX_TRANSLATED_PAGE_INIT_REPROBE_GROUPS = 10;
+
+function isTabExcludedFromAutoSync(tabId: number): boolean {
+  return isTabManuallyOverridden(tabId) || isTabProvisionallyManuallyOverridden(tabId);
+}
 
 interface GroupMetadata {
   matchKind: AutoSyncSuggestionMatchKind;
@@ -466,6 +471,7 @@ async function refreshTranslatedPageCandidateGroupsFromSnapshots(
       if (
         !sourceGroup ||
         !targetGroup ||
+        isTabExcludedFromAutoSync(sourceSnapshot.tabId) ||
         sourceGroup.isActive ||
         targetGroup.isActive ||
         getSingletonTabId(sourceGroup) !== sourceSnapshot.tabId ||
@@ -744,7 +750,7 @@ async function prepareUpdateAutoSyncGroup(
     return { status: 'complete', result: null };
   }
 
-  if (isTabManuallyOverridden(tabId)) {
+  if (isTabExcludedFromAutoSync(tabId)) {
     logger.debug(`[AUTO-SYNC] Tab ${tabId} is in manual sync, skipping auto-sync`);
     return { status: 'complete', result: null };
   }
@@ -884,7 +890,7 @@ async function applyUpdateAutoSyncGroup(
     return null;
   }
 
-  if (isTabManuallyOverridden(context.tabId)) {
+  if (isTabExcludedFromAutoSync(context.tabId)) {
     logger.debug(`[AUTO-SYNC] Tab ${context.tabId} is in manual sync before apply`);
     return null;
   }

@@ -24,6 +24,7 @@ import {
   autoSyncRetryTimers,
   autoSyncState,
   dismissedUrlGroups,
+  manualSyncOverriddenTabs,
   MAX_AUTO_SYNC_GROUP_SIZE,
   pendingSuggestions,
   withAutoSyncLock,
@@ -33,6 +34,10 @@ import {
   sendSuggestionToSingleTab,
   showSyncSuggestion,
 } from './auto-sync-suggestions';
+import {
+  isTabProvisionallyManuallyOverridden,
+  manualOverrideAdapter,
+} from './manual-override-adapter';
 import { sendMessageWithTimeout } from './messaging';
 
 interface AutoSyncGroup {
@@ -68,6 +73,7 @@ const {
   mockedAutoSyncRetryTimers,
   mockedDismissedUrlGroups,
   mockedPendingSuggestions,
+  mockedManualSyncOverriddenTabs,
   mockedMaxGroupSize,
 } = vi.hoisted(() => {
   const sendMessageMock = vi.fn();
@@ -97,6 +103,7 @@ const {
   const mockedAutoSyncRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const mockedDismissedUrlGroups = new Set<string>();
   const mockedPendingSuggestions = new Set<string>();
+  const mockedManualSyncOverriddenTabs = new Set<number>();
 
   return {
     sendMessageMock,
@@ -119,6 +126,7 @@ const {
     mockedAutoSyncRetryTimers,
     mockedDismissedUrlGroups,
     mockedPendingSuggestions,
+    mockedManualSyncOverriddenTabs,
     mockedMaxGroupSize: 10,
   };
 });
@@ -161,6 +169,7 @@ vi.mock('./auto-sync-state', () => ({
   autoSyncRetryTimers: mockedAutoSyncRetryTimers,
   dismissedUrlGroups: mockedDismissedUrlGroups,
   pendingSuggestions: mockedPendingSuggestions,
+  manualSyncOverriddenTabs: mockedManualSyncOverriddenTabs,
   MAX_AUTO_SYNC_GROUP_SIZE: mockedMaxGroupSize,
   isTabManuallyOverridden: isTabManuallyOverriddenMock,
   withAutoSyncLock: withAutoSyncLockMock,
@@ -222,6 +231,7 @@ describe('auto-sync-groups', () => {
     autoSyncRetryTimers.clear();
     dismissedUrlGroups.clear();
     pendingSuggestions.clear();
+    manualSyncOverriddenTabs.clear();
 
     isForbiddenUrlMock.mockReturnValue(false);
     isLocalDevelopmentServerMock.mockReturnValue(false);
@@ -532,6 +542,30 @@ describe('auto-sync-groups', () => {
 
       expect(result).toBeNull();
       expect(autoSyncState.groups.size).toBe(0);
+    });
+
+    it('does not re-add a provisionally overridden tab during a pending manual handshake', async () => {
+      autoSyncState.groups.set('https://old.example/', {
+        ...createGroup([1, 2], false),
+        tabUrls: new Map([
+          [1, 'https://old.example/'],
+          [2, 'https://old.example/'],
+        ]),
+      });
+
+      const snapshot = await manualOverrideAdapter.prepare(17, [1]);
+
+      expect(isTabProvisionallyManuallyOverridden(1)).toBe(true);
+      const updateResult = await updateAutoSyncGroup(1, 'https://example.com');
+      expect(updateResult).toBeNull();
+      expect([...autoSyncState.groups.values()].some((group) => group.tabIds.has(1))).toBe(false);
+
+      await expect(manualOverrideAdapter.commit(snapshot, [1])).resolves.toEqual({
+        status: 'committed',
+      });
+      expect(manualSyncOverriddenTabs.has(1)).toBe(true);
+      expect(isTabProvisionallyManuallyOverridden(1)).toBe(false);
+      expect([...autoSyncState.groups.values()].some((group) => group.tabIds.has(1))).toBe(false);
     });
 
     it('creates a new group and adds tab', async () => {
