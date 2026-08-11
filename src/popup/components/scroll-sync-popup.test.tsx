@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,6 +26,7 @@ const {
   stopMock,
   popupUiState,
   useManualSyncSessionMock,
+  useQuickSyncShortcutMock,
   useSyncControlMock,
 } = vi.hoisted(() => ({
   handleStartMock: vi.fn(),
@@ -37,6 +38,7 @@ const {
     actionsMenuOpen: false,
   },
   useManualSyncSessionMock: vi.fn(),
+  useQuickSyncShortcutMock: vi.fn(),
   useSyncControlMock: vi.fn(),
 }));
 
@@ -52,12 +54,19 @@ vi.mock('~/shared/i18n', () => ({
     if (Array.isArray(substitutions)) {
       return `${key}:${substitutions.join(',')}`;
     }
+    if (typeof substitutions === 'string') {
+      return `${key}:${substitutions}`;
+    }
     return key;
   },
 }));
 
 vi.mock('~/shared/lib/storage', () => ({
   saveSelectedTabIds: vi.fn(),
+}));
+
+vi.mock('webext-bridge/popup', () => ({
+  sendMessage: vi.fn(),
 }));
 
 vi.mock('webextension-polyfill', () => ({
@@ -97,6 +106,7 @@ vi.mock('../hooks', () => ({
     handleToggleTab: vi.fn(),
     handleContainerClick: vi.fn(),
   }),
+  useQuickSyncShortcut: useQuickSyncShortcutMock,
   useSyncControl: useSyncControlMock,
   useTabDiscovery: () => ({
     tabs: [
@@ -224,6 +234,15 @@ beforeEach(() => {
     handleStart: handleStartMock,
     handleDismissError: handleDismissErrorMock,
   });
+  useQuickSyncShortcutMock.mockReturnValue({
+    assignment: {
+      status: 'assigned',
+      rawShortcut: 'Command+Shift+Period',
+      label: '⌘ ⇧ .',
+    },
+    settingsResult: { status: 'idle' },
+    openSettings: vi.fn().mockResolvedValue({ status: 'opened' }),
+  });
 });
 
 describe('ScrollSyncPopup authoritative session composition', () => {
@@ -259,12 +278,26 @@ describe('ScrollSyncPopup authoritative session composition', () => {
   it('keeps the existing picker and manual Start only for authoritative inactive', async () => {
     const user = userEvent.setup();
 
-    render(<ScrollSyncPopup />);
+    const view = render(<ScrollSyncPopup />);
 
     expect(screen.getByRole('combobox')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'startSynchronization' }));
+    expect(screen.getAllByRole('button', { name: /removeTab/ })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'startSynchronization' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'urlSyncNavigation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'quickSyncShortcutHeading' })).toBeInTheDocument();
+    expect(screen.getByText('quickSyncShortcutAssignedSummary:⌘ ⇧ .')).toBeInTheDocument();
 
+    await user.click(screen.getByRole('button', { name: 'startSynchronization' }));
     expect(handleStartMock).toHaveBeenCalledOnce();
+
+    popupUiState.actionsMenuOpen = true;
+    await act(async () => {
+      view.rerender(<ScrollSyncPopup />);
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('option', { name: /clearAllSelections/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /sortSimilarity/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /sortRecent/ })).toBeInTheDocument();
     expect(useSyncControlMock).toHaveBeenCalledWith(
       expect.objectContaining({
         onSessionChange: refetchMock,
@@ -297,9 +330,15 @@ describe('ScrollSyncPopup authoritative session composition', () => {
 
     render(<ScrollSyncPopup />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('syncActive');
+    expect(screen.getByRole('heading', { name: 'activeSyncHeading' })).toBeInTheDocument();
+    expect(screen.getByText('activeSyncSummary:3')).toBeInTheDocument();
+    expect(screen.getByText('activeSyncAddInstruction:⌘ ⇧ .')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'activeSyncTabsHeading' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'urlSyncNavigation' })).toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'startSynchronization' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'actionsButton' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'stopSynchronization' }));
     await user.click(screen.getByRole('button', { name: 'resyncDisconnectedTabs' }));
@@ -322,7 +361,7 @@ describe('ScrollSyncPopup authoritative session composition', () => {
 
     await user.click(screen.getByRole('button', { name: 'stopSynchronization' }));
 
-    expect(screen.getByRole('status')).toHaveTextContent('syncActive');
+    expect(screen.getByRole('heading', { name: 'activeSyncHeading' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'stopSynchronization' })).toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 
@@ -365,7 +404,7 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     expect(reconnectMock).toHaveBeenCalledOnce();
   });
 
-  it('blocks Stop, Actions Stop, and the popup shortcut while reconnect is pending', async () => {
+  it('blocks Stop and the popup shortcut and omits inactive Actions while reconnect is pending', async () => {
     const user = userEvent.setup();
     const activeSession = createActiveSession();
     useManualSyncSessionMock.mockReturnValue(activeSession);
@@ -393,17 +432,13 @@ describe('ScrollSyncPopup authoritative session composition', () => {
 
     popupUiState.actionsMenuOpen = true;
     rerender(<ScrollSyncPopup />);
-    const actionsStop = screen.getByRole('option', { name: /stopSync/ });
-    expect(actionsStop).toHaveAttribute('aria-disabled', 'true');
-    await user.click(actionsStop);
+    expect(screen.queryByRole('button', { name: 'actionsButton' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /stopSync/ })).not.toBeInTheDocument();
     expect(stopMock).not.toHaveBeenCalled();
 
     useManualSyncSessionMock.mockReturnValue(activeSession);
     rerender(<ScrollSyncPopup />);
-    expect(screen.getByRole('option', { name: /stopSync/ })).not.toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
+    expect(screen.queryByRole('option', { name: /stopSync/ })).not.toBeInTheDocument();
   });
 
   it('renders a committed cleanup warning without fabricating inactive state', () => {
@@ -416,6 +451,41 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     render(<ScrollSyncPopup />);
 
     expect(screen.getByRole('alert')).toHaveTextContent('syncCleanupIncomplete');
-    expect(screen.getByRole('status')).toHaveTextContent('syncActive');
+    expect(screen.getByRole('heading', { name: 'activeSyncHeading' })).toBeInTheDocument();
+  });
+
+  it('keeps popup-local Meta/Ctrl+S Start and authoritative Stop behavior', () => {
+    const view = render(<ScrollSyncPopup />);
+
+    fireEvent.keyDown(document, { key: 's', metaKey: true });
+    expect(handleStartMock).toHaveBeenCalledOnce();
+    expect(stopMock).not.toHaveBeenCalled();
+
+    useManualSyncSessionMock.mockReturnValue(createActiveSession());
+    view.rerender(<ScrollSyncPopup />);
+    fireEvent.keyDown(document, { key: 's', ctrlKey: true });
+
+    expect(stopMock).toHaveBeenCalledOnce();
+  });
+
+  it('does not implement the browser-wide command as a popup DOM key handler', async () => {
+    render(<ScrollSyncPopup />);
+    await act(async () => Promise.resolve());
+
+    fireEvent.keyDown(document, { key: '.', metaKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: '.', ctrlKey: true, shiftKey: true });
+
+    expect(handleStartMock).not.toHaveBeenCalled();
+    expect(stopMock).not.toHaveBeenCalled();
+  });
+
+  it('ignores popup-local shortcuts while IME composition is active', async () => {
+    render(<ScrollSyncPopup />);
+    await act(async () => Promise.resolve());
+
+    fireEvent.keyDown(document, { key: 's', ctrlKey: true, isComposing: true });
+    fireEvent.keyDown(document, { key: 's', ctrlKey: true, keyCode: 229 });
+
+    expect(handleStartMock).not.toHaveBeenCalled();
   });
 });

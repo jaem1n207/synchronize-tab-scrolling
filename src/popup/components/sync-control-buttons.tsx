@@ -42,7 +42,12 @@ export function SyncControlButtons({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, action: () => void, disabled: boolean) => {
-      if ((e.key === 'Enter' || e.key === ' ') && !disabled) {
+      if (
+        !e.nativeEvent.isComposing &&
+        e.nativeEvent.keyCode !== 229 &&
+        (e.key === 'Enter' || e.key === ' ') &&
+        !disabled
+      ) {
         e.preventDefault();
         action();
       }

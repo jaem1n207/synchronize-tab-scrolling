@@ -141,6 +141,11 @@ describe('useSyncControl inactive picker ownership', () => {
       expect.anything(),
       'background',
     );
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'quick-sync:dismiss-recent-outcome',
+      expect.anything(),
+      'background',
+    );
     expect(Object.keys(result.current).sort()).toEqual([
       'error',
       'handleDismissError',
