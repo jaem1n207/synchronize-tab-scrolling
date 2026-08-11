@@ -14,6 +14,12 @@ Tab1+Tab2가 동기화 중인 상태에서 Tab3+Tab4가 다른 URL로 열리고 
 보관합니다. 수락 응답은 transition gate 안에서 현재 revision과 다시 비교합니다. stale
 응답은 manual/auto 상태와 pending suggestion을 바꾸지 않고 거부합니다.
 
+accepted Add/Replace와 Quick Sync는 같은 `syncTransitionGate`를 사용합니다. Add는 shared
+`sync-session-orchestrator.ts`로 새 탭 하나만 초기화하고, Replace는 durable manual Stop 뒤
+`legacy-auto-sync-adapter.ts`로 accepted auto group을 시작합니다. Quick Sync 후보/command
+계약과 transaction 순서는
+[`quick-sync-shortcut.md`](./quick-sync-shortcut.md)를 참고하세요.
+
 이 과정에서 두 가지 문제가 발생할 수 있습니다:
 
 | 문제              | 증상                                             | 원인                              |
