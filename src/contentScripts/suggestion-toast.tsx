@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
+import { t } from '~/shared/i18n';
 import {
   getContextualHintShortcutLabel,
   isWebpageOverlayContextualHintId,
@@ -35,6 +36,7 @@ let toastContainer: HTMLDivElement | null = null;
 let currentSuggestion: SyncSuggestionMessage | null = null;
 let currentAddTabSuggestion: AddTabToSyncMessage | null = null;
 let currentContextualHint: ContextualHintShowMessage | null = null;
+let suggestionCleanupDegraded = false;
 const pendingContextualHintDismissals = new Set<WebpageOverlayContextualHintId>();
 let cssLoaded = false;
 let cssLoadPromise: Promise<void> | null = null;
@@ -475,7 +477,7 @@ function renderToast() {
     if (!currentSuggestion) return;
 
     try {
-      await sendMessage(
+      const response = await sendMessage(
         'sync-suggestion:response',
         {
           normalizedUrl: currentSuggestion.normalizedUrl,
@@ -484,6 +486,7 @@ function renderToast() {
         },
         'background',
       );
+      suggestionCleanupDegraded = response.success && response.warning === 'auto-sync-degraded';
     } catch (error) {
       // Gracefully handle extension context invalidation (happens during rapid toggle)
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
@@ -550,7 +553,7 @@ function renderToast() {
     if (!currentAddTabSuggestion) return;
 
     try {
-      await sendMessage(
+      const response = await sendMessage(
         'sync-suggestion:add-tab-response',
         {
           tabId: currentAddTabSuggestion.tabId,
@@ -560,6 +563,7 @@ function renderToast() {
         },
         'background',
       );
+      suggestionCleanupDegraded = response.success && response.warning === 'auto-sync-degraded';
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
         await logger.warn('[SuggestionToast] Extension context invalidated, closing toast');
@@ -699,6 +703,15 @@ function renderToast() {
           )}
         </>
       )}
+      {suggestionCleanupDegraded && (
+        <div
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-[2147483647] max-w-sm rounded-lg border border-amber-500/40 bg-background/95 p-4 text-sm text-foreground shadow-2xl"
+          role="status"
+        >
+          {t('syncSuggestionCleanupRetrying')}
+        </div>
+      )}
     </>,
   );
 }
@@ -717,6 +730,7 @@ export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage)
   });
 
   await ensureToastContainer();
+  suggestionCleanupDegraded = false;
 
   logger.debug('[SuggestionToast] After ensureToastContainer (CSS loaded)', {
     hasContainer: !!toastContainer,
@@ -734,6 +748,7 @@ export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage)
  */
 export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage) {
   await ensureToastContainer();
+  suggestionCleanupDegraded = false;
   currentAddTabSuggestion = suggestion;
   renderToast();
 }
@@ -775,6 +790,7 @@ export function hideSuggestionToasts() {
   currentSuggestion = null;
   currentAddTabSuggestion = null;
   currentContextualHint = null;
+  suggestionCleanupDegraded = false;
   renderToast();
 }
 
@@ -809,6 +825,7 @@ export function destroySuggestionToast() {
   currentSuggestion = null;
   currentAddTabSuggestion = null;
   currentContextualHint = null;
+  suggestionCleanupDegraded = false;
   cssLoaded = false;
   cssLoadPromise = null;
 }

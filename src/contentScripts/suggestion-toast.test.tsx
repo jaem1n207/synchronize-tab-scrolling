@@ -55,6 +55,8 @@ describe('showContextualHintToast', () => {
           contextualHintChangeSettingAction: 'Change setting',
           contextualHintShowLaterAction: 'Show later',
           contextualHintHideAction: 'Hide this hint',
+          syncSuggestionCleanupRetrying:
+            'Synchronization changed. Cleanup is still being retried. Check the popup for current status.',
         };
 
         return messages[key] ?? key;
@@ -232,6 +234,38 @@ describe('showContextualHintToast', () => {
         'background',
       );
     });
+  });
+
+  it('announces degraded cleanup after a committed add instead of closing as clean success', async () => {
+    const user = userEvent.setup();
+    const { dependencies, ui } = await mountAddTabSuggestionToast(14);
+    dependencies.sendMessage.mockResolvedValueOnce({
+      success: true,
+      revision: 15,
+      warning: 'auto-sync-degraded',
+    });
+
+    await user.click(ui.getByRole('button', { name: 'addTabButton' }));
+
+    const notice = await ui.findByRole('status');
+    expect(notice).toHaveAttribute('aria-live', 'polite');
+    expect(notice).toHaveTextContent(
+      'Synchronization changed. Cleanup is still being retried. Check the popup for current status.',
+    );
+    expect(ui.queryByText('successSyncStarted')).not.toBeInTheDocument();
+  });
+
+  it('keeps the normal committed add path free of degraded cleanup notices', async () => {
+    const user = userEvent.setup();
+    const { dependencies, ui } = await mountAddTabSuggestionToast(15);
+    dependencies.sendMessage.mockResolvedValueOnce({ success: true, revision: 16 });
+
+    await user.click(ui.getByRole('button', { name: 'addTabButton' }));
+
+    await waitFor(() => {
+      expect(ui.queryByRole('button', { name: 'addTabButton' })).not.toBeInTheDocument();
+    });
+    expect(ui.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('echoes the displayed revision when snoozing an add-tab suggestion', async () => {
