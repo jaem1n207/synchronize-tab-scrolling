@@ -112,3 +112,96 @@ Browser storage writes remain non-cancellable. The barrier therefore serializes 
 offset reconciliation and Start reads, not the active scroll hot path. If all three compensation
 attempts fail, the extension does not claim a runtime is active: it retains the repair snapshot,
 returns `offset-reconciliation-failed`, and waits for a later explicit lifecycle operation to retry.
+
+## Review round 3: truthful degraded runtime propagation
+
+### Finding
+
+The round-2 receiver exposed `offset-reconciliation-failed`, but the exact content runtime remained
+active after a same-runtime URL operation invalidated an already-dispatched clear and all three
+compensation writes failed. The content panel could therefore remain visible and the scroll
+receiver could continue operating with deleted persisted state. The source URL-monitor path only
+logged the failure, while the background URL relay ignored target responses and returned success
+without updating authoritative connection state.
+
+### Strict RED
+
+Tests were added before the implementation and failed in the expected places:
+
+- the real U1-clear/U2-invalidation schedule left epoch E active instead of transitioning to
+  inactive epoch 0;
+- the source failure emitted no `sync:runtime-degraded` report;
+- a current-epoch target failure returned `{ success: true }` and left all connection statuses
+  connected;
+- a delayed epoch-E failure returned success instead of `stale-operation` after authoritative E+1
+  replaced it;
+- an automatic target failure did not stop the exact active auto-sync group.
+
+### Fix
+
+- On exhausted compensation, an exact-runtime identity guard invalidates both content operation
+  generations, cancels pending programmatic scrolling, detaches active listeners/monitors, marks the
+  local runtime inactive, and hides its panel. A late failure whose identity is no longer current
+  cannot mutate a replacement runtime.
+- The URL receiver now returns a typed success/failure acknowledgement. It stops navigation and
+  later scroll handling after reconciliation failure.
+- The source URL-monitor path emits a narrow, session-bound `sync:runtime-degraded` message after
+  exact-runtime deactivation. A late background acknowledgement has no local mutation path.
+- The background relay consumes typed content responses. For a current manual epoch it persists and
+  commits only the failed member's `error` connection status, increments the revision, broadcasts
+  the authoritative snapshot, and returns the typed failure instead of success.
+- The source degradation handler applies the same epoch/sender authorization and transition gate.
+- Automatic failures stop and broadcast only the matching active auto-sync group.
+- The shared message declarations and `webext-bridge` ProtocolMap now expose the same URL/degradation
+  request-response contract.
+- Failure logs contain only IDs and fixed non-sensitive reasons; no URL or response object is logged.
+
+### Interleaving proof
+
+The content test starts epoch 20 with a retained `0.2` manual offset, defers U1's real storage clear,
+starts U2 in the same runtime, applies U1's clear, rejects exactly three repair writes, and proves:
+
+- neither URL navigates;
+- the runtime becomes inactive at epoch 0 and its panel is hidden exactly once;
+- an epoch-20 `scroll:sync` message cannot move the document;
+- storage writes are bounded to one clear plus three repairs;
+- only a later explicit epoch-21 Start repairs the retained offset, reactivates the panel/runtime,
+  and restores the expected 700px mapped scroll position.
+
+A separate source schedule defers the degradation acknowledgement, completes an explicit epoch-31
+Start repair, then resolves the old acknowledgement and proves epoch 31 state and the restored
+offset remain unchanged. Background schedules independently prove current-epoch persistence and
+that a delayed epoch-E target response cannot mutate the replacement epoch-E+1 topology or status.
+
+### Round-3 verification
+
+- Focused round-3 and activation-migration suites: 7 files, 248 tests passed.
+- Full Vitest suite: 97 files, 1,732 tests passed.
+- Full repository health hook: i18n, privacy logging, privacy rule tests, typecheck, format, and lint
+  passed.
+- Privacy logging validation: 265 files passed.
+- Privacy rule suite: 27 tests passed.
+- Chromium production build: passed.
+- Firefox production build: passed.
+- `git diff --check`: passed.
+
+### Focused re-review closure
+
+The first round-3 re-review found two additional races, and each received a failing interleaving
+test before its implementation:
+
+1. Failed-runtime keyboard cleanup was fire-and-forget. The RED test observed a fifth repair write
+   and E+1 initialization before deferred E cleanup completed. Cleanup is now awaited inside the
+   clear/reconciliation transaction after the retained repair snapshot is recorded. The resulting
+   order is `E cleanup -> transaction resolve -> retained strict repair -> offset read -> E+1
+keyboard/panel initialization`.
+2. Automatic URL failures originally had no exact activation identity. The RED test deferred an
+   epoch-E target failure, restarted the same group with identical membership, and observed the old
+   failure stop E+1. Auto activations now reserve a monotonic generation under the auto lock. The
+   generation is carried through content Start, URL/degradation messages, reconnect, reinjection,
+   and manual-override restoration; background admission and failure commit both validate it.
+
+Supporting tests prove that the same accepted group receives a newer generation on restart,
+reinjection forwards the frozen generation, and manual-override snapshots preserve it. A final
+independent read-only re-review returned **APPROVED** with no P0/P1 findings after checking both
+interleavings and all generation propagation paths.
