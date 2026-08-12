@@ -3,6 +3,7 @@
  * Implements P0 requirement: Basic Scroll Synchronization
  */
 
+import type { AutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
 import type {
   AutoSyncSuggestionMatchKind,
   TranslatedPageConfidence,
@@ -57,7 +58,7 @@ export interface ManualStartSyncContentMessage extends StartSyncBase {
 export interface AutoStartSyncContentMessage extends StartSyncBase {
   currentTabId: number;
   isAutoSync: true;
-  autoSyncGeneration: number;
+  autoSyncGeneration: AutoSyncActivationId;
   sessionEpoch?: never;
 }
 
@@ -163,7 +164,10 @@ export interface UrlSyncPayload {
 
 export type UrlSyncMessage =
   | (UrlSyncPayload & ManualMessageIdentity)
-  | (UrlSyncPayload & AutoSyncMessageIdentity & { autoSyncGeneration: number });
+  | (UrlSyncPayload &
+      AutoSyncMessageIdentity & {
+        autoSyncGeneration: AutoSyncActivationId;
+      });
 
 export type UrlSyncContentResponse =
   | { success: true }
@@ -190,7 +194,7 @@ export type UrlSyncResponse = UrlSyncContentResponse | UrlSyncBackgroundResponse
 export type ContentRuntimeDegradedMessage =
   | (ManualMessageIdentity & { reason: 'offset-reconciliation-failed' })
   | (AutoSyncMessageIdentity & {
-      autoSyncGeneration: number;
+      autoSyncGeneration: AutoSyncActivationId;
       reason: 'offset-reconciliation-failed';
     });
 
