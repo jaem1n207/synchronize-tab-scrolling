@@ -504,7 +504,11 @@ export function registerAutoSyncHandlers(): void {
         }
 
         broadcastAddTabDismiss(tabId, uniqueTargetTabs);
-        return { success: true, revision: result.revision };
+        return {
+          success: true,
+          revision: result.revision,
+          ...(result.warning === undefined ? {} : { warning: result.warning }),
+        };
       }
 
       broadcastAddTabDismiss(tabId, uniqueTargetTabs);

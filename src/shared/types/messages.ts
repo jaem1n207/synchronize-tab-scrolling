@@ -396,7 +396,7 @@ export interface AddTabToSyncResponseMessage {
 }
 
 export type SyncSuggestionDecisionResponse =
-  | { success: true; revision?: number }
+  | { success: true; revision?: number; warning?: 'auto-sync-degraded' }
   | { success: false; reason: string; warning?: 'auto-sync-degraded' };
 
 /**

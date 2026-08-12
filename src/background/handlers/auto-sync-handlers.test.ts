@@ -968,6 +968,52 @@ describe('registerAutoSyncHandlers', () => {
       );
     });
 
+    it('preserves a committed residual auto cleanup warning in the accepted response', async () => {
+      const activationGeneration = '11111111-1111-4111-8111-111111111111';
+      const normalizedUrl = 'https://fixture.invalid/active-group';
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set(normalizedUrl, {
+        tabIds: new Set([3, 4]),
+        isActive: true,
+        activationGeneration,
+      });
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (
+          messageId: string,
+          _data: unknown,
+          destination: { context: 'content-script'; tabId: number },
+        ) => {
+          if (messageId === 'scroll:stop' && destination.tabId === 4) {
+            return { success: false, tabId: 4 };
+          }
+          return { success: true, tabId: destination.tabId };
+        },
+      );
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: { tabId: 3, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
+
+      expect(response).toEqual({
+        success: true,
+        revision: 7,
+        warning: 'auto-sync-degraded',
+      });
+      expect(syncState.linkedTabs).toEqual([1, 2, 3]);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { isAutoSync: true, autoSyncGeneration: activationGeneration },
+        { context: 'content-script', tabId: 4 },
+        1_000,
+      );
+    });
+
     it('accepted response adds tab to existing sync and broadcasts dismiss', async () => {
       autoSyncState.enabled = true;
       syncState.isActive = true;
