@@ -8,8 +8,9 @@ import { createQuickSyncCandidateStore } from './quick-sync-candidate';
 import { createQuickSyncCoordinator } from './quick-sync-coordinator';
 import { createQuickSyncHandshakeRegistry } from './quick-sync-feedback';
 
-import type { QuickSyncPort } from './quick-sync-feedback';
+import type { ProvisionalQuickSyncHandshake, QuickSyncPort } from './quick-sync-feedback';
 import type { SyncTransitionGate } from './sync-transition-gate';
+import type { Mock, MockInstance } from 'vitest';
 
 interface CoordinatorHarness {
   coordinator: ReturnType<typeof createQuickSyncCoordinator>;
@@ -19,7 +20,9 @@ interface CoordinatorHarness {
   recentOutcomes: Array<RecentQuickSyncOutcome>;
   startManualSession: ReturnType<typeof vi.fn>;
   addTabToManualSession: ReturnType<typeof vi.fn>;
+  ensureContentScript: Mock<(tabId: number) => Promise<boolean>>;
   revalidateInvocationTab: ReturnType<typeof vi.fn>;
+  beginHandshake: MockInstance<(input: ProvisionalQuickSyncHandshake) => Promise<QuickSyncPort>>;
   showUnsupportedBadge: ReturnType<typeof vi.fn>;
   port: QuickSyncPort;
   disconnectPort(): void;
@@ -92,7 +95,9 @@ function createHarness(initialState: SyncState = createInactiveState()): Coordin
     revision: 6,
     sessionEpoch: 2,
   });
+  const ensureContentScript = vi.fn<(tabId: number) => Promise<boolean>>().mockResolvedValue(true);
   const revalidateInvocationTab = vi.fn().mockResolvedValue(undefined);
+  const beginHandshake = vi.spyOn(handshakeRegistry, 'begin');
   const showUnsupportedBadge = vi.fn().mockResolvedValue(undefined);
 
   const coordinator = createQuickSyncCoordinator({
@@ -101,6 +106,7 @@ function createHarness(initialState: SyncState = createInactiveState()): Coordin
     transitionGate,
     now: () => now,
     getState: () => state,
+    ensureContentScript,
     revalidateInvocationTab,
     sendFeedback: async (tabId, message) => {
       feedback.push({ tabId, message });
@@ -140,7 +146,9 @@ function createHarness(initialState: SyncState = createInactiveState()): Coordin
     recentOutcomes,
     startManualSession,
     addTabToManualSession,
+    ensureContentScript,
     revalidateInvocationTab,
+    beginHandshake,
     showUnsupportedBadge,
     port,
     disconnectPort() {
@@ -173,8 +181,39 @@ describe('createQuickSyncCoordinator', () => {
     vi.useRealTimers();
   });
 
-  it('handshakes before arming the first inactive candidate', async () => {
+  it('ensures the content runtime before candidate feedback and Port reservation', async () => {
     const harness = createHarness();
+    const contentReady = Promise.withResolvers<boolean>();
+    harness.ensureContentScript.mockReturnValueOnce(contentReady.promise);
+
+    const resultPromise = harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 11,
+        windowId: 1,
+      }),
+    );
+    await Promise.resolve();
+
+    expect(harness.ensureContentScript).toHaveBeenCalledWith(11);
+    expect(harness.feedback).toEqual([]);
+    expect(harness.beginHandshake).not.toHaveBeenCalled();
+
+    contentReady.resolve(true);
+    const result = await resultPromise;
+
+    expect(result).toEqual({ status: 'candidate-armed', generation: 1, expiresAt: 20_000 });
+    expect(harness.candidateStore.read()).toEqual({
+      tabId: 11,
+      generation: 1,
+      expiresAt: 20_000,
+    });
+    expect(harness.revalidateInvocationTab).toHaveBeenCalledWith(11);
+  });
+
+  it('rejects an unreachable first-tab runtime without reserving a candidate or Port', async () => {
+    const harness = createHarness();
+    harness.ensureContentScript.mockResolvedValueOnce(false);
 
     const result = await harness.transitionGate.run((context) =>
       harness.coordinator.handle(context, {
@@ -184,13 +223,27 @@ describe('createQuickSyncCoordinator', () => {
       }),
     );
 
-    expect(result).toEqual({ status: 'candidate-armed', generation: 1, expiresAt: 20_000 });
-    expect(harness.candidateStore.read()).toEqual({
+    expect(result).toEqual({ status: 'rejected', reason: 'content-unreachable' });
+    expect(harness.beginHandshake).not.toHaveBeenCalled();
+    expect(harness.feedback).toEqual([]);
+    expect(harness.candidateStore.read()).toBeNull();
+    expect(harness.recentOutcomes.at(-1)).toEqual({
       tabId: 11,
-      generation: 1,
-      expiresAt: 20_000,
+      resultKind: 'candidate-failed',
+      reason: 'content-unreachable',
+      expiresAt: 40_000,
     });
-    expect(harness.revalidateInvocationTab).toHaveBeenCalledWith(11);
+    expect(harness.showUnsupportedBadge).toHaveBeenCalledWith(11, 0);
+
+    await expect(
+      harness.transitionGate.run((context) =>
+        harness.coordinator.handle(context, {
+          commandReceivedAt: 10_001,
+          tabId: 11,
+          windowId: 1,
+        }),
+      ),
+    ).resolves.toEqual({ status: 'candidate-armed', generation: 1, expiresAt: 20_000 });
   });
 
   it('keeps the same candidate deadline on a same-tab command', async () => {
@@ -226,6 +279,7 @@ describe('createQuickSyncCoordinator', () => {
     );
 
     expect(result).toEqual({ status: 'started', tabCount: 2 });
+    expect(harness.ensureContentScript).toHaveBeenCalledWith(22);
     expect(harness.startManualSession).toHaveBeenCalledWith(
       expect.objectContaining({ expectedRevision: 0 }),
       {
@@ -259,6 +313,7 @@ describe('createQuickSyncCoordinator', () => {
     );
 
     expect(result).toEqual({ status: 'already-included', tabCount: 2 });
+    expect(harness.ensureContentScript).toHaveBeenCalledWith(22);
     expect(harness.startManualSession).not.toHaveBeenCalled();
     expect(harness.addTabToManualSession).not.toHaveBeenCalled();
   });
@@ -289,6 +344,87 @@ describe('createQuickSyncCoordinator', () => {
       { tabId: 33, expectedRevision: 5, source: 'quick-sync' },
     );
     expect(harness.startManualSession).not.toHaveBeenCalled();
+    expect(harness.ensureContentScript).toHaveBeenCalledWith(33);
+  });
+
+  it('preserves the candidate when the second-tab runtime cannot be prepared', async () => {
+    const harness = createHarness();
+    harness.candidateStore.arm({ tabId: 11, generation: 4, expiresAt: 20_000 });
+    harness.ensureContentScript.mockResolvedValueOnce(false);
+
+    const result = await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 15_000,
+        tabId: 22,
+        windowId: 2,
+      }),
+    );
+
+    expect(result).toEqual({ status: 'rejected', reason: 'content-unreachable' });
+    expect(harness.feedback).toEqual([
+      {
+        tabId: 22,
+        message: {
+          outcome: 'clear',
+          generation: 4,
+          reason: 'invalidated',
+        },
+      },
+      {
+        tabId: 11,
+        message: {
+          outcome: 'second-tab-failed',
+          generation: 4,
+          expiresAt: 20_000,
+          reason: 'content-unreachable',
+        },
+      },
+    ]);
+    expect(harness.startManualSession).not.toHaveBeenCalled();
+    expect(harness.candidateStore.read()).toEqual({
+      tabId: 11,
+      generation: 4,
+      expiresAt: 20_000,
+    });
+    expect(harness.recentOutcomes.at(-1)).toEqual({
+      tabId: 22,
+      resultKind: 'start-failed',
+      reason: 'content-unreachable',
+      expiresAt: 40_000,
+    });
+  });
+
+  it('preserves an active session when a new tab runtime cannot be prepared', async () => {
+    const activeState: SyncState = {
+      isActive: true,
+      linkedTabs: [11, 22],
+      connectionStatuses: { 11: 'connected', 22: 'connected' },
+      mode: 'ratio',
+      lastActiveSyncedTabId: 11,
+      revision: 5,
+      sessionEpoch: 2,
+    };
+    const harness = createHarness(activeState);
+    harness.ensureContentScript.mockResolvedValueOnce(false);
+
+    const result = await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 33,
+        windowId: 3,
+      }),
+    );
+
+    expect(result).toEqual({ status: 'rejected', reason: 'content-unreachable' });
+    expect(harness.feedback).toEqual([]);
+    expect(harness.addTabToManualSession).not.toHaveBeenCalled();
+    expect(harness.recentOutcomes.at(-1)).toEqual({
+      tabId: 33,
+      resultKind: 'add-failed',
+      reason: 'content-unreachable',
+      tabCount: 2,
+      expiresAt: 40_000,
+    });
   });
 
   it('records a degraded recent outcome without denying a committed Add', async () => {
@@ -559,7 +695,9 @@ describe('createQuickSyncCoordinator', () => {
         windowId: 1,
       }),
     );
-    harness.revalidateInvocationTab.mockRejectedValueOnce(new Error('missing'));
+    harness.revalidateInvocationTab
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('missing'));
     harness.setNow(19_500);
 
     const result = await harness.transitionGate.run((context) =>
@@ -601,9 +739,18 @@ describe('createQuickSyncCoordinator', () => {
     expect(harness.showUnsupportedBadge).toHaveBeenCalledWith(22, 1);
   });
 
-  it('disconnects a provisional Port and records failure when first-tab revalidation fails', async () => {
+  it('revalidates the first tab after runtime readiness and before reserving feedback', async () => {
     const harness = createHarness();
+    const events: Array<string> = [];
+    harness.ensureContentScript.mockImplementationOnce(async () => {
+      events.push('ensure');
+      return true;
+    });
     harness.revalidateInvocationTab.mockRejectedValue(new Error('missing'));
+    harness.revalidateInvocationTab.mockImplementationOnce(async () => {
+      events.push('revalidate');
+      throw new Error('missing');
+    });
 
     const result = await harness.transitionGate.run((context) =>
       harness.coordinator.handle(context, {
@@ -614,7 +761,10 @@ describe('createQuickSyncCoordinator', () => {
     );
 
     expect(result).toEqual({ status: 'rejected', reason: 'candidate-tab-missing' });
-    expect(harness.port.disconnect).toHaveBeenCalledOnce();
+    expect(events).toEqual(['ensure', 'revalidate']);
+    expect(harness.beginHandshake).not.toHaveBeenCalled();
+    expect(harness.feedback).toEqual([]);
+    expect(harness.port.disconnect).not.toHaveBeenCalled();
     expect(harness.candidateStore.read()).toBeNull();
     expect(harness.recentOutcomes.at(-1)).toEqual({
       tabId: 11,
@@ -622,12 +772,7 @@ describe('createQuickSyncCoordinator', () => {
       reason: 'candidate-tab-missing',
       expiresAt: 40_000,
     });
-    expect(harness.showUnsupportedBadge).toHaveBeenCalledWith(11, 1);
-    expect(harness.feedback.at(-1)?.message).toEqual({
-      outcome: 'clear',
-      generation: 1,
-      reason: 'invalidated',
-    });
+    expect(harness.showUnsupportedBadge).toHaveBeenCalledWith(11, 0);
   });
 
   it('invalidates only the candidate owned by the affected tab', async () => {

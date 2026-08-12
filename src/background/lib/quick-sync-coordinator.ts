@@ -28,6 +28,7 @@ export interface QuickSyncCoordinatorDependencies {
   transitionGate: SyncTransitionGate;
   now: () => number;
   getState: () => SyncState;
+  ensureContentScript: (tabId: number) => Promise<boolean>;
   revalidateInvocationTab: (tabId: number) => Promise<void>;
   sendFeedback: (
     tabId: number,
@@ -130,6 +131,23 @@ export function createQuickSyncCoordinator(
     }
   }
 
+  async function prepareInvocationTab(tabId: number): Promise<QuickSyncFailureReason | null> {
+    try {
+      if (!(await dependencies.ensureContentScript(tabId))) {
+        return 'content-unreachable';
+      }
+    } catch {
+      return 'content-unreachable';
+    }
+
+    try {
+      await dependencies.revalidateInvocationTab(tabId);
+      return null;
+    } catch {
+      return 'candidate-tab-missing';
+    }
+  }
+
   async function releaseCandidateFeedback(
     candidate: QuickSyncCandidate,
     reason: 'expired' | 'consumed' | 'invalidated' | 'worker-disconnected',
@@ -198,6 +216,13 @@ export function createQuickSyncCoordinator(
   }
 
   async function armFirstCandidate(tabId: number): Promise<QuickSyncCommandResult> {
+    const preparationFailure = await prepareInvocationTab(tabId);
+    if (preparationFailure !== null) {
+      const failureReason = preparationFailure;
+      recordFailure(tabId, 0, 'candidate-failed', failureReason);
+      return { status: 'rejected', reason: failureReason };
+    }
+
     const generation = dependencies.candidateStore.reserveGeneration();
     const expiresAt = dependencies.now() + QUICK_SYNC_CANDIDATE_DURATION_MS;
     const portPromise = dependencies.handshakeRegistry.begin({ tabId, generation, expiresAt });
@@ -208,7 +233,7 @@ export function createQuickSyncCoordinator(
     });
     let port: QuickSyncPort | undefined;
     let promoted = false;
-    let failureReason: QuickSyncFailureReason = 'hud-unavailable';
+    const failureReason: QuickSyncFailureReason = 'hud-unavailable';
 
     try {
       const result = await Promise.all([feedbackPromise, portPromise]);
@@ -218,8 +243,6 @@ export function createQuickSyncCoordinator(
         throw new Error('hud-unavailable');
       }
 
-      failureReason = 'candidate-tab-missing';
-      await dependencies.revalidateInvocationTab(tabId);
       const candidate = { tabId, generation, expiresAt };
       dependencies.handshakeRegistry.discard(generation);
       dependencies.candidateStore.arm(candidate);
@@ -251,6 +274,18 @@ export function createQuickSyncCoordinator(
     state: SyncState,
   ): Promise<QuickSyncCommandResult> {
     const generation = dependencies.candidateStore.reserveGeneration();
+    const preparationFailure = await prepareInvocationTab(invocation.tabId);
+    if (preparationFailure !== null) {
+      recordFailure(
+        invocation.tabId,
+        generation,
+        state.linkedTabs.includes(invocation.tabId) ? 'candidate-failed' : 'add-failed',
+        preparationFailure,
+        state.linkedTabs.length,
+      );
+      return { status: 'rejected', reason: preparationFailure };
+    }
+
     if (state.linkedTabs.includes(invocation.tabId)) {
       const feedbackReady = await sendReadyFeedback(invocation.tabId, {
         outcome: 'already-included',
@@ -320,6 +355,12 @@ export function createQuickSyncCoordinator(
     let candidateInvalid = false;
     let succeeded = false;
     try {
+      const preparationFailure = await prepareInvocationTab(invocation.tabId);
+      if (preparationFailure !== null) {
+        reason = preparationFailure;
+        return { status: 'rejected', reason };
+      }
+
       const feedbackReady = await sendReadyFeedback(invocation.tabId, {
         outcome: 'connecting',
         generation: candidate.generation,

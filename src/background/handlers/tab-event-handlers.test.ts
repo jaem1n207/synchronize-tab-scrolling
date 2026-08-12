@@ -614,6 +614,7 @@ describe('registerTabEventHandlers', () => {
           revision: 0,
           sessionEpoch: 0,
         }),
+        ensureContentScript: async () => true,
         revalidateInvocationTab: async () => undefined,
         sendFeedback: async (tabId, message) => {
           feedback.push({ tabId, outcome: message.outcome });
