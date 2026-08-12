@@ -765,11 +765,22 @@ export function createSyncSessionOrchestrator(
       dependencies.commitState(candidate);
       dependencies.cleanupScheduler.cancelForTab(input.tabId);
       await dependencies.broadcastStatus().catch(() => undefined);
+      const residualCleanup = await dependencies.overrideAdapter
+        .cleanupResidualRuntime(snapshot)
+        .catch((): { status: 'degraded' } => ({ status: 'degraded' }));
+      let warning: 'auto-sync-degraded' | undefined;
+      if (residualCleanup.status === 'degraded') {
+        warning = 'auto-sync-degraded';
+      }
+      if (warning !== undefined) {
+        dependencies.recordRecentOutcome(input.source, warning);
+      }
       return {
         status: 'committed',
         linkedTabIds: [...candidate.linkedTabs],
         revision: candidate.revision,
         sessionEpoch: candidate.sessionEpoch,
+        ...(warning === undefined ? {} : { warning }),
       };
     },
 

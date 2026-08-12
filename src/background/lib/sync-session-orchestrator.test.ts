@@ -39,6 +39,7 @@ interface HarnessOptions {
   rollbackDegraded?: boolean;
   rollbackUncommittedDegraded?: boolean;
   revalidateFails?: boolean;
+  residualCleanupDegraded?: boolean;
 }
 
 function cloneState(state: SyncState): SyncState {
@@ -101,6 +102,10 @@ function createOrchestratorHarness(options: HarnessOptions) {
       events.push('override:rollback');
       overrideRollbacks.push(snapshot);
       return options.rollbackDegraded ? { status: 'degraded' } : { status: 'rolled-back' };
+    },
+    cleanupResidualRuntime: async () => {
+      events.push('override:cleanup-residual');
+      return options.residualCleanupDegraded ? { status: 'degraded' } : { status: 'cleaned' };
     },
   };
 
@@ -332,6 +337,29 @@ describe('createSyncSessionOrchestrator', () => {
       connectionStatuses: { 11: 'connected', 22: 'connected', 33: 'connected' },
       revision: 8,
     });
+    expect(harness.events.slice(-2)).toEqual(['status:broadcast', 'override:cleanup-residual']);
+  });
+
+  it('keeps the committed Add topology truthful when residual auto cleanup degrades', async () => {
+    const harness = createOrchestratorHarness({
+      initialState: activeState,
+      residualCleanupDegraded: true,
+    });
+
+    const result = await harness.orchestrator.addTabToManualSession(
+      { operationGeneration: 2, expectedRevision: 7 },
+      { tabId: 33, expectedRevision: 7, source: 'quick-sync' },
+    );
+
+    expect(result).toEqual({
+      status: 'committed',
+      linkedTabIds: [11, 22, 33],
+      revision: 8,
+      sessionEpoch: 4,
+      warning: 'auto-sync-degraded',
+    });
+    expect(harness.recentOutcomes).toEqual(['auto-sync-degraded']);
+    expect(harness.committedState.linkedTabs).toEqual([11, 22, 33]);
   });
 
   it('commits the popup subset and restores excluded auto membership after cleanup', async () => {
@@ -529,6 +557,7 @@ describe('createSyncSessionOrchestrator', () => {
       'override:rollback',
     ]);
     expect(harness.committedState).toEqual(activeState);
+    expect(harness.events).not.toContain('override:cleanup-residual');
   });
 
   it('rejects after post-ack revalidation without publishing state', async () => {

@@ -135,6 +135,7 @@ export type ManualAddResult =
       linkedTabIds: Array<number>;
       revision: number;
       sessionEpoch: number;
+      warning?: 'auto-sync-degraded';
     }
   | ManualTransitionRejection;
 

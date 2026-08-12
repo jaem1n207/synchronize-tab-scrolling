@@ -117,6 +117,7 @@ describe('registerQuickSyncCommandHandler', () => {
         commit: async () => ({ status: 'committed' }),
         rollbackUncommitted: async () => ({ status: 'rolled-back' }),
         rollback: async () => ({ status: 'rolled-back' }),
+        cleanupResidualRuntime: async () => ({ status: 'cleaned' }),
       },
       startKeepAlive: vi.fn(),
       stopKeepAlive: vi.fn(),
