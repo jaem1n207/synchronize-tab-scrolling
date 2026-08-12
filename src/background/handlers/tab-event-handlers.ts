@@ -683,7 +683,9 @@ export function registerTabEventHandlers(): void {
       const { newValue, oldValue } = autoSyncEnabledChange;
       if (typeof newValue === 'boolean' && newValue !== oldValue) {
         logger.info('Auto-sync enabled changed via storage', { newValue, oldValue });
-        await toggleAutoSync(newValue);
+        await syncTransitionGate.run(async () => {
+          await toggleAutoSync(newValue);
+        });
       }
     }
   });

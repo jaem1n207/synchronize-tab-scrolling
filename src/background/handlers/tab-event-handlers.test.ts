@@ -35,6 +35,7 @@ import {
   persistSyncState,
   syncState,
 } from '../lib/sync-state';
+import { syncTransitionGate } from '../lib/sync-transition-gate';
 
 import { registerTabEventHandlers } from './tab-event-handlers';
 
@@ -1224,6 +1225,88 @@ describe('registerTabEventHandlers', () => {
       );
 
       expect(toggleAutoSync).toHaveBeenCalledWith(true);
+    });
+
+    it('enters the transition gate before applying a stored disable', async () => {
+      const events: Array<string> = [];
+      vi.mocked(syncTransitionGate.run).mockImplementationOnce(async (transition) => {
+        events.push('gate:enter');
+        const result = await transition({
+          operationGeneration: 2,
+          expectedRevision: syncState.revision,
+        });
+        events.push('gate:exit');
+        return result;
+      });
+      vi.mocked(toggleAutoSync).mockImplementationOnce(async () => {
+        events.push('toggle');
+      });
+
+      await getListener('storage.onChanged')(
+        {
+          autoSyncEnabled: {
+            oldValue: true,
+            newValue: false,
+          },
+        },
+        'local',
+      );
+
+      expect(events).toEqual(['gate:enter', 'toggle', 'gate:exit']);
+    });
+
+    it('serializes concurrent stored enable and disable requests in arrival order', async () => {
+      let tail: Promise<void> = Promise.resolve();
+      let operationGeneration = 0;
+      vi.mocked(syncTransitionGate.run).mockImplementation((transition) => {
+        const result = tail.then(() =>
+          transition({
+            operationGeneration: ++operationGeneration,
+            expectedRevision: syncState.revision,
+          }),
+        );
+        tail = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
+      });
+      const firstToggle = Promise.withResolvers<void>();
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        if (enabled) {
+          await firstToggle.promise;
+        }
+        autoSyncState.enabled = enabled;
+      });
+
+      const enable = getListener('storage.onChanged')(
+        {
+          autoSyncEnabled: {
+            oldValue: false,
+            newValue: true,
+          },
+        },
+        'local',
+      );
+      const disable = getListener('storage.onChanged')(
+        {
+          autoSyncEnabled: {
+            oldValue: true,
+            newValue: false,
+          },
+        },
+        'local',
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+      const callsBeforeFirstToggleSettled = [...vi.mocked(toggleAutoSync).mock.calls];
+
+      firstToggle.resolve();
+      await enable;
+      await disable;
+      expect(callsBeforeFirstToggleSettled).toEqual([[true]]);
+      expect(toggleAutoSync).toHaveBeenNthCalledWith(2, false);
+      expect(autoSyncState.enabled).toBe(false);
     });
 
     it('ignores storage changes outside local area', async () => {
