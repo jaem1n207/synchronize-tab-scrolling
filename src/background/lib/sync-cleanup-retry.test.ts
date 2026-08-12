@@ -172,6 +172,26 @@ describe('createManualCleanupRetryScheduler', () => {
     expect(harness.timers).toHaveLength(1);
   });
 
+  it('cancels when a restored or reconnected worker has advanced the committed revision', async () => {
+    const harness = createSchedulerHarness();
+    harness.scheduler.schedule({
+      tabId: 11,
+      stoppedRevision: 8,
+      stoppedSessionEpoch: 4,
+      attemptIndex: 0,
+    });
+    harness.setState({
+      ...inactiveState,
+      revision: 9,
+    });
+
+    await harness.fire(0);
+
+    expect(harness.gateEntries).toHaveLength(1);
+    expect(harness.sendStop).not.toHaveBeenCalled();
+    expect(harness.timers).toHaveLength(1);
+  });
+
   it('replaces an older timer for the same tab and supports explicit cancellation', () => {
     const harness = createSchedulerHarness();
     const input = {

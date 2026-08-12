@@ -65,6 +65,7 @@ export function createManualCleanupRetryScheduler(dependencies: {
 
             const state = dependencies.getState();
             if (
+              state.revision !== input.stoppedRevision ||
               state.sessionEpoch !== input.stoppedSessionEpoch ||
               (state.isActive && state.linkedTabs.includes(input.tabId))
             ) {
