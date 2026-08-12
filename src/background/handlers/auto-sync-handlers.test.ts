@@ -23,6 +23,7 @@ import {
   withAutoSyncLock,
 } from '../lib/auto-sync-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
+import { createManualOverrideAdapter } from '../lib/manual-override-adapter';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import {
   broadcastSyncStatus,
@@ -338,6 +339,63 @@ describe('registerAutoSyncHandlers', () => {
       await transition;
       await expect(disable).resolves.toEqual({ success: true, enabled: false });
       expect(toggledBeforeManualTransitionSettled).toBe(false);
+      expect(autoSyncState.groups.size).toBe(0);
+    });
+
+    it('does not restore automatic runtime after a deferred manual override rollback disables', async () => {
+      const activationGeneration = '11111111-1111-4111-8111-111111111111';
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set('https://example.com/page', {
+        tabIds: new Set([11, 22]),
+        isActive: true,
+        activationGeneration,
+      });
+      const events: Array<string> = [];
+      const deferredAcknowledgement = Promise.withResolvers<void>();
+      const adapter = createManualOverrideAdapter({
+        groups: autoSyncState.groups,
+        overrideTabIds: manualSyncOverriddenTabs,
+        pendingSuggestions,
+        withAutoSyncLock: async (operation) => operation(),
+        restoreRuntime: async () => {
+          events.push('runtime:restore');
+          return true;
+        },
+        stopResidualRuntime: async () => true,
+      });
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        events.push('auto:disable');
+        autoSyncState.enabled = enabled;
+        autoSyncState.groups.clear();
+      });
+
+      const manualTransition = syncTransitionGate.run(async (context) => {
+        const snapshot = await adapter.prepare(context.operationGeneration, [11]);
+        events.push('override:prepared');
+        await deferredAcknowledgement.promise;
+        await adapter.rollback(snapshot);
+        events.push('override:rolled-back');
+      });
+      for (let attempt = 0; attempt < 5 && events.length === 0; attempt += 1) {
+        await Promise.resolve();
+      }
+
+      const handler = getRequiredHandler('auto-sync:status-changed');
+      const disable = handler({ data: { enabled: false }, sender: {} });
+      await Promise.resolve();
+      expect(events).toEqual(['override:prepared']);
+
+      deferredAcknowledgement.resolve();
+      await manualTransition;
+      await disable;
+
+      expect(events).toEqual([
+        'override:prepared',
+        'runtime:restore',
+        'override:rolled-back',
+        'auto:disable',
+      ]);
+      expect(autoSyncState.enabled).toBe(false);
       expect(autoSyncState.groups.size).toBe(0);
     });
 
