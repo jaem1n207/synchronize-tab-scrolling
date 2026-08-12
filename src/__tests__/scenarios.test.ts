@@ -211,11 +211,11 @@ async function startContentSync(
   tabId: number,
   {
     isAutoSync = false,
-    autoSyncGeneration = 1,
+    autoSyncGeneration = '11111111-1111-4111-8111-111111111111',
     sessionEpoch = 1,
   }: {
     isAutoSync?: boolean;
-    autoSyncGeneration?: number;
+    autoSyncGeneration?: string;
     sessionEpoch?: number;
   } = {},
 ): Promise<void> {
@@ -437,6 +437,20 @@ describe('Scenario: scroll start acknowledgements', () => {
     await stopContentSync();
 
     expect(getScrollSyncState().sessionEpoch).toBe(0);
+  });
+
+  it('rejects a malformed auto-sync activation identity before activating', async () => {
+    const response = await invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 79,
+      tabIds: [79, 80],
+      isAutoSync: true,
+      autoSyncGeneration: 'not-a-uuid',
+    });
+
+    expect(response).toEqual({ success: false, tabId: 79 });
+    expect(getScrollSyncState().isActive).toBe(false);
+    expect(showPanel).not.toHaveBeenCalled();
   });
 });
 
@@ -1357,7 +1371,7 @@ describe('Scenario: session identity propagation', () => {
     expect(urlCall?.[1]).toEqual({
       isAutoSync: true,
       sourceTabId: 80,
-      autoSyncGeneration: 1,
+      autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
       url: changedUrl,
     });
     expect(urlCall?.[1]).not.toHaveProperty('sessionEpoch');

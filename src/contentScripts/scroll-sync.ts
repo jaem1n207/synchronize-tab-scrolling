@@ -8,6 +8,10 @@
 
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
+import {
+  isAutoSyncActivationId,
+  type AutoSyncActivationId,
+} from '~/shared/lib/auto-sync-activation';
 import { isWebpageOverlayContextualHintId } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
@@ -94,13 +98,24 @@ const LAZY_LOAD_CATCH_UP_MAX_ATTEMPTS = 3;
 const MANUAL_OFFSET_REPAIR_RETRY_DELAY_MS = 50;
 const MANUAL_OFFSET_REPAIR_MAX_ATTEMPTS = 3;
 
-interface ContentRuntimeIdentity {
+interface ContentRuntimeIdentityBase {
   operationGeneration: number;
   tabId: number;
-  isAutoSync: boolean;
-  autoSyncGeneration: number;
+}
+
+interface AutoContentRuntimeIdentity extends ContentRuntimeIdentityBase {
+  isAutoSync: true;
+  autoSyncGeneration: AutoSyncActivationId;
+  sessionEpoch: 0;
+}
+
+interface ManualContentRuntimeIdentity extends ContentRuntimeIdentityBase {
+  isAutoSync: false;
+  autoSyncGeneration: null;
   sessionEpoch: number;
 }
+
+type ContentRuntimeIdentity = AutoContentRuntimeIdentity | ManualContentRuntimeIdentity;
 
 interface UrlSyncOperationIdentity {
   operationGeneration: number;
@@ -1312,21 +1327,22 @@ export function initScrollSync() {
     const autoSyncGeneration =
       'autoSyncGeneration' in payload ? payload.autoSyncGeneration : undefined;
     const targetTabId = payload.currentTabId ?? 0;
-    let committedSessionEpoch = 0;
-    let committedAutoSyncGeneration = 0;
+    let runtimeIdentity: ContentRuntimeIdentity;
 
     if (isAutoSync) {
-      if (
-        typeof autoSyncGeneration !== 'number' ||
-        !Number.isSafeInteger(autoSyncGeneration) ||
-        autoSyncGeneration < 0
-      ) {
+      if (!isAutoSyncActivationId(autoSyncGeneration)) {
         return {
           success: false,
           tabId: targetTabId,
         };
       }
-      committedAutoSyncGeneration = autoSyncGeneration;
+      runtimeIdentity = {
+        operationGeneration: 0,
+        tabId: targetTabId,
+        isAutoSync: true,
+        autoSyncGeneration,
+        sessionEpoch: 0,
+      };
     } else {
       if (
         typeof sessionEpoch !== 'number' ||
@@ -1338,18 +1354,18 @@ export function initScrollSync() {
           tabId: targetTabId,
         };
       }
-      committedSessionEpoch = sessionEpoch;
+      runtimeIdentity = {
+        operationGeneration: 0,
+        tabId: targetTabId,
+        isAutoSync: false,
+        autoSyncGeneration: null,
+        sessionEpoch,
+      };
     }
 
     const wasSyncActive = syncState.isActive;
     const operationGeneration = beginRuntimeOperation();
-    const runtimeIdentity: ContentRuntimeIdentity = {
-      operationGeneration,
-      tabId: targetTabId,
-      isAutoSync,
-      autoSyncGeneration: committedAutoSyncGeneration,
-      sessionEpoch: committedSessionEpoch,
-    };
+    runtimeIdentity.operationGeneration = operationGeneration;
     pendingRuntimeIdentity = runtimeIdentity;
     const createStaleStartAcknowledgement = (): StartSyncContentResponse => ({
       success: false,
@@ -1429,7 +1445,7 @@ export function initScrollSync() {
     syncState.isAutoSync = isAutoSync;
     syncState.mode = payload.mode;
     syncState.tabId = targetTabId;
-    syncState.sessionEpoch = committedSessionEpoch;
+    syncState.sessionEpoch = runtimeIdentity.sessionEpoch;
     syncState.isManualScrollEnabled = false;
     syncState.lastProgrammaticScrollTime = 0;
     connectionState.isHealthy = true;
