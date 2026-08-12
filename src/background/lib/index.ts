@@ -53,7 +53,11 @@ export { initializeAutoSync, toggleAutoSync } from './auto-sync-lifecycle';
 export type { AutoSyncInitializationResult } from './auto-sync-lifecycle';
 export { createSyncTransitionGate, syncTransitionGate } from './sync-transition-gate';
 export type { SyncTransitionContext, SyncTransitionGate } from './sync-transition-gate';
-export { createManualOverrideAdapter, manualOverrideAdapter } from './manual-override-adapter';
+export {
+  createManualOverrideAdapter,
+  isTabProvisionallyManuallyOverridden,
+  manualOverrideAdapter,
+} from './manual-override-adapter';
 export type { ManualOverrideAdapter, ManualOverrideSnapshot } from './manual-override-adapter';
 export { createSyncSessionOrchestrator } from './sync-session-orchestrator';
 export type {

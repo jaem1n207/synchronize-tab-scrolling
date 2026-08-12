@@ -1,4 +1,7 @@
-import { isAutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
+import {
+  isAutoSyncActivationId,
+  type AutoSyncActivationId,
+} from '~/shared/lib/auto-sync-activation';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import {
@@ -8,6 +11,9 @@ import {
   withAutoSyncLock,
 } from './auto-sync-state';
 import { sendMessageWithTimeout } from './messaging';
+import { createManualCleanupRetryScheduler } from './sync-cleanup-retry';
+import { getSyncStateSnapshot } from './sync-state';
+import { syncTransitionGate } from './sync-transition-gate';
 
 export interface ManualOverrideSnapshot {
   operationGeneration: number;
@@ -32,6 +38,9 @@ export interface ManualOverrideAdapter {
   rollback(
     snapshot: ManualOverrideSnapshot,
   ): Promise<{ status: 'rolled-back' } | { status: 'degraded' }>;
+  cleanupResidualRuntime(
+    snapshot: ManualOverrideSnapshot,
+  ): Promise<{ status: 'cleaned' } | { status: 'degraded' }>;
 }
 
 interface ManualOverrideAdapterDependencies {
@@ -40,6 +49,12 @@ interface ManualOverrideAdapterDependencies {
   pendingSuggestions: Set<string>;
   withAutoSyncLock: <T>(operation: () => Promise<T>) => Promise<T>;
   restoreRuntime: (groupIds: ReadonlyArray<string>) => Promise<boolean>;
+  stopResidualRuntime: (
+    residuals: ReadonlyArray<{
+      tabId: number;
+      activationGeneration: AutoSyncActivationId;
+    }>,
+  ) => Promise<boolean>;
 }
 
 interface CapturedOverrideState {
@@ -268,6 +283,49 @@ export function createManualOverrideAdapter(
         return runtimeRestored ? { status: 'rolled-back' } : { status: 'degraded' };
       });
     },
+
+    async cleanupResidualRuntime(snapshot) {
+      const residuals = await dependencies.withAutoSyncLock(async () => {
+        const captured = capturedStates.get(snapshot);
+        if (!captured) {
+          return null;
+        }
+
+        const result: Array<{
+          tabId: number;
+          activationGeneration: AutoSyncActivationId;
+        }> = [];
+        for (const [groupId, previousGroup] of captured.groups) {
+          const currentGroup = dependencies.groups.get(groupId);
+          if (
+            !previousGroup.isActive ||
+            currentGroup?.isActive !== false ||
+            currentGroup.tabIds.size !== 1 ||
+            currentGroup.activationGeneration !== previousGroup.activationGeneration ||
+            !isAutoSyncActivationId(previousGroup.activationGeneration)
+          ) {
+            continue;
+          }
+          const tabId = currentGroup.tabIds.values().next().value;
+          if (tabId !== undefined) {
+            result.push({
+              tabId,
+              activationGeneration: previousGroup.activationGeneration,
+            });
+          }
+        }
+        return result;
+      });
+      if (residuals === null) {
+        return { status: 'degraded' };
+      }
+      if (residuals.length === 0) {
+        return { status: 'cleaned' };
+      }
+
+      const stopped = await dependencies.stopResidualRuntime(residuals).catch(() => false);
+      return stopped ? { status: 'cleaned' } : { status: 'degraded' };
+    },
   };
 }
 
@@ -284,7 +342,6 @@ async function restoreAutoSyncRuntime(groupIds: ReadonlyArray<string>): Promise<
       continue;
     }
     const activationGeneration = group.activationGeneration;
-
     const tabIds = [...group.tabIds];
     const results = await Promise.all(
       tabIds.map(async (tabId) => {
@@ -315,10 +372,79 @@ async function restoreAutoSyncRuntime(groupIds: ReadonlyArray<string>): Promise<
   return fullyRestored;
 }
 
+function getCurrentAutoSyncActivationId(tabId: number): AutoSyncActivationId | null {
+  for (const [, group] of autoSyncState.groups) {
+    if (group.tabIds.has(tabId) && isAutoSyncActivationId(group.activationGeneration)) {
+      return group.activationGeneration;
+    }
+  }
+  return null;
+}
+
+const residualCleanupScheduler = createManualCleanupRetryScheduler({
+  transitionGate: syncTransitionGate,
+  getState: getSyncStateSnapshot,
+  getAutoSyncActivationId: getCurrentAutoSyncActivationId,
+  sendStop: (tabId, autoSyncActivationId) => {
+    if (autoSyncActivationId === undefined) {
+      return Promise.resolve({ success: false, tabId });
+    }
+    return sendMessageWithTimeout<{ success: boolean; tabId?: number; reason?: string }>(
+      'scroll:stop',
+      { isAutoSync: true, autoSyncGeneration: autoSyncActivationId },
+      { context: 'content-script', tabId },
+      1_000,
+    );
+  },
+  setTimer: (callback, delay) => setTimeout(callback, delay),
+  clearTimer: (timer) => clearTimeout(timer),
+});
+
+async function stopResidualAutoSyncRuntime(
+  residuals: ReadonlyArray<{
+    tabId: number;
+    activationGeneration: AutoSyncActivationId;
+  }>,
+): Promise<boolean> {
+  const state = getSyncStateSnapshot();
+  const results = await Promise.all(
+    residuals.map(async ({ tabId, activationGeneration }) => {
+      const stopped = await sendMessageWithTimeout<{
+        success: boolean;
+        tabId?: number;
+        reason?: string;
+      }>(
+        'scroll:stop',
+        { isAutoSync: true, autoSyncGeneration: activationGeneration },
+        { context: 'content-script', tabId },
+        1_000,
+      ).then(
+        (response) => response.success && response.tabId === tabId,
+        () => false,
+      );
+      if (stopped) {
+        residualCleanupScheduler.cancelForTab(tabId);
+        return true;
+      }
+
+      residualCleanupScheduler.schedule({
+        tabId,
+        stoppedRevision: state.revision,
+        stoppedSessionEpoch: state.sessionEpoch,
+        attemptIndex: 0,
+        autoSyncActivationId: activationGeneration,
+      });
+      return false;
+    }),
+  );
+  return results.every(Boolean);
+}
+
 export const manualOverrideAdapter = createManualOverrideAdapter({
   groups: autoSyncState.groups,
   overrideTabIds: manualSyncOverriddenTabs,
   pendingSuggestions,
   withAutoSyncLock,
   restoreRuntime: restoreAutoSyncRuntime,
+  stopResidualRuntime: stopResidualAutoSyncRuntime,
 });

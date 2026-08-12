@@ -14,6 +14,26 @@ import {
 } from './manual-override-adapter';
 import { sendMessageWithTimeout } from './messaging';
 
+vi.mock('webextension-polyfill', () => ({
+  default: {
+    storage: {
+      local: {
+        get: vi.fn(),
+        set: vi.fn(),
+      },
+    },
+  },
+}));
+
+vi.mock('~/shared/lib/logger', () => ({
+  ExtensionLogger: vi.fn().mockImplementation(() => ({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  })),
+}));
+
 vi.mock('./messaging', () => ({
   sendMessageWithTimeout: vi.fn(),
 }));
@@ -35,6 +55,16 @@ describe('createManualOverrideAdapter', () => {
   let restoreRuntime: ReturnType<
     typeof vi.fn<(groupIds: ReadonlyArray<string>) => Promise<boolean>>
   >;
+  let stopResidualRuntime: ReturnType<
+    typeof vi.fn<
+      (
+        residuals: ReadonlyArray<{
+          tabId: number;
+          activationGeneration: string;
+        }>,
+      ) => Promise<boolean>
+    >
+  >;
 
   beforeEach(() => {
     groups = new Map([
@@ -46,6 +76,7 @@ describe('createManualOverrideAdapter', () => {
     pendingSuggestions = new Set(['group-a', 'group-b', 'unaffected']);
     events = [];
     restoreRuntime = vi.fn(async () => true);
+    stopResidualRuntime = vi.fn(async () => true);
   });
 
   function createAdapter() {
@@ -60,6 +91,7 @@ describe('createManualOverrideAdapter', () => {
         return result;
       },
       restoreRuntime,
+      stopResidualRuntime,
     });
   }
 
@@ -176,9 +208,51 @@ describe('createManualOverrideAdapter', () => {
       'auto-lock:exit',
     ]);
   });
+
+  it('stops only the residual singleton after a two-member group commits', async () => {
+    const adapter = createAdapter();
+    const snapshot = await adapter.prepare(20, [11]);
+    await adapter.commit(snapshot, [11]);
+
+    await expect(adapter.cleanupResidualRuntime(snapshot)).resolves.toEqual({
+      status: 'cleaned',
+    });
+
+    expect(stopResidualRuntime).toHaveBeenCalledWith([
+      {
+        tabId: 44,
+        activationGeneration: '11111111-1111-4111-8111-111111111111',
+      },
+    ]);
+  });
+
+  it('does not stop a residual active pair after a three-member group commits', async () => {
+    groups.set('group-a', createGroup([11, 44, 45]));
+    const adapter = createAdapter();
+    const snapshot = await adapter.prepare(21, [11]);
+    await adapter.commit(snapshot, [11]);
+
+    await expect(adapter.cleanupResidualRuntime(snapshot)).resolves.toEqual({
+      status: 'cleaned',
+    });
+
+    expect(stopResidualRuntime).not.toHaveBeenCalled();
+    expect(groups.get('group-a')?.tabIds).toEqual(new Set([44, 45]));
+    expect(groups.get('group-a')?.isActive).toBe(true);
+  });
+
+  it('does not stop residual runtime when the staged override rolls back', async () => {
+    const adapter = createAdapter();
+    const snapshot = await adapter.prepare(22, [11]);
+
+    await adapter.rollback(snapshot);
+
+    expect(stopResidualRuntime).not.toHaveBeenCalled();
+    expect(groups.get('group-a')).toEqual(createGroup([11, 44]));
+  });
 });
 
-describe('manualOverrideAdapter runtime restoration', () => {
+describe('manualOverrideAdapter runtime integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     autoSyncState.groups.clear();
@@ -235,6 +309,28 @@ describe('manualOverrideAdapter runtime restoration', () => {
         autoSyncGeneration: activationGeneration,
       },
       { context: 'content-script', tabId: 71 },
+      1_000,
+    );
+  });
+
+  it('stops a committed residual singleton with the captured UUID identity', async () => {
+    const activationGeneration = '11111111-1111-4111-8111-111111111111';
+    autoSyncState.groups.set('group-runtime', {
+      tabIds: new Set([71, 72]),
+      isActive: true,
+      activationGeneration,
+    });
+    vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 72 });
+    const snapshot = await manualOverrideAdapter.prepare(103, [71]);
+    await manualOverrideAdapter.commit(snapshot, [71]);
+
+    await expect(manualOverrideAdapter.cleanupResidualRuntime(snapshot)).resolves.toEqual({
+      status: 'cleaned',
+    });
+    expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+      'scroll:stop',
+      { isAutoSync: true, autoSyncGeneration: activationGeneration },
+      { context: 'content-script', tabId: 72 },
       1_000,
     );
   });
