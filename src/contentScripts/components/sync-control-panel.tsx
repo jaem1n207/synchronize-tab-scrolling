@@ -104,6 +104,7 @@ export const SyncControlPanel = ({
   const {
     isOpen,
     syncedTabs,
+    syncStatusError,
     autoSyncEnabled,
     isAutoSyncActive,
     autoSyncGroupCount,
@@ -274,28 +275,48 @@ export const SyncControlPanel = ({
                   <Switch checked={autoSyncEnabled} onCheckedChange={handleAutoSyncToggle} />
                 </div>
 
-                {/* Sanitized synchronized-tab topology */}
+                {syncStatusError && (
+                  <div
+                    className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400"
+                    role="alert"
+                  >
+                    {t(syncStatusError)}
+                  </div>
+                )}
+
+                {/* Allowlisted synchronized-tab display data */}
                 {syncedTabs.length > 0 && (
-                  <div className="space-y-2 border-t border-border/70 pt-3">
-                    <div className="text-xs text-muted-foreground">{t('syncedTabs')}</div>
+                  <div
+                    aria-label={t('syncedTabs')}
+                    className="space-y-2 border-t border-border/70 pt-3"
+                    role="list"
+                  >
+                    <div aria-hidden="true" className="text-xs text-muted-foreground">
+                      {t('syncedTabs')}
+                    </div>
                     {syncedTabs.map((tab, index) => (
                       <div
-                        key={`${tab.location}-${index}`}
+                        key={index}
                         className="flex items-center justify-between gap-3 text-sm"
+                        role="listitem"
                       >
+                        <span className={cn('min-w-0 truncate', tab.isCurrent && 'font-medium')}>
+                          {tab.displayTitle ?? t('activeSyncTabUnavailable')}
+                          {tab.isCurrent && ` (${t('current')})`}
+                        </span>
                         <span
                           className={cn(
-                            'truncate',
-                            tab.location === 'current-tab' && 'font-medium',
+                            'shrink-0 text-xs font-mono',
+                            tab.manualOffsetPixels > 0 && 'text-green-500',
+                            tab.manualOffsetPixels < 0 && 'text-red-500',
+                            tab.manualOffsetPixels === 0 && 'text-muted-foreground',
                           )}
                         >
-                          {tab.location === 'current-tab'
-                            ? t('currentTabLocation')
-                            : t('otherSyncedTab')}
+                          {tab.manualOffsetPixels >= 0
+                            ? `+${tab.manualOffsetPixels}px`
+                            : `${tab.manualOffsetPixels}px`}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {t(tab.connectionStatus)}
-                        </span>
+                        <span className="sr-only">{t(tab.connectionStatus)}</span>
                       </div>
                     ))}
                   </div>
