@@ -21,7 +21,10 @@ export interface ManualCleanupRetryScheduler {
 interface ScheduledManualCleanup {
   input: PendingManualCleanup;
   timer: ReturnType<typeof setTimeout>;
+  clearTimer: (timer: ReturnType<typeof setTimeout>) => void;
 }
+
+const pendingByTabId = new Map<number, ScheduledManualCleanup>();
 
 export function createManualCleanupRetryScheduler(dependencies: {
   transitionGate: SyncTransitionGate;
@@ -30,15 +33,13 @@ export function createManualCleanupRetryScheduler(dependencies: {
   setTimer: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
   clearTimer: (timer: ReturnType<typeof setTimeout>) => void;
 }): ManualCleanupRetryScheduler {
-  const pendingByTabId = new Map<number, ScheduledManualCleanup>();
-
   const cancelForTab = (tabId: number): void => {
     const scheduled = pendingByTabId.get(tabId);
     if (!scheduled) {
       return;
     }
 
-    dependencies.clearTimer(scheduled.timer);
+    scheduled.clearTimer(scheduled.timer);
     pendingByTabId.delete(tabId);
   };
 
@@ -93,6 +94,7 @@ export function createManualCleanupRetryScheduler(dependencies: {
           })
           .catch(() => undefined);
       }, delay),
+      clearTimer: dependencies.clearTimer,
     };
     pendingByTabId.set(input.tabId, scheduled);
   };
