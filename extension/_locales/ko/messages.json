@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "동기화가 시작되었거나 변경되었어요. 다른 탭의 정리를 계속 재시도하고 있어요. 현재 상태는 팝업에서 확인하세요."
+  },
   "autoSyncRecoveryDegraded": {
     "message": "자동 동기화 상태를 완전히 복원하지 못했어요. 기존 수동 동기화는 변경하지 않았어요."
   },
