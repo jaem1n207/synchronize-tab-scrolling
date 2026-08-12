@@ -24,6 +24,7 @@ import type {
   ManualStopResult,
   PopupSyncStatusRequestMessage,
   ReconnectManualSessionMessage,
+  RuntimeRelayMessageIdentity,
   SessionMessageIdentity,
 } from './sync-session';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
@@ -139,7 +140,7 @@ export interface ScrollSyncPayload {
   timestamp: number;
 }
 
-export type ScrollSyncMessage = ScrollSyncPayload & SessionMessageIdentity;
+export type ScrollSyncMessage = ScrollSyncPayload & RuntimeRelayMessageIdentity;
 
 /**
  * Message to handle manual scroll adjustment (P1)
@@ -150,7 +151,14 @@ export interface ManualScrollPayload {
   enabled: boolean;
 }
 
-export type ManualScrollMessage = ManualScrollPayload & SessionMessageIdentity;
+export type ManualScrollMessage = ManualScrollPayload & RuntimeRelayMessageIdentity;
+
+export type RuntimeRelayResponse =
+  | { success: true }
+  | {
+      success: false;
+      reason: 'stale-operation' | 'session-state-unavailable' | 'unauthorized-session';
+    };
 
 /**
  * Message to update sync baseline ratio across all tabs

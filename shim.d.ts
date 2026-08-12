@@ -17,6 +17,7 @@ import type {
   ManualStartSyncContentMessage,
   PanelPositionMessage,
   ReconnectManualSessionResponse,
+  RuntimeRelayResponse,
   ScrollPingMessage,
   ScrollReconnectMessage,
   ScrollRequestReinjectMessage,
@@ -66,8 +67,8 @@ declare module 'webext-bridge' {
       StartSyncContentResponse | StartSyncBackgroundResponse
     >;
     'scroll:stop': ProtocolWithReturn<StopSyncMessage, StopSyncResponse>;
-    'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
-    'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
+    'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, RuntimeRelayResponse>;
+    'scroll:manual': ProtocolWithReturn<ManualScrollMessage, RuntimeRelayResponse>;
     'scroll:baseline-update': ProtocolWithReturn<SyncBaselineUpdateMessage, unknown>;
     'scroll:ping': ProtocolWithReturn<ScrollPingMessage, unknown>;
     'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
