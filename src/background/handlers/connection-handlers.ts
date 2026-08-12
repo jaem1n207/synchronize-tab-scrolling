@@ -11,6 +11,7 @@ import type {
 } from '~/shared/types/sync-session';
 
 import {
+  getAutoSyncActivationGenerationForTab,
   removeTabFromAllAutoSyncGroups,
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
@@ -144,6 +145,7 @@ interface ManualRecoverySnapshot {
 interface AutoRecoverySnapshot {
   tabId: number;
   groupTabIds: Array<number>;
+  activationGeneration: number;
   mode: 'ratio';
 }
 
@@ -168,10 +170,15 @@ function captureAutoRecovery(tabId: number): AutoRecoverySnapshot | null {
   if (!isTabInActiveAutoSyncGroup(tabId)) {
     return null;
   }
+  const activationGeneration = getAutoSyncActivationGenerationForTab(tabId);
+  if (activationGeneration === null) {
+    return null;
+  }
 
   return {
     tabId,
     groupTabIds: getCurrentAutoGroupTabIds(tabId),
+    activationGeneration,
     mode: 'ratio',
   };
 }
@@ -183,6 +190,7 @@ function haveSameTabIds(left: ReadonlyArray<number>, right: ReadonlyArray<number
 function isCurrentAutoRecovery(snapshot: AutoRecoverySnapshot): boolean {
   return (
     isTabInActiveAutoSyncGroup(snapshot.tabId) &&
+    getAutoSyncActivationGenerationForTab(snapshot.tabId) === snapshot.activationGeneration &&
     haveSameTabIds(snapshot.groupTabIds, getCurrentAutoGroupTabIds(snapshot.tabId))
   );
 }
@@ -475,6 +483,7 @@ export function registerConnectionHandlers(
         mode: autoRecovery.mode,
         currentTabId: tabId,
         isAutoSync: true,
+        autoSyncGeneration: autoRecovery.activationGeneration,
       } satisfies StartSyncContentMessage;
       const response = await sendMessageWithTimeout<{ success: boolean; tabId: number }>(
         'scroll:start',
@@ -540,6 +549,7 @@ export function registerConnectionHandlers(
         mode: autoRecovery.mode,
         currentTabId: payload.tabId,
         isAutoSync: true,
+        autoSyncGeneration: autoRecovery.activationGeneration,
       },
       isSessionCurrent: (): boolean => isCurrentAutoRecovery(autoRecovery),
     };

@@ -4,6 +4,7 @@ import browser from 'webextension-polyfill';
 import type { RecentQuickSyncOutcome } from '~/shared/types/quick-sync';
 
 import {
+  getAutoSyncActivationGenerationForTab,
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
   removeTabFromAllAutoSyncGroups,
@@ -73,6 +74,7 @@ vi.mock('~/shared/lib/logger', () => ({
 
 vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
+  getAutoSyncActivationGenerationForTab: vi.fn(),
   getAutoSyncGroupMembers: vi.fn(),
   isTabInActiveAutoSyncGroup: vi.fn(),
 }));
@@ -172,6 +174,7 @@ describe('registerConnectionHandlers', () => {
     syncState.sessionEpoch = 7;
 
     vi.mocked(isTabInActiveAutoSyncGroup).mockReturnValue(false);
+    vi.mocked(getAutoSyncActivationGenerationForTab).mockReturnValue(1);
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
     vi.mocked(reinjectContentScript).mockResolvedValue(true);
     vi.mocked(reinjectManualReconnect).mockImplementation(async (token, isSessionCurrent) => {
@@ -973,6 +976,7 @@ describe('registerConnectionHandlers', () => {
           mode: 'ratio',
           currentTabId: 7,
           isAutoSync: true,
+          autoSyncGeneration: 1,
         },
         { context: 'content-script', tabId: 7 },
         3_000,
@@ -1101,6 +1105,7 @@ describe('registerConnectionHandlers', () => {
             mode: 'ratio',
             currentTabId: 40,
             isAutoSync: true,
+            autoSyncGeneration: 1,
           },
           isSessionCurrent: expect.any(Function),
         }),

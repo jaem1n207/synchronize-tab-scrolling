@@ -376,6 +376,7 @@ function buildSnapshotGroup(snapshot: ResolvedSingletonGroupSnapshot): AutoSyncG
   return {
     tabIds: new Set([snapshot.tabId]),
     isActive: false,
+    activationGeneration: 0,
     matchKind: snapshot.matchKind,
     matchConfidence: snapshot.matchConfidence,
     tabUrls: new Map([[snapshot.tabId, snapshot.url]]),
@@ -386,6 +387,7 @@ function cloneAutoSyncGroup(group: AutoSyncGroup): AutoSyncGroup {
   return {
     tabIds: new Set(group.tabIds),
     isActive: group.isActive,
+    activationGeneration: group.activationGeneration,
     matchKind: group.matchKind,
     matchConfidence: group.matchConfidence,
     tabUrls: group.tabUrls ? new Map(group.tabUrls) : undefined,
@@ -608,6 +610,21 @@ export function getAutoSyncGroupMembers(tabId: number): number[] {
     }
   }
   return [];
+}
+
+/**
+ * Get the exact activation generation of the active auto-sync group containing a tab.
+ */
+export function getAutoSyncActivationGenerationForTab(tabId: number): number | null {
+  for (const [, group] of autoSyncState.groups) {
+    if (!group.isActive || !group.tabIds.has(tabId)) {
+      continue;
+    }
+
+    const generation = group.activationGeneration ?? 0;
+    return Number.isSafeInteger(generation) && generation >= 0 ? generation : null;
+  }
+  return null;
 }
 
 /**
@@ -918,6 +935,7 @@ async function applyUpdateAutoSyncGroup(
     group = {
       tabIds: new Set(),
       isActive: false,
+      activationGeneration: 0,
       matchKind,
       matchConfidence,
       tabUrls: new Map(),
