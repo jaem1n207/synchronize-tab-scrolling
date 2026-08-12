@@ -1,8 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import browser from 'webextension-polyfill';
 
 import type { QuickSyncFeedbackMessage } from '~/shared/types/quick-sync';
 import type { SyncState } from '~/shared/types/sync-state';
 
+import { isContentScriptAlive } from '../lib/content-script-manager';
 import { createQuickSyncCandidateStore } from '../lib/quick-sync-candidate';
 import { createQuickSyncCoordinator } from '../lib/quick-sync-coordinator';
 import {
@@ -11,12 +13,16 @@ import {
 } from '../lib/quick-sync-feedback';
 import { createSyncSessionOrchestrator } from '../lib/sync-session-orchestrator';
 
-import { QUICK_SYNC_COMMAND, registerQuickSyncCommandHandler } from './quick-sync-command-handler';
+import {
+  ensureQuickSyncContentScript,
+  QUICK_SYNC_COMMAND,
+  registerQuickSyncCommandHandler,
+} from './quick-sync-command-handler';
 
 import type { QuickSyncCommandHandlerDependencies } from './quick-sync-command-handler';
 import type { QuickSyncPort } from '../lib/quick-sync-feedback';
 import type { SyncTransitionGate } from '../lib/sync-transition-gate';
-import type browser from 'webextension-polyfill';
+import type WebExtensionBrowser from 'webextension-polyfill';
 
 vi.mock('webextension-polyfill', () => ({
   default: {
@@ -40,7 +46,11 @@ vi.mock('webext-bridge/background', () => ({
   sendMessage: vi.fn(),
 }));
 
-function createTab(id: number, windowId: number): browser.Tabs.Tab {
+vi.mock('../lib/content-script-manager', () => ({
+  isContentScriptAlive: vi.fn(),
+}));
+
+function createTab(id: number, windowId: number): WebExtensionBrowser.Tabs.Tab {
   return {
     id,
     windowId,
@@ -74,6 +84,34 @@ function createSerialGate(getRevision: () => number): SyncTransitionGate {
 }
 
 describe('registerQuickSyncCommandHandler', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('injects a missing content runtime and requires the endpoint to become ready', async () => {
+    vi.mocked(browser.tabs.get).mockResolvedValue(createTab(33, 3));
+    vi.mocked(isContentScriptAlive).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    await expect(ensureQuickSyncContentScript(33)).resolves.toBe(true);
+
+    expect(isContentScriptAlive).toHaveBeenNthCalledWith(1, 33);
+    expect(browser.scripting.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 33 },
+      files: ['dist/contentScripts/index.global.js'],
+    });
+    expect(isContentScriptAlive).toHaveBeenNthCalledWith(2, 33);
+  });
+
+  it('rejects a reinjected runtime whose endpoint never becomes ready', async () => {
+    vi.mocked(browser.tabs.get).mockResolvedValue(createTab(33, 3));
+    vi.mocked(isContentScriptAlive).mockResolvedValue(false);
+
+    await expect(ensureQuickSyncContentScript(33)).resolves.toBe(false);
+
+    expect(browser.scripting.executeScript).toHaveBeenCalledOnce();
+    expect(isContentScriptAlive).toHaveBeenCalledTimes(2);
+  });
+
   it('commits two supplied eligible tabs through the real coordinator and orchestrator', async () => {
     let state: SyncState = {
       isActive: false,
@@ -136,6 +174,7 @@ describe('registerQuickSyncCommandHandler', () => {
       transitionGate,
       now: () => 10_000,
       getState: () => state,
+      ensureContentScript: async () => true,
       revalidateInvocationTab: async () => undefined,
       sendFeedback: async (tabId, message: QuickSyncFeedbackMessage) => {
         if (message.outcome === 'candidate-selected') {

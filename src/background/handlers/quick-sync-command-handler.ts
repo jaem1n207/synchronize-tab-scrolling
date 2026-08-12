@@ -279,12 +279,29 @@ const feedbackSender = createQuickSyncFeedbackSender((tabId, message) =>
   sendMessage('quick-sync:feedback', message, { context: 'content-script', tabId }),
 );
 
+export async function ensureQuickSyncContentScript(tabId: number): Promise<boolean> {
+  try {
+    await browser.tabs.get(tabId);
+    if (await isContentScriptAlive(tabId)) {
+      return true;
+    }
+    await browser.scripting.executeScript({
+      target: { tabId },
+      files: ['dist/contentScripts/index.global.js'],
+    });
+    return isContentScriptAlive(tabId);
+  } catch {
+    return false;
+  }
+}
+
 export const quickSyncCoordinator = createQuickSyncCoordinator({
   candidateStore: quickSyncCandidateStore,
   handshakeRegistry: quickSyncHandshakeRegistry,
   transitionGate: syncTransitionGate,
   now: Date.now,
   getState: getSyncStateSnapshot,
+  ensureContentScript: ensureQuickSyncContentScript,
   revalidateInvocationTab: async (tabId) => {
     const tab = await browser.tabs.get(tabId);
     if (tab.id !== tabId || isForbiddenUrl(tab.url)) {
