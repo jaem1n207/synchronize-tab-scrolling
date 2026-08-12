@@ -1,6 +1,6 @@
-import { isAutoSyncActivationId } from './auto-sync-activation';
-
 import type { RuntimeRelayMessageIdentity } from '~/shared/types/sync-session';
+
+import { isAutoSyncActivationId } from './auto-sync-activation';
 
 function isTabId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;

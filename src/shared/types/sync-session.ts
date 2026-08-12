@@ -120,9 +120,7 @@ export interface AutoRuntimeRelayMessageIdentity extends AutoSyncMessageIdentity
   sessionEpoch?: never;
 }
 
-export type RuntimeRelayMessageIdentity =
-  | ManualMessageIdentity
-  | AutoRuntimeRelayMessageIdentity;
+export type RuntimeRelayMessageIdentity = ManualMessageIdentity | AutoRuntimeRelayMessageIdentity;
 
 export interface ManualTransitionRejection {
   status: 'rejected';
