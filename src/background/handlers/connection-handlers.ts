@@ -1,6 +1,7 @@
 import { onMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+import type { AutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import type { StartSyncContentMessage, StartSyncContentResponse } from '~/shared/types/messages';
 import type { RecentQuickSyncOutcome } from '~/shared/types/quick-sync';
@@ -145,7 +146,7 @@ interface ManualRecoverySnapshot {
 interface AutoRecoverySnapshot {
   tabId: number;
   groupTabIds: Array<number>;
-  activationGeneration: number;
+  activationGeneration: AutoSyncActivationId;
   mode: 'ratio';
 }
 

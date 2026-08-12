@@ -174,7 +174,9 @@ describe('registerConnectionHandlers', () => {
     syncState.sessionEpoch = 7;
 
     vi.mocked(isTabInActiveAutoSyncGroup).mockReturnValue(false);
-    vi.mocked(getAutoSyncActivationGenerationForTab).mockReturnValue(1);
+    vi.mocked(getAutoSyncActivationGenerationForTab).mockReturnValue(
+      '11111111-1111-4111-8111-111111111111',
+    );
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
     vi.mocked(reinjectContentScript).mockResolvedValue(true);
     vi.mocked(reinjectManualReconnect).mockImplementation(async (token, isSessionCurrent) => {
@@ -976,13 +978,26 @@ describe('registerConnectionHandlers', () => {
           mode: 'ratio',
           currentTabId: 7,
           isAutoSync: true,
-          autoSyncGeneration: 1,
+          autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
         },
         { context: 'content-script', tabId: 7 },
         3_000,
       );
       expect(vi.mocked(persistSyncState)).not.toHaveBeenCalled();
       expect(vi.mocked(broadcastSyncStatus)).not.toHaveBeenCalled();
+    });
+
+    it('fails closed before reconnecting an active auto group with no valid identity', async () => {
+      vi.mocked(isTabInActiveAutoSyncGroup).mockReturnValue(true);
+      vi.mocked(getAutoSyncActivationGenerationForTab).mockReturnValue(null);
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([8, 9]);
+
+      const handler = getHandler('scroll:reconnect');
+      const result = await handler({ data: { tabId: 7 }, sender: { tabId: 7 } });
+
+      expect(result).toEqual({ success: false, reason: 'Sync not active' });
+      expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
     });
 
     it('returns failure when tab is not in any sync', async () => {
@@ -1105,11 +1120,23 @@ describe('registerConnectionHandlers', () => {
             mode: 'ratio',
             currentTabId: 40,
             isAutoSync: true,
-            autoSyncGeneration: 1,
+            autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
           },
           isSessionCurrent: expect.any(Function),
         }),
       );
+    });
+
+    it('fails closed before reinjecting an active auto group with no valid identity', async () => {
+      vi.mocked(isTabInActiveAutoSyncGroup).mockReturnValue(true);
+      vi.mocked(getAutoSyncActivationGenerationForTab).mockReturnValue(null);
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([41, 42]);
+
+      const handler = getHandler('scroll:request-reinject');
+      const result = await handler({ data: { tabId: 40 }, sender: { tabId: 40 } });
+
+      expect(result).toEqual({ success: false, reason: 'Tab not in sync' });
+      expect(reinjectContentScript).not.toHaveBeenCalled();
     });
 
     it.each([
