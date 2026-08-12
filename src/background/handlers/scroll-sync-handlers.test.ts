@@ -434,7 +434,7 @@ describe('registerScrollSyncHandlers', () => {
           data: {
             isAutoSync: true,
             sourceTabId: 8,
-            autoSyncGeneration: 1,
+            autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
             url: 'https://example.com/private',
           },
           sender: { tabId: 8 },
@@ -1523,7 +1523,7 @@ describe('registerScrollSyncHandlers', () => {
       autoSyncState.groups.set('group-a', {
         tabIds: new Set([91, 92]),
         isActive: true,
-        activationGeneration: 1,
+        activationGeneration: '11111111-1111-4111-8111-111111111111',
       });
       autoSyncState.groups.set('group-b', {
         tabIds: new Set([93, 94]),
@@ -1533,7 +1533,7 @@ describe('registerScrollSyncHandlers', () => {
       const payload: UrlSyncMessage = {
         isAutoSync: true,
         sourceTabId: 91,
-        autoSyncGeneration: 1,
+        autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
         url: 'https://example.com/auto-next',
       };
       sendMessageMock.mockResolvedValue({
@@ -1557,24 +1557,24 @@ describe('registerScrollSyncHandlers', () => {
       expect(commitSyncState).not.toHaveBeenCalled();
     });
 
-    it('does not let a delayed auto failure stop the same group after its runtime restarts', async () => {
+    it('does not let a pre-restart auto failure stop the rebuilt same-members activation', async () => {
       const handler = getHandler<UrlSyncMessage>('url:sync');
       const delayedFailure = Promise.withResolvers<{
         success: false;
         reason: 'offset-reconciliation-failed';
       }>();
-      const restartedGroup = {
+      const previousWorkerGroup = {
         tabIds: new Set([91, 92]),
         isActive: true,
-        activationGeneration: 1,
+        activationGeneration: '11111111-1111-4111-8111-111111111111',
       };
-      autoSyncState.groups.set('group-a', restartedGroup);
+      autoSyncState.groups.set('group-a', previousWorkerGroup);
       vi.mocked(getAutoSyncGroupMembers).mockReturnValue([92]);
       sendMessageMock.mockReturnValueOnce(delayedFailure.promise);
       const payload: UrlSyncMessage = {
         isAutoSync: true,
         sourceTabId: 91,
-        autoSyncGeneration: 1,
+        autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
         url: 'https://example.com/auto-old',
       };
 
@@ -1583,9 +1583,13 @@ describe('registerScrollSyncHandlers', () => {
         expect(sendMessage).toHaveBeenCalledTimes(1);
       });
 
-      restartedGroup.isActive = false;
-      restartedGroup.activationGeneration = 2;
-      restartedGroup.isActive = true;
+      const restartedWorkerGroup = {
+        tabIds: new Set([91, 92]),
+        isActive: true,
+        activationGeneration: '22222222-2222-4222-8222-222222222222',
+      };
+      autoSyncState.groups.clear();
+      autoSyncState.groups.set('group-a', restartedWorkerGroup);
       delayedFailure.resolve({
         success: false,
         reason: 'offset-reconciliation-failed',
@@ -1596,10 +1600,80 @@ describe('registerScrollSyncHandlers', () => {
         reason: 'stale-operation',
         revision: 0,
       });
-      expect(restartedGroup.isActive).toBe(true);
+      expect(previousWorkerGroup.isActive).toBe(true);
+      expect(restartedWorkerGroup.isActive).toBe(true);
       expect(stopAutoSyncForGroup).not.toHaveBeenCalled();
       expect(broadcastAutoSyncGroupUpdate).not.toHaveBeenCalled();
     });
+
+    it('does not let a pre-restart degradation message stop the rebuilt activation', async () => {
+      const handler = getHandler<ContentRuntimeDegradedMessage>('sync:runtime-degraded');
+      const restartedWorkerGroup = {
+        tabIds: new Set([91, 92]),
+        isActive: true,
+        activationGeneration: '22222222-2222-4222-8222-222222222222',
+      };
+      autoSyncState.groups.set('group-a', restartedWorkerGroup);
+      const payload: ContentRuntimeDegradedMessage = {
+        isAutoSync: true,
+        sourceTabId: 91,
+        autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+        reason: 'offset-reconciliation-failed',
+      };
+
+      await expect(handler({ data: payload, sender: { tabId: 91 } })).resolves.toEqual({
+        success: false,
+        reason: 'stale-operation',
+        revision: 0,
+      });
+      expect(restartedWorkerGroup.isActive).toBe(true);
+      expect(stopAutoSyncForGroup).not.toHaveBeenCalled();
+      expect(broadcastAutoSyncGroupUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        name: 'missing group identity and null payload identity',
+        groupActivationGeneration: undefined,
+        payloadActivationGeneration: null,
+      },
+      {
+        name: 'malformed group and payload identities',
+        groupActivationGeneration: 'not-a-uuid',
+        payloadActivationGeneration: 'not-a-uuid',
+      },
+    ])(
+      'fails closed for a direct auto degradation with $name',
+      async ({ groupActivationGeneration, payloadActivationGeneration }) => {
+        const handler = getHandler<unknown>('sync:runtime-degraded');
+        autoSyncState.groups.set('group-a', {
+          tabIds: new Set([91, 92]),
+          isActive: true,
+          ...(groupActivationGeneration === undefined
+            ? {}
+            : { activationGeneration: groupActivationGeneration }),
+        });
+
+        await expect(
+          handler({
+            data: {
+              isAutoSync: true,
+              sourceTabId: 91,
+              autoSyncGeneration: payloadActivationGeneration,
+              reason: 'offset-reconciliation-failed',
+            },
+            sender: { tabId: 91 },
+          }),
+        ).resolves.toEqual({
+          success: false,
+          reason: 'stale-operation',
+          revision: 0,
+        });
+        expect(autoSyncState.groups.get('group-a')?.isActive).toBe(true);
+        expect(stopAutoSyncForGroup).not.toHaveBeenCalled();
+        expect(broadcastAutoSyncGroupUpdate).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('sync:url-enabled-changed', () => {

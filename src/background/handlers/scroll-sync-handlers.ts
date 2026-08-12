@@ -2,6 +2,10 @@ import { onMessage, sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
 import {
+  isAutoSyncActivationId,
+  type AutoSyncActivationId,
+} from '~/shared/lib/auto-sync-activation';
+import {
   getManualAdjustmentHintDecision,
   isPendingUrlSyncContextualHintId,
 } from '~/shared/lib/contextual-hints';
@@ -167,21 +171,16 @@ function readUrlSyncContentFailureReason(value: unknown): UrlSyncContentFailureR
 type RuntimeReconciliationIdentity = ContentRuntimeDegradedMessage | UrlSyncMessage;
 
 function getAutoSyncGroupActivationGeneration(group: {
-  activationGeneration?: number;
-}): number | null {
-  const generation = group.activationGeneration ?? 0;
-  return Number.isSafeInteger(generation) && generation >= 0 ? generation : null;
+  activationGeneration?: unknown;
+}): AutoSyncActivationId | null {
+  return isAutoSyncActivationId(group.activationGeneration) ? group.activationGeneration : null;
 }
 
 function isCurrentAutoSyncActivation(
   identity: RuntimeReconciliationIdentity,
   memberTabIds: ReadonlyArray<number>,
 ): boolean {
-  if (
-    !identity.isAutoSync ||
-    !Number.isSafeInteger(identity.autoSyncGeneration) ||
-    identity.autoSyncGeneration < 0
-  ) {
+  if (!identity.isAutoSync || !isAutoSyncActivationId(identity.autoSyncGeneration)) {
     return false;
   }
 
@@ -205,6 +204,14 @@ async function recordRuntimeReconciliationFailure(
   const uniqueFailedTabIds = [...new Set(failedTabIds)];
 
   if (identity.isAutoSync) {
+    if (!isAutoSyncActivationId(identity.autoSyncGeneration)) {
+      return {
+        success: false,
+        reason: 'stale-operation',
+        revision: getSyncStateSnapshot().revision,
+      };
+    }
+
     const stoppedGroupCount = await withAutoSyncLock(async () => {
       const matchingGroupKeys: Array<string> = [];
       for (const [groupKey, group] of autoSyncState.groups.entries()) {
