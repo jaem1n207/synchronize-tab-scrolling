@@ -15,6 +15,7 @@ function createGroup(tabIds: Array<number>, isActive = true): AutoSyncGroup {
   return {
     tabIds: new Set(tabIds),
     isActive,
+    activationGeneration: isActive ? 7 : 0,
     tabUrls: new Map(tabIds.map((tabId) => [tabId, `https://example.test/${tabId}`])),
   };
 }

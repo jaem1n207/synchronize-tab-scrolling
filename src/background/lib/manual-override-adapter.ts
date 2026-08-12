@@ -69,6 +69,9 @@ function cloneGroup(group: AutoSyncGroup): AutoSyncGroup {
     isActive: group.isActive,
   };
 
+  if (group.activationGeneration !== undefined) {
+    clone.activationGeneration = group.activationGeneration;
+  }
   if (group.matchKind !== undefined) {
     clone.matchKind = group.matchKind;
   }
@@ -275,6 +278,15 @@ async function restoreAutoSyncRuntime(groupIds: ReadonlyArray<string>): Promise<
     if (!group?.isActive || group.tabIds.size < 2) {
       continue;
     }
+    if (
+      typeof group.activationGeneration !== 'number' ||
+      !Number.isSafeInteger(group.activationGeneration) ||
+      group.activationGeneration < 0
+    ) {
+      fullyRestored = false;
+      continue;
+    }
+    const activationGeneration = group.activationGeneration;
 
     const tabIds = [...group.tabIds];
     const results = await Promise.all(
@@ -287,6 +299,7 @@ async function restoreAutoSyncRuntime(groupIds: ReadonlyArray<string>): Promise<
               mode: 'ratio',
               currentTabId: tabId,
               isAutoSync: true,
+              autoSyncGeneration: activationGeneration,
             },
             { context: 'content-script', tabId },
             1_000,
