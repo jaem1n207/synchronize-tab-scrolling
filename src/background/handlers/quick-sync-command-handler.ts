@@ -215,6 +215,7 @@ const quickSyncSessionOrchestrator = createSyncSessionOrchestrator({
           mode: message.mode,
           currentTabId: message.currentTabId,
           isAutoSync: true,
+          autoSyncGeneration: message.autoSyncGeneration,
         },
         { context: 'content-script', tabId },
         1_000,

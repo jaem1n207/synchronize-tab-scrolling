@@ -462,6 +462,7 @@ describe('registerAutoSyncHandlers', () => {
         'scroll:start',
         expect.objectContaining({
           isAutoSync: true,
+          autoSyncGeneration: expect.any(Number),
         }),
         expect.anything(),
         2_000,
