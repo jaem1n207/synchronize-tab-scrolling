@@ -7,6 +7,22 @@
 4. 點擊「開始同步」，然後在任一已連結的分頁中捲動。
 ---
 
+Quick Sync 快速鍵
+
+不必開啟彈出視窗，即可開始同步或加入分頁。
+
+1. 在第一個分頁按下 `Cmd+Shift+.`（Mac）或 `Ctrl+Shift+.`（Windows/Linux）。
+2. 在 10 秒內切換到另一個分頁並再次按下，即可開始同步。
+3. 同步期間，在其他分頁按下同一快速鍵即可將其加入同步。
+
+可在彈出視窗的「操作」選單中重新設定快速鍵。
+
+擴充功能本身可在 Arc 中使用，但由於 Arc 不會向擴充功能觸發標準 WebExtension `commands.onCommand` 事件，因此不支援 Quick Sync 快速鍵。在 Arc 中，請使用彈出視窗選取分頁並點擊「開始同步」。
+
+詳細資訊：https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/docs/guides/quick-sync-shortcut.md
+
+---
+
 基本捲動同步
 
 在一個分頁中捲動時，其他已連結的分頁也會依照各自頁面長度移動到相同的相對位置。
@@ -87,6 +103,7 @@ URL Sync 提供兩種模式。
 
 • 手動同步瀏覽器可直接呈現的本機 file:// 頁面，包括 HTML、Markdown、JSON、文字、CSV 和記錄檔
 • 多個分頁之間即時同步捲動位置
+• 使用 Quick Sync 快速鍵，不必開啟彈出視窗即可開始同步並加入分頁
 • 使用 URL Sync 同步受支援的頁面跳轉
 • 提供跟隨同一網站的模式，以及保持每個分頁所在網站的模式
 • 支援同步路徑(path)、搜尋詞、篩選條件、排序等查詢參數
