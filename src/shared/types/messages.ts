@@ -16,7 +16,9 @@ import type {
 } from './contextual-hints';
 import type { DismissQuickSyncRecentOutcomeMessage, QuickSyncFeedbackMessage } from './quick-sync';
 import type {
+  AutoSyncMessageIdentity,
   ContentSyncStatusRequestMessage,
+  ManualMessageIdentity,
   ManualReconnectResult,
   ManualStopResult,
   PopupSyncStatusRequestMessage,
@@ -55,6 +57,7 @@ export interface ManualStartSyncContentMessage extends StartSyncBase {
 export interface AutoStartSyncContentMessage extends StartSyncBase {
   currentTabId: number;
   isAutoSync: true;
+  autoSyncGeneration: number;
   sessionEpoch?: never;
 }
 
@@ -158,7 +161,50 @@ export interface UrlSyncPayload {
   url: string;
 }
 
-export type UrlSyncMessage = UrlSyncPayload & SessionMessageIdentity;
+export type UrlSyncMessage =
+  | (UrlSyncPayload & ManualMessageIdentity)
+  | (UrlSyncPayload & AutoSyncMessageIdentity & { autoSyncGeneration: number });
+
+export type UrlSyncContentResponse =
+  | { success: true }
+  | {
+      success: false;
+      reason: 'stale-operation' | 'offset-clear-failed' | 'offset-reconciliation-failed';
+    };
+
+export type UrlSyncBackgroundResponse =
+  | { success: true }
+  | { success: false; reason: 'session-state-unavailable' | 'unauthorized-session' }
+  | {
+      success: false;
+      reason:
+        | 'stale-operation'
+        | 'offset-clear-failed'
+        | 'offset-reconciliation-failed'
+        | 'persistence-failed';
+      revision: number;
+    };
+
+export type UrlSyncResponse = UrlSyncContentResponse | UrlSyncBackgroundResponse;
+
+export type ContentRuntimeDegradedMessage =
+  | (ManualMessageIdentity & { reason: 'offset-reconciliation-failed' })
+  | (AutoSyncMessageIdentity & {
+      autoSyncGeneration: number;
+      reason: 'offset-reconciliation-failed';
+    });
+
+export type ContentRuntimeDegradedResponse =
+  | { success: true; revision: number }
+  | {
+      success: false;
+      reason:
+        | 'stale-operation'
+        | 'unauthorized-session'
+        | 'session-state-unavailable'
+        | 'persistence-failed';
+      revision: number;
+    };
 
 /**
  * Connection health status for a synced tab
@@ -396,6 +442,7 @@ export interface ProtocolMap {
   'sync:get-status': PopupSyncStatusRequestMessage | ContentSyncStatusRequestMessage;
   'sync:reconnect-session': ReconnectManualSessionMessage;
   'url:sync': UrlSyncMessage;
+  'sync:runtime-degraded': ContentRuntimeDegradedMessage;
   'element:match': ElementMatchMessage;
   'panel:position': PanelPositionMessage;
   'sync:url-enabled-changed': UrlSyncEnabledChangedMessage;

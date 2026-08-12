@@ -10,6 +10,8 @@ import type {
 export interface AutoSyncGroup {
   tabIds: Set<number>;
   isActive: boolean;
+  /** Monotonic identity of the latest activation attempt for this group. */
+  activationGeneration?: number;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
   tabUrls?: Map<number, string>;

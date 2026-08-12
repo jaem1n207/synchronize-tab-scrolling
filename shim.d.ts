@@ -6,6 +6,8 @@ import type {
   AutoSyncStatusChangedMessage,
   ConsumePendingUrlSyncContextualHintMessage,
   ConsumePendingUrlSyncContextualHintResponse,
+  ContentRuntimeDegradedMessage,
+  ContentRuntimeDegradedResponse,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
@@ -34,6 +36,7 @@ import type {
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
   UrlSyncModeChangedMessage,
+  UrlSyncResponse,
 } from '~/shared/types/messages';
 import type {
   DismissQuickSyncRecentOutcomeMessage,
@@ -76,7 +79,11 @@ declare module 'webext-bridge' {
       ReconnectManualSessionMessage,
       ReconnectManualSessionResponse
     >;
-    'url:sync': ProtocolWithReturn<UrlSyncMessage, unknown>;
+    'url:sync': ProtocolWithReturn<UrlSyncMessage, UrlSyncResponse>;
+    'sync:runtime-degraded': ProtocolWithReturn<
+      ContentRuntimeDegradedMessage,
+      ContentRuntimeDegradedResponse
+    >;
     'element:match': ElementMatchMessage;
     'panel:position': PanelPositionMessage;
     'sync:url-enabled-changed': ProtocolWithReturn<UrlSyncEnabledChangedMessage, unknown>;

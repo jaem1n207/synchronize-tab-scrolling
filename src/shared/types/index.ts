@@ -54,6 +54,8 @@ export type {
   AutoSyncStatusChangedMessage,
   AutoSyncStatusResponse,
   ConnectionStatus,
+  ContentRuntimeDegradedMessage,
+  ContentRuntimeDegradedResponse,
   ConsumePendingUrlSyncContextualHintMessage,
   ConsumePendingUrlSyncContextualHintResponse,
   DismissAddTabToastMessage,
@@ -84,7 +86,10 @@ export type {
   TranslatedPageMetadataRequestMessage,
   TranslatedPageMetadataResponseMessage,
   UrlSyncEnabledChangedMessage,
+  UrlSyncBackgroundResponse,
+  UrlSyncContentResponse,
   UrlSyncMessage,
   UrlSyncModeChangedMessage,
+  UrlSyncResponse,
 } from './messages';
 export type { SyncState } from './sync-state';
