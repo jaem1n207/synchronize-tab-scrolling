@@ -95,12 +95,20 @@ export type StartSyncResponse = StartSyncContentResponse | StartSyncBackgroundRe
 /**
  * Message to stop scroll synchronization
  */
-export interface StopSyncContentMessage {
-  tabIds?: Array<number>;
-  /** When true, stop was initiated by auto-sync (not user action) */
-  isAutoSync?: boolean;
-  expectedRevision?: never;
-}
+export type StopSyncContentMessage =
+  | {
+      tabIds?: Array<number>;
+      isAutoSync?: false;
+      autoSyncGeneration?: never;
+      expectedRevision?: never;
+    }
+  | {
+      tabIds?: Array<number>;
+      /** Exact activation identity prevents stale auto cleanup from stopping a newer runtime. */
+      isAutoSync: true;
+      autoSyncGeneration?: AutoSyncActivationId;
+      expectedRevision?: never;
+    };
 
 export interface StopManualSyncMessage {
   expectedRevision: number;

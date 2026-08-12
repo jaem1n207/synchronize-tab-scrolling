@@ -9,6 +9,7 @@
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 
 import {
+  doesAutoSyncStopMatchActivation,
   isAutoSyncActivationId,
   type AutoSyncActivationId,
 } from '~/shared/lib/auto-sync-activation';
@@ -1536,6 +1537,16 @@ export function initScrollSync() {
     if (payload.isAutoSync && !targetRuntime.isAutoSync) {
       logger.debug('Ignoring auto-sync stop - current sync is manual');
       return { success: false, reason: 'Not in auto-sync mode' };
+    }
+    if (
+      payload.isAutoSync &&
+      targetRuntime.isAutoSync &&
+      !doesAutoSyncStopMatchActivation(
+        payload.autoSyncGeneration,
+        targetRuntime.autoSyncGeneration,
+      )
+    ) {
+      return createStaleOperationAcknowledgement(targetRuntime.tabId);
     }
     // Note: Manual stop (without isAutoSync flag) now works for both sync types
     // This allows users to stop sync from popup even when auto-sync is active

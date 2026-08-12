@@ -452,6 +452,36 @@ describe('Scenario: scroll start acknowledgements', () => {
     expect(getScrollSyncState().isActive).toBe(false);
     expect(showPanel).not.toHaveBeenCalled();
   });
+
+  it('rejects a stale auto Stop UUID without deactivating the current runtime', async () => {
+    const activeActivationId = '11111111-1111-4111-8111-111111111111';
+    await invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 79,
+      tabIds: [79, 80],
+      isAutoSync: true,
+      autoSyncGeneration: activeActivationId,
+    });
+
+    await expect(
+      invokeContentMessage('scroll:stop', {
+        isAutoSync: true,
+        autoSyncGeneration: '22222222-2222-4222-8222-222222222222',
+      }),
+    ).resolves.toEqual({
+      success: false,
+      tabId: 79,
+      reason: 'stale-operation',
+    });
+    expect(getScrollSyncState().isActive).toBe(true);
+
+    await expect(
+      invokeContentMessage('scroll:stop', {
+        isAutoSync: true,
+        autoSyncGeneration: activeActivationId,
+      }),
+    ).resolves.toEqual({ success: true, tabId: 79 });
+  });
 });
 
 describe('Scenario: content runtime operation generations', () => {
