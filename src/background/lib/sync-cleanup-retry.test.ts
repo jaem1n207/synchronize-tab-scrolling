@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 import type { StopSyncContentResponse } from '~/shared/types/messages';
@@ -9,6 +9,7 @@ import {
   MANUAL_CLEANUP_RETRY_DELAYS_MS,
   createManualCleanupRetryScheduler,
 } from './sync-cleanup-retry';
+import { createManualSessionLifecycleController } from './sync-session-orchestrator';
 
 interface ScheduledTimer {
   callback: () => void;
@@ -33,6 +34,11 @@ function createSchedulerHarness(initialState: SyncState = inactiveState) {
   const sendStop = vi.fn<(tabId: number) => Promise<StopSyncContentResponse>>(
     async (tabId: number) => ({ success: true, tabId }),
   );
+  const getState = (): SyncState => ({
+    ...state,
+    linkedTabs: [...state.linkedTabs],
+    connectionStatuses: { ...state.connectionStatuses },
+  });
 
   const scheduler = createManualCleanupRetryScheduler({
     transitionGate: {
@@ -44,11 +50,7 @@ function createSchedulerHarness(initialState: SyncState = inactiveState) {
         });
       },
     },
-    getState: () => ({
-      ...state,
-      linkedTabs: [...state.linkedTabs],
-      connectionStatuses: { ...state.connectionStatuses },
-    }),
+    getState,
     sendStop,
     setTimer: (callback, delay) => {
       const timer = setTimeout(() => undefined, 0);
@@ -70,6 +72,7 @@ function createSchedulerHarness(initialState: SyncState = inactiveState) {
     timers,
     gateEntries,
     sendStop,
+    getState,
     createSiblingScheduler() {
       return createManualCleanupRetryScheduler({
         transitionGate: {
@@ -112,6 +115,10 @@ function createSchedulerHarness(initialState: SyncState = inactiveState) {
 }
 
 describe('createManualCleanupRetryScheduler', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('uses the exact 1s, 3s, and 10s retry sequence and stops after exhaustion', async () => {
     const harness = createSchedulerHarness();
     harness.sendStop.mockResolvedValue({ success: false });
@@ -225,7 +232,17 @@ describe('createManualCleanupRetryScheduler', () => {
   });
 
   it('cancels a manual retry when accepted auto replacement commits the same tabs', async () => {
-    const harness = createSchedulerHarness();
+    vi.useFakeTimers();
+    const stoppedManualState: SyncState = {
+      isActive: true,
+      linkedTabs: [11, 22],
+      connectionStatuses: { 11: 'connected', 22: 'connected' },
+      mode: 'ratio',
+      lastActiveSyncedTabId: 11,
+      revision: 7,
+      sessionEpoch: 4,
+    };
+    const harness = createSchedulerHarness(stoppedManualState);
     const acceptedAutoScheduler = harness.createSiblingScheduler();
     const normalizedUrl = 'https://fixture.invalid/accepted';
     const groups = new Map<string, AutoSyncGroup>([
@@ -237,16 +254,32 @@ describe('createManualCleanupRetryScheduler', () => {
         },
       ],
     ]);
-    harness.scheduler.schedule({
-      tabId: 11,
-      stoppedRevision: 8,
-      stoppedSessionEpoch: 4,
-      attemptIndex: 0,
+    const lifecycleController = createManualSessionLifecycleController({
+      getState: harness.getState,
+      persistState: async () => ({ status: 'persisted' }),
+      commitState: harness.setState,
+      sendStop: async (tabId) =>
+        tabId === 11 ? new Promise(() => undefined) : { success: true, tabId },
+      stopKeepAlive: () => undefined,
+      clearManualOverrides: async () => undefined,
+      cleanupScheduler: harness.scheduler,
+      broadcastStatus: async () => undefined,
     });
+    const stopResult = lifecycleController.stopManualSession(
+      { operationGeneration: 1, expectedRevision: 7 },
+      'suggestion-replace',
+    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    await expect(stopResult).resolves.toEqual({
+      status: 'committed',
+      revision: 8,
+      warning: 'cleanup-incomplete',
+    });
+
     const adapter = createLegacyAutoSyncAdapter({
       groups,
       withLock: async (operation) => operation(),
-      getState: () => inactiveState,
+      getState: harness.getState,
       cleanupScheduler: acceptedAutoScheduler,
       sendStart: async () => true,
       sendStop: async (tabId) => ({ success: true, tabId }),
