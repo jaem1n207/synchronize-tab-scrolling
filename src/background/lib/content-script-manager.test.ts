@@ -195,7 +195,7 @@ describe('content-script-manager', () => {
       );
     });
 
-    it('forwards the caller-frozen auto-sync activation generation', async () => {
+    it('forwards the caller-frozen auto-sync activation identity', async () => {
       vi.useFakeTimers();
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 4 });
@@ -204,7 +204,7 @@ describe('content-script-manager', () => {
         mode: 'ratio',
         currentTabId: 4,
         isAutoSync: true,
-        autoSyncGeneration: 23,
+        autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
       };
 
       const promise = reinjectContentScript(4, {
