@@ -12,7 +12,7 @@ import {
   type ManualScrollOffset,
 } from '~/shared/lib/storage';
 import type { ManualScrollMessage } from '~/shared/types/messages';
-import type { SessionMessageIdentity } from '~/shared/types/sync-session';
+import type { RuntimeRelayMessageIdentity } from '~/shared/types/sync-session';
 
 import { createManualScrollOffset } from './lib/manual-scroll-offset';
 
@@ -37,7 +37,9 @@ let isManualModeActive = false;
 let currentTabId = 0;
 let manualModeBaselineSnapshot = 0;
 let getScrollInfoCallback: (() => KeyboardScrollInfo) | null = null;
-let getSessionMessageIdentityCallback: (() => SessionMessageIdentity) | null = null;
+let getRuntimeRelayMessageIdentityCallback:
+  | (() => RuntimeRelayMessageIdentity | null)
+  | null = null;
 let pendingManualModeExit: Promise<void> | null = null;
 let pendingManualModeExitAllowsPersistence = true;
 let pendingManualModeExitNeedsPersistedClear = false;
@@ -50,11 +52,11 @@ let pendingManualModeExitNeedsPersistedClear = false;
 export function initKeyboardHandler(
   tabId: number,
   getScrollInfo?: () => KeyboardScrollInfo,
-  getSessionMessageIdentity?: () => SessionMessageIdentity,
+  getRuntimeRelayMessageIdentity?: () => RuntimeRelayMessageIdentity | null,
 ) {
   currentTabId = tabId;
   getScrollInfoCallback = getScrollInfo || null;
-  getSessionMessageIdentityCallback = getSessionMessageIdentity || null;
+  getRuntimeRelayMessageIdentityCallback = getRuntimeRelayMessageIdentity || null;
 
   // Listen for Option/Alt key press
   window.addEventListener('keydown', handleKeyDown, { passive: true });
@@ -66,14 +68,16 @@ export function initKeyboardHandler(
   logger.info('Keyboard handler initialized');
 }
 
-function getSessionMessageIdentity(): SessionMessageIdentity {
-  return (
-    getSessionMessageIdentityCallback?.() ?? {
-      isAutoSync: false,
-      sourceTabId: currentTabId,
-      sessionEpoch: 0,
-    }
-  );
+function getRuntimeRelayMessageIdentity(): RuntimeRelayMessageIdentity | null {
+  if (getRuntimeRelayMessageIdentityCallback) {
+    return getRuntimeRelayMessageIdentityCallback();
+  }
+
+  return {
+    isAutoSync: false,
+    sourceTabId: currentTabId,
+    sessionEpoch: 0,
+  };
 }
 
 /**
@@ -86,6 +90,11 @@ function handleKeyDown(event: KeyboardEvent) {
 
   // Check for Option (macOS) or Alt (Windows/Linux)
   if ((event.altKey || event.metaKey) && !isManualModeActive) {
+    const runtimeIdentity = getRuntimeRelayMessageIdentity();
+    if (!runtimeIdentity) {
+      return;
+    }
+
     // Snapshot baseline IMMEDIATELY when entering manual mode (synchronous, no race condition)
     if (getScrollInfoCallback) {
       const { lastSyncedRatio, setManualModeActive } = getScrollInfoCallback();
@@ -103,8 +112,8 @@ function handleKeyDown(event: KeyboardEvent) {
     logger.debug('Manual scroll mode enabled');
 
     // Notify content script to disable scroll syn
-    const message: ManualScrollMessage & SessionMessageIdentity = {
-      ...getSessionMessageIdentity(),
+    const message: ManualScrollMessage = {
+      ...runtimeIdentity,
       tabId: currentTabId,
       enabled: true,
     };
@@ -235,14 +244,17 @@ async function disableManualMode() {
   }
 
   // Notify content script to re-enable scroll sync
-  const message: ManualScrollMessage & SessionMessageIdentity = {
-    ...getSessionMessageIdentity(),
-    tabId: currentTabId,
-    enabled: false,
-  };
-  sendMessage('scroll:manual', message, 'background').catch((error) => {
-    logger.error('Failed to send manual mode message', { error });
-  });
+  const runtimeIdentity = getRuntimeRelayMessageIdentity();
+  if (runtimeIdentity) {
+    const message: ManualScrollMessage = {
+      ...runtimeIdentity,
+      tabId: currentTabId,
+      enabled: false,
+    };
+    sendMessage('scroll:manual', message, 'background').catch((error) => {
+      logger.error('Failed to send manual mode message', { error });
+    });
+  }
 
   // Remove visual feedback
   document.documentElement.classList.remove('scroll-sync-manual-mode');
@@ -262,6 +274,6 @@ export async function cleanupKeyboardHandler({
     await startManualModeExit({ persistOffset: persistManualOffset });
   }
 
-  getSessionMessageIdentityCallback = null;
+  getRuntimeRelayMessageIdentityCallback = null;
   logger.info('Keyboard handler cleaned up');
 }

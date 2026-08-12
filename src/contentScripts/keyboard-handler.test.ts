@@ -147,6 +147,53 @@ describe('keyboard-handler', () => {
       );
     });
 
+    it('includes the exact auto activation identity in keyboard messages', () => {
+      initKeyboardHandler(
+        9,
+        () => ({
+          currentScrollTop: 150,
+          lastSyncedRatio: 0.2,
+          setManualModeActive: vi.fn(),
+          updateOffsetCache: vi.fn(),
+        }),
+        () => ({
+          isAutoSync: true,
+          sourceTabId: 9,
+          autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+        }),
+      );
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+
+      expect(mocks.sendMessageMock).toHaveBeenCalledWith(
+        'scroll:manual',
+        {
+          enabled: true,
+          isAutoSync: true,
+          sourceTabId: 9,
+          autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+          tabId: 9,
+        },
+        'background',
+      );
+    });
+
+    it('fails closed when the current runtime relay identity is unavailable', () => {
+      const setManualModeActive = vi.fn();
+      initKeyboardHandler(9, () => ({
+        currentScrollTop: 150,
+        lastSyncedRatio: 0.2,
+        setManualModeActive,
+        updateOffsetCache: vi.fn(),
+      }), () => null);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+
+      expect(setManualModeActive).not.toHaveBeenCalled();
+      expect(mocks.sendMessageMock).not.toHaveBeenCalled();
+      expect(document.documentElement.classList.contains('scroll-sync-manual-mode')).toBe(false);
+    });
+
     it.each([
       new KeyboardEvent('keydown', { altKey: true, isComposing: true }),
       createImeKeyCodeEvent(),
