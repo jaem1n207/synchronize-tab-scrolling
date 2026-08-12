@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "Synchronization started or changed. Cleanup in other tabs is still being retried. Check the popup for current status."
+  },
   "autoSyncRecoveryDegraded": {
     "message": "Couldn’t fully restore automatic sync state. Manual sync was not changed."
   },
