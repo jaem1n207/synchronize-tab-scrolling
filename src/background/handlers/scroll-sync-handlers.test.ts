@@ -389,6 +389,7 @@ describe('registerScrollSyncHandlers', () => {
           data: {
             isAutoSync: true,
             sourceTabId: 1,
+            autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
             mode: 'ratio',
             scrollTop: 120,
             scrollHeight: 1000,
@@ -412,7 +413,13 @@ describe('registerScrollSyncHandlers', () => {
 
       await expectImmediateUnavailable(
         handler({
-          data: { isAutoSync: true, sourceTabId: 7, tabId: 7, enabled: true },
+          data: {
+            isAutoSync: true,
+            sourceTabId: 7,
+            autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+            tabId: 7,
+            enabled: true,
+          },
           sender: { tabId: 7 },
         }),
       );
@@ -1253,11 +1260,17 @@ describe('registerScrollSyncHandlers', () => {
 
     it('includes active auto-sync group members when relaying scroll sync', async () => {
       const handler = getHandler<ScrollSyncMessage>('scroll:sync');
-      syncState.linkedTabs = [21, 22];
+      const activationId = '11111111-1111-4111-8111-111111111111';
+      autoSyncState.groups.set('group-a', {
+        tabIds: new Set([21, 22, 30, 31]),
+        isActive: true,
+        activationGeneration: activationId,
+      });
       vi.mocked(getAutoSyncGroupMembers).mockReturnValue([22, 30, 31]);
       const payload: ScrollSyncMessage = {
         isAutoSync: true,
         sourceTabId: 21,
+        autoSyncGeneration: activationId,
         mode: 'ratio',
         scrollTop: 300,
         scrollHeight: 1800,
@@ -1280,6 +1293,142 @@ describe('registerScrollSyncHandlers', () => {
         context: 'content-script',
         tabId: 31,
       });
+    });
+
+    it('rejects a same-members auto scroll packet from the previous activation', async () => {
+      const handler = getHandler<unknown>('scroll:sync');
+      autoSyncState.groups.set('group-a', {
+        tabIds: new Set([21, 22]),
+        isActive: true,
+        activationGeneration: '22222222-2222-4222-8222-222222222222',
+      });
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([22]);
+
+      const result = await handler({
+        data: {
+          isAutoSync: true,
+          sourceTabId: 21,
+          autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+          mode: 'ratio',
+          scrollTop: 300,
+          scrollHeight: 1800,
+          clientHeight: 700,
+          timestamp: Date.now(),
+        },
+        sender: { tabId: 21 },
+      });
+
+      expect(result).toEqual({ success: false, reason: 'unauthorized-session' });
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('returns stale when a newer auto activation commits before deferred content delivery', async () => {
+      const handler = getHandler<ScrollSyncMessage>('scroll:sync');
+      const firstActivationId = '11111111-1111-4111-8111-111111111111';
+      const replacementActivationId = '22222222-2222-4222-8222-222222222222';
+      const delivery = Promise.withResolvers<{ success: false; reason: 'stale-operation' }>();
+      autoSyncState.groups.set('group-a', {
+        tabIds: new Set([21, 22]),
+        isActive: true,
+        activationGeneration: firstActivationId,
+      });
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([22]);
+      sendMessageMock.mockReturnValueOnce(delivery.promise);
+      const payload: ScrollSyncMessage = {
+        isAutoSync: true,
+        sourceTabId: 21,
+        autoSyncGeneration: firstActivationId,
+        mode: 'ratio',
+        scrollTop: 300,
+        scrollHeight: 1800,
+        clientHeight: 700,
+        timestamp: Date.now(),
+      };
+
+      const relay = handler({ data: payload, sender: { tabId: 21 } });
+      await vi.waitFor(() => {
+        expect(sendMessage).toHaveBeenCalledWith('scroll:sync', payload, {
+          context: 'content-script',
+          tabId: 22,
+        });
+      });
+      const group = autoSyncState.groups.get('group-a');
+      if (!group) {
+        throw new Error('Expected active auto group');
+      }
+      group.activationGeneration = replacementActivationId;
+      delivery.resolve({ success: false, reason: 'stale-operation' });
+
+      await expect(relay).resolves.toEqual({ success: false, reason: 'stale-operation' });
+    });
+
+    it.each([
+      {
+        name: 'missing activation identity',
+        autoSyncGeneration: undefined,
+      },
+      {
+        name: 'malformed activation identity',
+        autoSyncGeneration: 'not-a-uuid',
+      },
+    ])('rejects an auto scroll packet with $name', async ({ autoSyncGeneration }) => {
+      const handler = getHandler<unknown>('scroll:sync');
+      autoSyncState.groups.set('group-a', {
+        tabIds: new Set([21, 22]),
+        isActive: true,
+        activationGeneration: '11111111-1111-4111-8111-111111111111',
+      });
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([22]);
+
+      const result = await handler({
+        data: {
+          isAutoSync: true,
+          sourceTabId: 21,
+          ...(autoSyncGeneration === undefined ? {} : { autoSyncGeneration }),
+          mode: 'ratio',
+          scrollTop: 300,
+          scrollHeight: 1800,
+          clientHeight: 700,
+          timestamp: Date.now(),
+        },
+        sender: { tabId: 21 },
+      });
+
+      expect(result).toEqual({ success: false, reason: 'unauthorized-session' });
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        name: 'missing manual epoch',
+        sessionEpoch: undefined,
+      },
+      {
+        name: 'malformed manual epoch',
+        sessionEpoch: 'four',
+      },
+    ])('rejects a manual scroll packet with $name', async ({ sessionEpoch }) => {
+      const handler = getHandler<unknown>('scroll:sync');
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.sessionEpoch = 4;
+
+      const result = await handler({
+        data: {
+          isAutoSync: false,
+          sourceTabId: 1,
+          ...(sessionEpoch === undefined ? {} : { sessionEpoch }),
+          mode: 'ratio',
+          scrollTop: 300,
+          scrollHeight: 1800,
+          clientHeight: 700,
+          timestamp: Date.now(),
+        },
+        sender: { tabId: 1 },
+      });
+
+      expect(result).toEqual({ success: false, reason: 'unauthorized-session' });
+      expect(sendMessage).not.toHaveBeenCalled();
     });
 
     it('returns success without sending messages when there are no relay targets', async () => {
@@ -1326,6 +1475,93 @@ describe('registerScrollSyncHandlers', () => {
         context: 'content-script',
         tabId: 55,
       });
+    });
+
+    it('rejects a same-members auto manual packet from the previous activation', async () => {
+      const handler = getHandler<unknown>('scroll:manual');
+      autoSyncState.groups.set('group-a', {
+        tabIds: new Set([55, 56]),
+        isActive: true,
+        activationGeneration: '22222222-2222-4222-8222-222222222222',
+      });
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([56]);
+
+      const result = await handler({
+        data: {
+          isAutoSync: true,
+          sourceTabId: 55,
+          autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+          tabId: 55,
+          enabled: true,
+        },
+        sender: { tabId: 55 },
+      });
+
+      expect(result).toEqual({ success: false, reason: 'unauthorized-session' });
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        name: 'missing manual epoch',
+        payload: {
+          isAutoSync: false,
+          sourceTabId: 55,
+        },
+      },
+      {
+        name: 'malformed auto activation identity',
+        payload: {
+          isAutoSync: true,
+          sourceTabId: 55,
+          autoSyncGeneration: 'not-a-uuid',
+        },
+      },
+    ])('rejects a manual-mode packet with $name', async ({ payload }) => {
+      const handler = getHandler<unknown>('scroll:manual');
+      syncState.isActive = true;
+      syncState.linkedTabs = [55, 56];
+      syncState.sessionEpoch = 7;
+
+      const result = await handler({
+        data: {
+          ...payload,
+          tabId: 55,
+          enabled: true,
+        },
+        sender: { tabId: 55 },
+      });
+
+      expect(result).toEqual({ success: false, reason: 'unauthorized-session' });
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('returns stale when a newer manual epoch commits before deferred content delivery', async () => {
+      const handler = getHandler<ManualScrollMessage>('scroll:manual');
+      const delivery = Promise.withResolvers<{ success: false; reason: 'stale-operation' }>();
+      syncState.isActive = true;
+      syncState.linkedTabs = [55, 56];
+      syncState.sessionEpoch = 7;
+      sendMessageMock.mockReturnValueOnce(delivery.promise);
+      const payload: ManualScrollMessage = {
+        isAutoSync: false,
+        sourceTabId: 55,
+        sessionEpoch: 7,
+        tabId: 55,
+        enabled: true,
+      };
+
+      const relay = handler({ data: payload, sender: { tabId: 55 } });
+      await vi.waitFor(() => {
+        expect(sendMessage).toHaveBeenCalledWith('scroll:manual', payload, {
+          context: 'content-script',
+          tabId: 55,
+        });
+      });
+      syncState.sessionEpoch = 8;
+      delivery.resolve({ success: false, reason: 'stale-operation' });
+
+      await expect(relay).resolves.toEqual({ success: false, reason: 'stale-operation' });
     });
   });
 

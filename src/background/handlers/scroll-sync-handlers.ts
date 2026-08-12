@@ -10,6 +10,7 @@ import {
   isPendingUrlSyncContextualHintId,
 } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { isRuntimeRelayMessageIdentity } from '~/shared/lib/runtime-relay-identity';
 import { isContextualHintDismissed } from '~/shared/lib/storage';
 import type {
   ContextualHintScrollMetrics,
@@ -23,10 +24,15 @@ import type {
   StartSyncConnectionResults,
   StartSyncContentResponse,
   StopManualSyncMessage,
+  RuntimeRelayResponse,
   UrlSyncBackgroundResponse,
   UrlSyncMessage,
 } from '~/shared/types/messages';
-import type { ManualStopResult, SessionMessageIdentity } from '~/shared/types/sync-session';
+import type {
+  ManualStopResult,
+  RuntimeRelayMessageIdentity,
+  SessionMessageIdentity,
+} from '~/shared/types/sync-session';
 
 import {
   broadcastAutoSyncGroupUpdate,
@@ -147,6 +153,37 @@ function getAuthorizedRelayTargets(
   return syncState.linkedTabs.filter((tabId) => tabId !== identity.sourceTabId);
 }
 
+function getAuthorizedRuntimeRelayTargets(
+  identity: unknown,
+  senderTabId: number | undefined,
+): Array<number> | null {
+  if (!isRuntimeRelayMessageIdentity(identity)) {
+    return null;
+  }
+
+  if (!identity.isAutoSync) {
+    return isAuthorizedManualSessionMessage(syncState, senderTabId, identity)
+      ? syncState.linkedTabs.filter((tabId) => tabId !== identity.sourceTabId)
+      : null;
+  }
+
+  if (!Number.isSafeInteger(senderTabId) || senderTabId !== identity.sourceTabId) {
+    return null;
+  }
+
+  const targets = getAutoSyncGroupMembers(identity.sourceTabId);
+  return targets.length > 0 && isCurrentAutoSyncActivation(identity, targets) ? targets : null;
+}
+
+function isStaleRuntimeRelayResponse(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Reflect.get(value, 'success') === false &&
+    Reflect.get(value, 'reason') === 'stale-operation'
+  );
+}
+
 type UrlSyncContentFailureReason =
   | 'stale-operation'
   | 'offset-clear-failed'
@@ -168,7 +205,10 @@ function readUrlSyncContentFailureReason(value: unknown): UrlSyncContentFailureR
   return null;
 }
 
-type RuntimeReconciliationIdentity = ContentRuntimeDegradedMessage | UrlSyncMessage;
+type RuntimeReconciliationIdentity =
+  | ContentRuntimeDegradedMessage
+  | UrlSyncMessage
+  | RuntimeRelayMessageIdentity;
 
 function getAutoSyncGroupActivationGeneration(group: {
   activationGeneration?: unknown;
@@ -688,13 +728,13 @@ export function registerScrollSyncHandlers(): void {
     });
   });
 
-  onMessage('scroll:sync', ({ data, sender }) => {
+  onMessage('scroll:sync', ({ data, sender }): Promise<RuntimeRelayResponse> => {
     if (getManualReadinessSnapshot() !== 'ready') {
       return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
     }
 
     const payload = data;
-    const targetTabIds = getAuthorizedRelayTargets(payload, sender.tabId);
+    const targetTabIds = getAuthorizedRuntimeRelayTargets(payload, sender.tabId);
     if (targetTabIds === null) {
       return Promise.resolve({ success: false, reason: 'unauthorized-session' });
     }
@@ -714,21 +754,25 @@ export function registerScrollSyncHandlers(): void {
       const promises = targetTabIds.map((tabId) =>
         sendMessage('scroll:sync', data, { context: 'content-script', tabId }).catch((error) => {
           logger.debug(`Failed to relay scroll sync to tab ${tabId}`, { error });
+          return null;
         }),
       );
 
-      await Promise.all(promises);
+      const responses = await Promise.all(promises);
+      if (responses.some(isStaleRuntimeRelayResponse)) {
+        return { success: false, reason: 'stale-operation' };
+      }
       return { success: true };
     })();
   });
 
-  onMessage('scroll:manual', ({ data, sender }) => {
+  onMessage('scroll:manual', ({ data, sender }): Promise<RuntimeRelayResponse> => {
     if (getManualReadinessSnapshot() !== 'ready') {
       return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
     }
 
     const payload = data;
-    const targets = getAuthorizedRelayTargets(payload, sender.tabId);
+    const targets = getAuthorizedRuntimeRelayTargets(payload, sender.tabId);
     if (targets === null || payload.tabId !== payload.sourceTabId) {
       return Promise.resolve({ success: false, reason: 'unauthorized-session' });
     }
@@ -741,10 +785,13 @@ export function registerScrollSyncHandlers(): void {
 
       // Send manual mode change to the specific tab only
       try {
-        await sendMessage('scroll:manual', data, {
+        const response = await sendMessage('scroll:manual', data, {
           context: 'content-script',
           tabId: payload.tabId,
         });
+        if (isStaleRuntimeRelayResponse(response)) {
+          return { success: false, reason: 'stale-operation' };
+        }
       } catch (error) {
         logger.debug(`Failed to send manual mode to tab ${payload.tabId}`, { error });
       }
