@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
-import type { StartSyncContentMessage, StopSyncContentResponse } from '~/shared/types/messages';
+import type { AutoStartSyncContentMessage, StopSyncContentResponse } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
 
 import {
@@ -268,7 +268,7 @@ describe('replaceManualWithAcceptedAutoSync', () => {
 describe('createLegacyAutoSyncAdapter', () => {
   const normalizedUrl = 'https://fixture.invalid/group';
   const groups = new Map<string, AutoSyncGroup>();
-  const started: Array<{ tabId: number; message: StartSyncContentMessage }> = [];
+  const started: Array<{ tabId: number; message: AutoStartSyncContentMessage }> = [];
   const stopped: Array<number> = [];
   const activeRuntimeTabIds = new Set<number>();
   const scheduledCleanup: Array<PendingManualCleanup> = [];
@@ -346,6 +346,7 @@ describe('createLegacyAutoSyncAdapter', () => {
           mode: 'ratio',
           currentTabId: 11,
           isAutoSync: true,
+          autoSyncGeneration: 1,
         },
       },
       {
@@ -355,9 +356,41 @@ describe('createLegacyAutoSyncAdapter', () => {
           mode: 'ratio',
           currentTabId: 22,
           isAutoSync: true,
+          autoSyncGeneration: 1,
         },
       },
     ]);
+  });
+
+  it('uses a newer activation generation when the same accepted group restarts', async () => {
+    const adapter = createAdapter();
+
+    await expect(
+      adapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 6,
+      }),
+    ).resolves.toEqual({ status: 'started' });
+
+    const group = groups.get(normalizedUrl);
+    if (!group) {
+      throw new Error('Expected accepted auto-sync group');
+    }
+    expect(group.activationGeneration).toBe(1);
+    group.isActive = false;
+    started.length = 0;
+
+    await expect(
+      adapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 7,
+      }),
+    ).resolves.toEqual({ status: 'started' });
+
+    expect(group.activationGeneration).toBe(2);
+    expect(started.map(({ message }) => message.autoSyncGeneration)).toEqual([2, 2]);
   });
 
   it('requires every accepted tab to confirm Start and cleans every attempted runtime', async () => {

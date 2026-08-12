@@ -1,5 +1,5 @@
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
-import type { StartSyncContentMessage, StopSyncContentResponse } from '~/shared/types/messages';
+import type { AutoStartSyncContentMessage, StopSyncContentResponse } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
 
 import type { ManualCleanupRetryScheduler } from './sync-cleanup-retry';
@@ -35,7 +35,7 @@ interface CreateLegacyAutoSyncAdapterDependencies {
   withLock: <T>(operation: () => Promise<T>) => Promise<T>;
   getState: () => SyncState;
   cleanupScheduler: ManualCleanupRetryScheduler;
-  sendStart: (tabId: number, message: StartSyncContentMessage) => Promise<boolean>;
+  sendStart: (tabId: number, message: AutoStartSyncContentMessage) => Promise<boolean>;
   sendStop: (tabId: number) => Promise<StopSyncContentResponse>;
 }
 
@@ -108,6 +108,25 @@ function createFailedStartResult(cleanup: AcceptedAutoSyncCleanupResult): {
 export function createLegacyAutoSyncAdapter(
   dependencies: CreateLegacyAutoSyncAdapterDependencies,
 ): LegacyAutoSyncAdapter {
+  let latestActivationGeneration = 0;
+
+  const reserveActivationGeneration = (group: AutoSyncGroup): number | null => {
+    const groupGeneration =
+      typeof group.activationGeneration === 'number' &&
+      Number.isSafeInteger(group.activationGeneration) &&
+      group.activationGeneration >= 0
+        ? group.activationGeneration
+        : 0;
+    const nextGeneration = Math.max(latestActivationGeneration, groupGeneration) + 1;
+    if (!Number.isSafeInteger(nextGeneration)) {
+      return null;
+    }
+
+    latestActivationGeneration = nextGeneration;
+    group.activationGeneration = nextGeneration;
+    return nextGeneration;
+  };
+
   return {
     async startAcceptedGroup(input) {
       const tabIds = [...new Set(input.tabIds)];
@@ -119,11 +138,14 @@ export function createLegacyAutoSyncAdapter(
         return { status: 'failed' };
       }
 
-      const canStart = await dependencies.withLock(async () => {
+      const proposedActivationGeneration = await dependencies.withLock(async () => {
         const group = dependencies.groups.get(input.normalizedUrl);
-        return Boolean(group && !group.isActive && hasExactMembers(group, tabIds));
+        if (!group || group.isActive || !hasExactMembers(group, tabIds)) {
+          return null;
+        }
+        return reserveActivationGeneration(group);
       });
-      if (!canStart) {
+      if (proposedActivationGeneration === null) {
         return { status: 'failed' };
       }
 
@@ -137,6 +159,7 @@ export function createLegacyAutoSyncAdapter(
             mode: 'ratio',
             currentTabId: tabId,
             isAutoSync: true,
+            autoSyncGeneration: proposedActivationGeneration,
           })
           .catch(() => false);
         if (connected) {
@@ -151,7 +174,12 @@ export function createLegacyAutoSyncAdapter(
 
       const committed = await dependencies.withLock(async () => {
         const group = dependencies.groups.get(input.normalizedUrl);
-        if (!group || group.isActive || !hasExactMembers(group, tabIds)) {
+        if (
+          !group ||
+          group.isActive ||
+          group.activationGeneration !== proposedActivationGeneration ||
+          !hasExactMembers(group, tabIds)
+        ) {
           return false;
         }
 
