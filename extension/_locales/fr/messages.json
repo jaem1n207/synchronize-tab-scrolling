@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "La synchronisation a démarré ou a été modifiée. Le nettoyage des autres onglets est toujours en cours de nouvelle tentative. Consultez la fenêtre contextuelle pour voir l’état actuel."
+  },
   "autoSyncRecoveryDegraded": {
     "message": "Impossible de restaurer complètement la synchronisation automatique. La synchronisation manuelle n’a pas été modifiée."
   },
