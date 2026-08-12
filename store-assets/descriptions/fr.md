@@ -7,6 +7,22 @@ Comment utiliser l'extension
 4. Cliquez sur "Démarrer la sync", puis faites défiler n'importe quel onglet connecté.
 ---
 
+Quick Sync par raccourci
+
+Démarrez la synchronisation ou ajoutez des onglets sans ouvrir la fenêtre de l'extension:
+
+1. Dans le premier onglet, appuyez sur Cmd+Shift+. (Mac) ou Ctrl+Shift+. (Windows/Linux).
+2. Dans les 10 secondes, utilisez le même raccourci dans un autre onglet pour démarrer la synchronisation.
+3. Pendant une synchronisation active, utilisez-le dans un autre onglet pour ajouter celui-ci.
+
+Vous pouvez réattribuer le raccourci depuis le menu "Actions" de la fenêtre de l'extension.
+
+Limitation connue: L'extension fonctionne dans Arc, mais Arc ne prend pas en charge le raccourci Quick Sync, car il ne transmet pas à l'extension l'événement WebExtension standard commands.onCommand. Dans Arc, sélectionnez les onglets comme d'habitude dans la fenêtre de l'extension, puis cliquez sur "Démarrer la sync".
+
+Détails: https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/docs/guides/quick-sync-shortcut.md
+
+---
+
 Synchronisation de défilement de base
 
 Quand vous faites défiler un onglet, les autres onglets connectés se déplacent à la même position relative, selon la longueur de chaque page.
@@ -87,6 +103,7 @@ Fonctionnalités principales
 
 • Synchronisation manuelle des pages locales file:// que le navigateur peut afficher directement, comme HTML, Markdown, JSON, texte, CSV et logs
 • Synchronisation en temps réel de la position de défilement entre plusieurs onglets
+• Quick Sync par raccourci pour démarrer la synchronisation et ajouter des onglets sans ouvrir la fenêtre de l'extension
 • URL Sync pour synchroniser aussi les déplacements de page pris en charge
 • Modes pour suivre le même site web ou conserver le site web de chaque onglet
 • Synchronisation des chemins(path), termes de recherche, filtres, tris et autres paramètres de requête

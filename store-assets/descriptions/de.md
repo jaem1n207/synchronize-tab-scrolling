@@ -7,6 +7,22 @@ So funktioniert es
 4. Klicken Sie auf "Synchronisierung starten" und scrollen Sie dann in einem beliebigen verbundenen Tab.
 ---
 
+Quick Sync per Tastenkürzel
+
+Starten Sie die Synchronisierung oder fügen Sie Tabs hinzu, ohne das Popup zu öffnen:
+
+1. Drücken Sie im ersten Tab Cmd+Shift+. (Mac) oder Ctrl+Shift+. (Windows/Linux).
+2. Drücken Sie innerhalb von 10 Sekunden dasselbe Tastenkürzel in einem anderen Tab, um die Synchronisierung zu starten.
+3. Drücken Sie es während einer aktiven Synchronisierung in einem weiteren Tab, um diesen hinzuzufügen.
+
+Sie können das Tastenkürzel im Popup-Menü "Aktionen" neu zuweisen.
+
+Bekannte Einschränkung: Die Erweiterung funktioniert in Arc, aber Arc unterstützt das Quick-Sync-Tastenkürzel nicht, da es das standardmäßige WebExtension-Ereignis commands.onCommand nicht an die Erweiterung weiterleitet. Wählen Sie in Arc die Tabs wie bisher im Popup aus und klicken Sie auf "Synchronisierung starten".
+
+Details: https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/docs/guides/quick-sync-shortcut.md
+
+---
+
 Grundlegende Scroll-Synchronisierung
 
 Wenn Sie in einem Tab scrollen, wechseln die anderen verbundenen Tabs zur gleichen relativen Position, jeweils bezogen auf die Länge der eigenen Seite.
@@ -87,6 +103,7 @@ Funktionen
 
 • Manuelle Synchronisierung lokaler file://-Seiten, die der Browser direkt rendern kann, darunter HTML, Markdown, JSON, Text, CSV und Logs
 • Echtzeit-Synchronisierung der Scroll-Position über mehrere Tabs
+• Quick Sync per Tastenkürzel zum Starten und Hinzufügen von Tabs ohne Popup
 • URL Sync für unterstützte Seitenwechsel
 • Modi zum Folgen derselben Website oder zum Beibehalten der Website jedes Tabs
 • Synchronisierung von Pfaden(path), Suchbegriffen, Filtern, Sortierung und anderen Query-Parametern
