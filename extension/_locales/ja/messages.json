@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "同期は開始または変更されました。他のタブのクリーンアップを再試行しています。現在の状態はポップアップで確認してください。"
+  },
   "autoSyncRecoveryDegraded": {
     "message": "自動同期の状態を完全に復元できませんでした。手動同期は変更されていません。"
   },
