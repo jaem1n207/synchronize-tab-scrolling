@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "同步已开始或更改。仍在重试清理其他标签页。请在弹出窗口中查看当前状态。"
+  },
   "autoSyncRecoveryDegraded": {
     "message": "无法完全恢复自动同步状态。手动同步未发生更改。"
   },
