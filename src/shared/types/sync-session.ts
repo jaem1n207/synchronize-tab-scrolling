@@ -47,7 +47,9 @@ export interface PopupActiveManualSyncSnapshot {
 }
 
 export interface ContentManualSyncTab {
-  location: 'current-tab' | 'other-tab';
+  displayTitle: string | null;
+  isCurrent: boolean;
+  manualOffsetPixels: number;
   connectionStatus: ConnectionStatus;
 }
 
