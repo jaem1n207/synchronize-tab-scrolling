@@ -48,7 +48,9 @@ values. This keeps normal page anchor navigation and user-initiated smooth scrol
 
 Page overlays use three independent Shadow DOM roots to prevent style conflicts:
 
-- `panel.tsx` mounts `SyncControlPanel` in a shadow root
+- `panel.tsx` mounts `SyncControlPanel` in a **closed** shadow root. Its active manual-session list
+  may render only the allowlisted tab title, current-tab flag, signed manual pixel offset, and
+  connection status. The status response must not contain URLs, favicons, or tab/window IDs.
 - `suggestion-toast.tsx` mounts `SyncSuggestionToast` in a shadow root
 - `quick-sync-hud.tsx` mounts the non-interactive top-center Quick Sync HUD
 - Uses `import * as React from 'react'` pattern (differs from popup's named imports)
@@ -95,5 +97,5 @@ manual offset. Scroll sync remains active after the skipped navigation.
 | `scroll:stop`         | Background → Content | Stop sync session                    |
 | `scroll:sync`         | Content ↔ Background | Relay scroll positions               |
 | `scroll:ping`         | Background → Content | Health check                         |
-| `sync:status`         | Background → Content | Broadcast sync status update         |
+| `sync:get-status`     | Content → Background | Read the allowlisted active snapshot |
 | `quick-sync:feedback` | Background → Content | Generation-bound command HUD outcome |
