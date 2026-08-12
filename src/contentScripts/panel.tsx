@@ -438,8 +438,9 @@ export function showPanel() {
   // Append to body
   document.body.appendChild(panelContainer);
 
-  // Create shadow DOM for style isolation
-  const shadowRoot = panelContainer.attachShadow({ mode: 'open' });
+  // Keep synchronized-tab display data inaccessible to the host page while retaining an internal
+  // root reference for React mounting, theme updates, and cleanup.
+  const shadowRoot = panelContainer.attachShadow({ mode: 'closed' });
 
   // Create theme wrapper with minimal fixed positioning context
   // Uses system theme to match .light or .dark selector

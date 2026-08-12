@@ -23,6 +23,8 @@ const { messageHandlers, onMessageMock, sendMessageMock } = vi.hoisted(() => ({
   onMessageMock: vi.fn(),
   sendMessageMock: vi.fn(),
 }));
+const originalAttachShadow = Element.prototype.attachShadow;
+let capturedPanelShadowRoot: ShadowRoot | null = null;
 
 vi.mock('webext-bridge/content-script', () => ({
   onMessage: onMessageMock,
@@ -82,7 +84,12 @@ vi.mock('motion/react', () => ({
 }));
 
 vi.mock('./components', () => ({
-  SyncControlPanel: () => <div>sync-control-panel</div>,
+  SyncControlPanel: () => (
+    <div>
+      sync-control-panel
+      <span>Private synchronized title</span>
+    </div>
+  ),
 }));
 
 function getRequiredHandler(messageId: string): RegisteredMessageHandler {
@@ -104,8 +111,7 @@ async function mountPanel() {
     expect(messageHandlers.has('sync-suggestion:add-tab')).toBe(true);
   });
 
-  const container = document.querySelector('#scroll-sync-panel-root');
-  const app = container?.shadowRoot?.querySelector<HTMLElement>('#scroll-sync-app');
+  const app = capturedPanelShadowRoot?.querySelector<HTMLElement>('#scroll-sync-app');
   if (!app) {
     throw new Error('Expected panel app to exist');
   }
@@ -118,7 +124,18 @@ describe('panel suggestion transport', () => {
     vi.resetModules();
     vi.clearAllMocks();
     messageHandlers.clear();
+    capturedPanelShadowRoot = null;
     document.body.innerHTML = '';
+    vi.spyOn(Element.prototype, 'attachShadow').mockImplementation(function (
+      this: Element,
+      options,
+    ) {
+      const shadowRoot = originalAttachShadow.call(this, options);
+      if (this instanceof HTMLElement && this.id === 'scroll-sync-panel-root') {
+        capturedPanelShadowRoot = shadowRoot;
+      }
+      return shadowRoot;
+    });
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -133,6 +150,15 @@ describe('panel suggestion transport', () => {
       return vi.fn();
     });
     sendMessageMock.mockResolvedValue(undefined);
+  });
+
+  it('keeps synchronized titles inside a closed shadow root unavailable to the host document', async () => {
+    await mountPanel();
+
+    const container = document.querySelector('#scroll-sync-panel-root');
+    expect(container?.shadowRoot).toBeNull();
+    expect(capturedPanelShadowRoot?.textContent).toContain('Private synchronized title');
+    expect(document.body.textContent).not.toContain('Private synchronized title');
   });
 
   it.each([
