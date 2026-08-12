@@ -34,6 +34,7 @@ function createSchedulerHarness(initialState: SyncState = inactiveState) {
   const sendStop = vi.fn<(tabId: number) => Promise<StopSyncContentResponse>>(
     async (tabId: number) => ({ success: true, tabId }),
   );
+  const getAutoSyncActivationId = vi.fn<(tabId: number) => string | null>(() => null);
   const getState = (): SyncState => ({
     ...state,
     linkedTabs: [...state.linkedTabs],
@@ -51,7 +52,8 @@ function createSchedulerHarness(initialState: SyncState = inactiveState) {
       },
     },
     getState,
-    sendStop,
+    getAutoSyncActivationId,
+    sendStop: (tabId) => sendStop(tabId),
     setTimer: (callback, delay) => {
       const timer = setTimeout(() => undefined, 0);
       clearTimeout(timer);
@@ -72,6 +74,7 @@ function createSchedulerHarness(initialState: SyncState = inactiveState) {
     timers,
     gateEntries,
     sendStop,
+    getAutoSyncActivationId,
     getState,
     createSiblingScheduler() {
       return createManualCleanupRetryScheduler({
@@ -187,6 +190,25 @@ describe('createManualCleanupRetryScheduler', () => {
     await harness.fire(0);
 
     expect(harness.gateEntries).toHaveLength(1);
+    expect(harness.sendStop).not.toHaveBeenCalled();
+    expect(harness.timers).toHaveLength(1);
+  });
+
+  it('cancels an auto cleanup retry after the tab is reactivated under a new UUID', async () => {
+    const harness = createSchedulerHarness();
+    harness.getAutoSyncActivationId.mockReturnValue(
+      '22222222-2222-4222-8222-222222222222',
+    );
+    harness.scheduler.schedule({
+      tabId: 11,
+      stoppedRevision: 8,
+      stoppedSessionEpoch: 4,
+      attemptIndex: 0,
+      autoSyncActivationId: '11111111-1111-4111-8111-111111111111',
+    });
+
+    await harness.fire(0);
+
     expect(harness.sendStop).not.toHaveBeenCalled();
     expect(harness.timers).toHaveLength(1);
   });

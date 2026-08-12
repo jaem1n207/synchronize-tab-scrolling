@@ -1,3 +1,4 @@
+import type { AutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
 import type { StopSyncContentResponse } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
 
@@ -10,6 +11,7 @@ export interface PendingManualCleanup {
   stoppedRevision: number;
   stoppedSessionEpoch: number;
   attemptIndex: number;
+  autoSyncActivationId?: AutoSyncActivationId;
 }
 
 export interface ManualCleanupRetryScheduler {
@@ -29,7 +31,11 @@ const pendingByTabId = new Map<number, ScheduledManualCleanup>();
 export function createManualCleanupRetryScheduler(dependencies: {
   transitionGate: SyncTransitionGate;
   getState: () => SyncState;
-  sendStop: (tabId: number) => Promise<StopSyncContentResponse>;
+  getAutoSyncActivationId?: (tabId: number) => AutoSyncActivationId | null;
+  sendStop: (
+    tabId: number,
+    autoSyncActivationId?: AutoSyncActivationId,
+  ) => Promise<StopSyncContentResponse>;
   setTimer: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>;
   clearTimer: (timer: ReturnType<typeof setTimeout>) => void;
 }): ManualCleanupRetryScheduler {
@@ -65,10 +71,17 @@ export function createManualCleanupRetryScheduler(dependencies: {
             }
 
             const state = dependencies.getState();
+            const currentAutoSyncActivationId =
+              input.autoSyncActivationId === undefined
+                ? null
+                : dependencies.getAutoSyncActivationId?.(input.tabId);
             if (
               state.revision !== input.stoppedRevision ||
               state.sessionEpoch !== input.stoppedSessionEpoch ||
-              (state.isActive && state.linkedTabs.includes(input.tabId))
+              (state.isActive && state.linkedTabs.includes(input.tabId)) ||
+              (input.autoSyncActivationId !== undefined &&
+                currentAutoSyncActivationId !== null &&
+                currentAutoSyncActivationId !== input.autoSyncActivationId)
             ) {
               pendingByTabId.delete(input.tabId);
               return;
@@ -76,7 +89,10 @@ export function createManualCleanupRetryScheduler(dependencies: {
 
             let acknowledgement: StopSyncContentResponse;
             try {
-              acknowledgement = await dependencies.sendStop(input.tabId);
+              acknowledgement = await dependencies.sendStop(
+                input.tabId,
+                input.autoSyncActivationId,
+              );
             } catch {
               acknowledgement = { success: false };
             }
