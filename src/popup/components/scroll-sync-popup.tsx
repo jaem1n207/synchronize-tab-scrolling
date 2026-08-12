@@ -418,10 +418,13 @@ export function ScrollSyncPopup() {
                   open={actionsMenuOpen}
                   sameDomainFilter={sameDomainFilter}
                   selectedCount={selectedTabIds.length}
+                  shortcut={shortcut.assignment}
+                  shortcutSettingsResult={shortcut.settingsResult}
                   sortBy={sortBy}
                   onAutoSyncChange={handleAutoSyncChange}
                   onOpenChange={setActionsMenuOpen}
                   onOpenExcludedDomains={handleOpenExcludedDomains}
+                  onOpenShortcutSettings={shortcut.openSettings}
                   onSameDomainFilterChange={setSameDomainFilter}
                   onSortChange={setSortBy}
                   onStartSync={handleStart}

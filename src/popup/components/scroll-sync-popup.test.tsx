@@ -25,6 +25,7 @@ const {
   refetchMock,
   stopMock,
   popupUiState,
+  openShortcutSettingsMock,
   useManualSyncSessionMock,
   useQuickSyncShortcutMock,
   useSyncControlMock,
@@ -37,6 +38,7 @@ const {
   popupUiState: {
     actionsMenuOpen: false,
   },
+  openShortcutSettingsMock: vi.fn(),
   useManualSyncSessionMock: vi.fn(),
   useQuickSyncShortcutMock: vi.fn(),
   useSyncControlMock: vi.fn(),
@@ -269,7 +271,7 @@ beforeEach(() => {
       label: '⌘ ⇧ .',
     },
     settingsResult: { status: 'idle' },
-    openSettings: vi.fn().mockResolvedValue({ status: 'opened' }),
+    openSettings: openShortcutSettingsMock.mockResolvedValue({ status: 'opened' }),
   });
 });
 
@@ -325,8 +327,11 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     expect(screen.getAllByRole('button', { name: /removeTab/ })).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'startSynchronization' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'urlSyncNavigation' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'quickSyncShortcutHeading' })).toBeInTheDocument();
-    expect(screen.getByText('quickSyncShortcutAssignedSummary:⌘ ⇧ .')).toBeInTheDocument();
+    const picker = screen.getByRole('region', { name: 'tabSelectionHeading' });
+    expect(picker.parentElement?.children).toHaveLength(1);
+    expect(
+      screen.queryByRole('heading', { name: 'quickSyncShortcutHeading' }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'startSynchronization' }));
     expect(handleStartMock).toHaveBeenCalledOnce();
@@ -339,6 +344,12 @@ describe('ScrollSyncPopup authoritative session composition', () => {
     expect(screen.getByRole('option', { name: /clearAllSelections/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /sortSimilarity/ })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /sortRecent/ })).toBeInTheDocument();
+    const shortcutItem = screen.getByRole('option', {
+      name: /quickSyncShortcutAssignedSummary:⌘ ⇧ \..*reassignQuickSyncShortcut/,
+    });
+    expect(shortcutItem).toBeInTheDocument();
+    await user.click(shortcutItem);
+    expect(openShortcutSettingsMock).toHaveBeenCalledOnce();
     expect(useSyncControlMock).toHaveBeenCalledWith(
       expect.objectContaining({
         onSessionChange: refetchMock,
