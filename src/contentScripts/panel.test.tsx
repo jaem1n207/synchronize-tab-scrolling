@@ -216,4 +216,56 @@ describe('panel suggestion transport', () => {
       );
     });
   });
+
+  it('announces degraded cleanup after a committed panel add', async () => {
+    const user = userEvent.setup();
+    sendMessageMock.mockResolvedValueOnce({
+      success: true,
+      revision: 16,
+      warning: 'auto-sync-degraded',
+    });
+    const ui = await mountPanel();
+
+    await act(async () => {
+      getRequiredHandler('sync-suggestion:add-tab')({
+        data: {
+          tabId: 33,
+          tabTitle: 'Third',
+          hasManualOffsets: false,
+          normalizedUrl: 'https://fixture.invalid/group',
+          expectedRevision: 15,
+        },
+      });
+    });
+    await user.click(ui.getByRole('button', { name: 'addTabButton' }));
+
+    const notice = await ui.findByRole('status');
+    expect(notice).toHaveAttribute('aria-live', 'polite');
+    expect(notice).toHaveTextContent('syncSuggestionCleanupRetrying');
+    expect(ui.queryByText('successSyncStarted')).not.toBeInTheDocument();
+  });
+
+  it('does not render a degraded notice after a normal committed panel add', async () => {
+    const user = userEvent.setup();
+    sendMessageMock.mockResolvedValueOnce({ success: true, revision: 16 });
+    const ui = await mountPanel();
+
+    await act(async () => {
+      getRequiredHandler('sync-suggestion:add-tab')({
+        data: {
+          tabId: 33,
+          tabTitle: 'Third',
+          hasManualOffsets: false,
+          normalizedUrl: 'https://fixture.invalid/group',
+          expectedRevision: 15,
+        },
+      });
+    });
+    await user.click(ui.getByRole('button', { name: 'addTabButton' }));
+
+    await waitFor(() => {
+      expect(ui.queryByRole('button', { name: 'addTabButton' })).not.toBeInTheDocument();
+    });
+    expect(ui.queryByRole('status')).not.toBeInTheDocument();
+  });
 });
