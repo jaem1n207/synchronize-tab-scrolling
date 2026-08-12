@@ -37,9 +37,8 @@ let isManualModeActive = false;
 let currentTabId = 0;
 let manualModeBaselineSnapshot = 0;
 let getScrollInfoCallback: (() => KeyboardScrollInfo) | null = null;
-let getRuntimeRelayMessageIdentityCallback:
-  | (() => RuntimeRelayMessageIdentity | null)
-  | null = null;
+let getRuntimeRelayMessageIdentityCallback: (() => RuntimeRelayMessageIdentity | null) | null =
+  null;
 let pendingManualModeExit: Promise<void> | null = null;
 let pendingManualModeExitAllowsPersistence = true;
 let pendingManualModeExitNeedsPersistedClear = false;

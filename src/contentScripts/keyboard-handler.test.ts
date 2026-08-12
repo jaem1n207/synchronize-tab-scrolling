@@ -180,12 +180,16 @@ describe('keyboard-handler', () => {
 
     it('fails closed when the current runtime relay identity is unavailable', () => {
       const setManualModeActive = vi.fn();
-      initKeyboardHandler(9, () => ({
-        currentScrollTop: 150,
-        lastSyncedRatio: 0.2,
-        setManualModeActive,
-        updateOffsetCache: vi.fn(),
-      }), () => null);
+      initKeyboardHandler(
+        9,
+        () => ({
+          currentScrollTop: 150,
+          lastSyncedRatio: 0.2,
+          setManualModeActive,
+          updateOffsetCache: vi.fn(),
+        }),
+        () => null,
+      );
 
       window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
 

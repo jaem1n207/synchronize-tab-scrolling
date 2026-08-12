@@ -232,10 +232,7 @@ function doesRuntimeRelayMessageMatchRuntime(
   identity: unknown,
   runtime: ContentRuntimeIdentity,
 ): identity is RuntimeRelayMessageIdentity {
-  if (
-    !isRuntimeRelayMessageIdentity(identity) ||
-    !isRuntimeIdentityCurrent(runtime)
-  ) {
+  if (!isRuntimeRelayMessageIdentity(identity) || !isRuntimeIdentityCurrent(runtime)) {
     return false;
   }
 
