@@ -12,15 +12,24 @@ import type {
   ContextualHintShowMessage,
 } from '~/shared/types/contextual-hints';
 import type {
+  ContentRuntimeDegradedMessage,
+  ContentRuntimeDegradedResponse,
   ConsumePendingUrlSyncContextualHintResponse,
   SavePendingUrlSyncContextualHintResponse,
   StartSyncConnectionResults,
   StartSyncContentResponse,
   StopManualSyncMessage,
+  UrlSyncBackgroundResponse,
+  UrlSyncMessage,
 } from '~/shared/types/messages';
 import type { ManualStopResult, SessionMessageIdentity } from '~/shared/types/sync-session';
 
-import { getAutoSyncGroupMembers, updateAutoSyncGroup } from '../lib/auto-sync-groups';
+import {
+  broadcastAutoSyncGroupUpdate,
+  getAutoSyncGroupMembers,
+  stopAutoSyncForGroup,
+  updateAutoSyncGroup,
+} from '../lib/auto-sync-groups';
 import { autoSyncState, manualSyncOverriddenTabs, withAutoSyncLock } from '../lib/auto-sync-state';
 import {
   getManualReadinessSnapshot,
@@ -132,6 +141,158 @@ function getAuthorizedRelayTargets(
   }
 
   return syncState.linkedTabs.filter((tabId) => tabId !== identity.sourceTabId);
+}
+
+type UrlSyncContentFailureReason =
+  | 'stale-operation'
+  | 'offset-clear-failed'
+  | 'offset-reconciliation-failed';
+
+function readUrlSyncContentFailureReason(value: unknown): UrlSyncContentFailureReason | null {
+  if (typeof value !== 'object' || value === null || Reflect.get(value, 'success') !== false) {
+    return null;
+  }
+
+  const reason = Reflect.get(value, 'reason');
+  if (
+    reason === 'stale-operation' ||
+    reason === 'offset-clear-failed' ||
+    reason === 'offset-reconciliation-failed'
+  ) {
+    return reason;
+  }
+  return null;
+}
+
+type RuntimeReconciliationIdentity = ContentRuntimeDegradedMessage | UrlSyncMessage;
+
+function getAutoSyncGroupActivationGeneration(group: {
+  activationGeneration?: number;
+}): number | null {
+  const generation = group.activationGeneration ?? 0;
+  return Number.isSafeInteger(generation) && generation >= 0 ? generation : null;
+}
+
+function isCurrentAutoSyncActivation(
+  identity: RuntimeReconciliationIdentity,
+  memberTabIds: ReadonlyArray<number>,
+): boolean {
+  if (
+    !identity.isAutoSync ||
+    !Number.isSafeInteger(identity.autoSyncGeneration) ||
+    identity.autoSyncGeneration < 0
+  ) {
+    return false;
+  }
+
+  for (const [, group] of autoSyncState.groups.entries()) {
+    if (
+      group.isActive &&
+      getAutoSyncGroupActivationGeneration(group) === identity.autoSyncGeneration &&
+      group.tabIds.has(identity.sourceTabId) &&
+      memberTabIds.every((tabId) => group.tabIds.has(tabId))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function recordRuntimeReconciliationFailure(
+  identity: RuntimeReconciliationIdentity,
+  failedTabIds: ReadonlyArray<number>,
+): Promise<ContentRuntimeDegradedResponse> {
+  const uniqueFailedTabIds = [...new Set(failedTabIds)];
+
+  if (identity.isAutoSync) {
+    const stoppedGroupCount = await withAutoSyncLock(async () => {
+      const matchingGroupKeys: Array<string> = [];
+      for (const [groupKey, group] of autoSyncState.groups.entries()) {
+        if (
+          group.isActive &&
+          getAutoSyncGroupActivationGeneration(group) === identity.autoSyncGeneration &&
+          group.tabIds.has(identity.sourceTabId) &&
+          uniqueFailedTabIds.some((tabId) => group.tabIds.has(tabId))
+        ) {
+          matchingGroupKeys.push(groupKey);
+        }
+      }
+
+      for (const groupKey of matchingGroupKeys) {
+        await stopAutoSyncForGroup(groupKey);
+      }
+      return matchingGroupKeys.length;
+    });
+
+    if (stoppedGroupCount === 0) {
+      return {
+        success: false,
+        reason: 'stale-operation',
+        revision: getSyncStateSnapshot().revision,
+      };
+    }
+
+    await broadcastAutoSyncGroupUpdate();
+    return { success: true, revision: getSyncStateSnapshot().revision };
+  }
+
+  return syncTransitionGate.run(async (context) => {
+    const currentState = getSyncStateSnapshot();
+    if (
+      currentState.revision !== context.expectedRevision ||
+      !isAuthorizedManualSessionMessage(currentState, identity.sourceTabId, identity) ||
+      uniqueFailedTabIds.some((tabId) => !currentState.linkedTabs.includes(tabId))
+    ) {
+      return {
+        success: false,
+        reason: 'stale-operation',
+        revision: currentState.revision,
+      };
+    }
+
+    const nextConnectionStatuses = { ...currentState.connectionStatuses };
+    let changed = false;
+    for (const tabId of uniqueFailedTabIds) {
+      if (nextConnectionStatuses[tabId] !== 'error') {
+        nextConnectionStatuses[tabId] = 'error';
+        changed = true;
+      }
+    }
+    if (!changed) {
+      return { success: true, revision: currentState.revision };
+    }
+
+    const candidate = {
+      ...currentState,
+      linkedTabs: [...currentState.linkedTabs],
+      connectionStatuses: nextConnectionStatuses,
+      revision: currentState.revision + 1,
+    };
+    const persistence = await persistSyncState(candidate);
+    if (persistence.status === 'storage-error') {
+      return {
+        success: false,
+        reason: 'persistence-failed',
+        revision: currentState.revision,
+      };
+    }
+
+    const latestState = getSyncStateSnapshot();
+    if (
+      latestState.revision !== context.expectedRevision ||
+      latestState.sessionEpoch !== currentState.sessionEpoch
+    ) {
+      return {
+        success: false,
+        reason: 'stale-operation',
+        revision: latestState.revision,
+      };
+    }
+
+    commitSyncState(candidate);
+    await broadcastSyncStatus().catch(() => undefined);
+    return { success: true, revision: candidate.revision };
+  });
 }
 
 function isValidScrollMetrics(
@@ -280,6 +441,7 @@ async function startPopupManualSession(startRequest: {
               mode: message.mode,
               currentTabId: message.currentTabId,
               isAutoSync: true,
+              autoSyncGeneration: message.autoSyncGeneration,
             },
             { context: 'content-script', tabId },
             1_000,
@@ -606,29 +768,128 @@ export function registerScrollSyncHandlers(): void {
     ).then(() => ({ success: true }));
   });
 
+  onMessage('sync:runtime-degraded', ({ data, sender }) => {
+    const currentRevision = getSyncStateSnapshot().revision;
+    if (getManualReadinessSnapshot() !== 'ready') {
+      const response: ContentRuntimeDegradedResponse = {
+        success: false,
+        reason: 'session-state-unavailable',
+        revision: currentRevision,
+      };
+      return Promise.resolve(response);
+    }
+    if (
+      !Number.isSafeInteger(sender.tabId) ||
+      sender.tabId !== data.sourceTabId ||
+      data.reason !== 'offset-reconciliation-failed'
+    ) {
+      const response: ContentRuntimeDegradedResponse = {
+        success: false,
+        reason: 'unauthorized-session',
+        revision: currentRevision,
+      };
+      return Promise.resolve(response);
+    }
+
+    const payload: ContentRuntimeDegradedMessage = data;
+    return recordRuntimeReconciliationFailure(payload, [payload.sourceTabId]);
+  });
+
   onMessage('url:sync', ({ data, sender }) => {
     if (getManualReadinessSnapshot() !== 'ready') {
-      return Promise.resolve({ success: false, reason: 'session-state-unavailable' });
+      const response: UrlSyncBackgroundResponse = {
+        success: false,
+        reason: 'session-state-unavailable',
+      };
+      return Promise.resolve(response);
     }
 
     const payload = data;
     const targetTabIds = getAuthorizedRelayTargets(payload, sender.tabId);
     if (targetTabIds === null) {
-      return Promise.resolve({ success: false, reason: 'unauthorized-session' });
+      const response: UrlSyncBackgroundResponse = {
+        success: false,
+        reason: 'unauthorized-session',
+      };
+      return Promise.resolve(response);
+    }
+    if (payload.isAutoSync && !isCurrentAutoSyncActivation(payload, targetTabIds)) {
+      const response: UrlSyncBackgroundResponse = {
+        success: false,
+        reason: 'stale-operation',
+        revision: getSyncStateSnapshot().revision,
+      };
+      return Promise.resolve(response);
     }
 
     return (async () => {
       logger.info('Relaying URL sync message', { sourceTabId: payload.sourceTabId });
 
       // Broadcast to all synced tabs except the source
-      const promises = targetTabIds.map((tabId) =>
-        sendMessage('url:sync', data, { context: 'content-script', tabId }).catch((error) => {
-          logger.debug(`Failed to relay URL sync to tab ${tabId}`, { error });
+      const relayResults = await Promise.all(
+        targetTabIds.map(async (tabId) => {
+          try {
+            const response = await sendMessage('url:sync', data, {
+              context: 'content-script',
+              tabId,
+            });
+            return { tabId, response };
+          } catch (error) {
+            logger.debug(`Failed to relay URL sync to tab ${tabId}`, { error });
+            return { tabId, response: null };
+          }
         }),
       );
 
-      await Promise.all(promises);
-      return { success: true };
+      const reconciliationFailedTabIds = relayResults
+        .filter(
+          ({ response }) =>
+            readUrlSyncContentFailureReason(response) === 'offset-reconciliation-failed',
+        )
+        .map(({ tabId }) => tabId);
+      if (reconciliationFailedTabIds.length > 0) {
+        const transition = await recordRuntimeReconciliationFailure(
+          payload,
+          reconciliationFailedTabIds,
+        );
+        if (!transition.success) {
+          const response: UrlSyncBackgroundResponse = transition;
+          return response;
+        }
+        const response: UrlSyncBackgroundResponse = {
+          success: false,
+          reason: 'offset-reconciliation-failed',
+          revision: transition.revision,
+        };
+        return response;
+      }
+
+      const clearFailed = relayResults.some(
+        ({ response }) => readUrlSyncContentFailureReason(response) === 'offset-clear-failed',
+      );
+      if (clearFailed) {
+        const response: UrlSyncBackgroundResponse = {
+          success: false,
+          reason: 'offset-clear-failed',
+          revision: getSyncStateSnapshot().revision,
+        };
+        return response;
+      }
+
+      const stale = relayResults.some(
+        ({ response }) => readUrlSyncContentFailureReason(response) === 'stale-operation',
+      );
+      if (stale) {
+        const response: UrlSyncBackgroundResponse = {
+          success: false,
+          reason: 'stale-operation',
+          revision: getSyncStateSnapshot().revision,
+        };
+        return response;
+      }
+
+      const response: UrlSyncBackgroundResponse = { success: true };
+      return response;
     })();
   });
 

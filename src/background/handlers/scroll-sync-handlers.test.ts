@@ -3,6 +3,7 @@ import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
 import type {
+  ContentRuntimeDegradedMessage,
   ManualScrollMessage,
   ScrollSyncMessage,
   StartSyncMessage,
@@ -15,8 +16,10 @@ import type {
 } from '~/shared/types/messages';
 
 import {
+  broadcastAutoSyncGroupUpdate,
   getAutoSyncGroupMembers,
   removeTabFromAllAutoSyncGroups,
+  stopAutoSyncForGroup,
   updateAutoSyncGroup,
 } from '../lib/auto-sync-groups';
 import {
@@ -116,8 +119,10 @@ vi.mock('~/shared/lib/storage', () => ({
 }));
 
 vi.mock('../lib/auto-sync-groups', () => ({
+  broadcastAutoSyncGroupUpdate: vi.fn(),
   removeTabFromAllAutoSyncGroups: vi.fn(),
   getAutoSyncGroupMembers: vi.fn(),
+  stopAutoSyncForGroup: vi.fn(),
   updateAutoSyncGroup: vi.fn(),
 }));
 
@@ -293,7 +298,14 @@ describe('registerScrollSyncHandlers', () => {
     vi.mocked(browser.tabs.query).mockResolvedValue([]);
     vi.mocked(browser.scripting.executeScript).mockResolvedValue([]);
     vi.mocked(getAutoSyncGroupMembers).mockReturnValue([]);
+    vi.mocked(broadcastAutoSyncGroupUpdate).mockResolvedValue();
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
+    vi.mocked(stopAutoSyncForGroup).mockImplementation(async (groupKey) => {
+      const group = autoSyncState.groups.get(groupKey);
+      if (group) {
+        group.isActive = false;
+      }
+    });
     vi.mocked(updateAutoSyncGroup).mockResolvedValue(null);
     vi.mocked(isContentScriptAlive).mockResolvedValue(true);
     vi.mocked(getSyncStateSnapshot).mockImplementation(() => ({
@@ -422,6 +434,7 @@ describe('registerScrollSyncHandlers', () => {
           data: {
             isAutoSync: true,
             sourceTabId: 8,
+            autoSyncGeneration: 1,
             url: 'https://example.com/private',
           },
           sender: { tabId: 8 },
@@ -1341,6 +1354,251 @@ describe('registerScrollSyncHandlers', () => {
         context: 'content-script',
         tabId: 63,
       });
+    });
+
+    it('persists a current-epoch target reconciliation failure instead of returning success', async () => {
+      const handler = getHandler<UrlSyncMessage>('url:sync');
+      syncState.isActive = true;
+      syncState.linkedTabs = [61, 62, 63];
+      syncState.connectionStatuses = {
+        61: 'connected',
+        62: 'connected',
+        63: 'connected',
+      };
+      syncState.mode = 'ratio';
+      syncState.revision = 9;
+      syncState.sessionEpoch = 8;
+      const payload: UrlSyncMessage = {
+        isAutoSync: false,
+        sessionEpoch: 8,
+        sourceTabId: 62,
+        url: 'https://example.com/next-page',
+      };
+      sendMessageMock.mockImplementation(
+        async (messageId: string, _data: unknown, destination: unknown) => {
+          if (
+            messageId === 'url:sync' &&
+            typeof destination === 'object' &&
+            destination !== null &&
+            Reflect.get(destination, 'tabId') === 61
+          ) {
+            return { success: false, reason: 'offset-reconciliation-failed' };
+          }
+          return { success: true };
+        },
+      );
+
+      const result = await handler({ data: payload, sender: { tabId: 62 } });
+
+      expect(result).toEqual({
+        success: false,
+        reason: 'offset-reconciliation-failed',
+        revision: 10,
+      });
+      expect(persistSyncState).toHaveBeenCalledWith({
+        isActive: true,
+        linkedTabs: [61, 62, 63],
+        connectionStatuses: {
+          61: 'error',
+          62: 'connected',
+          63: 'connected',
+        },
+        mode: 'ratio',
+        lastActiveSyncedTabId: null,
+        revision: 10,
+        sessionEpoch: 8,
+      });
+      expect(syncState).toMatchObject({
+        isActive: true,
+        linkedTabs: [61, 62, 63],
+        connectionStatuses: {
+          61: 'error',
+          62: 'connected',
+          63: 'connected',
+        },
+        revision: 10,
+        sessionEpoch: 8,
+      });
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not let a delayed epoch-E reconciliation failure mutate epoch E+1', async () => {
+      const handler = getHandler<UrlSyncMessage>('url:sync');
+      const delayedFailure = Promise.withResolvers<{
+        success: false;
+        reason: 'offset-reconciliation-failed';
+      }>();
+      syncState.isActive = true;
+      syncState.linkedTabs = [61, 62];
+      syncState.connectionStatuses = {
+        61: 'connected',
+        62: 'connected',
+      };
+      syncState.mode = 'ratio';
+      syncState.revision = 9;
+      syncState.sessionEpoch = 8;
+      const payload: UrlSyncMessage = {
+        isAutoSync: false,
+        sessionEpoch: 8,
+        sourceTabId: 62,
+        url: 'https://example.com/old-page',
+      };
+      sendMessageMock.mockReturnValueOnce(delayedFailure.promise);
+
+      const oldRelay = handler({ data: payload, sender: { tabId: 62 } });
+      await vi.waitFor(() => {
+        expect(sendMessage).toHaveBeenCalledTimes(1);
+      });
+
+      syncState.isActive = true;
+      syncState.linkedTabs = [71, 72];
+      syncState.connectionStatuses = {
+        71: 'connected',
+        72: 'connected',
+      };
+      syncState.mode = 'element';
+      syncState.revision = 10;
+      syncState.sessionEpoch = 9;
+      delayedFailure.resolve({
+        success: false,
+        reason: 'offset-reconciliation-failed',
+      });
+
+      await expect(oldRelay).resolves.toEqual({
+        success: false,
+        reason: 'stale-operation',
+        revision: 10,
+      });
+      expect(syncState).toMatchObject({
+        isActive: true,
+        linkedTabs: [71, 72],
+        connectionStatuses: {
+          71: 'connected',
+          72: 'connected',
+        },
+        mode: 'element',
+        revision: 10,
+        sessionEpoch: 9,
+      });
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(commitSyncState).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+    });
+
+    it('records a source runtime reconciliation failure in the authoritative session', async () => {
+      const handler = getHandler<ContentRuntimeDegradedMessage>('sync:runtime-degraded');
+      syncState.isActive = true;
+      syncState.linkedTabs = [81, 82];
+      syncState.connectionStatuses = {
+        81: 'connected',
+        82: 'connected',
+      };
+      syncState.mode = 'ratio';
+      syncState.revision = 11;
+      syncState.sessionEpoch = 10;
+      const payload: ContentRuntimeDegradedMessage = {
+        isAutoSync: false,
+        sourceTabId: 81,
+        sessionEpoch: 10,
+        reason: 'offset-reconciliation-failed',
+      };
+
+      const result = await handler({ data: payload, sender: { tabId: 81 } });
+
+      expect(result).toEqual({ success: true, revision: 12 });
+      expect(syncState).toMatchObject({
+        isActive: true,
+        linkedTabs: [81, 82],
+        connectionStatuses: {
+          81: 'error',
+          82: 'connected',
+        },
+        revision: 12,
+        sessionEpoch: 10,
+      });
+    });
+
+    it('deactivates the exact auto-sync group when a target reconciliation fails', async () => {
+      const handler = getHandler<UrlSyncMessage>('url:sync');
+      autoSyncState.groups.set('group-a', {
+        tabIds: new Set([91, 92]),
+        isActive: true,
+        activationGeneration: 1,
+      });
+      autoSyncState.groups.set('group-b', {
+        tabIds: new Set([93, 94]),
+        isActive: true,
+      });
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([92]);
+      const payload: UrlSyncMessage = {
+        isAutoSync: true,
+        sourceTabId: 91,
+        autoSyncGeneration: 1,
+        url: 'https://example.com/auto-next',
+      };
+      sendMessageMock.mockResolvedValue({
+        success: false,
+        reason: 'offset-reconciliation-failed',
+      });
+
+      const result = await handler({ data: payload, sender: { tabId: 91 } });
+
+      expect(result).toEqual({
+        success: false,
+        reason: 'offset-reconciliation-failed',
+        revision: 0,
+      });
+      expect(autoSyncState.groups.get('group-a')?.isActive).toBe(false);
+      expect(autoSyncState.groups.get('group-b')?.isActive).toBe(true);
+      expect(stopAutoSyncForGroup).toHaveBeenCalledWith('group-a');
+      expect(stopAutoSyncForGroup).toHaveBeenCalledTimes(1);
+      expect(broadcastAutoSyncGroupUpdate).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(commitSyncState).not.toHaveBeenCalled();
+    });
+
+    it('does not let a delayed auto failure stop the same group after its runtime restarts', async () => {
+      const handler = getHandler<UrlSyncMessage>('url:sync');
+      const delayedFailure = Promise.withResolvers<{
+        success: false;
+        reason: 'offset-reconciliation-failed';
+      }>();
+      const restartedGroup = {
+        tabIds: new Set([91, 92]),
+        isActive: true,
+        activationGeneration: 1,
+      };
+      autoSyncState.groups.set('group-a', restartedGroup);
+      vi.mocked(getAutoSyncGroupMembers).mockReturnValue([92]);
+      sendMessageMock.mockReturnValueOnce(delayedFailure.promise);
+      const payload: UrlSyncMessage = {
+        isAutoSync: true,
+        sourceTabId: 91,
+        autoSyncGeneration: 1,
+        url: 'https://example.com/auto-old',
+      };
+
+      const oldRelay = handler({ data: payload, sender: { tabId: 91 } });
+      await vi.waitFor(() => {
+        expect(sendMessage).toHaveBeenCalledTimes(1);
+      });
+
+      restartedGroup.isActive = false;
+      restartedGroup.activationGeneration = 2;
+      restartedGroup.isActive = true;
+      delayedFailure.resolve({
+        success: false,
+        reason: 'offset-reconciliation-failed',
+      });
+
+      await expect(oldRelay).resolves.toEqual({
+        success: false,
+        reason: 'stale-operation',
+        revision: 0,
+      });
+      expect(restartedGroup.isActive).toBe(true);
+      expect(stopAutoSyncForGroup).not.toHaveBeenCalled();
+      expect(broadcastAutoSyncGroupUpdate).not.toHaveBeenCalled();
     });
   });
 
