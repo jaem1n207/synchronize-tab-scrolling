@@ -1395,6 +1395,7 @@ describe('Scenario: session identity propagation', () => {
       expect.objectContaining({
         isAutoSync: true,
         sourceTabId: 80,
+        autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
       }),
     );
     expect(scrollCall?.[1]).not.toHaveProperty('sessionEpoch');
@@ -1405,6 +1406,364 @@ describe('Scenario: session identity propagation', () => {
       url: changedUrl,
     });
     expect(urlCall?.[1]).not.toHaveProperty('sessionEpoch');
+
+    const initializedKeyboardHandler = vi.mocked(initKeyboardHandler).mock.lastCall;
+    if (!initializedKeyboardHandler?.[2]) {
+      throw new Error('Expected automatic runtime relay identity callback');
+    }
+    expect(initializedKeyboardHandler[2]()).toEqual({
+      isAutoSync: true,
+      sourceTabId: 80,
+      autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+    });
+  });
+});
+
+describe('Scenario: in-flight scroll relay identities', () => {
+  const firstAutoActivationId = '11111111-1111-4111-8111-111111111111';
+  const secondAutoActivationId = '22222222-2222-4222-8222-222222222222';
+
+  it('rejects a manual scroll packet delivered after a newer epoch commits', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(80, { sessionEpoch: 40 });
+    const delayedPacket = {
+      isAutoSync: false,
+      sourceTabId: 81,
+      sessionEpoch: 40,
+      mode: 'ratio',
+      scrollTop: 700,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    };
+
+    await startContentSync(80, { sessionEpoch: 41 });
+    setWindowScrollTop(0);
+    const stateBeforeDelivery = { ...getScrollSyncState() };
+    vi.mocked(showPanel).mockClear();
+    vi.mocked(hidePanel).mockClear();
+    vi.mocked(destroyPanel).mockClear();
+
+    await expect(invokeContentMessage('scroll:sync', delayedPacket)).resolves.toEqual({
+      success: false,
+      reason: 'stale-operation',
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(getScrollSyncState()).toEqual(stateBeforeDelivery);
+    expect(showPanel).not.toHaveBeenCalled();
+    expect(hidePanel).not.toHaveBeenCalled();
+    expect(destroyPanel).not.toHaveBeenCalled();
+  });
+
+  it('rejects an auto scroll packet delivered after the same members get a new activation', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(82, {
+      isAutoSync: true,
+      autoSyncGeneration: firstAutoActivationId,
+    });
+    const delayedPacket = {
+      isAutoSync: true,
+      sourceTabId: 83,
+      autoSyncGeneration: firstAutoActivationId,
+      mode: 'ratio',
+      scrollTop: 650,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    };
+
+    await startContentSync(82, {
+      isAutoSync: true,
+      autoSyncGeneration: secondAutoActivationId,
+    });
+    setWindowScrollTop(0);
+    const stateBeforeDelivery = { ...getScrollSyncState() };
+
+    await expect(invokeContentMessage('scroll:sync', delayedPacket)).resolves.toEqual({
+      success: false,
+      reason: 'stale-operation',
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(getScrollSyncState()).toEqual(stateBeforeDelivery);
+  });
+
+  it('does not refresh E+1 connection health for a delayed manual E packet', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    setDocumentScrollMetrics(2000, 1000);
+    const connectionEvents: Array<boolean> = [];
+    const listener = (event: Event) => {
+      if (event instanceof CustomEvent) {
+        const isConnected = Reflect.get(event.detail, 'isConnected');
+        if (typeof isConnected === 'boolean') {
+          connectionEvents.push(isConnected);
+        }
+      }
+    };
+    window.addEventListener('scroll-sync-connection-status', listener);
+
+    try {
+      await startContentSync(84, { sessionEpoch: 50 });
+      await startContentSync(84, { sessionEpoch: 51 });
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      await invokeContentMessage('scroll:sync', {
+        isAutoSync: false,
+        sourceTabId: 85,
+        sessionEpoch: 50,
+        mode: 'ratio',
+        scrollTop: 500,
+        scrollHeight: 2000,
+        clientHeight: 1000,
+        timestamp: Date.now(),
+      });
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      expect(connectionEvents).toContain(false);
+    } finally {
+      window.removeEventListener('scroll-sync-connection-status', listener);
+    }
+  });
+
+  it('does not cancel the current runtime catch-up for a delayed manual E packet', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(1500, 1000);
+    await saveManualScrollOffset(92, 0.4, 400, {
+      logicalRatio: 0.3,
+      localScrollTop: 700,
+      localMaxScrollAtCapture: 1000,
+    });
+    await startContentSync(92, { sessionEpoch: 90 });
+    const delayedPacket = {
+      isAutoSync: false,
+      sourceTabId: 93,
+      sessionEpoch: 90,
+      mode: 'ratio',
+      scrollTop: 300,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    };
+
+    await startContentSync(92, { sessionEpoch: 91 });
+    await invokeContentMessage('scroll:sync', {
+      ...delayedPacket,
+      sessionEpoch: 91,
+      scrollTop: 650,
+    });
+    await flushAsync();
+    expect(document.documentElement.scrollTop).toBe(500);
+
+    setDocumentScrollMetrics(2200, 1000);
+    await expect(invokeContentMessage('scroll:sync', delayedPacket)).resolves.toEqual({
+      success: false,
+      reason: 'stale-operation',
+    });
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 130);
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(950);
+  });
+
+  it.each([
+    {
+      name: 'manual epoch',
+      firstStart: { sessionEpoch: 60 },
+      replacementStart: { sessionEpoch: 61 },
+      delayedMessage: {
+        isAutoSync: false,
+        sourceTabId: 86,
+        sessionEpoch: 60,
+      },
+    },
+    {
+      name: 'auto activation identity',
+      firstStart: {
+        isAutoSync: true,
+        autoSyncGeneration: firstAutoActivationId,
+      },
+      replacementStart: {
+        isAutoSync: true,
+        autoSyncGeneration: secondAutoActivationId,
+      },
+      delayedMessage: {
+        isAutoSync: true,
+        sourceTabId: 86,
+        autoSyncGeneration: firstAutoActivationId,
+      },
+    },
+  ])(
+    'rejects a delayed manual-mode toggle from an older $name',
+    async ({ firstStart, replacementStart, delayedMessage }) => {
+      setDocumentScrollMetrics(2000, 1000);
+      setWindowScrollTop(300);
+      await startContentSync(87, firstStart);
+      await startContentSync(87, replacementStart);
+      const stateBeforeDelivery = { ...getScrollSyncState() };
+
+      await expect(
+        invokeContentMessage('scroll:manual', {
+          ...delayedMessage,
+          tabId: 87,
+          enabled: true,
+        }),
+      ).resolves.toEqual({
+        success: false,
+        reason: 'stale-operation',
+      });
+
+      expect(getScrollSyncState()).toEqual(stateBeforeDelivery);
+      expect(getScrollSyncState().isManualScrollEnabled).toBe(false);
+    },
+  );
+
+  it.each([
+    {
+      name: 'missing manual epoch',
+      payload: {
+        isAutoSync: false,
+        sourceTabId: 88,
+      },
+    },
+    {
+      name: 'malformed auto activation identity',
+      payload: {
+        isAutoSync: true,
+        sourceTabId: 88,
+        autoSyncGeneration: 'not-a-uuid',
+      },
+    },
+  ])('fails closed for a scroll packet with $name', async ({ payload }) => {
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(89, { sessionEpoch: 70 });
+    const stateBeforeDelivery = { ...getScrollSyncState() };
+
+    await expect(
+      invokeContentMessage('scroll:sync', {
+        ...payload,
+        mode: 'ratio',
+        scrollTop: 600,
+        scrollHeight: 2000,
+        clientHeight: 1000,
+        timestamp: Date.now(),
+      }),
+    ).resolves.toEqual({
+      success: false,
+      reason: 'stale-operation',
+    });
+
+    expect(getScrollSyncState()).toEqual(stateBeforeDelivery);
+    expect(document.documentElement.scrollTop).toBe(0);
+  });
+
+  it.each([
+    {
+      name: 'missing manual epoch',
+      payload: {
+        isAutoSync: false,
+        sourceTabId: 88,
+      },
+    },
+    {
+      name: 'malformed auto activation identity',
+      payload: {
+        isAutoSync: true,
+        sourceTabId: 88,
+        autoSyncGeneration: 'not-a-uuid',
+      },
+    },
+  ])('fails closed for a manual-mode packet with $name', async ({ payload }) => {
+    await startContentSync(89, { sessionEpoch: 70 });
+    const stateBeforeDelivery = { ...getScrollSyncState() };
+
+    await expect(
+      invokeContentMessage('scroll:manual', {
+        ...payload,
+        tabId: 89,
+        enabled: true,
+      }),
+    ).resolves.toEqual({
+      success: false,
+      reason: 'stale-operation',
+    });
+
+    expect(getScrollSyncState()).toEqual(stateBeforeDelivery);
+    expect(getScrollSyncState().isManualScrollEnabled).toBe(false);
+  });
+
+  it('applies scroll and manual packets for the exact current identity', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(90, { sessionEpoch: 80 });
+
+    await expect(
+      invokeContentMessage('scroll:sync', {
+        isAutoSync: false,
+        sourceTabId: 91,
+        sessionEpoch: 80,
+        mode: 'ratio',
+        scrollTop: 500,
+        scrollHeight: 2000,
+        clientHeight: 1000,
+        timestamp: Date.now(),
+      }),
+    ).resolves.toEqual({ success: true });
+    await flushAsync();
+    expect(document.documentElement.scrollTop).toBe(500);
+
+    await expect(
+      invokeContentMessage('scroll:manual', {
+        isAutoSync: false,
+        sourceTabId: 90,
+        sessionEpoch: 80,
+        tabId: 90,
+        enabled: true,
+      }),
+    ).resolves.toEqual({ success: true });
+    expect(getScrollSyncState().isManualScrollEnabled).toBe(true);
+  });
+
+  it('applies auto scroll and manual packets for the exact current activation', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await startContentSync(94, {
+      isAutoSync: true,
+      autoSyncGeneration: secondAutoActivationId,
+    });
+
+    await expect(
+      invokeContentMessage('scroll:sync', {
+        isAutoSync: true,
+        sourceTabId: 95,
+        autoSyncGeneration: secondAutoActivationId,
+        mode: 'ratio',
+        scrollTop: 500,
+        scrollHeight: 2000,
+        clientHeight: 1000,
+        timestamp: Date.now(),
+      }),
+    ).resolves.toEqual({ success: true });
+    await flushAsync();
+    expect(document.documentElement.scrollTop).toBe(500);
+
+    await expect(
+      invokeContentMessage('scroll:manual', {
+        isAutoSync: true,
+        sourceTabId: 94,
+        autoSyncGeneration: secondAutoActivationId,
+        tabId: 94,
+        enabled: true,
+      }),
+    ).resolves.toEqual({ success: true });
+    expect(getScrollSyncState().isManualScrollEnabled).toBe(true);
   });
 });
 
@@ -1963,7 +2322,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await startContentSync(7);
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 342,
       scrollHeight: 2000,
@@ -1987,7 +2348,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await startContentSync(31);
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 342,
       scrollHeight: 2000,
@@ -2012,7 +2375,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     mocks.storageGetMock.mockClear();
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 342,
       scrollHeight: 2000,
@@ -2036,7 +2401,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await startContentSync(32);
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 342,
       scrollHeight: 2000,
@@ -2059,7 +2426,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await startContentSync(10);
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 650,
       scrollHeight: 2000,
@@ -2112,7 +2481,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await startContentSync(11);
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 650,
       scrollHeight: 2000,
@@ -2167,7 +2538,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     mocks.sendMessageContentMock.mockClear();
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 650,
       scrollHeight: 2000,
@@ -2235,7 +2608,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     await startContentSync(8);
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'element',
       scrollTop: 342,
       scrollHeight: 2000,
@@ -2270,7 +2645,9 @@ describe('Scenario: manual scroll offset adjustment and scroll correctness', () 
     });
 
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       sourceTabId: 99,
+      sessionEpoch: 1,
       mode: 'ratio',
       scrollTop: 650,
       scrollHeight: 2000,
@@ -2389,10 +2766,12 @@ describe('Scenario: manual offset reset when URL changes', () => {
       });
       expect(window.location.href).toBe('https://d2.naver.com/helloworld/6204533');
       await invokeContentMessage('scroll:sync', {
+        isAutoSync: false,
         scrollTop: 500,
         scrollHeight: 2000,
         clientHeight: 1000,
         sourceTabId: 999,
+        sessionEpoch: 1,
         mode: 'ratio',
       });
       await flushAnimationFrame();
@@ -2422,10 +2801,12 @@ describe('Scenario: manual offset reset when URL changes', () => {
 
     expect(window.location.href).toBe('https://staging.example.com/ko/about?tab=pricing#intro');
     await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
       scrollTop: 500,
       scrollHeight: 2000,
       clientHeight: 1000,
       sourceTabId: 999,
+      sessionEpoch: 1,
       mode: 'ratio',
     });
     await flushAnimationFrame();

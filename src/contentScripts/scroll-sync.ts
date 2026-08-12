@@ -16,6 +16,7 @@ import {
 import { isWebpageOverlayContextualHintId } from '~/shared/lib/contextual-hints';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { throttleAndDebounce } from '~/shared/lib/performance-utils';
+import { isRuntimeRelayMessageIdentity } from '~/shared/lib/runtime-relay-identity';
 import {
   calculateAnchoredLogicalRatio,
   calculateAnchoredScrollTop,
@@ -42,6 +43,7 @@ import type {
 } from '~/shared/types/contextual-hints';
 import type {
   ContentRuntimeDegradedMessage,
+  RuntimeRelayResponse,
   ScrollSyncMessage,
   StartSyncContentMessage,
   StartSyncContentResponse,
@@ -49,7 +51,10 @@ import type {
   UrlSyncContentResponse,
   UrlSyncMessage,
 } from '~/shared/types/messages';
-import type { SessionMessageIdentity } from '~/shared/types/sync-session';
+import type {
+  RuntimeRelayMessageIdentity,
+  SessionMessageIdentity,
+} from '~/shared/types/sync-session';
 import type {
   UrlSyncMode,
   UrlSyncNotice,
@@ -221,6 +226,22 @@ function doesSessionMessageMatchRuntime(
   }
 
   return !runtime.isAutoSync && identity.sessionEpoch === runtime.sessionEpoch;
+}
+
+function doesRuntimeRelayMessageMatchRuntime(
+  identity: unknown,
+  runtime: ContentRuntimeIdentity,
+): identity is RuntimeRelayMessageIdentity {
+  if (
+    !isRuntimeRelayMessageIdentity(identity) ||
+    !isRuntimeIdentityCurrent(runtime)
+  ) {
+    return false;
+  }
+
+  return identity.isAutoSync
+    ? runtime.isAutoSync && identity.autoSyncGeneration === runtime.autoSyncGeneration
+    : !runtime.isAutoSync && identity.sessionEpoch === runtime.sessionEpoch;
 }
 
 function doesUrlSyncMessageMatchRuntime(
@@ -859,23 +880,32 @@ function findNearestElement(): { index: number; ratio: number } | null {
  * Core scroll handler logic (without throttling)
  * Throttling is handled by the wrapper function
  */
-function getSessionMessageIdentity(): SessionMessageIdentity {
-  if (syncState.isAutoSync) {
+function getRuntimeRelayMessageIdentity(): RuntimeRelayMessageIdentity | null {
+  const runtime = activeRuntimeIdentity;
+  if (!runtime || !isRuntimeIdentityCurrent(runtime)) {
+    return null;
+  }
+
+  if (runtime.isAutoSync) {
     return {
       isAutoSync: true,
-      sourceTabId: syncState.tabId,
+      sourceTabId: runtime.tabId,
+      autoSyncGeneration: runtime.autoSyncGeneration,
     };
   }
 
   return {
     isAutoSync: false,
-    sourceTabId: syncState.tabId,
-    sessionEpoch: syncState.sessionEpoch,
+    sourceTabId: runtime.tabId,
+    sessionEpoch: runtime.sessionEpoch,
   };
 }
 
 function handleScrollCore() {
   if (!syncState.isActive || syncState.isManualScrollEnabled) return;
+
+  const runtimeIdentity = getRuntimeRelayMessageIdentity();
+  if (!runtimeIdentity) return;
 
   const now = Date.now();
 
@@ -914,8 +944,8 @@ function handleScrollCore() {
 
   const pureScrollTop = clampScrollPosition(pureRatio * myMaxScroll, myMaxScroll);
 
-  const message: ScrollSyncMessage & SessionMessageIdentity = {
-    ...getSessionMessageIdentity(),
+  const message: ScrollSyncMessage = {
+    ...runtimeIdentity,
     scrollTop: pureScrollTop,
     scrollHeight: scrollInfo.scrollHeight,
     clientHeight: scrollInfo.clientHeight,
@@ -1494,7 +1524,7 @@ export function initScrollSync() {
           },
         };
       },
-      getSessionMessageIdentity,
+      getRuntimeRelayMessageIdentity,
     );
     logger.debug('Keyboard handler initialized');
 
@@ -1626,13 +1656,17 @@ export function initScrollSync() {
   });
 
   // Listen for scroll sync from other tabs
-  onMessage('scroll:sync', async ({ data }) => {
-    if (!syncState.isActive) return;
-
+  onMessage('scroll:sync', ({ data }): RuntimeRelayResponse => {
     const payload = data;
+    const runtime = activeRuntimeIdentity;
 
-    // Don't sync if this is the source tab
-    if (payload.sourceTabId === syncState.tabId) return;
+    if (
+      !runtime ||
+      !doesRuntimeRelayMessageMatchRuntime(payload, runtime) ||
+      payload.sourceTabId === runtime.tabId
+    ) {
+      return { success: false, reason: 'stale-operation' };
+    }
 
     cancelLazyLoadCatchUp();
 
@@ -1659,7 +1693,7 @@ export function initScrollSync() {
         sourceRatio,
         frozenBaseline: syncState.lastSyncedRatioSnapshot,
       });
-      return;
+      return { success: true };
     }
 
     // Get my document dimensions
@@ -1725,16 +1759,22 @@ export function initScrollSync() {
         attempt: 1,
       });
     }
+
+    return { success: true };
   });
 
   // Listen for manual scroll toggle (P1)
-  onMessage('scroll:manual', async ({ data }) => {
+  onMessage('scroll:manual', ({ data }): RuntimeRelayResponse => {
     // logger.info('Manual scroll mode toggled', { data });
     const payload = data;
+    const runtime = activeRuntimeIdentity;
 
-    // Only apply to this specific tab
-    if (payload.tabId !== syncState.tabId) {
-      return;
+    if (
+      !runtime ||
+      !doesRuntimeRelayMessageMatchRuntime(payload, runtime) ||
+      payload.tabId !== syncState.tabId
+    ) {
+      return { success: false, reason: 'stale-operation' };
     }
 
     // Snapshot baseline ratio when ENTERING manual mode
@@ -1759,6 +1799,8 @@ export function initScrollSync() {
         tabId: syncState.tabId,
       });
     }
+
+    return { success: true };
   });
 
   // Listen for ping from background to verify content script is alive
