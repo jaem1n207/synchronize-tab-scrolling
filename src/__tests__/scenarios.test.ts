@@ -101,6 +101,7 @@ import {
   pendingSuggestions,
 } from '~/background/lib/auto-sync-state';
 import { syncState } from '~/background/lib/sync-state';
+import { cleanupKeyboardHandler, initKeyboardHandler } from '~/contentScripts/keyboard-handler';
 import { destroyPanel, hidePanel, showPanel } from '~/contentScripts/panel';
 import { getScrollSyncState, initScrollSync } from '~/contentScripts/scroll-sync';
 import {
@@ -208,14 +209,22 @@ async function invokeContentMessage(messageId: string, data: unknown): Promise<u
 
 async function startContentSync(
   tabId: number,
-  { isAutoSync = false, sessionEpoch = 1 }: { isAutoSync?: boolean; sessionEpoch?: number } = {},
+  {
+    isAutoSync = false,
+    autoSyncGeneration = 1,
+    sessionEpoch = 1,
+  }: {
+    isAutoSync?: boolean;
+    autoSyncGeneration?: number;
+    sessionEpoch?: number;
+  } = {},
 ): Promise<void> {
   await invokeContentMessage('scroll:start', {
     mode: 'ratio',
     currentTabId: tabId,
     linkedTabs: [tabId],
     isAutoSync,
-    ...(isAutoSync ? {} : { sessionEpoch }),
+    ...(isAutoSync ? { autoSyncGeneration } : { sessionEpoch }),
   });
 }
 
@@ -833,7 +842,7 @@ describe('Scenario: content runtime operation generations', () => {
     expect(window.location.href).toBe('http://localhost/start');
 
     receiverClear.resolve();
-    await expect(navigation).resolves.toBeUndefined();
+    await expect(navigation).resolves.toEqual({ success: true });
 
     expect(window.location.href).toBe('http://localhost/committed-target');
     await expect(getManualScrollOffset(89)).resolves.toEqual({ ratio: 0, pixels: 0 });
@@ -1011,6 +1020,278 @@ describe('Scenario: content runtime operation generations', () => {
     expect(vi.mocked(showPanel)).toHaveBeenCalledTimes(1);
     await expect(getManualScrollOffset(88)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
   });
+
+  it('deactivates the exact runtime when superseded URL clear compensation is exhausted', async () => {
+    installImmediateAnimationFrame();
+    setDocumentScrollMetrics(2000, 1000);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('follow-changed-tab');
+    mocks.storageData.set('manualScrollOffsets', {
+      89: { ratio: 0.2, pixels: 200 },
+    });
+    await startContentSync(89, { sessionEpoch: 20 });
+
+    const firstClear = deferNextStorageSet();
+    mocks.storageSetMock.mockClear();
+    vi.mocked(hidePanel).mockClear();
+    vi.mocked(showPanel).mockClear();
+
+    const firstUrl = invokeContentMessage('url:sync', {
+      url: 'http://localhost/first-target',
+      sourceTabId: 98,
+      isAutoSync: false,
+      sessionEpoch: 20,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.storageSetMock.mockRejectedValue(new Error('repair failed'));
+    const secondUrl = invokeContentMessage('url:sync', {
+      url: 'http://localhost/start',
+      sourceTabId: 97,
+      isAutoSync: false,
+      sessionEpoch: 20,
+    });
+    await flushAsync();
+
+    firstClear.resolve();
+    await expect(firstUrl).resolves.toEqual({
+      success: false,
+      reason: 'offset-reconciliation-failed',
+    });
+    const secondUrlResult = await secondUrl;
+
+    expect(mocks.storageSetMock).toHaveBeenCalledTimes(4);
+    expect(getScrollSyncState()).toEqual(
+      expect.objectContaining({
+        isActive: false,
+        tabId: 89,
+        sessionEpoch: 0,
+      }),
+    );
+    expect(window.location.href).toBe('http://localhost/start');
+    expect(vi.mocked(hidePanel)).toHaveBeenCalledTimes(1);
+    expect(secondUrlResult).toEqual({ success: true });
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 96,
+      isAutoSync: false,
+      sessionEpoch: 20,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+    expect(document.documentElement.scrollTop).toBe(0);
+
+    mocks.storageSetMock.mockImplementation(async (data: Record<string, unknown>) => {
+      for (const [key, value] of Object.entries(data)) {
+        mocks.storageData.set(key, value);
+      }
+    });
+    await expect(
+      invokeContentMessage('scroll:start', {
+        mode: 'ratio',
+        currentTabId: 89,
+        tabIds: [89, 95],
+        sessionEpoch: 21,
+      }),
+    ).resolves.toEqual(expect.objectContaining({ success: true, tabId: 89 }));
+
+    expect(getScrollSyncState()).toEqual(
+      expect.objectContaining({
+        isActive: true,
+        tabId: 89,
+        sessionEpoch: 21,
+      }),
+    );
+    expect(vi.mocked(showPanel)).toHaveBeenCalledTimes(1);
+    await expect(getManualScrollOffset(89)).resolves.toEqual({ ratio: 0.2, pixels: 200 });
+
+    await invokeContentMessage('scroll:sync', {
+      sourceTabId: 96,
+      isAutoSync: false,
+      sessionEpoch: 21,
+      mode: 'ratio',
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      timestamp: Date.now(),
+    });
+    await flushAsync();
+
+    expect(document.documentElement.scrollTop).toBe(700);
+  });
+
+  it('waits for failed-runtime keyboard teardown before explicit Start repair activates E+1', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('follow-changed-tab');
+    mocks.storageData.set('manualScrollOffsets', {
+      89: { ratio: 0.2, pixels: 200 },
+    });
+    await startContentSync(89, { sessionEpoch: 20 });
+
+    const firstClear = deferNextStorageSet();
+    const keyboardCleanup = createDeferred<void>();
+    vi.mocked(cleanupKeyboardHandler).mockReturnValueOnce(keyboardCleanup.promise);
+    mocks.storageSetMock.mockClear();
+    vi.mocked(initKeyboardHandler).mockClear();
+    vi.mocked(showPanel).mockClear();
+
+    const firstUrl = invokeContentMessage('url:sync', {
+      url: 'http://localhost/first-target',
+      sourceTabId: 98,
+      isAutoSync: false,
+      sessionEpoch: 20,
+    });
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.storageSetMock.mockRejectedValue(new Error('repair failed'));
+    const secondUrl = invokeContentMessage('url:sync', {
+      url: 'http://localhost/start',
+      sourceTabId: 97,
+      isAutoSync: false,
+      sessionEpoch: 20,
+    });
+    firstClear.resolve();
+
+    await vi.waitFor(() => {
+      expect(cleanupKeyboardHandler).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.storageSetMock.mockImplementation(async (data: Record<string, unknown>) => {
+      for (const [key, value] of Object.entries(data)) {
+        mocks.storageData.set(key, value);
+      }
+    });
+    const repairedStart = invokeContentMessage('scroll:start', {
+      mode: 'ratio',
+      currentTabId: 89,
+      tabIds: [89, 95],
+      sessionEpoch: 21,
+    });
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 25);
+    });
+
+    const storageWritesBeforeCleanup = mocks.storageSetMock.mock.calls.length;
+    const initializedBeforeCleanup = vi.mocked(initKeyboardHandler).mock.calls.length;
+    const panelShownBeforeCleanup = vi.mocked(showPanel).mock.calls.length;
+    keyboardCleanup.resolve();
+
+    await expect(firstUrl).resolves.toEqual({
+      success: false,
+      reason: 'offset-reconciliation-failed',
+    });
+    await expect(secondUrl).resolves.toEqual({ success: true });
+    await expect(repairedStart).resolves.toEqual(
+      expect.objectContaining({ success: true, tabId: 89 }),
+    );
+
+    expect(storageWritesBeforeCleanup).toBe(4);
+    expect(initializedBeforeCleanup).toBe(0);
+    expect(panelShownBeforeCleanup).toBe(0);
+    expect(initKeyboardHandler).toHaveBeenCalledTimes(1);
+    const initializedKeyboardHandler = vi.mocked(initKeyboardHandler).mock.lastCall;
+    if (!initializedKeyboardHandler) {
+      throw new Error('Expected repaired Start to initialize the keyboard handler');
+    }
+    const getInitializedSessionIdentity = initializedKeyboardHandler[2];
+    if (!getInitializedSessionIdentity) {
+      throw new Error('Expected repaired keyboard handler to retain its session identity callback');
+    }
+    expect(getInitializedSessionIdentity()).toEqual({
+      isAutoSync: false,
+      sourceTabId: 89,
+      sessionEpoch: 21,
+    });
+    expect(getScrollSyncState()).toEqual(
+      expect.objectContaining({
+        isActive: true,
+        tabId: 89,
+        sessionEpoch: 21,
+      }),
+    );
+  });
+
+  it('reports a source reconciliation failure without letting its late acknowledgement stop E+1', async () => {
+    setDocumentScrollMetrics(2000, 1000);
+    await saveUrlSyncEnabled(true);
+    mocks.storageData.set('manualScrollOffsets', {
+      90: { ratio: 0.3, pixels: 300 },
+    });
+    await startContentSync(90, { sessionEpoch: 30 });
+
+    const degradedAcknowledgement = createDeferred<{ success: true; revision: number }>();
+    mocks.sendMessageContentMock.mockImplementation((messageId: string) => {
+      if (messageId === 'sync:runtime-degraded') {
+        return degradedAcknowledgement.promise;
+      }
+      return Promise.resolve({ success: true });
+    });
+    const firstClear = deferNextStorageSet();
+    mocks.storageSetMock.mockClear();
+
+    await triggerUrlChange('/source-first');
+    await vi.waitFor(() => {
+      expect(mocks.storageSetMock).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.storageSetMock.mockRejectedValue(new Error('repair failed'));
+    await triggerUrlChange('/source-second');
+    firstClear.resolve();
+
+    await vi.waitFor(() => {
+      expect(mocks.sendMessageContentMock).toHaveBeenCalledWith(
+        'sync:runtime-degraded',
+        {
+          isAutoSync: false,
+          sourceTabId: 90,
+          sessionEpoch: 30,
+          reason: 'offset-reconciliation-failed',
+        },
+        'background',
+      );
+    });
+    expect(getScrollSyncState().isActive).toBe(false);
+    expect(
+      mocks.sendMessageContentMock.mock.calls.filter(([messageId]) => messageId === 'url:sync'),
+    ).toHaveLength(0);
+
+    mocks.storageSetMock.mockImplementation(async (data: Record<string, unknown>) => {
+      for (const [key, value] of Object.entries(data)) {
+        mocks.storageData.set(key, value);
+      }
+    });
+    await expect(
+      invokeContentMessage('scroll:start', {
+        mode: 'ratio',
+        currentTabId: 90,
+        tabIds: [90, 94],
+        sessionEpoch: 31,
+      }),
+    ).resolves.toEqual(expect.objectContaining({ success: true, tabId: 90 }));
+    const stateBeforeOlderAcknowledgement = { ...getScrollSyncState() };
+
+    degradedAcknowledgement.resolve({ success: true, revision: 31 });
+    await flushAsync();
+
+    expect(getScrollSyncState()).toEqual(stateBeforeOlderAcknowledgement);
+    expect(getScrollSyncState()).toEqual(
+      expect.objectContaining({
+        isActive: true,
+        tabId: 90,
+        sessionEpoch: 31,
+      }),
+    );
+    await expect(getManualScrollOffset(90)).resolves.toEqual({ ratio: 0.3, pixels: 300 });
+  });
 });
 
 describe('Scenario: session identity propagation', () => {
@@ -1076,6 +1357,7 @@ describe('Scenario: session identity propagation', () => {
     expect(urlCall?.[1]).toEqual({
       isAutoSync: true,
       sourceTabId: 80,
+      autoSyncGeneration: 1,
       url: changedUrl,
     });
     expect(urlCall?.[1]).not.toHaveProperty('sessionEpoch');
