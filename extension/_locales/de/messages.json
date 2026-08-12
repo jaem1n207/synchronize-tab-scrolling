@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "Die Synchronisierung wurde gestartet oder geändert. Die Bereinigung in anderen Tabs wird weiterhin versucht. Prüfe den aktuellen Status im Pop-up."
+  },
   "autoSyncRecoveryDegraded": {
     "message": "Der Zustand der automatischen Synchronisierung konnte nicht vollständig wiederhergestellt werden. Die manuelle Synchronisierung wurde nicht geändert."
   },
