@@ -31,6 +31,7 @@ import {
   persistSyncState,
   syncState,
 } from '../lib/sync-state';
+import { syncTransitionGate } from '../lib/sync-transition-gate';
 
 import { registerAutoSyncHandlers } from './auto-sync-handlers';
 
@@ -309,6 +310,58 @@ describe('registerAutoSyncHandlers', () => {
 
       expect(toggleAutoSync).toHaveBeenCalledWith(true);
       expect(response).toEqual({ success: true, enabled: true });
+    });
+
+    it('waits for an in-flight manual transition before disabling auto-sync', async () => {
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set('https://example.com/page', {
+        tabIds: new Set([11, 22]),
+        isActive: true,
+      });
+      const manualTransition = Promise.withResolvers<void>();
+      const transition = syncTransitionGate.run(async () => {
+        await manualTransition.promise;
+      });
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        autoSyncState.enabled = enabled;
+        if (!enabled) {
+          autoSyncState.groups.clear();
+        }
+      });
+
+      const handler = getRequiredHandler('auto-sync:status-changed');
+      const disable = handler({ data: { enabled: false }, sender: {} });
+      await Promise.resolve();
+      const toggledBeforeManualTransitionSettled = vi.mocked(toggleAutoSync).mock.calls.length > 0;
+
+      manualTransition.resolve();
+      await transition;
+      await expect(disable).resolves.toEqual({ success: true, enabled: false });
+      expect(toggledBeforeManualTransitionSettled).toBe(false);
+      expect(autoSyncState.groups.size).toBe(0);
+    });
+
+    it('serializes concurrent enable and disable requests in arrival order', async () => {
+      const firstToggle = Promise.withResolvers<void>();
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        if (enabled) {
+          await firstToggle.promise;
+        }
+        autoSyncState.enabled = enabled;
+      });
+
+      const handler = getRequiredHandler('auto-sync:status-changed');
+      const enable = handler({ data: { enabled: true }, sender: {} });
+      const disable = handler({ data: { enabled: false }, sender: {} });
+      await Promise.resolve();
+      await Promise.resolve();
+      const callsBeforeFirstToggleSettled = [...vi.mocked(toggleAutoSync).mock.calls];
+
+      firstToggle.resolve();
+      await enable;
+      await expect(disable).resolves.toEqual({ success: true, enabled: false });
+      expect(callsBeforeFirstToggleSettled).toEqual([[true]]);
+      expect(toggleAutoSync).toHaveBeenNthCalledWith(2, false);
     });
   });
 

@@ -263,8 +263,10 @@ export function registerAutoSyncHandlers(): void {
       return { success: false, reason: 'initialization-unavailable' };
     }
 
-    await toggleAutoSync(enabled);
-    return { success: true, enabled: autoSyncState.enabled };
+    return syncTransitionGate.run(async () => {
+      await toggleAutoSync(enabled);
+      return { success: true, enabled: autoSyncState.enabled };
+    });
   });
 
   onMessage('auto-sync:get-status', async () => {
