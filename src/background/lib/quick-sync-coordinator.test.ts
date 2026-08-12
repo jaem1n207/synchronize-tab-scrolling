@@ -275,6 +275,43 @@ describe('createQuickSyncCoordinator', () => {
     expect(harness.startManualSession).not.toHaveBeenCalled();
   });
 
+  it('records a degraded recent outcome without denying a committed Add', async () => {
+    const activeState: SyncState = {
+      isActive: true,
+      linkedTabs: [11, 22],
+      connectionStatuses: { 11: 'connected', 22: 'connected' },
+      mode: 'ratio',
+      lastActiveSyncedTabId: 11,
+      revision: 5,
+      sessionEpoch: 2,
+    };
+    const harness = createHarness(activeState);
+    harness.addTabToManualSession.mockResolvedValueOnce({
+      status: 'committed',
+      linkedTabIds: [11, 22, 33],
+      revision: 6,
+      sessionEpoch: 2,
+      warning: 'auto-sync-degraded',
+    });
+
+    const result = await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 33,
+        windowId: 3,
+      }),
+    );
+
+    expect(result).toEqual({ status: 'added', tabCount: 3 });
+    expect(harness.recentOutcomes).toContainEqual({
+      tabId: 33,
+      resultKind: 'add-failed',
+      reason: 'auto-sync-degraded',
+      tabCount: 3,
+      expiresAt: 40_000,
+    });
+  });
+
   it('protects a reserved candidate from deadline and Port callbacks until Start finishes', async () => {
     const harness = createHarness();
     await harness.transitionGate.run((context) =>

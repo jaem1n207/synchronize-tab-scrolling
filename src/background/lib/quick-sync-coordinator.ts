@@ -279,6 +279,15 @@ export function createQuickSyncCoordinator(
       source: 'quick-sync',
     });
     if (result.status === 'committed') {
+      if (result.warning === 'auto-sync-degraded') {
+        dependencies.setRecentOutcome({
+          tabId: invocation.tabId,
+          resultKind: 'add-failed',
+          reason: result.warning,
+          tabCount: result.linkedTabIds.length,
+          expiresAt: dependencies.now() + QUICK_SYNC_RECENT_OUTCOME_DURATION_MS,
+        });
+      }
       await dependencies
         .sendFeedback(invocation.tabId, {
           outcome: 'add-succeeded',
