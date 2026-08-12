@@ -36,7 +36,9 @@ vi.mock('~/shared/lib/logger', () => ({
 
 interface PanelState {
   syncedTabs: Array<{
-    location: 'current-tab' | 'other-tab';
+    displayTitle: string | null;
+    isCurrent: boolean;
+    manualOffsetPixels: number;
     connectionStatus: 'connected' | 'disconnected' | 'error';
   }>;
   syncStatusError: 'manualSyncStateUnavailable' | null;
@@ -87,15 +89,21 @@ const activeResponse = {
     linkedTabCount: 3,
     tabs: [
       {
-        location: 'other-tab',
+        displayTitle: 'First article',
+        isCurrent: false,
+        manualOffsetPixels: 136,
         connectionStatus: 'connected',
       },
       {
-        location: 'current-tab',
+        displayTitle: 'Current article',
+        isCurrent: true,
+        manualOffsetPixels: 0,
         connectionStatus: 'connected',
       },
       {
-        location: 'other-tab',
+        displayTitle: 'Third article',
+        isCurrent: false,
+        manualOffsetPixels: -42,
         connectionStatus: 'error',
       },
     ],
@@ -112,7 +120,7 @@ describe('usePanelState manual sync status', () => {
     });
   });
 
-  it('requests canonical content status and applies only sanitized authoritative rows', async () => {
+  it('applies only allowlisted synchronized-tab display rows', async () => {
     mockStatusResponses([activeResponse]);
     const hook = renderPanelState();
 
@@ -124,9 +132,24 @@ describe('usePanelState manual sync status', () => {
       'background',
     );
     expect(hook.current().syncedTabs).toEqual([
-      { location: 'other-tab', connectionStatus: 'connected' },
-      { location: 'current-tab', connectionStatus: 'connected' },
-      { location: 'other-tab', connectionStatus: 'error' },
+      {
+        displayTitle: 'First article',
+        isCurrent: false,
+        manualOffsetPixels: 136,
+        connectionStatus: 'connected',
+      },
+      {
+        displayTitle: 'Current article',
+        isCurrent: true,
+        manualOffsetPixels: 0,
+        connectionStatus: 'connected',
+      },
+      {
+        displayTitle: 'Third article',
+        isCurrent: false,
+        manualOffsetPixels: -42,
+        connectionStatus: 'error',
+      },
     ]);
     expect(hook.current().syncStatusError).toBeNull();
     hook.unmount();

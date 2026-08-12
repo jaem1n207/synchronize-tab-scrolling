@@ -9,7 +9,9 @@ import type { ConnectionStatus } from '~/shared/types/messages';
 import { getAutoSyncStatus } from '../scroll-sync';
 
 export interface SyncedTab {
-  location: 'current-tab' | 'other-tab';
+  displayTitle: string | null;
+  isCurrent: boolean;
+  manualOffsetPixels: number;
   connectionStatus: ConnectionStatus;
 }
 
@@ -75,7 +77,9 @@ export const usePanelState = ({ wasDraggedRef }: UsePanelStateParams): UsePanelS
       }
 
       const tabs = response.snapshot.tabs.map((tab) => ({
-        location: tab.location,
+        displayTitle: tab.displayTitle,
+        isCurrent: tab.isCurrent,
+        manualOffsetPixels: tab.manualOffsetPixels,
         connectionStatus: tab.connectionStatus,
       }));
 
