@@ -15,3 +15,14 @@ export function createAutoSyncActivationId(): AutoSyncActivationId {
 export function isAutoSyncActivationId(value: unknown): value is AutoSyncActivationId {
   return typeof value === 'string' && AUTO_SYNC_ACTIVATION_ID_PATTERN.test(value);
 }
+
+export function doesAutoSyncStopMatchActivation(
+  requestedActivationId: unknown,
+  activeActivationId: AutoSyncActivationId,
+): boolean {
+  return (
+    requestedActivationId === undefined ||
+    (isAutoSyncActivationId(requestedActivationId) &&
+      requestedActivationId === activeActivationId)
+  );
+}
