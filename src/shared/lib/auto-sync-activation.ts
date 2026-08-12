@@ -22,7 +22,6 @@ export function doesAutoSyncStopMatchActivation(
 ): boolean {
   return (
     requestedActivationId === undefined ||
-    (isAutoSyncActivationId(requestedActivationId) &&
-      requestedActivationId === activeActivationId)
+    (isAutoSyncActivationId(requestedActivationId) && requestedActivationId === activeActivationId)
   );
 }

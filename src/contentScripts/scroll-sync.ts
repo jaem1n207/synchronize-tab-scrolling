@@ -1541,10 +1541,7 @@ export function initScrollSync() {
     if (
       payload.isAutoSync &&
       targetRuntime.isAutoSync &&
-      !doesAutoSyncStopMatchActivation(
-        payload.autoSyncGeneration,
-        targetRuntime.autoSyncGeneration,
-      )
+      !doesAutoSyncStopMatchActivation(payload.autoSyncGeneration, targetRuntime.autoSyncGeneration)
     ) {
       return createStaleOperationAcknowledgement(targetRuntime.tabId);
     }

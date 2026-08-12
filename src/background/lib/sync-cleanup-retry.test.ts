@@ -196,9 +196,7 @@ describe('createManualCleanupRetryScheduler', () => {
 
   it('cancels an auto cleanup retry after the tab is reactivated under a new UUID', async () => {
     const harness = createSchedulerHarness();
-    harness.getAutoSyncActivationId.mockReturnValue(
-      '22222222-2222-4222-8222-222222222222',
-    );
+    harness.getAutoSyncActivationId.mockReturnValue('22222222-2222-4222-8222-222222222222');
     harness.scheduler.schedule({
       tabId: 11,
       stoppedRevision: 8,

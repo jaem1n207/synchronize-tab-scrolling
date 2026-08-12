@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  doesAutoSyncStopMatchActivation,
-  isAutoSyncActivationId,
-} from './auto-sync-activation';
+import { doesAutoSyncStopMatchActivation, isAutoSyncActivationId } from './auto-sync-activation';
 
 describe('isAutoSyncActivationId', () => {
   it('accepts a canonical UUID v4 activation identity', () => {
