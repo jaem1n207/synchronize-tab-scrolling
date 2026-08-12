@@ -16,11 +16,13 @@ import {
   motionVariants,
 } from '~/shared/lib/animations';
 
+import type { QuickSyncShortcutState, ShortcutSettingsResult } from '../hooks';
 import type { SortOption } from '../types/filters';
 
 import IconArrowUpDown from '~icons/lucide/arrow-up-down';
 import IconCheck from '~icons/lucide/check';
 import IconFilter from '~icons/lucide/filter';
+import IconKeyboard from '~icons/lucide/keyboard';
 import IconLink2 from '~icons/lucide/link-2';
 import IconPause from '~icons/lucide/pause';
 import IconPlay from '~icons/lucide/play';
@@ -45,6 +47,9 @@ interface ActionsMenuProps {
   onAutoSyncChange: (enabled: boolean) => void;
   onOpenExcludedDomains: () => void;
   excludedDomainsCount: number;
+  shortcut: QuickSyncShortcutState;
+  shortcutSettingsResult: ShortcutSettingsResult;
+  onOpenShortcutSettings: () => Promise<ShortcutSettingsResult>;
 }
 
 export function ActionsMenu({
@@ -65,6 +70,9 @@ export function ActionsMenu({
   onAutoSyncChange,
   onOpenExcludedDomains,
   excludedDomainsCount,
+  shortcut,
+  shortcutSettingsResult,
+  onOpenShortcutSettings,
 }: ActionsMenuProps) {
   const { modKey, shiftKey } = useModifierKey();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -112,6 +120,11 @@ export function ActionsMenu({
       onStartSync();
     }
   }, [isSyncActive, isSyncMutationPending, onStartSync, onStopSync]);
+
+  const handleOpenShortcutSettings = useCallback(() => {
+    onOpenChange(false);
+    void onOpenShortcutSettings();
+  }, [onOpenChange, onOpenShortcutSettings]);
 
   return (
     <Popover modal open={open} onOpenChange={onOpenChange}>
@@ -195,6 +208,23 @@ export function ActionsMenu({
 
                   {/* Advanced Features */}
                   <CommandGroup heading={t('advancedFeatures')}>
+                    {shortcut.status === 'assigned' ? (
+                      <CommandItem
+                        aria-busy={shortcutSettingsResult.status === 'opening'}
+                        disabled={shortcutSettingsResult.status === 'opening'}
+                        onSelect={handleOpenShortcutSettings}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <IconKeyboard aria-hidden="true" className="h-4 w-4" />
+                          <span className="min-w-0 break-words">
+                            {t('quickSyncShortcutAssignedSummary', shortcut.label)}
+                          </span>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {t('reassignQuickSyncShortcut')}
+                        </span>
+                      </CommandItem>
+                    ) : null}
                     <CommandItem
                       ref={autoSyncItemRef}
                       value="auto-sync-same-url"

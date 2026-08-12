@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,12 +24,21 @@ vi.mock('~/shared/hooks/use-modifier-key', () => ({
 }));
 
 vi.mock('~/shared/i18n', () => ({
-  t: (key: string): string => key,
+  t: (key: string, substitutions?: string | Array<string>): string => {
+    if (Array.isArray(substitutions)) {
+      return `${key}:${substitutions.join(',')}`;
+    }
+    if (typeof substitutions === 'string') {
+      return `${key}:${substitutions}`;
+    }
+    return key;
+  },
 }));
 
 const onAutoSyncChange = vi.fn();
 const onOpenChange = vi.fn();
 const onOpenExcludedDomains = vi.fn();
+const onOpenShortcutSettings = vi.fn().mockResolvedValue({ status: 'opened' });
 const onSameDomainFilterChange = vi.fn();
 const onSortChange = vi.fn();
 const onStartSync = vi.fn();
@@ -46,10 +55,17 @@ function renderActionsMenu(isSyncMutationPending: boolean) {
       isSyncMutationPending={isSyncMutationPending}
       sameDomainFilter={false}
       selectedCount={3}
+      shortcut={{
+        status: 'assigned',
+        rawShortcut: 'Command+Alt+Period',
+        label: '⌘ ⌥ .',
+      }}
+      shortcutSettingsResult={{ status: 'idle' }}
       sortBy="similarity"
       onAutoSyncChange={onAutoSyncChange}
       onOpenChange={onOpenChange}
       onOpenExcludedDomains={onOpenExcludedDomains}
+      onOpenShortcutSettings={onOpenShortcutSettings}
       onSameDomainFilterChange={onSameDomainFilterChange}
       onSortChange={onSortChange}
       onStartSync={onStartSync}
@@ -102,10 +118,17 @@ describe('ActionsMenu mutation lock', () => {
         isSyncMutationPending={false}
         sameDomainFilter={false}
         selectedCount={3}
+        shortcut={{
+          status: 'assigned',
+          rawShortcut: 'Command+Alt+Period',
+          label: '⌘ ⌥ .',
+        }}
+        shortcutSettingsResult={{ status: 'idle' }}
         sortBy="similarity"
         onAutoSyncChange={onAutoSyncChange}
         onOpenChange={onOpenChange}
         onOpenExcludedDomains={onOpenExcludedDomains}
+        onOpenShortcutSettings={onOpenShortcutSettings}
         onSameDomainFilterChange={onSameDomainFilterChange}
         onSortChange={onSortChange}
         onStartSync={onStartSync}
@@ -119,5 +142,35 @@ describe('ActionsMenu mutation lock', () => {
 
     await user.click(stopItem);
     expect(onStopSync).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ActionsMenu assigned Quick Sync shortcut', () => {
+  it('shows the exact assigned shortcut with a remap action', async () => {
+    renderActionsMenu(false);
+    await act(async () => Promise.resolve());
+
+    expect(
+      screen.getByRole('option', {
+        name: /quickSyncShortcutAssignedSummary:⌘ ⌥ \..*reassignQuickSyncShortcut/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('closes the menu before opening shortcut settings', async () => {
+    const user = userEvent.setup();
+    renderActionsMenu(false);
+
+    await user.click(
+      screen.getByRole('option', {
+        name: /quickSyncShortcutAssignedSummary:⌘ ⌥ \..*reassignQuickSyncShortcut/,
+      }),
+    );
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onOpenShortcutSettings).toHaveBeenCalledOnce();
+    expect(onOpenChange.mock.invocationCallOrder[0]).toBeLessThan(
+      onOpenShortcutSettings.mock.invocationCallOrder[0],
+    );
   });
 });
