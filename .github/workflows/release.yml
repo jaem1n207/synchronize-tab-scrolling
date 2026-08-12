@@ -43,14 +43,8 @@ jobs:
       - name: Build Chrome extension
         run: pnpm build
 
-      - name: Copy Chrome build artifacts
-        run: mkdir -p build/chrome && cp -r extension/* build/chrome/
-
       - name: Build Firefox extension
         run: pnpm build-firefox
-
-      - name: Copy Firefox build artifacts
-        run: mkdir -p build/firefox && cp -r extension/* build/firefox/
 
       - name: Release
         env:
