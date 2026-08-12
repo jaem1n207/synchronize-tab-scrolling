@@ -317,7 +317,7 @@ export function createQuickSyncCoordinator(
     candidate: QuickSyncCandidate,
   ): Promise<QuickSyncCommandResult> {
     let reason: QuickSyncFailureReason = 'hud-unavailable';
-    let candidateRevalidated = false;
+    let candidateInvalid = false;
     let succeeded = false;
     try {
       const feedbackReady = await sendReadyFeedback(invocation.tabId, {
@@ -329,8 +329,12 @@ export function createQuickSyncCoordinator(
       }
 
       reason = 'candidate-tab-missing';
-      await dependencies.revalidateInvocationTab(candidate.tabId);
-      candidateRevalidated = true;
+      try {
+        await dependencies.revalidateInvocationTab(candidate.tabId);
+      } catch {
+        candidateInvalid = true;
+        throw new Error('candidate-tab-missing');
+      }
       const result = await dependencies.startManualSession(context, {
         tabIds: [candidate.tabId, invocation.tabId],
         mode: 'ratio',
@@ -355,16 +359,16 @@ export function createQuickSyncCoordinator(
     } catch {
       return { status: 'rejected', reason };
     } finally {
-      const finish = candidateRevalidated
-        ? dependencies.candidateStore.finishSecondTabAttempt({
+      const finish = candidateInvalid
+        ? dependencies.candidateStore.abortSecondTabAttempt({
+            generation: candidate.generation,
+            operationGeneration: context.operationGeneration,
+          })
+        : dependencies.candidateStore.finishSecondTabAttempt({
             generation: candidate.generation,
             operationGeneration: context.operationGeneration,
             succeeded,
             completedAt: dependencies.now(),
-          })
-        : dependencies.candidateStore.abortSecondTabAttempt({
-            generation: candidate.generation,
-            operationGeneration: context.operationGeneration,
           });
       if (!succeeded) {
         recordFailure(invocation.tabId, candidate.generation, 'start-failed', reason);
@@ -385,10 +389,7 @@ export function createQuickSyncCoordinator(
             })
             .catch(() => undefined);
         } else if (finish === 'cleared') {
-          await releaseCandidateFeedback(
-            candidate,
-            candidateRevalidated ? 'expired' : 'invalidated',
-          );
+          await releaseCandidateFeedback(candidate, candidateInvalid ? 'invalidated' : 'expired');
         }
       }
     }

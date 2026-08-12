@@ -23,7 +23,9 @@ interface CoordinatorHarness {
   showUnsupportedBadge: ReturnType<typeof vi.fn>;
   port: QuickSyncPort;
   disconnectPort(): void;
+  allowFeedbackFor(outcome: QuickSyncFeedbackMessage['outcome']): void;
   failFeedbackFor(outcome: QuickSyncFeedbackMessage['outcome']): void;
+  rejectFeedbackFor(outcome: QuickSyncFeedbackMessage['outcome']): void;
   setState(nextState: SyncState): void;
   setNow(nextNow: number): void;
 }
@@ -69,6 +71,7 @@ function createHarness(initialState: SyncState = createInactiveState()): Coordin
   const feedback: Array<{ tabId: number; message: QuickSyncFeedbackMessage }> = [];
   const recentOutcomes: Array<RecentQuickSyncOutcome> = [];
   const failedFeedbackOutcomes = new Set<QuickSyncFeedbackMessage['outcome']>();
+  const rejectedFeedbackOutcomes = new Set<QuickSyncFeedbackMessage['outcome']>();
   const port: QuickSyncPort = {
     disconnect: vi.fn(),
     onDisconnect: {
@@ -104,6 +107,13 @@ function createHarness(initialState: SyncState = createInactiveState()): Coordin
       if (failedFeedbackOutcomes.has(message.outcome)) {
         throw new Error('feedback unavailable');
       }
+      if (rejectedFeedbackOutcomes.has(message.outcome)) {
+        return {
+          status: 'failed',
+          generation: message.generation,
+          reason: 'hud-unavailable',
+        };
+      }
       if (message.outcome === 'candidate-selected') {
         handshakeRegistry.bindPort({
           generation: message.generation,
@@ -136,8 +146,14 @@ function createHarness(initialState: SyncState = createInactiveState()): Coordin
     disconnectPort() {
       disconnectListener();
     },
+    allowFeedbackFor(outcome) {
+      failedFeedbackOutcomes.delete(outcome);
+    },
     failFeedbackFor(outcome) {
       failedFeedbackOutcomes.add(outcome);
+    },
+    rejectFeedbackFor(outcome) {
+      rejectedFeedbackOutcomes.add(outcome);
     },
     setState(nextState) {
       state = nextState;
@@ -343,6 +359,114 @@ describe('createQuickSyncCoordinator', () => {
     await expect(start).resolves.toEqual({ status: 'started', tabCount: 2 });
     await vi.runAllTimersAsync();
     expect(harness.candidateStore.read()).toBeNull();
+  });
+
+  it('restores the original candidate and Port when connecting feedback fails before expiry', async () => {
+    const harness = createHarness();
+    await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 11,
+        windowId: 1,
+      }),
+    );
+    harness.failFeedbackFor('connecting');
+    harness.setNow(19_500);
+
+    await expect(
+      harness.transitionGate.run((context) =>
+        harness.coordinator.handle(context, {
+          commandReceivedAt: 19_000,
+          tabId: 22,
+          windowId: 2,
+        }),
+      ),
+    ).resolves.toEqual({ status: 'rejected', reason: 'hud-unavailable' });
+
+    expect(harness.candidateStore.read()).toEqual({
+      tabId: 11,
+      generation: 1,
+      expiresAt: 20_000,
+    });
+    expect(harness.port.disconnect).not.toHaveBeenCalled();
+
+    harness.allowFeedbackFor('connecting');
+    await expect(
+      harness.transitionGate.run((context) =>
+        harness.coordinator.handle(context, {
+          commandReceivedAt: 19_750,
+          tabId: 22,
+          windowId: 2,
+        }),
+      ),
+    ).resolves.toEqual({ status: 'started', tabCount: 2 });
+
+    expect(harness.candidateStore.read()).toBeNull();
+    expect(harness.port.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('clears the candidate and Port when connecting feedback fails after expiry', async () => {
+    const harness = createHarness();
+    await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 11,
+        windowId: 1,
+      }),
+    );
+    harness.failFeedbackFor('connecting');
+    harness.setNow(20_000);
+
+    await expect(
+      harness.transitionGate.run((context) =>
+        harness.coordinator.handle(context, {
+          commandReceivedAt: 19_000,
+          tabId: 22,
+          windowId: 2,
+        }),
+      ),
+    ).resolves.toEqual({ status: 'rejected', reason: 'hud-unavailable' });
+
+    expect(harness.candidateStore.read()).toBeNull();
+    expect(harness.port.disconnect).toHaveBeenCalledOnce();
+    expect(harness.feedback.at(-1)).toEqual({
+      tabId: 11,
+      message: {
+        outcome: 'clear',
+        generation: 1,
+        reason: 'expired',
+      },
+    });
+  });
+
+  it('restores the original candidate when connecting feedback reports failure', async () => {
+    const harness = createHarness();
+    await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 11,
+        windowId: 1,
+      }),
+    );
+    harness.rejectFeedbackFor('connecting');
+    harness.setNow(19_500);
+
+    await expect(
+      harness.transitionGate.run((context) =>
+        harness.coordinator.handle(context, {
+          commandReceivedAt: 19_000,
+          tabId: 22,
+          windowId: 2,
+        }),
+      ),
+    ).resolves.toEqual({ status: 'rejected', reason: 'hud-unavailable' });
+
+    expect(harness.candidateStore.read()).toEqual({
+      tabId: 11,
+      generation: 1,
+      expiresAt: 20_000,
+    });
+    expect(harness.port.disconnect).not.toHaveBeenCalled();
   });
 
   it('terminates the invocation HUD and retries the original candidate after a failed Start', async () => {
