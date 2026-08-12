@@ -45,13 +45,9 @@ export function QuickSyncShortcutStatus({
   const remapButtonRef = useRef<HTMLButtonElement>(null);
   const opening = settingsResult.status === 'opening';
   const assignmentMessage =
-    assignment.status === 'loading'
-      ? t('loading')
-      : assignment.status === 'assigned'
-        ? t('quickSyncShortcutAssignedSummary', assignment.label)
-        : assignment.status === 'unassigned'
-          ? t('quickSyncShortcutUnassigned')
-          : t('quickSyncShortcutUnavailable');
+    assignment.status === 'unassigned'
+      ? t('quickSyncShortcutUnassigned')
+      : t('quickSyncShortcutUnavailable');
 
   const handleOpenSettings = async (): Promise<void> => {
     const result = await onOpenSettings();
@@ -59,6 +55,14 @@ export function QuickSyncShortcutStatus({
       remapButtonRef.current?.focus();
     }
   };
+
+  if (assignment.status === 'loading') {
+    return null;
+  }
+
+  if (assignment.status === 'assigned') {
+    return <ShortcutFallback result={settingsResult} />;
+  }
 
   return (
     <section
@@ -75,41 +79,29 @@ export function QuickSyncShortcutStatus({
       <p
         aria-atomic="true"
         aria-live="polite"
-        className={
-          assignment.status === 'loading'
-            ? 'text-xs text-muted-foreground'
-            : assignment.status === 'assigned'
-              ? 'text-sm font-medium'
-              : 'flex items-start gap-1.5 text-sm text-foreground'
-        }
+        className="flex items-start gap-1.5 text-sm text-foreground"
         role="status"
       >
-        {assignment.status === 'unassigned' || assignment.status === 'unavailable' ? (
-          <span aria-hidden="true" className="font-semibold text-amber-700 dark:text-amber-400">
-            !
-          </span>
-        ) : null}
+        <span aria-hidden="true" className="font-semibold text-amber-700 dark:text-amber-400">
+          !
+        </span>
         <span>{assignmentMessage}</span>
       </p>
 
-      {assignment.status !== 'loading' ? (
-        <>
-          {opening ? <p className="text-xs text-muted-foreground">{t('loading')}</p> : null}
+      {opening ? <p className="text-xs text-muted-foreground">{t('loading')}</p> : null}
 
-          <Button
-            ref={remapButtonRef}
-            aria-busy={opening}
-            className="h-8 px-2.5 text-xs"
-            disabled={opening}
-            size="sm"
-            type="button"
-            variant="outline"
-            onClick={handleOpenSettings}
-          >
-            {t('reassignQuickSyncShortcut')}
-          </Button>
-        </>
-      ) : null}
+      <Button
+        ref={remapButtonRef}
+        aria-busy={opening}
+        className="h-8 px-2.5 text-xs"
+        disabled={opening}
+        size="sm"
+        type="button"
+        variant="outline"
+        onClick={handleOpenSettings}
+      >
+        {t('reassignQuickSyncShortcut')}
+      </Button>
 
       <ShortcutFallback result={settingsResult} />
     </section>

@@ -43,53 +43,20 @@ const unavailableCases: Array<[QuickSyncShortcutState, string]> = [
   [{ status: 'unavailable' }, 'quickSyncShortcutUnavailable'],
 ];
 
-const assignmentTransitionCases: Array<[QuickSyncShortcutState, string]> = [
-  [
-    {
-      status: 'assigned',
-      rawShortcut: 'Command+Alt+Period',
-      label: '⌘ ⌥ .',
-    },
-    'quickSyncShortcutAssignedSummary:⌘ ⌥ .',
-  ],
-  [{ status: 'unassigned' }, 'quickSyncShortcutUnassigned'],
-  [{ status: 'unavailable' }, 'quickSyncShortcutUnavailable'],
-];
-
 describe('QuickSyncShortcutStatus', () => {
-  it('renders a truthful loading state without a fallback shortcut or navigation', () => {
+  it('does not reserve prominent card space while the assignment is loading', () => {
     const { onOpenSettings } = renderStatus({ status: 'loading' });
 
-    expect(screen.getByRole('heading', { name: 'quickSyncShortcutHeading' })).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('loading');
+    expect(
+      screen.queryByRole('heading', { name: 'quickSyncShortcutHeading' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByText(/Command|Ctrl|⌘|⇧/)).not.toBeInTheDocument();
     expect(onOpenSettings).not.toHaveBeenCalled();
   });
 
-  it.each(assignmentTransitionCases)(
-    'announces the loading transition to %s through the same stable assignment status',
-    (assignment, expectedMessage) => {
-      const view = renderStatus({ status: 'loading' });
-      const assignmentStatus = screen.getByRole('status');
-
-      expect(assignmentStatus).toHaveAttribute('aria-live', 'polite');
-      expect(assignmentStatus).toHaveAttribute('aria-atomic', 'true');
-
-      view.rerender(
-        <QuickSyncShortcutStatus
-          assignment={assignment}
-          settingsResult={{ status: 'idle' }}
-          onOpenSettings={view.onOpenSettings}
-        />,
-      );
-
-      expect(screen.getByRole('status')).toBe(assignmentStatus);
-      expect(assignmentStatus).toHaveTextContent(expectedMessage);
-    },
-  );
-
-  it('shows only the browser-reported assigned shortcut and never claims it is conflict-free', () => {
+  it('does not render an assigned shortcut as a prominent main-flow card', () => {
     renderStatus({
       status: 'assigned',
       rawShortcut: 'Command+Alt+MediaPlayPause',
@@ -97,13 +64,10 @@ describe('QuickSyncShortcutStatus', () => {
     });
 
     expect(
-      screen.getByText('quickSyncShortcutAssignedSummary:⌘ ⌥ MediaPlayPause'),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'reassignQuickSyncShortcut' })).toBeEnabled();
-    expect(screen.queryByText(/conflict[- ]free|충돌 없음|충돌하지/iu)).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/Command\+Shift\+Period|Ctrl\+Shift\+Period/),
+      screen.queryByRole('heading', { name: 'quickSyncShortcutHeading' }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it.each(unavailableCases)(
@@ -157,6 +121,29 @@ describe('QuickSyncShortcutStatus', () => {
     );
 
     expect(screen.getByRole('alert')).toHaveTextContent('quickSyncShortcutSettingsFallbackFirefox');
+  });
+
+  it('shows assigned remap failure as a compact accessible alert without restoring the card', () => {
+    renderStatus(
+      {
+        status: 'assigned',
+        rawShortcut: 'Command+Alt+Period',
+        label: '⌘ ⌥ .',
+      },
+      {
+        status: 'fallback',
+        browser: 'edge',
+        settingsUrl: 'edge://extensions/shortcuts',
+      },
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'quickSyncShortcutSettingsFallbackChromium:edge://extensions/shortcuts',
+    );
+    expect(
+      screen.queryByRole('heading', { name: 'quickSyncShortcutHeading' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('awaits user-triggered remapping and restores CTA focus after failure', async () => {
