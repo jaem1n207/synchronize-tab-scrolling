@@ -247,6 +247,32 @@ Chromium raw DevTools에서는 `chrome.commands.getAll`을 사용한다.
 없거나 reject되면 fallback을 사용한다. Chromium runtime에 `commands.onChanged`가 없더라도
 `commands.getAll()` assignment 조회는 계속 수행한다.
 
+## Arc 알려진 호환성 제한
+
+2026-08-13 macOS Arc 1.159.0에서 Quick Sync command assignment와 background
+`commands.onCommand` listener 등록은 확인됐지만, 물리 키 입력은 listener에 전달되지 않았다.
+같은 Chromium build는 Chrome과 Brave에서 정상 동작했다. 충돌 가능성이 낮은
+`Control+Shift+Period`로 재지정해도 `onCommand`는 발생하지 않았고, 같은 입력은 일반
+웹페이지의 capture-phase `keydown`에는 도달했다.
+
+따라서 이 증상은 Quick Sync coordinator, content runtime, HUD보다 앞선 Arc의 WebExtension
+command dispatch 경계에 있는 알려진 호환성 제한이다. `commands.getAll()`의 non-empty
+assignment를 Arc의 물리 키 전달 성공으로 해석하면 안 된다.
+
+현재 release의 정책은 다음과 같다.
+
+- Chrome, Brave 등 지원 브라우저의 기존 `browser.commands` 경로는 그대로 유지한다.
+- Arc를 위해 command를 `global: true`로 넓히거나 두 번째 기본 단축키를 추가하지 않는다.
+- 모든 Chromium 페이지에 자동 `keydown` fallback을 설치하지 않는다.
+- Arc에서는 기존 popup의 검색, 탭 선택, Start 흐름을 사용한다.
+- Arc용 페이지 단축키 호환 모드는 별도 후속 설계와 PR에서 명시적 opt-in 기능으로 검토한다.
+  향후 Arc가 `commands.onCommand` 동작을 변경한다는 가정에 의존하지 않는다.
+
+후속 opt-in 모드는 일반 웹페이지에 content script가 실행되고 페이지에 포커스가 있을 때만
+동작할 수 있다. `arc://` 페이지, 주소창, Sidebar 같은 브라우저 UI는 지원할 수 없으며,
+사이트 단축키와의 충돌, 사용자 재지정 반영, native command와의 중복 입력 제거, sender 검증을
+별도의 제품·보안 경계로 다뤄야 한다.
+
 ## Privacy-safe logging
 
 허용 예:
@@ -288,6 +314,7 @@ URL, normalized URL, title, favicon, canonical/alternate metadata, 전체 tab/me
 | Add 실패                      | 기존 revision/offset/epoch가 유지되고 staged 새 탭만 cleanup됐는지 확인              |
 | 팝업 active 행 누락           | current-window query가 아니라 authoritative snapshot을 사용했는지 확인               |
 | popup 상태 오류               | manual restore의 `storage-error`/`invalid-state`를 inactive로 오인하지 않았는지 확인 |
+| Arc에서 단축키 입력 무반응    | 알려진 command dispatch 제한인지 확인하고 popup의 기존 수동 Start 흐름 사용          |
 
 ## Physical QA template
 

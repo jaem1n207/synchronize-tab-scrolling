@@ -512,6 +512,24 @@ The popup can prove only the assignment returned by `commands.getAll()`. It must
 assigned key is conflict-free, because actual OS/browser delivery cannot be determined from that
 API.
 
+### Arc Compatibility Decision
+
+Arc remains an advisory, unsupported target for this delivery. Manual investigation confirmed a
+browser boundary where a configured browser-scoped command and registered background
+`commands.onCommand` listener do not receive the physical keypress, while the same keypress reaches
+an ordinary webpage and the same extension build works in supported Chromium browsers.
+
+This delivery does not work around that boundary by setting `global: true`, defining a second
+default command, or automatically installing a page-level `keydown` fallback. Those options either
+broaden command scope outside the focused browser, conflict with the single start/add command model,
+or intercept shortcuts across every eligible site.
+
+The existing popup picker and Start action are the supported Arc fallback. If Arc shortcut support
+is prioritized later, it must be a separate, explicitly enabled page-compatibility feature with its
+own shortcut-assignment distribution, sender validation, duplicate suppression, website-conflict
+policy, restricted-page limitations, privacy review, and UI copy. That follow-up must not depend on
+a future Arc fix to `commands.onCommand`.
+
 ## Authoritative Session Snapshot
 
 `sync:get-status` becomes a typed `ProtocolMap` request and returns a discriminated result. The active
@@ -1015,7 +1033,8 @@ For later releases:
 - rerun Chrome full coverage plus Firefox/Edge/Brave smoke for relevant changes;
 - temporarily elevate one browser after a major engine change, native shortcut-policy change, or
   user-reported regression;
-- keep Arc advisory unless the product later declares it officially supported.
+- keep Arc advisory in this delivery; any page-level Arc compatibility mode requires a separate
+  opt-in design and does not make browser-native command delivery supported.
 
 ### Standard Verification
 
