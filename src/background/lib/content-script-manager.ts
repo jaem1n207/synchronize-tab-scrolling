@@ -63,6 +63,7 @@ export async function reinjectContentScript(
           mode: context.startMessage.mode,
           currentTabId: context.startMessage.currentTabId,
           isAutoSync: true,
+          autoSyncGeneration: context.startMessage.autoSyncGeneration,
         },
         { context: 'content-script', tabId },
         3_000,

@@ -195,6 +195,34 @@ describe('content-script-manager', () => {
       );
     });
 
+    it('forwards the caller-frozen auto-sync activation generation', async () => {
+      vi.useFakeTimers();
+      executeScriptMock.mockResolvedValue(undefined);
+      sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 4 });
+      const startMessage: StartSyncContentMessage = {
+        tabIds: [4, 5],
+        mode: 'ratio',
+        currentTabId: 4,
+        isAutoSync: true,
+        autoSyncGeneration: 23,
+      };
+
+      const promise = reinjectContentScript(4, {
+        startMessage,
+        isSessionCurrent: () => true,
+      });
+      await Promise.resolve();
+      vi.advanceTimersByTime(500);
+
+      await expect(promise).resolves.toBe(true);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        startMessage,
+        { context: 'content-script', tabId: 4 },
+        3_000,
+      );
+    });
+
     it('returns false when executeScript throws', async () => {
       executeScriptMock.mockRejectedValue(new Error('Cannot inject'));
 
