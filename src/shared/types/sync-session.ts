@@ -1,3 +1,5 @@
+import type { AutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
+
 import type { ConnectionStatus, SyncMode } from './messages';
 import type { QuickSyncFailureReason, RecentQuickSyncOutcome } from './quick-sync';
 
@@ -112,6 +114,15 @@ export interface AutoSyncMessageIdentity {
 }
 
 export type SessionMessageIdentity = ManualMessageIdentity | AutoSyncMessageIdentity;
+
+export interface AutoRuntimeRelayMessageIdentity extends AutoSyncMessageIdentity {
+  autoSyncGeneration: AutoSyncActivationId;
+  sessionEpoch?: never;
+}
+
+export type RuntimeRelayMessageIdentity =
+  | ManualMessageIdentity
+  | AutoRuntimeRelayMessageIdentity;
 
 export interface ManualTransitionRejection {
   status: 'rejected';

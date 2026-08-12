@@ -50,6 +50,7 @@ export {
 } from './locale-utils';
 export { ExtensionLogger } from './logger';
 export { throttleAndDebounce } from './performance-utils';
+export { isRuntimeRelayMessageIdentity } from './runtime-relay-identity';
 export * from './translated-page-url-utils';
 export {
   calculateScrollRatio,
