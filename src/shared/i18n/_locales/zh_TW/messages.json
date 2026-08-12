@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "同步已開始或變更。仍在重試清理其他分頁。請在彈出式視窗中查看目前狀態。"
+  },
   "autoSyncRecoveryDegraded": {
     "message": "無法完整還原自動同步狀態。手動同步未變更。"
   },
