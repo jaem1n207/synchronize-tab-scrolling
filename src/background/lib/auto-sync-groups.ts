@@ -1,6 +1,10 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+import {
+  isAutoSyncActivationId,
+  type AutoSyncActivationId,
+} from '~/shared/lib/auto-sync-activation';
 import { isLocalDevelopmentServer, isUrlExcluded } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {
@@ -376,7 +380,6 @@ function buildSnapshotGroup(snapshot: ResolvedSingletonGroupSnapshot): AutoSyncG
   return {
     tabIds: new Set([snapshot.tabId]),
     isActive: false,
-    activationGeneration: 0,
     matchKind: snapshot.matchKind,
     matchConfidence: snapshot.matchConfidence,
     tabUrls: new Map([[snapshot.tabId, snapshot.url]]),
@@ -613,16 +616,15 @@ export function getAutoSyncGroupMembers(tabId: number): number[] {
 }
 
 /**
- * Get the exact activation generation of the active auto-sync group containing a tab.
+ * Get the exact activation identity of the active auto-sync group containing a tab.
  */
-export function getAutoSyncActivationGenerationForTab(tabId: number): number | null {
+export function getAutoSyncActivationGenerationForTab(tabId: number): AutoSyncActivationId | null {
   for (const [, group] of autoSyncState.groups) {
     if (!group.isActive || !group.tabIds.has(tabId)) {
       continue;
     }
 
-    const generation = group.activationGeneration ?? 0;
-    return Number.isSafeInteger(generation) && generation >= 0 ? generation : null;
+    return isAutoSyncActivationId(group.activationGeneration) ? group.activationGeneration : null;
   }
   return null;
 }
@@ -935,7 +937,6 @@ async function applyUpdateAutoSyncGroup(
     group = {
       tabIds: new Set(),
       isActive: false,
-      activationGeneration: 0,
       matchKind,
       matchConfidence,
       tabUrls: new Map(),

@@ -1,3 +1,8 @@
+import {
+  createAutoSyncActivationId,
+  isAutoSyncActivationId,
+  type AutoSyncActivationId,
+} from '~/shared/lib/auto-sync-activation';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 import type { AutoStartSyncContentMessage, StopSyncContentResponse } from '~/shared/types/messages';
 import type { SyncState } from '~/shared/types/sync-state';
@@ -37,6 +42,7 @@ interface CreateLegacyAutoSyncAdapterDependencies {
   cleanupScheduler: ManualCleanupRetryScheduler;
   sendStart: (tabId: number, message: AutoStartSyncContentMessage) => Promise<boolean>;
   sendStop: (tabId: number) => Promise<StopSyncContentResponse>;
+  createActivationId?: () => string;
 }
 
 interface ReplaceAcceptedAutoSyncDependencies {
@@ -108,23 +114,25 @@ function createFailedStartResult(cleanup: AcceptedAutoSyncCleanupResult): {
 export function createLegacyAutoSyncAdapter(
   dependencies: CreateLegacyAutoSyncAdapterDependencies,
 ): LegacyAutoSyncAdapter {
-  let latestActivationGeneration = 0;
+  const generateActivationId = dependencies.createActivationId ?? createAutoSyncActivationId;
 
-  const reserveActivationGeneration = (group: AutoSyncGroup): number | null => {
-    const groupGeneration =
-      typeof group.activationGeneration === 'number' &&
-      Number.isSafeInteger(group.activationGeneration) &&
-      group.activationGeneration >= 0
-        ? group.activationGeneration
-        : 0;
-    const nextGeneration = Math.max(latestActivationGeneration, groupGeneration) + 1;
-    if (!Number.isSafeInteger(nextGeneration)) {
+  const reserveActivationGeneration = (group: AutoSyncGroup): AutoSyncActivationId | null => {
+    let nextActivationId: string;
+    try {
+      nextActivationId = generateActivationId();
+    } catch {
       return null;
     }
 
-    latestActivationGeneration = nextGeneration;
-    group.activationGeneration = nextGeneration;
-    return nextGeneration;
+    if (
+      !isAutoSyncActivationId(nextActivationId) ||
+      nextActivationId === group.activationGeneration
+    ) {
+      return null;
+    }
+
+    group.activationGeneration = nextActivationId;
+    return nextActivationId;
   };
 
   return {

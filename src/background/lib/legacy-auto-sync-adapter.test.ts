@@ -267,6 +267,8 @@ describe('replaceManualWithAcceptedAutoSync', () => {
 
 describe('createLegacyAutoSyncAdapter', () => {
   const normalizedUrl = 'https://fixture.invalid/group';
+  const firstActivationId = '11111111-1111-4111-8111-111111111111';
+  const secondActivationId = '22222222-2222-4222-8222-222222222222';
   const groups = new Map<string, AutoSyncGroup>();
   const started: Array<{ tabId: number; message: AutoStartSyncContentMessage }> = [];
   const stopped: Array<number> = [];
@@ -275,6 +277,7 @@ describe('createLegacyAutoSyncAdapter', () => {
   const startResults = new Map<number, boolean>();
   const stopResults = new Map<number, StopSyncContentResponse>();
   const thrownStopIds = new Set<number>();
+  let activationIdIndex = 0;
 
   beforeEach(() => {
     groups.clear();
@@ -285,6 +288,7 @@ describe('createLegacyAutoSyncAdapter', () => {
     startResults.clear();
     stopResults.clear();
     thrownStopIds.clear();
+    activationIdIndex = 0;
     groups.set(normalizedUrl, {
       tabIds: new Set([11, 22]),
       tabUrls: new Map([
@@ -295,7 +299,17 @@ describe('createLegacyAutoSyncAdapter', () => {
     });
   });
 
-  function createAdapter() {
+  function createAdapter(
+    createActivationId: () => string = () => {
+      const activationIds = [firstActivationId, secondActivationId];
+      const activationId = activationIds[activationIdIndex];
+      activationIdIndex += 1;
+      if (!activationId) {
+        throw new Error('No deterministic activation ID available');
+      }
+      return activationId;
+    },
+  ) {
     return createLegacyAutoSyncAdapter({
       groups,
       withLock: async (operation) => operation(),
@@ -323,6 +337,7 @@ describe('createLegacyAutoSyncAdapter', () => {
         }
         return response;
       },
+      createActivationId,
     });
   }
 
@@ -346,7 +361,7 @@ describe('createLegacyAutoSyncAdapter', () => {
           mode: 'ratio',
           currentTabId: 11,
           isAutoSync: true,
-          autoSyncGeneration: 1,
+          autoSyncGeneration: firstActivationId,
         },
       },
       {
@@ -356,13 +371,13 @@ describe('createLegacyAutoSyncAdapter', () => {
           mode: 'ratio',
           currentTabId: 22,
           isAutoSync: true,
-          autoSyncGeneration: 1,
+          autoSyncGeneration: firstActivationId,
         },
       },
     ]);
   });
 
-  it('uses a newer activation generation when the same accepted group restarts', async () => {
+  it('uses a new activation identity when the same accepted group restarts', async () => {
     const adapter = createAdapter();
 
     await expect(
@@ -377,7 +392,7 @@ describe('createLegacyAutoSyncAdapter', () => {
     if (!group) {
       throw new Error('Expected accepted auto-sync group');
     }
-    expect(group.activationGeneration).toBe(1);
+    expect(group.activationGeneration).toBe(firstActivationId);
     group.isActive = false;
     started.length = 0;
 
@@ -389,8 +404,87 @@ describe('createLegacyAutoSyncAdapter', () => {
       }),
     ).resolves.toEqual({ status: 'started' });
 
-    expect(group.activationGeneration).toBe(2);
-    expect(started.map(({ message }) => message.autoSyncGeneration)).toEqual([2, 2]);
+    expect(group.activationGeneration).toBe(secondActivationId);
+    expect(started.map(({ message }) => message.autoSyncGeneration)).toEqual([
+      secondActivationId,
+      secondActivationId,
+    ]);
+  });
+
+  it('does not reuse an activation identity after the worker rebuilds the same group', async () => {
+    const firstWorkerAdapter = createAdapter(() => firstActivationId);
+
+    await expect(
+      firstWorkerAdapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 6,
+      }),
+    ).resolves.toEqual({ status: 'started' });
+
+    const previousActivationId = groups.get(normalizedUrl)?.activationGeneration;
+    expect(previousActivationId).toBe(firstActivationId);
+
+    groups.set(normalizedUrl, {
+      tabIds: new Set([11, 22]),
+      tabUrls: new Map([
+        [11, 'https://fixture.invalid/first'],
+        [22, 'https://fixture.invalid/second'],
+      ]),
+      isActive: false,
+    });
+    started.length = 0;
+
+    const restartedWorkerAdapter = createAdapter(() => secondActivationId);
+    await expect(
+      restartedWorkerAdapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 7,
+      }),
+    ).resolves.toEqual({ status: 'started' });
+
+    expect(groups.get(normalizedUrl)?.activationGeneration).toBe(secondActivationId);
+    expect(groups.get(normalizedUrl)?.activationGeneration).not.toBe(previousActivationId);
+    expect(started.map(({ message }) => message.autoSyncGeneration)).toEqual([
+      secondActivationId,
+      secondActivationId,
+    ]);
+  });
+
+  it('fails closed when the activation identity generator repeats the current identity', async () => {
+    const group = groups.get(normalizedUrl);
+    if (!group) {
+      throw new Error('Expected accepted auto-sync group');
+    }
+    group.activationGeneration = firstActivationId;
+    const adapter = createAdapter(() => firstActivationId);
+
+    await expect(
+      adapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 6,
+      }),
+    ).resolves.toEqual({ status: 'failed' });
+
+    expect(group.isActive).toBe(false);
+    expect(started).toEqual([]);
+  });
+
+  it('fails closed when the activation identity generator returns malformed data', async () => {
+    const adapter = createAdapter(() => 'not-a-uuid');
+
+    await expect(
+      adapter.startAcceptedGroup({
+        normalizedUrl,
+        tabIds: [11, 22],
+        expectedRevision: 6,
+      }),
+    ).resolves.toEqual({ status: 'failed' });
+
+    expect(groups.get(normalizedUrl)?.isActive).toBe(false);
+    expect(started).toEqual([]);
   });
 
   it('requires every accepted tab to confirm Start and cleans every attempted runtime', async () => {

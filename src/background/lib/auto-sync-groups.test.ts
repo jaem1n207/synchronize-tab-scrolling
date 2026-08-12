@@ -10,6 +10,7 @@ import type {
 import {
   broadcastAutoSyncGroupUpdate,
   cancelAutoSyncRetry,
+  getAutoSyncActivationGenerationForTab,
   getAutoSyncGroupKeyForTab,
   getAutoSyncGroupMembers,
   isTabInActiveAutoSyncGroup,
@@ -43,6 +44,7 @@ import { sendMessageWithTimeout } from './messaging';
 interface AutoSyncGroup {
   tabIds: Set<number>;
   isActive: boolean;
+  activationGeneration?: string;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
   tabUrls?: Map<number, string>;
@@ -450,6 +452,32 @@ describe('auto-sync-groups', () => {
       autoSyncState.groups.set('https://example.com', createGroup([1, 2], true));
 
       expect(getAutoSyncGroupMembers(9)).toEqual([]);
+    });
+  });
+
+  describe('getAutoSyncActivationGenerationForTab', () => {
+    it('returns the validated identity of an active group', () => {
+      const activationId = '11111111-1111-4111-8111-111111111111';
+      autoSyncState.groups.set('https://example.com', {
+        tabIds: new Set([1, 2]),
+        isActive: true,
+        activationGeneration: activationId,
+      });
+
+      expect(getAutoSyncActivationGenerationForTab(1)).toBe(activationId);
+    });
+
+    it.each([
+      { name: 'missing', activationGeneration: undefined },
+      { name: 'malformed', activationGeneration: 'not-a-uuid' },
+    ])('fails closed when a rebuilt active group identity is $name', ({ activationGeneration }) => {
+      autoSyncState.groups.set('https://example.com', {
+        tabIds: new Set([1, 2]),
+        isActive: true,
+        ...(activationGeneration === undefined ? {} : { activationGeneration }),
+      });
+
+      expect(getAutoSyncActivationGenerationForTab(1)).toBeNull();
     });
   });
 
