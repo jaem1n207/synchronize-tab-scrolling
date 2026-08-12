@@ -876,6 +876,9 @@
       }
     }
   },
+  "syncSuggestionCleanupRetrying": {
+    "message": "La sincronización se inició o cambió. Se sigue reintentando la limpieza en otras pestañas. Consulta la ventana emergente para ver el estado actual."
+  },
   "autoSyncRecoveryDegraded": {
     "message": "No se pudo restaurar por completo la sincronización automática. La sincronización manual no cambió."
   },
