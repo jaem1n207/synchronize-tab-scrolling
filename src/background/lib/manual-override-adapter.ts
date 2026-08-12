@@ -1,3 +1,4 @@
+import { isAutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import {
@@ -278,11 +279,7 @@ async function restoreAutoSyncRuntime(groupIds: ReadonlyArray<string>): Promise<
     if (!group?.isActive || group.tabIds.size < 2) {
       continue;
     }
-    if (
-      typeof group.activationGeneration !== 'number' ||
-      !Number.isSafeInteger(group.activationGeneration) ||
-      group.activationGeneration < 0
-    ) {
+    if (!isAutoSyncActivationId(group.activationGeneration)) {
       fullyRestored = false;
       continue;
     }

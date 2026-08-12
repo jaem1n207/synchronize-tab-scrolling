@@ -3,9 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AutoSyncGroup } from '~/shared/types/auto-sync-state';
 
 import {
+  autoSyncState,
+  manualSyncOverriddenTabs,
+  pendingSuggestions as runtimePendingSuggestions,
+} from './auto-sync-state';
+import {
   createManualOverrideAdapter,
   isTabProvisionallyManuallyOverridden,
+  manualOverrideAdapter,
 } from './manual-override-adapter';
+import { sendMessageWithTimeout } from './messaging';
 
 vi.mock('./messaging', () => ({
   sendMessageWithTimeout: vi.fn(),
@@ -15,7 +22,7 @@ function createGroup(tabIds: Array<number>, isActive = true): AutoSyncGroup {
   return {
     tabIds: new Set(tabIds),
     isActive,
-    activationGeneration: isActive ? 7 : 0,
+    ...(isActive ? { activationGeneration: '11111111-1111-4111-8111-111111111111' } : {}),
     tabUrls: new Map(tabIds.map((tabId) => [tabId, `https://example.test/${tabId}`])),
   };
 }
@@ -168,5 +175,67 @@ describe('createManualOverrideAdapter', () => {
       'auto-lock:enter',
       'auto-lock:exit',
     ]);
+  });
+});
+
+describe('manualOverrideAdapter runtime restoration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    autoSyncState.groups.clear();
+    manualSyncOverriddenTabs.clear();
+    runtimePendingSuggestions.clear();
+  });
+
+  it.each([
+    { name: 'missing', activationGeneration: undefined },
+    { name: 'malformed', activationGeneration: 'not-a-uuid' },
+  ])(
+    'fails closed when a captured active group identity is $name',
+    async ({ activationGeneration }) => {
+      const group: AutoSyncGroup = {
+        tabIds: new Set([71, 72]),
+        isActive: true,
+        ...(activationGeneration === undefined ? {} : { activationGeneration }),
+      };
+      autoSyncState.groups.set('group-runtime', group);
+      const snapshot = await manualOverrideAdapter.prepare(101, [71]);
+
+      await expect(manualOverrideAdapter.rollback(snapshot)).resolves.toEqual({
+        status: 'degraded',
+      });
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(autoSyncState.groups.get('group-runtime')?.isActive).toBe(true);
+    },
+  );
+
+  it('restores a captured active group with the exact validated identity', async () => {
+    const activationGeneration = '11111111-1111-4111-8111-111111111111';
+    autoSyncState.groups.set('group-runtime', {
+      tabIds: new Set([71, 72]),
+      isActive: true,
+      activationGeneration,
+    });
+    vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
+      success: true,
+      tabId: destination.tabId,
+    }));
+    const snapshot = await manualOverrideAdapter.prepare(102, [71]);
+
+    await expect(manualOverrideAdapter.rollback(snapshot)).resolves.toEqual({
+      status: 'rolled-back',
+    });
+    expect(sendMessageWithTimeout).toHaveBeenCalledTimes(2);
+    expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+      'scroll:start',
+      {
+        tabIds: [71, 72],
+        mode: 'ratio',
+        currentTabId: 71,
+        isAutoSync: true,
+        autoSyncGeneration: activationGeneration,
+      },
+      { context: 'content-script', tabId: 71 },
+      1_000,
+    );
   });
 });
