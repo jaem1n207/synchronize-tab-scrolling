@@ -9,6 +9,7 @@ import {
   type TranslatedPageMetadata,
   type TranslatedPageSignature,
 } from '~/shared/lib/translated-page-url-utils';
+import { isForbiddenUrl } from '~/shared/lib/url-utils';
 import type { StartSyncContentResponse, UrlSyncMessage } from '~/shared/types/messages';
 import type { ManualMessageIdentity } from '~/shared/types/sync-session';
 
@@ -491,7 +492,10 @@ export function registerTabEventHandlers(): void {
     if (readiness.manual.status !== 'ready') {
       return;
     }
-    if (changeInfo.url) {
+    if (
+      changeInfo.url &&
+      (tab.id !== tabId || tab.url !== changeInfo.url || isForbiddenUrl(tab.url))
+    ) {
       await syncTransitionGate.run((context) =>
         quickSyncCoordinator.invalidateCandidateForTab(context, tabId),
       );

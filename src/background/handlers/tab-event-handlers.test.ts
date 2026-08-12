@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
@@ -28,6 +28,9 @@ import {
 import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
+import { createQuickSyncCandidateStore } from '../lib/quick-sync-candidate';
+import { createQuickSyncCoordinator } from '../lib/quick-sync-coordinator';
+import { createQuickSyncHandshakeRegistry } from '../lib/quick-sync-feedback';
 import {
   broadcastSyncStatus,
   commitSyncState,
@@ -38,6 +41,9 @@ import {
 import { syncTransitionGate } from '../lib/sync-transition-gate';
 
 import { registerTabEventHandlers } from './tab-event-handlers';
+
+import type { QuickSyncPort } from '../lib/quick-sync-feedback';
+import type { SyncTransitionGate } from '../lib/sync-transition-gate';
 
 type RemovedListener = (tabId: number) => Promise<void>;
 type CreatedListener = (tab: { id?: number; url?: string }) => Promise<void>;
@@ -61,6 +67,7 @@ type EventListeners = {
 };
 
 const eventListeners: EventListeners = {};
+const originalUserAgent = navigator.userAgent;
 
 const { quickSyncCoordinatorMock, waitForBackgroundInitializationMock } = vi.hoisted(() => ({
   quickSyncCoordinatorMock: {
@@ -214,10 +221,35 @@ const readyBackground = {
   auto: { status: 'ready' as const },
 };
 
+function createSerialGate(): SyncTransitionGate {
+  let tail: Promise<void> = Promise.resolve();
+  let operationGeneration = 0;
+  return {
+    run(transition) {
+      const result = tail.then(() =>
+        transition({
+          operationGeneration: ++operationGeneration,
+          expectedRevision: 0,
+        }),
+      );
+      tail = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
+    },
+  };
+}
+
 describe('registerTabEventHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    Object.defineProperty(navigator, 'userAgent', {
+      value:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+      configurable: true,
+    });
 
     for (const key of Object.keys(eventListeners) as Array<keyof EventListeners>) {
       delete eventListeners[key];
@@ -292,6 +324,12 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(showSyncSuggestion).mockResolvedValue();
     vi.mocked(toggleAutoSync).mockResolvedValue();
     waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
+    vi.mocked(syncTransitionGate.run).mockImplementation(async (transition) =>
+      transition({
+        operationGeneration: 1,
+        expectedRevision: syncState.revision,
+      }),
+    );
 
     vi.mocked(browser.tabs.onRemoved.addListener).mockImplementation((listener) => {
       eventListeners['tabs.onRemoved'] = listener as RemovedListener;
@@ -310,6 +348,14 @@ describe('registerTabEventHandlers', () => {
     });
 
     registerTabEventHandlers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(navigator, 'userAgent', {
+      value: originalUserAgent,
+      configurable: true,
+    });
   });
 
   describe('background readiness', () => {
@@ -532,17 +578,176 @@ describe('registerTabEventHandlers', () => {
   });
 
   describe('Quick Sync navigation invalidation', () => {
-    it('invalidates a candidate on top-level URL navigation through the transition gate', async () => {
+    it.each([
+      ['HTTPS path', 'https://example.com/app/next'],
+      ['HTTPS hash', 'https://example.com/app#section'],
+      ['browser-readable local file', 'file:///Users/test/notes.html'],
+    ])('retains a candidate after an eligible %s update', async (_, url) => {
+      await getListener('tabs.onUpdated')(7, { url }, { id: 7, url });
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).not.toHaveBeenCalled();
+    });
+
+    it('retains the real candidate HUD and Port until the original deadline', async () => {
+      vi.useFakeTimers();
+      let now = 10_000;
+      const candidateStore = createQuickSyncCandidateStore();
+      const handshakeRegistry = createQuickSyncHandshakeRegistry({ now: () => now });
+      const transitionGate = createSerialGate();
+      const feedback: Array<{ tabId: number; outcome: string }> = [];
+      const port: QuickSyncPort = {
+        disconnect: vi.fn(),
+        onDisconnect: {
+          addListener: vi.fn(),
+        },
+      };
+      const coordinator = createQuickSyncCoordinator({
+        candidateStore,
+        handshakeRegistry,
+        transitionGate,
+        now: () => now,
+        getState: () => ({
+          isActive: false,
+          linkedTabs: [],
+          connectionStatuses: {},
+          lastActiveSyncedTabId: null,
+          revision: 0,
+          sessionEpoch: 0,
+        }),
+        revalidateInvocationTab: async () => undefined,
+        sendFeedback: async (tabId, message) => {
+          feedback.push({ tabId, outcome: message.outcome });
+          if (message.outcome === 'candidate-selected') {
+            handshakeRegistry.bindPort({
+              generation: message.generation,
+              senderTabId: tabId,
+              port,
+            });
+          }
+          return { status: 'ready', generation: message.generation };
+        },
+        startManualSession: async () => ({
+          status: 'committed',
+          connectedTabIds: [7, 8],
+          revision: 1,
+          sessionEpoch: 1,
+        }),
+        addTabToManualSession: async () => ({
+          status: 'committed',
+          linkedTabIds: [7, 8, 9],
+          revision: 1,
+          sessionEpoch: 1,
+        }),
+        setRecentOutcome: () => undefined,
+        showUnsupportedBadge: async () => undefined,
+        setTimer: setTimeout,
+      });
+      vi.mocked(syncTransitionGate.run).mockImplementation((transition) =>
+        transitionGate.run(transition),
+      );
+      quickSyncCoordinatorMock.invalidateCandidateForTab.mockImplementation((context, tabId) =>
+        coordinator.invalidateCandidateForTab(context, tabId),
+      );
+
+      await transitionGate.run((context) =>
+        coordinator.handle(context, {
+          commandReceivedAt: 10_000,
+          tabId: 7,
+          windowId: 1,
+        }),
+      );
+      now = 15_000;
+
       await getListener('tabs.onUpdated')(
         7,
-        { url: 'https://example.com/next' },
-        { id: 7, url: 'https://example.com/next' },
+        { url: 'https://example.com/app#section' },
+        { id: 7, url: 'https://example.com/app#section' },
       );
+
+      expect(candidateStore.read()).toEqual({
+        tabId: 7,
+        generation: 1,
+        expiresAt: 20_000,
+      });
+      expect(port.disconnect).not.toHaveBeenCalled();
+      expect(feedback).not.toContainEqual({ tabId: 7, outcome: 'clear' });
+
+      now = 20_000;
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(candidateStore.read()).toBeNull();
+      expect(port.disconnect).toHaveBeenCalledOnce();
+      expect(feedback.at(-1)).toEqual({ tabId: 7, outcome: 'clear' });
+    });
+
+    it.each([
+      ['browser-internal page', 'chrome://settings'],
+      ['unsupported local document', 'file:///Users/test/report.pdf'],
+    ])('invalidates a candidate after a restricted %s update', async (_, url) => {
+      await getListener('tabs.onUpdated')(7, { url }, { id: 7, url });
 
       expect(quickSyncCoordinatorMock.invalidateCandidateForTab).toHaveBeenCalledWith(
         expect.objectContaining({ operationGeneration: 1 }),
         7,
       );
+    });
+
+    it.each([
+      ['missing tab ID', { url: 'https://example.com/next' }],
+      ['mismatched tab ID', { id: 8, url: 'https://example.com/next' }],
+      ['missing current URL', { id: 7 }],
+      ['mismatched current URL', { id: 7, url: 'https://example.com/stale' }],
+      ['malformed current URL', { id: 7, url: 'not a url' }],
+    ])('fails closed for %s metadata', async (_, tab) => {
+      await getListener('tabs.onUpdated')(7, { url: 'https://example.com/next' }, tab);
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).toHaveBeenCalledWith(
+        expect.objectContaining({ operationGeneration: 1 }),
+        7,
+      );
+    });
+
+    it('serializes restricted navigation with a reservation and expiry transition', async () => {
+      let tail: Promise<void> = Promise.resolve();
+      let operationGeneration = 0;
+      const order: Array<string> = [];
+      const releaseReservation = Promise.withResolvers<void>();
+      vi.mocked(syncTransitionGate.run).mockImplementation((transition) => {
+        const result = tail.then(() =>
+          transition({
+            operationGeneration: ++operationGeneration,
+            expectedRevision: syncState.revision,
+          }),
+        );
+        tail = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
+      });
+      quickSyncCoordinatorMock.invalidateCandidateForTab.mockImplementation(async () => {
+        order.push('navigation');
+        return true;
+      });
+
+      const reservation = syncTransitionGate.run(async () => {
+        order.push('reservation');
+        await releaseReservation.promise;
+      });
+      const navigation = getListener('tabs.onUpdated')(
+        7,
+        { url: 'chrome://settings' },
+        { id: 7, url: 'chrome://settings' },
+      );
+      await Promise.resolve();
+      const expiry = syncTransitionGate.run(async () => {
+        order.push('expiry');
+      });
+
+      expect(order).toEqual(['reservation']);
+
+      releaseReservation.resolve();
+      await Promise.all([reservation, navigation, expiry]);
+      expect(order).toEqual(['reservation', 'navigation', 'expiry']);
     });
 
     it('does not invalidate a candidate for a status-only update', async () => {
