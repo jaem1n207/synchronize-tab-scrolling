@@ -205,3 +205,92 @@ Supporting tests prove that the same accepted group receives a newer generation 
 reinjection forwards the frozen generation, and manual-override snapshots preserve it. A final
 independent read-only re-review returned **APPROVED** with no P0/P1 findings after checking both
 interleavings and all generation propagation paths.
+
+## Review round 4: cross-worker auto activation identity
+
+### Finding
+
+The round-3 auto activation generation was only monotonic within one service-worker instance.
+`createLegacyAutoSyncAdapter()` reset its counter to zero, while auto-sync initialization rebuilt
+inactive groups with generation zero. After an MV3 worker restart, accepting the same tab membership
+could therefore reuse generation 1. A delayed generation-1 URL or runtime-degradation message from
+the previous worker could match the rebuilt generation-1 group and deactivate the new runtime.
+
+### Strict RED
+
+Two focused tests were added before the UUID implementation:
+
+- a first adapter activated a group at generation 1, then a fresh adapter and freshly rebuilt
+  same-members group also activated at generation 1;
+- an active rebuilt group with no activation identity returned generation 0 instead of failing
+  closed.
+
+The focused run failed exactly at those assertions:
+
+```text
+expected 1 not to be 1
+expected +0 to be null
+```
+
+### Fix
+
+- Replaced the worker-local numeric counter with an opaque UUID v4 activation identity generated
+  for every activation attempt through `crypto.randomUUID()`.
+- Added one shared UUID validator and type. Auto Start, URL Sync, runtime-degradation, internal
+  group state, and the `webext-bridge` ProtocolMap now share that contract.
+- Made the activation generator injectable for deterministic tests. The default generator carries
+  a documented global-uniqueness contract across worker lifetimes; malformed output, exceptions,
+  and a repeated current identity fail before any Start is sent.
+- Removed generation-zero defaults from new and snapshot groups. An active group with a missing or
+  malformed identity now fails closed in reconnect, reinjection, background authorization, and
+  manual-override runtime restoration.
+- Preserved the exact UUID through group clones, rollback, reconnect, and reinjection. Normal
+  recovery sends the captured identity, while malformed rollback state reports degradation and
+  sends no Start.
+- Changed the content runtime identity to a discriminated manual/automatic union, so manual
+  runtimes use `null` rather than an invalid automatic identity sentinel.
+- Kept the active scroll and `scroll:sync` hot paths unchanged and added no storage I/O. Auto group
+  identity is intentionally internal and is not exposed through popup status payloads or logs.
+
+### Worker-restart proof
+
+The restart regression creates adapter A with deterministic UUID A, activates the group, rebuilds
+the same membership without an identity, creates adapter B with UUID B, and proves every replacement
+Start and the committed group carry B.
+
+The background interleaving then:
+
+1. begins an old UUID-A URL relay and defers the target reconciliation failure;
+2. clears and reconstructs background auto state as a fresh same-members UUID-B activation;
+3. resolves the old failure;
+4. receives `stale-operation` and leaves UUID B active with no Stop or group-update broadcast.
+
+A separate old UUID-A `sync:runtime-degraded` message against UUID B is also rejected without
+deactivation. Content rejects malformed automatic Start identities before panel/runtime activation,
+and recovery tests prove missing/malformed identities perform no reconnect, reinjection, or rollback
+Start.
+
+### Round-4 verification
+
+- Focused UUID/restart/recovery suites: 7 files, 276 tests passed.
+- Full Vitest suite: 98 files, 1,755 tests passed.
+- TypeScript `tsc --noEmit`: passed.
+- Full repository health hook: i18n, privacy logging, privacy rule tests, typecheck, format, and lint
+  passed.
+- Privacy logging validation: 267 files passed.
+- Privacy rule suite: 27 tests passed.
+- Chromium production build: passed.
+- Firefox production build: passed.
+- `git diff --check`: passed.
+
+### Focused re-review closure
+
+The first round-4 re-review found one remaining fail-open comparison in the direct
+`sync:runtime-degraded` path. A malformed incoming automatic identity of `null` could compare equal
+to a missing group identity normalized to `null` and stop that group.
+
+A failing test first reproduced the false success and destructive match. The reconciliation entry
+point now validates the incoming UUID before acquiring the auto lock or comparing group identity.
+Two regressions cover missing-group plus `null` payload identities and matching malformed strings;
+both return `stale-operation`, keep the group active, and send no Stop or update broadcast. The
+focused re-review then returned **APPROVED** with no remaining P0/P1 findings.
