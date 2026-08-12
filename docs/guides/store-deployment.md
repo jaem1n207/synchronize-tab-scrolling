@@ -86,22 +86,35 @@ cp -r extension/* build/firefox/
 
 ---
 
-## GitHub Secrets
+## GitHub Actions 자격증명
 
-Repository Settings → Secrets and variables → Actions → New repository secret 에서 등록합니다.
+Repository Settings → Secrets and variables → Actions 에서 등록합니다.
 
 ### GitHub Release / release commit
 
-| Secret                 | 설명                                                                 |
-| ---------------------- | -------------------------------------------------------------------- |
-| `RELEASE_GITHUB_TOKEN` | semantic-release가 GitHub Release를 만들고 release commit/tag를 push |
+| 종류     | 이름                      | 설명                                              |
+| -------- | ------------------------- | ------------------------------------------------- |
+| Variable | `RELEASE_APP_CLIENT_ID`   | release 전용 GitHub App의 Client ID               |
+| Secret   | `RELEASE_APP_PRIVATE_KEY` | GitHub App에서 내려받은 PEM private key 전체 내용 |
 
-`RELEASE_GITHUB_TOKEN`은 `main` 브랜치 ruleset을 bypass할 수 있는 repository admin 또는
-bypass list에 등록된 user의 Personal Access Token이어야 합니다. release workflow의
-`actions/checkout` 단계도 이 token을 사용합니다. 그렇지 않으면 `@semantic-release/git`이
-release commit과 tag를 push할 때 checkout이 저장한 기본 GitHub Actions token으로 push하여
-`Changes must be made through a pull request` 또는 `Required status check ... is expected`
-ruleset 위반으로 실패할 수 있습니다.
+release 전용 GitHub App은 다음 원칙으로 구성합니다.
+
+- App 이름: `synchronize-tab-scrolling-release`
+- 소유자/설치 가능 계정: `jaem1n207`
+- Repository permission: `Contents: Read and write`만 허용
+- Webhook, OAuth user authorization, Device Flow: 비활성화
+- Repository access: `jaem1n207/synchronize-tab-scrolling`만 선택
+- `main` ruleset bypass list: App을 `Always allow`로 등록
+
+워크플로우는 `actions/create-github-app-token@v3`으로 현재 저장소에만 유효한 installation
+token을 만들고 `permission-contents: write`로 권한을 다시 제한합니다. 이 token은 1시간
+이내 만료되며 job 종료 시 action이 폐기합니다. `actions/checkout`과 semantic-release의
+`GITHUB_TOKEN`이 반드시 같은 token을 사용해야 `@semantic-release/git`의 release
+commit/tag push와 `@semantic-release/github`의 Release 생성이 같은 App actor로 처리됩니다.
+
+App 전환이 실제 `main` release run에서 검증되기 전에는 기존 PAT secret이나 광범위한
+repository role bypass를 제거하지 않습니다. 성공이 확인되면 `RELEASE_GITHUB_TOKEN`과
+`Repository admin` role bypass를 제거하여 App만 예외 actor로 남깁니다.
 
 ### Chrome Web Store
 
@@ -136,6 +149,16 @@ ruleset 위반으로 실패할 수 있습니다.
 
 ## 자격증명 갱신
 
+### GitHub App
+
+- Private key는 자동 만료되지 않으므로 정기적으로 수동 rotation합니다.
+- 무중단 rotation은 새 private key를 생성하고 `RELEASE_APP_PRIVATE_KEY`를 교체한 뒤,
+  release token 생성이 성공하는지 확인하고 이전 key를 삭제하는 순서로 진행합니다.
+- App 권한을 확대하면 설치 소유자의 별도 승인이 필요할 수 있습니다. 이 파이프라인은
+  `Contents: Read and write` 외 권한을 요구하지 않습니다.
+- private key 파일은 repository에 커밋하지 않고 GitHub Actions secret에 등록한 후 로컬
+  다운로드 파일을 안전하게 삭제합니다.
+
 ### Google (Chrome)
 
 - Refresh Token은 만료되지 않음 (revoke하지 않는 한)
@@ -167,12 +190,20 @@ ruleset 위반으로 실패할 수 있습니다.
 
 - 로그에 `GH013: Repository rule violations found for refs/heads/main`가 표시되면 release
   commit/tag push가 `main` ruleset을 통과하지 못한 것입니다.
-- `RELEASE_GITHUB_TOKEN`의 소유자가 repository admin 또는 ruleset bypass list에 등록된
-  user인지 확인합니다.
+- `synchronize-tab-scrolling-release` App이 현재 저장소에 설치되어 있는지 확인합니다.
+- `main` ruleset bypass list에 App이 `Always allow`로 등록되어 있는지 확인합니다.
 - `.github/workflows/release.yml`의 `actions/checkout` 단계가
-  `token: ${{ secrets.RELEASE_GITHUB_TOKEN }}`을 사용해야 합니다. Release step의
-  `GITHUB_TOKEN` env만 바꾸면 GitHub API 인증은 바뀌지만, `@semantic-release/git`의 실제
+  `token: ${{ steps.release-app-token.outputs.token }}`을 사용해야 합니다. Release step의
+  `GITHUB_TOKEN`만 바꾸면 GitHub API 인증은 바뀌지만, `@semantic-release/git`의 실제
   `git push` credentials는 기본 Actions token으로 남을 수 있습니다.
+
+### release App token 생성이 실패하는 경우
+
+- `RELEASE_APP_CLIENT_ID`가 App ID가 아닌 Client ID인지 확인합니다.
+- `RELEASE_APP_PRIVATE_KEY`에 PEM의 시작/끝 줄을 포함한 전체 내용이 들어 있는지 확인합니다.
+- App 설치 범위에 현재 저장소가 포함되어 있는지 확인합니다.
+- App과 설치의 `Contents: Read and write` 권한이 모두 승인되어 있는지 확인합니다.
+- key를 교체했다면 새 secret이 저장된 뒤 이전 private key를 삭제했는지 확인합니다.
 
 ### Chrome Web Store 업로드 실패
 
