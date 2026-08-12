@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import browser from 'webextension-polyfill';
 
+import { loadManualScrollOffsetsStrict } from '~/shared/lib/storage';
 import type { RecentQuickSyncOutcome } from '~/shared/types/quick-sync';
 
 import {
@@ -72,6 +73,10 @@ vi.mock('~/shared/lib/logger', () => ({
   })),
 }));
 
+vi.mock('~/shared/lib/storage', () => ({
+  loadManualScrollOffsetsStrict: vi.fn(),
+}));
+
 vi.mock('../lib/auto-sync-groups', () => ({
   removeTabFromAllAutoSyncGroups: vi.fn(),
   getAutoSyncActivationGenerationForTab: vi.fn(),
@@ -140,14 +145,33 @@ function getHandler(messageId: string): MessageHandler {
   return handler as MessageHandler;
 }
 
-function findForbiddenSnapshotKeys(value: unknown): Array<string> {
+const CONTENT_STATUS_ALLOWED_KEYS = new Set([
+  'connectionStatus',
+  'displayTitle',
+  'isCurrent',
+  'linkedTabCount',
+  'manualOffsetPixels',
+  'mode',
+  'revision',
+  'sessionEpoch',
+  'snapshot',
+  'source',
+  'status',
+  'tabs',
+]);
+
+function findUnexpectedContentStatusKeys(value: unknown): Array<string> {
   if (typeof value !== 'object' || value === null) {
     return [];
   }
 
+  if (Array.isArray(value)) {
+    return value.flatMap(findUnexpectedContentStatusKeys);
+  }
+
   return Object.entries(value).flatMap(([key, nestedValue]) => {
-    const forbiddenKey = key === 'title' || key === 'favIconUrl' || key === 'url' ? [key] : [];
-    return [...forbiddenKey, ...findForbiddenSnapshotKeys(nestedValue)];
+    const unexpectedKey = CONTENT_STATUS_ALLOWED_KEYS.has(key) ? [] : [key];
+    return [...unexpectedKey, ...findUnexpectedContentStatusKeys(nestedValue)];
   });
 }
 
@@ -207,6 +231,7 @@ describe('registerConnectionHandlers', () => {
       syncState.sessionEpoch = nextState.sessionEpoch;
     });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
+    vi.mocked(loadManualScrollOffsetsStrict).mockResolvedValue({});
     waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
     registerConnectionHandlers();
@@ -413,9 +438,10 @@ describe('registerConnectionHandlers', () => {
       });
       expect(JSON.stringify(result)).not.toContain('https://');
       expect(getSyncStateSnapshot).toHaveBeenCalledTimes(1);
+      expect(loadManualScrollOffsetsStrict).not.toHaveBeenCalled();
     });
 
-    it('returns a sanitized content snapshot without hydrating other linked tabs', async () => {
+    it('returns only allowlisted content display data after validating the sender', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
       syncState.connectionStatuses = { 1: 'connected', 2: 'disconnected' };
@@ -423,9 +449,6 @@ describe('registerConnectionHandlers', () => {
       syncState.revision = 6;
       syncState.sessionEpoch = 3;
       vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
-        if (tabId !== 1) {
-          throw new Error('Content status must not hydrate another linked tab');
-        }
         return {
           id: tabId,
           windowId: 4,
@@ -434,10 +457,14 @@ describe('registerConnectionHandlers', () => {
           active: true,
           pinned: false,
           incognito: false,
-          title: 'Private viewer title',
-          favIconUrl: 'private-viewer.ico',
-          url: 'https://private.example/token',
+          title: tabId === 1 ? 'Current article' : 'Other article',
+          favIconUrl: `private-${tabId}.ico`,
+          url: `https://private.example/${tabId}/token`,
         };
+      });
+      vi.mocked(loadManualScrollOffsetsStrict).mockResolvedValue({
+        1: { ratio: 0, pixels: 0 },
+        2: { ratio: 0.2, pixels: 136 },
       });
 
       const handler = getHandler('sync:get-status');
@@ -455,17 +482,85 @@ describe('registerConnectionHandlers', () => {
           mode: 'ratio',
           linkedTabCount: 2,
           tabs: [
-            { location: 'current-tab', connectionStatus: 'connected' },
-            { location: 'other-tab', connectionStatus: 'disconnected' },
+            {
+              displayTitle: 'Current article',
+              isCurrent: true,
+              manualOffsetPixels: 0,
+              connectionStatus: 'connected',
+            },
+            {
+              displayTitle: 'Other article',
+              isCurrent: false,
+              manualOffsetPixels: 136,
+              connectionStatus: 'disconnected',
+            },
           ],
         },
       });
-      expect(browser.tabs.get).toHaveBeenCalledTimes(1);
-      expect(browser.tabs.get).toHaveBeenCalledWith(1);
-      expect(findForbiddenSnapshotKeys(result)).toEqual([]);
-      expect(JSON.stringify(result)).not.toContain('Private viewer title');
-      expect(JSON.stringify(result)).not.toContain('private-viewer.ico');
-      expect(JSON.stringify(result)).not.toContain('https://private.example/token');
+      expect(browser.tabs.get).toHaveBeenCalledTimes(3);
+      expect(loadManualScrollOffsetsStrict).toHaveBeenCalledTimes(1);
+      expect(findUnexpectedContentStatusKeys(result)).toEqual([]);
+      expect(JSON.stringify(result)).not.toContain('private-1.ico');
+      expect(JSON.stringify(result)).not.toContain('private-2.ico');
+      expect(JSON.stringify(result)).not.toContain('https://private.example');
+    });
+
+    it('returns a truthful storage error instead of fabricating zero offsets', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => ({
+        id: tabId,
+        windowId: 4,
+        index: 0,
+        highlighted: false,
+        active: tabId === 1,
+        pinned: false,
+        incognito: false,
+        title: `Article ${tabId}`,
+      }));
+      vi.mocked(loadManualScrollOffsetsStrict).mockRejectedValue(new Error('storage unavailable'));
+      const handler = getHandler('sync:get-status');
+
+      await expect(
+        handler({
+          data: { source: 'content-script' },
+          sender: { context: 'content-script', tabId: 1 },
+        }),
+      ).resolves.toEqual({
+        status: 'error',
+        reason: 'storage-error',
+      });
+    });
+
+    it('rejects a non-member content viewer before loading offsets or linked-tab metadata', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      vi.mocked(browser.tabs.get).mockResolvedValue({
+        id: 9,
+        windowId: 4,
+        index: 0,
+        highlighted: false,
+        active: true,
+        pinned: false,
+        incognito: false,
+        title: 'Unrelated tab',
+      });
+      const handler = getHandler('sync:get-status');
+
+      await expect(
+        handler({
+          data: { source: 'content-script' },
+          sender: { context: 'content-script', tabId: 9 },
+        }),
+      ).resolves.toEqual({
+        status: 'error',
+        reason: 'invalid-viewer-context',
+      });
+      expect(browser.tabs.get).toHaveBeenCalledOnce();
+      expect(browser.tabs.get).toHaveBeenCalledWith(9);
+      expect(loadManualScrollOffsetsStrict).not.toHaveBeenCalled();
     });
 
     it('rejects a content script spoofing a popup request before topology access', async () => {
@@ -484,6 +579,7 @@ describe('registerConnectionHandlers', () => {
       });
       expect(getSyncStateSnapshot).not.toHaveBeenCalled();
       expect(browser.tabs.get).not.toHaveBeenCalled();
+      expect(loadManualScrollOffsetsStrict).not.toHaveBeenCalled();
     });
 
     it('rejects a popup spoofing a content request before viewer hydration', async () => {

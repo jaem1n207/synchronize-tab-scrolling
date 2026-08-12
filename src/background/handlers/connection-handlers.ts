@@ -3,6 +3,7 @@ import browser from 'webextension-polyfill';
 
 import type { AutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
 import { ExtensionLogger } from '~/shared/lib/logger';
+import { loadManualScrollOffsetsStrict, type ManualScrollOffset } from '~/shared/lib/storage';
 import type { StartSyncContentMessage, StartSyncContentResponse } from '~/shared/types/messages';
 import type { RecentQuickSyncOutcome } from '~/shared/types/quick-sync';
 import type {
@@ -325,10 +326,28 @@ export function registerConnectionHandlers(
     }
 
     if (source === 'content-script') {
+      if (!state.linkedTabs.includes(viewer.viewerTabId)) {
+        const response: SyncStatusResponseMessage = {
+          status: 'error',
+          reason: 'invalid-viewer-context',
+        };
+        return response;
+      }
+
+      let manualOffsets: Record<number, ManualScrollOffset>;
+      try {
+        manualOffsets = await loadManualScrollOffsetsStrict();
+      } catch {
+        const response: SyncStatusResponseMessage = {
+          status: 'error',
+          reason: 'storage-error',
+        };
+        return response;
+      }
       const response: SyncStatusResponseMessage = {
         status: 'active',
         source,
-        snapshot: buildContentManualSyncSnapshot(state, viewer.viewerTabId),
+        snapshot: await buildContentManualSyncSnapshot(state, viewer.viewerTabId, manualOffsets),
       };
       return response;
     }
