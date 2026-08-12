@@ -8,7 +8,8 @@
 *.pem
 *.xpi
 *.zip
-build
+# Generated browser artifacts
+/build/
 dist
 dist-landing
 dist-ssr
