@@ -20,6 +20,11 @@ manifest에는 다음 command 하나만 둔다.
 이 command는 toggle이 아니다. 이미 포함된 탭을 제거하거나 세션을 Stop하지 않는다. 팝업
 내부의 `Cmd/Ctrl+S`는 팝업에 포커스가 있을 때 Start/Stop을 실행하는 별도 단축키다.
 
+Production build의 load-unpacked 경로는 Chromium `build/chromium/`, Firefox
+`build/firefox/`다. `extension/`은 두 build가 공유하는 staging 경로이므로 브라우저에 직접
+로드하지 않는다. 각 build는 manifest의 background/command, background command listener,
+필수 runtime file을 검증한 뒤 안정 경로를 갱신한다.
+
 ## 정확한 후보 결정표
 
 후보는 브라우저 프로필 전체에 하나뿐이며 background 메모리에만 존재한다.
@@ -46,15 +51,20 @@ manifest에는 다음 command 하나만 둔다.
 
 ## Candidate generation과 Port lifecycle
 
-1. coordinator가 transition gate 안에서 provisional generation을 만든다.
-2. content script에 candidate HUD를 보내고
+1. coordinator가 명령을 받은 현재 탭의 content runtime을 ping하고, 없으면 content script를
+   주입한 뒤 bounded ping으로 endpoint 준비를 확인한다. 이 준비 단계는 첫 후보뿐 아니라
+   두 번째 탭 Start, 활성 세션 Add, 이미 포함된 탭 피드백에도 동일하게 적용한다.
+2. runtime 준비 실패나 tab revalidation 실패는 badge/recent outcome으로 명시하고 generation,
+   HUD, Port를 만들지 않는다.
+3. coordinator가 transition gate 안에서 provisional generation을 만든다.
+4. content script에 candidate HUD를 보내고
    `quick-sync-candidate:<generation>` runtime Port를 요청한다.
-3. background는 같은 generation과 sender tab ID가 일치하는 Port만 bind한다.
-4. HUD/Port handshake가 성공해야 provisional candidate가 활성 후보가 된다.
-5. Port 생성과 같은 탭 재입력은 절대 마감을 연장하지 않는다.
-6. Port disconnect, 탭 종료, ineligible navigation, 만료, 성공한 Start, 성공한 popup Start,
+5. background는 같은 generation과 sender tab ID가 일치하는 Port만 bind한다.
+6. HUD/Port handshake가 성공해야 provisional candidate가 활성 후보가 된다.
+7. Port 생성과 같은 탭 재입력은 절대 마감을 연장하지 않는다.
+8. Port disconnect, 탭 종료, ineligible navigation, 만료, 성공한 Start, 성공한 popup Start,
    accepted suggestion은 일치하는 generation만 정리한다.
-7. 마감 전에 접수된 두 번째 입력이 generation을 reserve했다면 Start 시도가 끝날 때까지
+9. 마감 전에 접수된 두 번째 입력이 generation을 reserve했다면 Start 시도가 끝날 때까지
    timeout/Port callback이 그 generation을 지우지 못한다.
 
 서비스 워커가 재시작되면 Port가 끊기고 후보 HUD도 즉시 사라진다. 후보를 storage에서
@@ -264,7 +274,9 @@ logger.info('Quick Sync tab', {
 
 URL, normalized URL, title, favicon, canonical/alternate metadata, 전체 tab/message/storage 객체는
 로그·외부 서비스·QA artifact에 기록하지 않는다. 로컬 팝업에서 title/favicon을 렌더링하는
-것은 허용되지만 이 기능이 persist하거나 외부로 보내면 안 된다.
+것은 허용된다. 페이지 안의 동기화 제어 패널은 닫힌 Shadow root 안에서 현재 세션의 탭 제목과
+수동 오프셋만 일시적으로 렌더링할 수 있다. 이 content 응답에는 URL, favicon, tab/window ID를
+포함하지 않으며, 제목과 오프셋을 이 기능이 별도로 persist하거나 외부로 보내면 안 된다.
 
 ## 문제 해결
 

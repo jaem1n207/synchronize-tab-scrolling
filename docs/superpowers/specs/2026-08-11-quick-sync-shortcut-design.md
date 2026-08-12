@@ -518,7 +518,7 @@ API.
 snapshot is assembled from the persisted manual state across all windows, not from
 `tabs.query({ currentWindow: true })`.
 
-The snapshot includes:
+The popup snapshot includes:
 
 - active/inactive status;
 - session revision;
@@ -530,6 +530,12 @@ The snapshot includes:
 
 Raw URLs are not needed by the active session view and should not be added to this response solely
 for display.
+
+The page-side control panel uses a separate content snapshot derived only after validating the
+content sender. It may include each linked tab's current title, current-tab flag, signed manual
+pixel offset, and connection status so the existing synchronized-tab display remains useful. It
+must omit URLs, favicons, tab ids, and window ids. The panel renders this ephemeral display data
+inside a closed Shadow root so the host page cannot traverse the synchronized-tab DOM.
 
 Metadata lookup failure for one tab must not make the whole session appear inactive. Return an
 unavailable row while preserving the authoritative topology. The row uses localized unavailable
@@ -849,8 +855,10 @@ Never log or externally transmit:
 - whole browser tab objects;
 - whole message or storage payloads.
 
-Titles and favicons may be rendered inside the local popup, but they must not be logged, persisted by
-this feature, or sent outside the extension.
+Titles and favicons may be rendered inside the local popup. The page-side control panel may render
+the allowlisted current title and signed manual offset inside its closed Shadow root. This display
+data must not be logged, persisted by this feature, exposed in an open host-page DOM, or sent outside
+the extension.
 
 Before completion, search touched areas for:
 
