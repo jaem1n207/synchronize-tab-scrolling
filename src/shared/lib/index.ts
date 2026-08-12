@@ -5,6 +5,8 @@ export {
   normalizeDomain,
   normalizeUrlForAutoSync,
 } from './auto-sync-url-utils';
+export type { AutoSyncActivationId } from './auto-sync-activation';
+export { createAutoSyncActivationId, isAutoSyncActivationId } from './auto-sync-activation';
 export {
   ANIMATION_DURATIONS,
   EASING_CSS,
