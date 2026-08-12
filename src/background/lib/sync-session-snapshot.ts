@@ -1,5 +1,6 @@
 import browser from 'webextension-polyfill';
 
+import type { ManualScrollOffset } from '~/shared/lib/storage';
 import type {
   AvailableManualSyncTab,
   ContentActiveManualSyncSnapshot,
@@ -74,14 +75,29 @@ export async function buildManualSyncSnapshot(
   };
 }
 
-export function buildContentManualSyncSnapshot(
+export async function buildContentManualSyncSnapshot(
   state: SyncState,
   viewerTabId: number,
-): ContentActiveManualSyncSnapshot {
-  const tabs = state.linkedTabs.map(
-    (tabId): ContentManualSyncTab => ({
-      location: tabId === viewerTabId ? 'current-tab' : 'other-tab',
-      connectionStatus: state.connectionStatuses[tabId] ?? 'error',
+  manualOffsets: Readonly<Record<number, ManualScrollOffset>>,
+): Promise<ContentActiveManualSyncSnapshot> {
+  const tabs = await Promise.all(
+    state.linkedTabs.map(async (tabId): Promise<ContentManualSyncTab> => {
+      let displayTitle: string | null = null;
+      try {
+        const tab = await browser.tabs.get(tabId);
+        if (typeof tab.title === 'string' && tab.title.length > 0) {
+          displayTitle = tab.title;
+        }
+      } catch {
+        // Unavailable tabs remain in committed order without exposing their identity.
+      }
+
+      return {
+        displayTitle,
+        isCurrent: tabId === viewerTabId,
+        manualOffsetPixels: manualOffsets[tabId]?.pixels ?? 0,
+        connectionStatus: state.connectionStatuses[tabId] ?? 'error',
+      };
     }),
   );
 

@@ -141,21 +141,71 @@ describe('buildManualSyncSnapshot', () => {
 });
 
 describe('buildContentManualSyncSnapshot', () => {
-  it('returns only generic committed topology without browser tab hydration', () => {
-    const snapshot = buildContentManualSyncSnapshot(activeState, 22);
+  it('returns only allowlisted titles, current marker, offsets, and connection status', async () => {
+    const privateTabs = new Map([
+      [11, createTab(11, 1, 'First article', 'first-private.ico')],
+      [22, createTab(22, 1, 'Current article', 'current-private.ico')],
+      [33, createTab(33, 7, 'Third article', 'third-private.ico')],
+    ]);
+    vi.mocked(browser.tabs.get).mockImplementation(async (tabId) => {
+      const tab = privateTabs.get(tabId);
+      if (!tab) {
+        throw new Error('Missing fixture tab');
+      }
+      return tab;
+    });
 
-    expect(browser.tabs.get).not.toHaveBeenCalled();
+    const snapshot = await buildContentManualSyncSnapshot(activeState, 22, {
+      11: { ratio: 0.2, pixels: 136 },
+      33: { ratio: -0.1, pixels: -42 },
+    });
+
     expect(snapshot).toEqual({
       revision: 5,
       sessionEpoch: 2,
       mode: 'ratio',
       linkedTabCount: 3,
       tabs: [
-        { location: 'other-tab', connectionStatus: 'connected' },
-        { location: 'current-tab', connectionStatus: 'disconnected' },
-        { location: 'other-tab', connectionStatus: 'error' },
+        {
+          displayTitle: 'First article',
+          isCurrent: false,
+          manualOffsetPixels: 136,
+          connectionStatus: 'connected',
+        },
+        {
+          displayTitle: 'Current article',
+          isCurrent: true,
+          manualOffsetPixels: 0,
+          connectionStatus: 'disconnected',
+        },
+        {
+          displayTitle: 'Third article',
+          isCurrent: false,
+          manualOffsetPixels: -42,
+          connectionStatus: 'error',
+        },
       ],
     });
-    expect(Object.keys(snapshot.tabs[0]).sort()).toEqual(['connectionStatus', 'location']);
+    expect(Object.keys(snapshot.tabs[0]).sort()).toEqual([
+      'connectionStatus',
+      'displayTitle',
+      'isCurrent',
+      'manualOffsetPixels',
+    ]);
+    expect(JSON.stringify(snapshot)).not.toContain('private.ico');
+    expect(JSON.stringify(snapshot)).not.toContain('https://');
+  });
+
+  it('uses a null title for an unavailable tab without exposing its identity', async () => {
+    vi.mocked(browser.tabs.get).mockRejectedValue(new Error('Missing fixture tab'));
+
+    const snapshot = await buildContentManualSyncSnapshot(activeState, 22, {});
+
+    expect(snapshot.tabs[0]).toEqual({
+      displayTitle: null,
+      isCurrent: false,
+      manualOffsetPixels: 0,
+      connectionStatus: 'connected',
+    });
   });
 });
