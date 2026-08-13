@@ -21,20 +21,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Generate release app token
-        id: release-app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          permission-contents: write
-
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          # @semantic-release/git pushes the release commit and tags back to main.
-          # Persist the bypass-listed release App token instead of the default Actions token.
-          token: ${{ steps.release-app-token.outputs.token }}
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v5
 
@@ -50,6 +40,14 @@ jobs:
 
       - name: Build Firefox extension
         run: pnpm build-firefox
+
+      - name: Generate release app token
+        id: release-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
 
       - name: Release
         env:
