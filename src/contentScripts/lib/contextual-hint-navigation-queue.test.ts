@@ -9,6 +9,9 @@ describe('contextual hint navigation queue', () => {
     expect(getPendingUrlSyncHintIdForMode('keep-each-tabs-website')).toBe(
       'keep-website-path-synced',
     );
+    expect(getPendingUrlSyncHintIdForMode('sync-page-path-across-sites')).toBe(
+      'keep-website-path-synced',
+    );
   });
 
   it('validates pending URL Sync hint ids', () => {
