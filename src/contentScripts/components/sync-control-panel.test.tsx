@@ -158,7 +158,7 @@ describe('SyncControlPanel', () => {
     expect(screen.queryByRole('list', { name: 'syncedTabs' })).not.toBeInTheDocument();
   });
 
-  it('shows the persisted cross-site warning in the open in-page settings surface', () => {
+  it('transitions the collapsed URL Sync disclosure warning with the active mode', () => {
     usePanelStateMock.mockReturnValue({
       isOpen: true,
       syncedTabs: [],
@@ -170,17 +170,33 @@ describe('SyncControlPanel', () => {
       handleAutoSyncToggle: vi.fn(),
     });
 
-    render(
+    const createPanel = (urlSyncMode: 'follow-changed-tab' | 'sync-page-path-across-sites') => (
       <SyncControlPanel
-        urlSyncEnabled={false}
-        urlSyncMode="sync-page-path-across-sites"
+        urlSyncEnabled={true}
+        urlSyncMode={urlSyncMode}
         urlSyncNotice={null}
         onUrlSyncEnabledChange={vi.fn()}
         onUrlSyncModeChange={vi.fn()}
-      />,
+      />
+    );
+    const view = render(createPanel('follow-changed-tab'));
+
+    expect(screen.queryByText('urlSyncModeAcrossDifferentSitesWarning')).not.toBeInTheDocument();
+
+    view.rerender(createPanel('sync-page-path-across-sites'));
+
+    expect(screen.getAllByText('urlSyncModeAcrossDifferentSitesWarning')).toHaveLength(1);
+    expect(
+      screen.getByRole('button', { name: 'urlSyncExpandSettings' }),
+    ).toHaveAccessibleDescription(expect.stringContaining('urlSyncModeAcrossDifferentSites'));
+    expect(
+      screen.getByRole('button', { name: 'urlSyncExpandSettings' }),
+    ).toHaveAccessibleDescription(
+      expect.stringContaining('urlSyncModeAcrossDifferentSitesWarning'),
     );
 
-    expect(screen.getByText('urlSyncModeAcrossDifferentSites')).toBeInTheDocument();
-    expect(screen.getAllByText('urlSyncModeAcrossDifferentSitesWarning')).toHaveLength(1);
+    view.rerender(createPanel('follow-changed-tab'));
+
+    expect(screen.queryByText('urlSyncModeAcrossDifferentSitesWarning')).not.toBeInTheDocument();
   });
 });

@@ -12,6 +12,10 @@ interface RegisteredMessage {
 }
 
 type RegisteredMessageHandler = (message: RegisteredMessage) => unknown;
+type StorageChangeHandler = (
+  changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+  areaName: string,
+) => void;
 
 interface MotionDivMockProps extends React.ComponentProps<'div'> {
   animate?: unknown;
@@ -26,12 +30,14 @@ const {
   sendMessageMock,
   repairUrlSyncModeMock,
   saveUrlSyncModeMock,
+  storageChangeHandlers,
 } = vi.hoisted(() => ({
   messageHandlers: new Map<string, RegisteredMessageHandler>(),
   onMessageMock: vi.fn(),
   sendMessageMock: vi.fn(),
   repairUrlSyncModeMock: vi.fn(),
   saveUrlSyncModeMock: vi.fn(),
+  storageChangeHandlers: new Set<StorageChangeHandler>(),
 }));
 const originalAttachShadow = Element.prototype.attachShadow;
 let capturedPanelShadowRoot: ShadowRoot | null = null;
@@ -45,6 +51,16 @@ vi.mock('webextension-polyfill', () => ({
   default: {
     runtime: {
       getURL: (path: string) => path,
+    },
+    storage: {
+      onChanged: {
+        addListener: (handler: StorageChangeHandler) => {
+          storageChangeHandlers.add(handler);
+        },
+        removeListener: (handler: StorageChangeHandler) => {
+          storageChangeHandlers.delete(handler);
+        },
+      },
     },
   },
 }));
@@ -124,6 +140,23 @@ function getRequiredHandler(messageId: string): RegisteredMessageHandler {
   return handler;
 }
 
+function dispatchStorageChange(
+  changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+  areaName = 'local',
+) {
+  storageChangeHandlers.forEach((handler) => {
+    handler(changes, areaName);
+  });
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+}
+
 async function mountPanel() {
   const { showPanel } = await import('./panel');
   await act(async () => {
@@ -148,6 +181,7 @@ describe('panel suggestion transport', () => {
     vi.resetModules();
     vi.clearAllMocks();
     messageHandlers.clear();
+    storageChangeHandlers.clear();
     capturedPanelShadowRoot = null;
     document.body.innerHTML = '';
     vi.spyOn(Element.prototype, 'attachShadow').mockImplementation(function (
@@ -228,24 +262,194 @@ describe('panel suggestion transport', () => {
     );
   });
 
-  it('applies an incoming persisted cross-site mode change to the panel', async () => {
+  it('applies an incoming persisted cross-site mode without redundantly saving it', async () => {
     repairUrlSyncModeMock.mockResolvedValue({
       status: 'success',
       mode: 'follow-changed-tab',
       repaired: false,
     });
-    saveUrlSyncModeMock.mockResolvedValue(true);
+    saveUrlSyncModeMock.mockResolvedValue(false);
     const ui = await mountPanel();
 
+    await act(async () => {
+      await getRequiredHandler('sync:url-mode-changed')({
+        data: {
+          mode: 'sync-page-path-across-sites',
+          notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+        },
+      });
+    });
+
+    expect(saveUrlSyncModeMock).not.toHaveBeenCalled();
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('urlSyncModeResetNotice');
+  });
+
+  it('applies a persisted cross-site mode from storage without a relay', async () => {
+    const ui = await mountPanel();
+
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'sync-page-path-across-sites',
+        },
+      });
+    });
+
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+    expect(saveUrlSyncModeMock).not.toHaveBeenCalled();
+  });
+
+  it('restores the default mode when the persisted mode is removed', async () => {
+    repairUrlSyncModeMock.mockResolvedValue({
+      status: 'success',
+      mode: 'sync-page-path-across-sites',
+      repaired: false,
+    });
+    const ui = await mountPanel();
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'sync-page-path-across-sites',
+          newValue: undefined,
+        },
+      });
+    });
+
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('follow-changed-tab');
+  });
+
+  it('repairs a malformed persisted mode and exposes the repair notice', async () => {
+    const ui = await mountPanel();
+    repairUrlSyncModeMock.mockResolvedValueOnce({
+      status: 'success',
+      mode: 'follow-changed-tab',
+      repaired: true,
+      notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+    });
+
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'malformed-mode',
+        },
+      });
+    });
+
+    expect(await ui.findByTestId('panel-url-sync-notice')).toHaveTextContent(
+      'urlSyncModeResetNotice',
+    );
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('follow-changed-tab');
+    expect(repairUrlSyncModeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('exposes a truthful notice when malformed mode repair fails', async () => {
+    const ui = await mountPanel();
+    repairUrlSyncModeMock.mockResolvedValueOnce({
+      status: 'failed',
+      reason: 'write-failed',
+      repaired: false,
+      notice: { key: 'urlSyncSettingSaveFailedNotice', severity: 'error' },
+    });
+
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'malformed-mode',
+        },
+      });
+    });
+
+    expect(await ui.findByTestId('panel-url-sync-notice')).toHaveTextContent(
+      'urlSyncSettingSaveFailedNotice',
+    );
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('follow-changed-tab');
+  });
+
+  it('does not let a delayed initial repair overwrite a newer storage mode', async () => {
+    const initialRepair = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: false;
+    }>();
+    repairUrlSyncModeMock.mockReturnValueOnce(initialRepair.promise);
+    const ui = await mountPanel();
+
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'sync-page-path-across-sites',
+        },
+      });
+    });
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+
+    await act(async () => {
+      initialRepair.resolve({
+        status: 'success',
+        mode: 'follow-changed-tab',
+        repaired: false,
+      });
+      await initialRepair.promise;
+    });
+
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+  });
+
+  it('does not let an older malformed-mode repair overwrite a newer broadcast', async () => {
+    const ui = await mountPanel();
+    const externalRepair = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: true;
+      notice: UrlSyncNotice;
+    }>();
+    repairUrlSyncModeMock.mockReturnValueOnce(externalRepair.promise);
+
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'malformed-mode',
+        },
+      });
+    });
     await act(async () => {
       await getRequiredHandler('sync:url-mode-changed')({
         data: { mode: 'sync-page-path-across-sites' },
       });
     });
 
-    expect(saveUrlSyncModeMock).toHaveBeenCalledWith('sync-page-path-across-sites');
+    await act(async () => {
+      externalRepair.resolve({
+        status: 'success',
+        mode: 'follow-changed-tab',
+        repaired: true,
+        notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+      });
+      await externalRepair.promise;
+    });
+
     expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
     expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('none');
+  });
+
+  it('removes the storage listener when the panel is destroyed', async () => {
+    await mountPanel();
+    expect(storageChangeHandlers).toHaveLength(1);
+
+    const { destroyPanel } = await import('./panel');
+    act(() => {
+      destroyPanel();
+    });
+
+    expect(storageChangeHandlers).toHaveLength(0);
   });
 
   it.each([
