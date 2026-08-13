@@ -107,13 +107,17 @@ release 전용 GitHub App은 다음 원칙으로 구성합니다.
 
 워크플로우는 `actions/create-github-app-token@v3`으로 현재 저장소에만 유효한 installation
 token을 만들고 `permission-contents: write`로 권한을 다시 제한합니다. 이 token은 1시간
-이내 만료되며 job 종료 시 action이 폐기합니다. `actions/checkout`과 semantic-release의
-`GITHUB_TOKEN`이 반드시 같은 token을 사용해야 `@semantic-release/git`의 release
-commit/tag push와 `@semantic-release/github`의 Release 생성이 같은 App actor로 처리됩니다.
+이내 만료되며 job 종료 시 action이 폐기합니다.
 
-App 전환이 실제 `main` release run에서 검증되기 전에는 기존 PAT secret이나 광범위한
-repository role bypass를 제거하지 않습니다. 성공이 확인되면 `RELEASE_GITHUB_TOKEN`과
-`Repository admin` role bypass를 제거하여 App만 예외 actor로 남깁니다.
+checkout은 read-only 기본 Actions token을 사용하고 `persist-credentials: false`로 후속
+step에 Git credential을 남기지 않습니다. Chrome/Firefox 빌드가 모두 끝난 뒤에만 release
+App token을 생성하고, semantic-release step의 `GITHUB_TOKEN`으로만 전달합니다.
+semantic-release는 이 환경변수를 Git push와 GitHub API 인증에 사용하므로 release
+commit/tag와 GitHub Release가 같은 App actor로 처리됩니다. install/build step은 App
+private key나 `main` ruleset bypass 권한이 있는 token에 접근할 수 없습니다.
+
+검증 완료 후 기존 `RELEASE_GITHUB_TOKEN` secret과 `Repository admin` role bypass는
+제거했으며, release App만 자동 release를 위한 예외 actor로 유지합니다.
 
 ### Chrome Web Store
 
@@ -191,10 +195,12 @@ repository role bypass를 제거하지 않습니다. 성공이 확인되면 `REL
   commit/tag push가 `main` ruleset을 통과하지 못한 것입니다.
 - `synchronize-tab-scrolling-release` App이 현재 저장소에 설치되어 있는지 확인합니다.
 - `main` ruleset bypass list에 App이 `Always allow`로 등록되어 있는지 확인합니다.
-- `.github/workflows/release.yml`의 `actions/checkout` 단계가
-  `token: ${{ steps.release-app-token.outputs.token }}`을 사용해야 합니다. Release step의
-  `GITHUB_TOKEN`만 바꾸면 GitHub API 인증은 바뀌지만, `@semantic-release/git`의 실제
-  `git push` credentials는 기본 Actions token으로 남을 수 있습니다.
+- `Generate release app token`이 build step 뒤, `Release` step 바로 앞에 있는지 확인합니다.
+- `Release` step의 `GITHUB_TOKEN`이
+  `${{ steps.release-app-token.outputs.token }}`인지 확인합니다. semantic-release는 이
+  환경변수를 Git push와 GitHub API 인증에 모두 사용합니다.
+- `actions/checkout`은 `persist-credentials: false`를 유지해야 합니다. release App token을
+  checkout에 전달하면 install/build step에도 `main` bypass Git credential이 노출됩니다.
 
 ### release App token 생성이 실패하는 경우
 
