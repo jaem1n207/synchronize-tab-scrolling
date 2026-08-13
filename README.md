@@ -195,6 +195,10 @@ You can choose how page changes behave:
   source and target site boundaries are compatible. If they are unrelated, such as an original
   article and an independently translated article on another website, the target page stays where it
   is, a notice is shown, and scroll sync keeps running.
+- **Sync page path across different sites**: each tab keeps its own site while the changed page path
+  and relevant filtered query data are applied across unrelated sites, including local development,
+  staging, production, and market-specific origins. This is an explicit opt-in mode because path and
+  query data may be sent to another site. Each target keeps its own fragment.
 
 ### Auto-Sync Suggestion
 
