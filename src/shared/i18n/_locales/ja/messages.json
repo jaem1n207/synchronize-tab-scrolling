@@ -296,6 +296,9 @@
   "urlSyncModeDescription": {
     "message": "リンクしたタブがページ変更にどう追従するかを選択します。"
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "異なるサイト間でページパスを同期"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "変更したタブに従う"
   },

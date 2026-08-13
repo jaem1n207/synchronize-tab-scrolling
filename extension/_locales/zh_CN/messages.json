@@ -296,6 +296,9 @@
   "urlSyncModeDescription": {
     "message": "选择关联标签页如何跟随页面变化。"
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "在不同网站之间同步页面路径"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟随已更改的标签页"
   },

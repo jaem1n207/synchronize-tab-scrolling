@@ -296,6 +296,9 @@
   "urlSyncModeDescription": {
     "message": "연결된 탭이 페이지 변경을 따라가는 방식을 선택하세요."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "서로 다른 사이트 간 페이지 경로 동기화"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "변경한 탭 따라가기"
   },

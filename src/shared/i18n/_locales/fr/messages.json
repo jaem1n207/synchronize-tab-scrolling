@@ -296,6 +296,9 @@
   "urlSyncModeDescription": {
     "message": "Choisissez comment les onglets liés suivent les changements de page."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "Synchroniser le chemin de page entre différents sites"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Suivre l'onglet modifié"
   },

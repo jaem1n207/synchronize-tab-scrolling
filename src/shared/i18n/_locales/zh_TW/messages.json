@@ -296,6 +296,9 @@
   "urlSyncModeDescription": {
     "message": "選擇連結的分頁如何跟隨頁面變更。"
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "在不同網站之間同步頁面路徑"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟隨已變更的分頁"
   },

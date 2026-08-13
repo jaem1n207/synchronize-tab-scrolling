@@ -296,6 +296,9 @@
   "urlSyncModeDescription": {
     "message": "Choose how linked tabs follow page changes."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "Sync page path across different sites"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Follow changed tab"
   },

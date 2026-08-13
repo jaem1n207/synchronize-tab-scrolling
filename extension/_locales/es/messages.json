@@ -296,6 +296,9 @@
   "urlSyncModeDescription": {
     "message": "Elige cómo las pestañas vinculadas siguen los cambios de página."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "Sincronizar la ruta de la página entre sitios diferentes"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Seguir la pestaña cambiada"
   },
