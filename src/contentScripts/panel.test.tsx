@@ -31,6 +31,7 @@ const {
   repairUrlSyncModeMock,
   saveUrlSyncModeMock,
   storageChangeHandlers,
+  urlSyncModeChangePromises,
 } = vi.hoisted(() => ({
   messageHandlers: new Map<string, RegisteredMessageHandler>(),
   onMessageMock: vi.fn(),
@@ -38,6 +39,7 @@ const {
   repairUrlSyncModeMock: vi.fn(),
   saveUrlSyncModeMock: vi.fn(),
   storageChangeHandlers: new Set<StorageChangeHandler>(),
+  urlSyncModeChangePromises: new Array<Promise<boolean>>(),
 }));
 const originalAttachShadow = Element.prototype.attachShadow;
 let capturedPanelShadowRoot: ShadowRoot | null = null;
@@ -124,7 +126,8 @@ vi.mock('./components', () => ({
       <button
         type="button"
         onClick={() => {
-          void onUrlSyncModeChange('sync-page-path-across-sites');
+          const result = onUrlSyncModeChange('sync-page-path-across-sites');
+          urlSyncModeChangePromises.push(result);
         }}
       >
         choose-cross-site
@@ -163,6 +166,14 @@ function createDeferred<T>() {
   return { promise, resolve };
 }
 
+function getLatestUrlSyncModeChange() {
+  const change = urlSyncModeChangePromises.at(-1);
+  if (!change) {
+    throw new Error('Expected a URL sync mode change');
+  }
+  return change;
+}
+
 async function mountPanel() {
   const { showPanel } = await import('./panel');
   await act(async () => {
@@ -188,6 +199,7 @@ describe('panel suggestion transport', () => {
     vi.clearAllMocks();
     messageHandlers.clear();
     storageChangeHandlers.clear();
+    urlSyncModeChangePromises.length = 0;
     storedUrlSyncMode = 'follow-changed-tab';
     capturedPanelShadowRoot = null;
     document.body.innerHTML = '';
@@ -354,7 +366,7 @@ describe('panel suggestion transport', () => {
     expect(repairUrlSyncModeMock).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps a newer valid persisted mode when malformed repair resolves after its reset write', async () => {
+  it('keeps the later valid storage commit when malformed repair resolves afterward', async () => {
     const ui = await mountPanel();
     const externalRepair = createDeferred<{
       status: 'success';
@@ -388,20 +400,6 @@ describe('panel suggestion transport', () => {
         },
       });
     });
-    repairUrlSyncModeMock.mockImplementation(async () => {
-      if (
-        storedUrlSyncMode === 'follow-changed-tab' ||
-        storedUrlSyncMode === 'keep-each-tabs-website' ||
-        storedUrlSyncMode === 'sync-page-path-across-sites'
-      ) {
-        return {
-          status: 'success',
-          mode: storedUrlSyncMode,
-          repaired: false,
-        };
-      }
-      throw new Error('Expected a valid authoritative mode');
-    });
 
     await act(async () => {
       externalRepair.resolve({
@@ -416,6 +414,60 @@ describe('panel suggestion transport', () => {
     expect(storedUrlSyncMode).toBe('keep-each-tabs-website');
     expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('keep-each-tabs-website');
     expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('none');
+    expect(repairUrlSyncModeMock).toHaveBeenCalledTimes(2);
+    expect(saveUrlSyncModeMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps repaired default authority when its storage commit follows a valid mode', async () => {
+    const ui = await mountPanel();
+    const externalRepair = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: true;
+      notice: UrlSyncNotice;
+    }>();
+    repairUrlSyncModeMock.mockReturnValueOnce(externalRepair.promise);
+
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'malformed-mode',
+        },
+      });
+    });
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'malformed-mode',
+          newValue: 'keep-each-tabs-website',
+        },
+      });
+    });
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'keep-each-tabs-website',
+          newValue: 'follow-changed-tab',
+        },
+      });
+    });
+
+    await act(async () => {
+      externalRepair.resolve({
+        status: 'success',
+        mode: 'follow-changed-tab',
+        repaired: true,
+        notice: { key: 'urlSyncModeResetNotice', severity: 'warning' },
+      });
+      await externalRepair.promise;
+    });
+
+    expect(storedUrlSyncMode).toBe('follow-changed-tab');
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('follow-changed-tab');
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('urlSyncModeResetNotice');
+    expect(repairUrlSyncModeMock).toHaveBeenCalledTimes(2);
+    expect(saveUrlSyncModeMock).not.toHaveBeenCalled();
   });
 
   it('exposes a truthful notice when malformed mode repair fails', async () => {
@@ -473,7 +525,7 @@ describe('panel suggestion transport', () => {
     expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
   });
 
-  it('does not let an older malformed-mode repair overwrite a newer broadcast', async () => {
+  it('does not let an older malformed-mode repair overwrite a later storage commit', async () => {
     const ui = await mountPanel();
     const externalRepair = createDeferred<{
       status: 'success';
@@ -482,24 +534,6 @@ describe('panel suggestion transport', () => {
       notice: UrlSyncNotice;
     }>();
     repairUrlSyncModeMock.mockReturnValueOnce(externalRepair.promise);
-    repairUrlSyncModeMock.mockImplementation(async () => {
-      if (
-        storedUrlSyncMode === 'follow-changed-tab' ||
-        storedUrlSyncMode === 'keep-each-tabs-website' ||
-        storedUrlSyncMode === 'sync-page-path-across-sites'
-      ) {
-        return {
-          status: 'success',
-          mode: storedUrlSyncMode,
-          repaired: false,
-        };
-      }
-      throw new Error('Expected a valid authoritative mode');
-    });
-    saveUrlSyncModeMock.mockImplementation(async (mode: UrlSyncMode) => {
-      storedUrlSyncMode = mode;
-      return true;
-    });
 
     act(() => {
       dispatchStorageChange({
@@ -511,15 +545,17 @@ describe('panel suggestion transport', () => {
     });
     await act(async () => {
       await getRequiredHandler('sync:url-mode-changed')({
-        data: { mode: 'sync-page-path-across-sites' },
+        data: {
+          mode: 'sync-page-path-across-sites',
+          notice: { key: 'urlSyncLanguagePreservationNotice', severity: 'info' },
+        },
       });
     });
-    storedUrlSyncMode = 'sync-page-path-across-sites';
     act(() => {
       dispatchStorageChange({
         urlSyncMode: {
           oldValue: 'malformed-mode',
-          newValue: 'follow-changed-tab',
+          newValue: 'sync-page-path-across-sites',
         },
       });
     });
@@ -535,67 +571,213 @@ describe('panel suggestion transport', () => {
     });
 
     expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
-    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('none');
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent(
+      'urlSyncLanguagePreservationNotice',
+    );
+    expect(saveUrlSyncModeMock).not.toHaveBeenCalled();
   });
 
-  it('restores newer persisted storage after an older local save writes late', async () => {
+  it('keeps the third writer authoritative while a local authority read is deferred', async () => {
     const saveMode = createDeferred<boolean>();
+    const authorityRead = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: false;
+    }>();
     saveUrlSyncModeMock.mockImplementationOnce(() => saveMode.promise);
-    saveUrlSyncModeMock.mockImplementation(async (mode: UrlSyncMode) => {
-      storedUrlSyncMode = mode;
-      return true;
-    });
-    repairUrlSyncModeMock.mockImplementation(async () => {
-      if (
-        storedUrlSyncMode === 'follow-changed-tab' ||
-        storedUrlSyncMode === 'keep-each-tabs-website' ||
-        storedUrlSyncMode === 'sync-page-path-across-sites'
-      ) {
-        return {
-          status: 'success',
-          mode: storedUrlSyncMode,
-          repaired: false,
-        };
-      }
-      throw new Error('Expected a valid authoritative mode');
-    });
+    repairUrlSyncModeMock.mockReturnValueOnce(authorityRead.promise);
     const user = userEvent.setup();
     const ui = await mountPanel();
 
     await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
-    await act(async () => {
-      await getRequiredHandler('sync:url-mode-changed')({
-        data: {
-          mode: 'keep-each-tabs-website',
-          notice: { key: 'urlSyncLanguagePreservationNotice', severity: 'info' },
-        },
-      });
-    });
-    act(() => {
-      dispatchStorageChange({
-        urlSyncMode: {
-          oldValue: 'follow-changed-tab',
-          newValue: 'sync-page-path-across-sites',
-        },
-      });
-    });
-
     await act(async () => {
       storedUrlSyncMode = 'sync-page-path-across-sites';
       saveMode.resolve(true);
       await saveMode.promise;
     });
 
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'sync-page-path-across-sites',
+          newValue: 'keep-each-tabs-website',
+        },
+      });
+    });
+
+    await act(async () => {
+      authorityRead.resolve({
+        status: 'success',
+        mode: 'sync-page-path-across-sites',
+        repaired: false,
+      });
+      await authorityRead.promise;
+    });
+
+    await expect(getLatestUrlSyncModeChange()).resolves.toBe(false);
     expect(storedUrlSyncMode).toBe('keep-each-tabs-website');
     expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('keep-each-tabs-website');
-    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent(
-      'urlSyncLanguagePreservationNotice',
-    );
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('none');
+    expect(saveUrlSyncModeMock).toHaveBeenCalledTimes(1);
+    expect(repairUrlSyncModeMock).toHaveBeenCalledTimes(2);
     expect(sendMessageMock).not.toHaveBeenCalledWith(
       'sync:url-mode-changed',
       { mode: 'sync-page-path-across-sites' },
       'background',
     );
+  });
+
+  it('ignores an older authority read when a newer local read has already completed', async () => {
+    const olderSave = createDeferred<boolean>();
+    const olderRead = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: false;
+    }>();
+    const newerRead = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: false;
+    }>();
+    saveUrlSyncModeMock
+      .mockImplementationOnce(() => olderSave.promise)
+      .mockImplementationOnce(async () => true);
+    repairUrlSyncModeMock
+      .mockResolvedValueOnce({
+        status: 'success',
+        mode: 'follow-changed-tab',
+        repaired: false,
+      })
+      .mockReturnValueOnce(olderRead.promise)
+      .mockReturnValueOnce(newerRead.promise);
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    const olderChange = getLatestUrlSyncModeChange();
+    await act(async () => {
+      olderSave.resolve(true);
+      await olderSave.promise;
+    });
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    const newerChange = getLatestUrlSyncModeChange();
+    await act(async () => {
+      newerRead.resolve({
+        status: 'success',
+        mode: 'sync-page-path-across-sites',
+        repaired: false,
+      });
+      await newerRead.promise;
+    });
+
+    await expect(newerChange).resolves.toBe(true);
+    sendMessageMock.mockClear();
+    await act(async () => {
+      olderRead.resolve({
+        status: 'success',
+        mode: 'follow-changed-tab',
+        repaired: false,
+      });
+      await olderRead.promise;
+    });
+
+    await expect(olderChange).resolves.toBe(false);
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+    expect(sendMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the local save commit when it follows an earlier removed-key event', async () => {
+    const saveMode = createDeferred<boolean>();
+    saveUrlSyncModeMock.mockImplementationOnce(() => saveMode.promise);
+    repairUrlSyncModeMock.mockImplementation(async () => ({
+      status: 'success',
+      mode: storedUrlSyncMode,
+      repaired: false,
+    }));
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'keep-each-tabs-website',
+          newValue: undefined,
+        },
+      });
+    });
+    await act(async () => {
+      storedUrlSyncMode = 'sync-page-path-across-sites';
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: undefined,
+          newValue: 'sync-page-path-across-sites',
+        },
+      });
+      saveMode.resolve(true);
+      await saveMode.promise;
+    });
+
+    await expect(getLatestUrlSyncModeChange()).resolves.toBe(true);
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      { mode: 'sync-page-path-across-sites' },
+      'background',
+    );
+    expect(saveUrlSyncModeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses removed-key default when removal commits after the local save', async () => {
+    const saveMode = createDeferred<boolean>();
+    const authorityRead = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: false;
+    }>();
+    saveUrlSyncModeMock.mockImplementationOnce(() => saveMode.promise);
+    repairUrlSyncModeMock.mockReturnValueOnce(authorityRead.promise);
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    await act(async () => {
+      storedUrlSyncMode = 'sync-page-path-across-sites';
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'sync-page-path-across-sites',
+        },
+      });
+      saveMode.resolve(true);
+      await saveMode.promise;
+    });
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'sync-page-path-across-sites',
+          newValue: undefined,
+        },
+      });
+    });
+    await act(async () => {
+      authorityRead.resolve({
+        status: 'success',
+        mode: 'sync-page-path-across-sites',
+        repaired: false,
+      });
+      await authorityRead.promise;
+    });
+
+    await expect(getLatestUrlSyncModeChange()).resolves.toBe(false);
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('follow-changed-tab');
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      { mode: 'sync-page-path-across-sites' },
+      'background',
+    );
+    expect(saveUrlSyncModeMock).toHaveBeenCalledTimes(1);
   });
 
   it('keeps a valid same-value external mode without a false save failure notice', async () => {
@@ -624,9 +806,156 @@ describe('panel suggestion transport', () => {
       await saveMode.promise;
     });
 
+    await expect(getLatestUrlSyncModeChange()).resolves.toBe(true);
     expect(storedUrlSyncMode).toBe('sync-page-path-across-sites');
     expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
     expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('none');
+    expect(saveUrlSyncModeMock).toHaveBeenCalledTimes(1);
+    expect(repairUrlSyncModeMock).toHaveBeenCalledTimes(2);
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      { mode: 'sync-page-path-across-sites' },
+      'background',
+    );
+  });
+
+  it('preserves a newer same-mode broadcast notice during a pending local operation', async () => {
+    const saveMode = createDeferred<boolean>();
+    saveUrlSyncModeMock.mockImplementationOnce(() => saveMode.promise);
+    repairUrlSyncModeMock.mockImplementation(async () => ({
+      status: 'success',
+      mode: storedUrlSyncMode,
+      repaired: false,
+    }));
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    await act(async () => {
+      await getRequiredHandler('sync:url-mode-changed')({
+        data: {
+          mode: 'sync-page-path-across-sites',
+          notice: { key: 'urlSyncLanguagePreservationNotice', severity: 'info' },
+        },
+      });
+    });
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent(
+      'urlSyncLanguagePreservationNotice',
+    );
+
+    await act(async () => {
+      storedUrlSyncMode = 'sync-page-path-across-sites';
+      saveMode.resolve(true);
+      await saveMode.promise;
+    });
+
+    await expect(getLatestUrlSyncModeChange()).resolves.toBe(true);
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent(
+      'urlSyncLanguagePreservationNotice',
+    );
+  });
+
+  it('does not update or relay after unmount while a local authority read is pending', async () => {
+    const authorityRead = createDeferred<{
+      status: 'success';
+      mode: UrlSyncMode;
+      repaired: false;
+    }>();
+    saveUrlSyncModeMock.mockResolvedValueOnce(true);
+    repairUrlSyncModeMock.mockReturnValueOnce(authorityRead.promise);
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    const modeChange = getLatestUrlSyncModeChange();
+    const { destroyPanel } = await import('./panel');
+    act(() => {
+      destroyPanel();
+    });
+    sendMessageMock.mockClear();
+
+    await act(async () => {
+      authorityRead.resolve({
+        status: 'success',
+        mode: 'sync-page-path-across-sites',
+        repaired: false,
+      });
+      await authorityRead.promise;
+    });
+
+    await expect(modeChange).resolves.toBe(false);
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      expect.anything(),
+      'background',
+    );
+    expect(document.querySelector('#scroll-sync-panel-root')).toBeNull();
+  });
+
+  it('does not start an authority read after a pending local save settles post-unmount', async () => {
+    const saveMode = createDeferred<boolean>();
+    saveUrlSyncModeMock.mockReturnValueOnce(saveMode.promise);
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    const modeChange = getLatestUrlSyncModeChange();
+    const { destroyPanel } = await import('./panel');
+    act(() => {
+      destroyPanel();
+    });
+
+    await act(async () => {
+      saveMode.resolve(true);
+      await saveMode.promise;
+    });
+
+    await expect(modeChange).resolves.toBe(false);
+    expect(repairUrlSyncModeMock).toHaveBeenCalledTimes(1);
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      expect.anything(),
+      'background',
+    );
+  });
+
+  it('returns false when storage authority changes while the local relay is pending', async () => {
+    const relay = createDeferred<void>();
+    sendMessageMock.mockImplementationOnce(() => relay.promise);
+    repairUrlSyncModeMock.mockResolvedValue({
+      status: 'success',
+      mode: 'sync-page-path-across-sites',
+      repaired: false,
+    });
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+    const modeChange = getLatestUrlSyncModeChange();
+    await waitFor(() => {
+      expect(sendMessageMock).toHaveBeenCalledWith(
+        'sync:url-mode-changed',
+        { mode: 'sync-page-path-across-sites' },
+        'background',
+      );
+    });
+    act(() => {
+      dispatchStorageChange({
+        urlSyncMode: {
+          oldValue: 'sync-page-path-across-sites',
+          newValue: 'keep-each-tabs-website',
+        },
+      });
+    });
+
+    await act(async () => {
+      relay.resolve();
+      await relay.promise;
+    });
+
+    await expect(modeChange).resolves.toBe(false);
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('keep-each-tabs-website');
   });
 
   it('removes the storage listener when the panel is destroyed', async () => {
