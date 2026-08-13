@@ -302,6 +302,9 @@
   "urlSyncModeAcrossDifferentSitesDescription": {
     "message": "हर टैब अपनी साइट पर रहता है, जबकि पेज पाथ और संबंधित क्वेरी डेटा दूसरे टैब पर लागू होते हैं।"
   },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "उदाहरण: अगर localhost:3000 /pricing खोलता है, तो example.com भी साइट बदले बिना /pricing खोलता है।"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "बदले हुए टैब का पालन करें"
   },

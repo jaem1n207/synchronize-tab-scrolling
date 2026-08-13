@@ -302,6 +302,9 @@
   "urlSyncModeAcrossDifferentSitesDescription": {
     "message": "每個分頁保留各自的網站，同時將頁面路徑和相關查詢資料套用到其他分頁。"
   },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "範例：如果 localhost:3000 開啟 /pricing，example.com 也會在不更換網站的情況下開啟 /pricing。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟隨已變更的分頁"
   },

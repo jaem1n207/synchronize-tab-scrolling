@@ -302,6 +302,9 @@
   "urlSyncModeAcrossDifferentSitesDescription": {
     "message": "Chaque onglet conserve son propre site tandis que le chemin de page et les données de requête pertinentes sont appliqués aux autres onglets."
   },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "Exemple : si localhost:3000 ouvre /pricing, example.com ouvre aussi /pricing sans changer de site."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Suivre l'onglet modifié"
   },

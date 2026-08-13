@@ -302,6 +302,9 @@
   "urlSyncModeAcrossDifferentSitesDescription": {
     "message": "각 탭의 사이트는 유지하면서 페이지 경로와 관련 쿼리 데이터를 다른 탭에 적용합니다."
   },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "예: localhost:3000에서 /pricing을 열면 example.com도 사이트를 바꾸지 않고 /pricing을 엽니다."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "변경한 탭 따라가기"
   },

@@ -302,6 +302,9 @@
   "urlSyncModeAcrossDifferentSitesDescription": {
     "message": "各タブはそれぞれのサイトを維持したまま、ページパスと関連するクエリデータを他のタブに適用します。"
   },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "例: localhost:3000 で /pricing を開くと、example.com もサイトを変更せずに /pricing を開きます。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "変更したタブに従う"
   },

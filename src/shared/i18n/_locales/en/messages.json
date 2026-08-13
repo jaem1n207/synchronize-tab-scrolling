@@ -302,6 +302,9 @@
   "urlSyncModeAcrossDifferentSitesDescription": {
     "message": "Each tab keeps its own site while the page path and relevant query data are applied to the other tabs."
   },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "Example: if localhost:3000 opens /pricing, example.com also opens /pricing without changing sites."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Follow changed tab"
   },

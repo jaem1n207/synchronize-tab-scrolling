@@ -302,6 +302,9 @@
   "urlSyncModeAcrossDifferentSitesDescription": {
     "message": "每个标签页保留各自的网站，同时将页面路径和相关查询数据应用到其他标签页。"
   },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "示例：如果 localhost:3000 打开 /pricing，example.com 也会在不更换网站的情况下打开 /pricing。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟随已更改的标签页"
   },
