@@ -305,6 +305,9 @@
   "urlSyncModeAcrossDifferentSitesExample": {
     "message": "範例：如果 localhost:3000 開啟 /pricing，example.com 也會在不更換網站的情況下開啟 /pricing。"
   },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ 路徑和查詢資料可能會傳送到其他網站。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟隨已變更的分頁"
   },

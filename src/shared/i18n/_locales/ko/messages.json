@@ -305,6 +305,9 @@
   "urlSyncModeAcrossDifferentSitesExample": {
     "message": "예: localhost:3000에서 /pricing을 열면 example.com도 사이트를 바꾸지 않고 /pricing을 엽니다."
   },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ 경로와 쿼리 데이터가 다른 사이트로 전달될 수 있습니다."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "변경한 탭 따라가기"
   },

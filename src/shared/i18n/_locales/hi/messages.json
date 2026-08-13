@@ -305,6 +305,9 @@
   "urlSyncModeAcrossDifferentSitesExample": {
     "message": "उदाहरण: अगर localhost:3000 /pricing खोलता है, तो example.com भी साइट बदले बिना /pricing खोलता है।"
   },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ पाथ और क्वेरी डेटा किसी दूसरी साइट पर भेजे जा सकते हैं।"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "बदले हुए टैब का पालन करें"
   },

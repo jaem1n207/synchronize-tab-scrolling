@@ -305,6 +305,9 @@
   "urlSyncModeAcrossDifferentSitesExample": {
     "message": "示例：如果 localhost:3000 打开 /pricing，example.com 也会在不更换网站的情况下打开 /pricing。"
   },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ 路径和查询数据可能会发送到其他网站。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟随已更改的标签页"
   },

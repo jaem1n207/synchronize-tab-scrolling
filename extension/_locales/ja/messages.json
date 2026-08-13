@@ -305,6 +305,9 @@
   "urlSyncModeAcrossDifferentSitesExample": {
     "message": "例: localhost:3000 で /pricing を開くと、example.com もサイトを変更せずに /pricing を開きます。"
   },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ パスとクエリデータが別のサイトに送信される場合があります。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "変更したタブに従う"
   },

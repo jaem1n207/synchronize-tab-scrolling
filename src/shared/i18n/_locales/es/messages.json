@@ -305,6 +305,9 @@
   "urlSyncModeAcrossDifferentSitesExample": {
     "message": "Ejemplo: si localhost:3000 abre /pricing, example.com también abre /pricing sin cambiar de sitio."
   },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ La ruta y los datos de consulta pueden enviarse a otro sitio."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Seguir la pestaña cambiada"
   },
