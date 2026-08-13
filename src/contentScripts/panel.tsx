@@ -76,15 +76,19 @@ function PanelApp() {
     setUrlSyncNotice(notice);
   }, []);
 
-  const clearSettingFailedNotice = useCallback(() => {
-    const currentNotice = presentedUrlSyncNoticeRef.current;
-    if (
-      currentNotice?.key === 'urlSyncSettingSaveFailedNotice' ||
-      currentNotice?.key === 'urlSyncSettingReadFailedNotice'
-    ) {
-      presentUrlSyncNotice(null);
-    }
-  }, [presentUrlSyncNotice]);
+  const clearSupersededSettingNotice = useCallback(
+    (mode: UrlSyncMode) => {
+      const currentNotice = presentedUrlSyncNoticeRef.current;
+      if (
+        currentNotice?.key === 'urlSyncSettingSaveFailedNotice' ||
+        currentNotice?.key === 'urlSyncSettingReadFailedNotice' ||
+        (currentNotice?.key === 'urlSyncModeResetNotice' && mode !== DEFAULT_URL_SYNC_MODE)
+      ) {
+        presentUrlSyncNotice(null);
+      }
+    },
+    [presentUrlSyncNotice],
+  );
 
   // Listen for connection status events from scrollSync.ts via CustomEvent
   useEffect(() => {
@@ -120,11 +124,22 @@ function PanelApp() {
         }
 
         setUrlSyncEnabled(enabled);
+        const loadOperationRemainsCurrent =
+          urlSyncOperationGenerationRef.current === loadGeneration;
         const storageIsCurrent =
-          urlSyncOperationGenerationRef.current === loadGeneration &&
+          loadOperationRemainsCurrent &&
           urlSyncStorageGenerationRef.current === loadStorageGeneration;
+        const currentStorageGeneration = urlSyncStorageGenerationRef.current;
+        const currentAuthority = urlSyncStorageAuthorityRef.current;
+        const repairedModeRemainsAuthority =
+          modeRepairResult.status === 'success' &&
+          modeRepairResult.repaired &&
+          loadOperationRemainsCurrent &&
+          currentAuthority.generation === currentStorageGeneration &&
+          currentAuthority.mode === modeRepairResult.mode;
         const shouldApplyNotice =
-          storageIsCurrent && urlSyncNoticeGenerationRef.current === loadNoticeGeneration;
+          (storageIsCurrent || repairedModeRemainsAuthority) &&
+          urlSyncNoticeGenerationRef.current === loadNoticeGeneration;
 
         if (modeRepairResult.status === 'success') {
           if (storageIsCurrent) {
@@ -191,7 +206,7 @@ function PanelApp() {
           mode: modeChange.newValue,
         };
         presentUrlSyncMode(modeChange.newValue);
-        clearSettingFailedNotice();
+        clearSupersededSettingNotice(modeChange.newValue);
         return;
       }
 
@@ -201,7 +216,7 @@ function PanelApp() {
           mode: DEFAULT_URL_SYNC_MODE,
         };
         presentUrlSyncMode(DEFAULT_URL_SYNC_MODE);
-        clearSettingFailedNotice();
+        clearSupersededSettingNotice(DEFAULT_URL_SYNC_MODE);
         return;
       }
 
@@ -284,7 +299,7 @@ function PanelApp() {
       browser.storage.onChanged.removeListener(handleStorageChange);
       window.removeEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
     };
-  }, [clearSettingFailedNotice, presentUrlSyncMode, presentUrlSyncNotice]);
+  }, [clearSupersededSettingNotice, presentUrlSyncMode, presentUrlSyncNotice]);
 
   useEffect(() => {
     const handleOpenUrlSyncSettings = () => {
@@ -430,8 +445,7 @@ function PanelApp() {
       if (
         !isMountedRef.current ||
         urlSyncOperationGenerationRef.current !== readGeneration ||
-        urlSyncStorageGenerationRef.current !== readStorageGeneration ||
-        currentAuthority.generation !== readStorageGeneration ||
+        currentAuthority.generation !== urlSyncStorageGenerationRef.current ||
         currentAuthority.mode !== mode
       ) {
         return false;
