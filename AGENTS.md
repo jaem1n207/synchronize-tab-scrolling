@@ -138,10 +138,11 @@ pnpm start:firefox      # Launch in Firefox
 - **State**: No Redux/Zustand. Mutable module-level objects + `withAutoSyncLock()` mutex. Persisted to `browser.storage.local`
 - **Content script UI**: Two independent React roots in Shadow DOM (`panel.tsx`, `suggestion-toast.tsx`). z-index 2147483647
 - **URL Sync settings**: persisted enabled state plus mode in `browser.storage.local`. UI must show
-  the actual active mode: `follow-changed-tab` or `keep-each-tabs-website`. `follow-changed-tab`
-  follows the source website. `keep-each-tabs-website` keeps the target website only after the
-  shared resolver confirms a compatible site boundary; otherwise it emits a warning notice and skips
-  only that target navigation.
+  the actual active mode: `follow-changed-tab`, `keep-each-tabs-website`, or
+  `sync-page-path-across-sites`. `follow-changed-tab` follows the source website.
+  `keep-each-tabs-website` keeps the target website only after the shared resolver confirms a
+  compatible site boundary. `sync-page-path-across-sites` keeps the target origin and bypasses that
+  boundary check only after explicit selection with a persistent path/query disclosure.
 - **Auto-sync suggestions**: opt-in. `autoSyncEnabled` defaults to `false`; only stored booleans are
   honored, and malformed storage values fall back to disabled.
 - **Build**: 4 Vite configs — popup (HTML+JS), background (IIFE), content (IIFE), landing (HTML+JS). `mangle: false` for CWS readability

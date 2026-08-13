@@ -83,11 +83,13 @@ matching from `handleScrollCore()` or the `scroll:sync` handler.
 
 The `url:sync` handler uses `resolveUrlSyncTarget()` from `translated-page-url-utils.ts`.
 `follow-changed-tab` may move a target to the source website. `keep-each-tabs-website` navigates
-only after the resolver confirms the source and target site boundaries are compatible.
+only after the resolver confirms compatible site boundaries. The explicit
+`sync-page-path-across-sites` mode reuses the same target-origin builder but skips only that
+compatibility check; it still requires valid HTTP(S), preserves the target hash, and uses the
+existing filtered query policy.
 
-When URL Sync resolution is blocked, the handler emits a notice, logs only non-sensitive metadata,
-keeps `window.location.href` unchanged, and does not clear `cachedManualOffset` or the persisted
-manual offset. Scroll sync remains active after the skipped navigation.
+All modes keep the current runtime/operation identity checks. Blocked or same-URL resolution happens
+before the transactional manual-offset clear, and only a committed clear callback navigates.
 
 ## Key Message Handlers (in scroll-sync.ts)
 
