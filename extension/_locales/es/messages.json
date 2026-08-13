@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "Sincronizar la ruta de la página entre sitios diferentes"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Cada pestaña mantiene su propio sitio mientras la ruta de la página y los datos de consulta relevantes se aplican a las demás pestañas."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Seguir la pestaña cambiada"
   },

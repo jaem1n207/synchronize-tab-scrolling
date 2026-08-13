@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "Synchroniser le chemin de page entre différents sites"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Chaque onglet conserve son propre site tandis que le chemin de page et les données de requête pertinentes sont appliqués aux autres onglets."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Suivre l'onglet modifié"
   },

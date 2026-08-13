@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "서로 다른 사이트 간 페이지 경로 동기화"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "각 탭의 사이트는 유지하면서 페이지 경로와 관련 쿼리 데이터를 다른 탭에 적용합니다."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "변경한 탭 따라가기"
   },

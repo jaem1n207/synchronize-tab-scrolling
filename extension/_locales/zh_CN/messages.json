@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "在不同网站之间同步页面路径"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "每个标签页保留各自的网站，同时将页面路径和相关查询数据应用到其他标签页。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟随已更改的标签页"
   },

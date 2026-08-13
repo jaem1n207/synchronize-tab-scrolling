@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "अलग-अलग साइटों के बीच पेज पाथ सिंक करें"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "हर टैब अपनी साइट पर रहता है, जबकि पेज पाथ और संबंधित क्वेरी डेटा दूसरे टैब पर लागू होते हैं।"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "बदले हुए टैब का पालन करें"
   },

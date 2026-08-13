@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "異なるサイト間でページパスを同期"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "各タブはそれぞれのサイトを維持したまま、ページパスと関連するクエリデータを他のタブに適用します。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "変更したタブに従う"
   },

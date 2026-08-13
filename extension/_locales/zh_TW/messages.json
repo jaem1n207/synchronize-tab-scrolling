@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "在不同網站之間同步頁面路徑"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "每個分頁保留各自的網站，同時將頁面路徑和相關查詢資料套用到其他分頁。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟隨已變更的分頁"
   },

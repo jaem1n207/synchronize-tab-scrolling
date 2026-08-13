@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "Seitenpfad zwischen verschiedenen Websites synchronisieren"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Jeder Tab behält seine eigene Website, während der Seitenpfad und relevante Abfragedaten auf die anderen Tabs angewendet werden."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Geändertem Tab folgen"
   },

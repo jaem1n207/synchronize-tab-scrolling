@@ -299,6 +299,9 @@
   "urlSyncModeAcrossDifferentSites": {
     "message": "Sync page path across different sites"
   },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Each tab keeps its own site while the page path and relevant query data are applied to the other tabs."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Follow changed tab"
   },
