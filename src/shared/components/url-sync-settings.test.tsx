@@ -356,7 +356,8 @@ describe('UrlSyncSettings', () => {
     });
 
     it('does not show the advisory when a cross-site selection fails', async () => {
-      const onModeChange = vi.fn().mockResolvedValue(false);
+      const deferredModeChange = Promise.withResolvers<boolean>();
+      const onModeChange = vi.fn(() => deferredModeChange.promise);
       const user = userEvent.setup();
 
       render(
@@ -370,20 +371,29 @@ describe('UrlSyncSettings', () => {
       );
 
       await user.click(screen.getByRole('button', { name: 'Change page sync mode' }));
-      await user.click(
-        screen.getByRole('radio', {
-          name: /Sync page path across different sites/i,
-        }),
-      );
+      const followChangedTabRadio = screen.getByRole('radio', {
+        name: /Follow changed tab/i,
+      });
+      const crossSiteRadio = screen.getByRole('radio', {
+        name: /Sync page path across different sites/i,
+      });
+
+      await user.click(crossSiteRadio);
 
       expect(onModeChange).toHaveBeenCalledWith('sync-page-path-across-sites');
+      expect(followChangedTabRadio).toBeDisabled();
+      expect(crossSiteRadio).toBeDisabled();
+
+      deferredModeChange.resolve(false);
+
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', {
-            name: 'Hide page sync modes',
-          }),
-        ).toHaveAttribute('aria-expanded', 'true');
+        expect(followChangedTabRadio).not.toBeDisabled();
+        expect(crossSiteRadio).not.toBeDisabled();
       });
+      expect(screen.getByRole('button', { name: 'Hide page sync modes' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
       expect(
         screen.queryByText('⚠ Path and query data may be sent to another site.'),
       ).not.toBeInTheDocument();
