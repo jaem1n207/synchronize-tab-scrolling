@@ -1,6 +1,9 @@
 export const DEFAULT_URL_SYNC_MODE = 'follow-changed-tab';
 
-export type UrlSyncMode = 'follow-changed-tab' | 'keep-each-tabs-website';
+export type UrlSyncMode =
+  | 'follow-changed-tab'
+  | 'keep-each-tabs-website'
+  | 'sync-page-path-across-sites';
 
 export type UrlSyncNoticeKey =
   | 'urlSyncModeResetNotice'
@@ -37,7 +40,11 @@ export interface UrlSyncBlockedResult {
 export type UrlSyncResolutionResult = UrlSyncNavigationResult | UrlSyncBlockedResult;
 
 export function isUrlSyncMode(value: unknown): value is UrlSyncMode {
-  return value === 'follow-changed-tab' || value === 'keep-each-tabs-website';
+  return (
+    value === 'follow-changed-tab' ||
+    value === 'keep-each-tabs-website' ||
+    value === 'sync-page-path-across-sites'
+  );
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {

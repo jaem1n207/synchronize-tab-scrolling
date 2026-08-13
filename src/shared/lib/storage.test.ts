@@ -813,6 +813,15 @@ describe('saveUrlSyncMode', () => {
     expect(storageSetMock).toHaveBeenCalledWith({ urlSyncMode: 'keep-each-tabs-website' });
   });
 
+  it('saves sync-page-path-across-sites mode', async () => {
+    storageSetMock.mockResolvedValue(undefined);
+
+    await expect(saveUrlSyncMode('sync-page-path-across-sites')).resolves.toBe(true);
+    expect(storageSetMock).toHaveBeenCalledWith({
+      urlSyncMode: 'sync-page-path-across-sites',
+    });
+  });
+
   it('logs an error when save fails', async () => {
     const error = new Error('set failed');
     storageSetMock.mockRejectedValue(error);
@@ -837,6 +846,14 @@ describe('loadUrlSyncMode', () => {
     await expect(loadUrlSyncMode()).resolves.toBe('keep-each-tabs-website');
   });
 
+  it('returns stored sync-page-path-across-sites mode', async () => {
+    storageGetMock.mockResolvedValue({
+      urlSyncMode: 'sync-page-path-across-sites',
+    });
+
+    await expect(loadUrlSyncMode()).resolves.toBe('sync-page-path-across-sites');
+  });
+
   it('returns follow-changed-tab for invalid stored values', async () => {
     storageGetMock.mockResolvedValue({ urlSyncMode: 'unexpected-mode' });
 
@@ -852,6 +869,19 @@ describe('repairUrlSyncMode', () => {
     await expect(repairUrlSyncMode()).resolves.toEqual({
       status: 'success',
       mode: 'follow-changed-tab',
+      repaired: false,
+    });
+    expect(storageSetMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts sync-page-path-across-sites without repair', async () => {
+    storageGetMock.mockResolvedValue({
+      urlSyncMode: 'sync-page-path-across-sites',
+    });
+
+    await expect(repairUrlSyncMode()).resolves.toEqual({
+      status: 'success',
+      mode: 'sync-page-path-across-sites',
       repaired: false,
     });
     expect(storageSetMock).not.toHaveBeenCalled();
