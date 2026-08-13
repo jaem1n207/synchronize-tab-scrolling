@@ -5,6 +5,8 @@ import * as React from 'react';
 import { act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import type { UrlSyncMode, UrlSyncNotice } from '~/shared/types/url-sync';
+
 interface RegisteredMessage {
   data: unknown;
 }
@@ -18,10 +20,18 @@ interface MotionDivMockProps extends React.ComponentProps<'div'> {
   transition?: unknown;
 }
 
-const { messageHandlers, onMessageMock, sendMessageMock } = vi.hoisted(() => ({
+const {
+  messageHandlers,
+  onMessageMock,
+  sendMessageMock,
+  repairUrlSyncModeMock,
+  saveUrlSyncModeMock,
+} = vi.hoisted(() => ({
   messageHandlers: new Map<string, RegisteredMessageHandler>(),
   onMessageMock: vi.fn(),
   sendMessageMock: vi.fn(),
+  repairUrlSyncModeMock: vi.fn(),
+  saveUrlSyncModeMock: vi.fn(),
 }));
 const originalAttachShadow = Element.prototype.attachShadow;
 let capturedPanelShadowRoot: ShadowRoot | null = null;
@@ -41,12 +51,9 @@ vi.mock('webextension-polyfill', () => ({
 
 vi.mock('~/shared/lib/storage', () => ({
   loadUrlSyncEnabled: vi.fn().mockResolvedValue(true),
-  repairUrlSyncMode: vi.fn().mockResolvedValue({
-    status: 'success',
-    mode: 'follow-changed-tab',
-  }),
+  repairUrlSyncMode: repairUrlSyncModeMock,
   saveUrlSyncEnabled: vi.fn().mockResolvedValue(true),
-  saveUrlSyncMode: vi.fn().mockResolvedValue(true),
+  saveUrlSyncMode: saveUrlSyncModeMock,
 }));
 
 vi.mock('~/shared/lib/logger', () => ({
@@ -84,10 +91,27 @@ vi.mock('motion/react', () => ({
 }));
 
 vi.mock('./components', () => ({
-  SyncControlPanel: () => (
+  SyncControlPanel: ({
+    urlSyncMode,
+    urlSyncNotice,
+    onUrlSyncModeChange,
+  }: {
+    urlSyncMode: UrlSyncMode;
+    urlSyncNotice: UrlSyncNotice | null;
+    onUrlSyncModeChange: (mode: UrlSyncMode) => Promise<boolean>;
+  }) => (
     <div>
-      sync-control-panel
       <span>Private synchronized title</span>
+      <span data-testid="panel-url-sync-mode">{urlSyncMode}</span>
+      <span data-testid="panel-url-sync-notice">{urlSyncNotice?.key ?? 'none'}</span>
+      <button
+        type="button"
+        onClick={() => {
+          void onUrlSyncModeChange('sync-page-path-across-sites');
+        }}
+      >
+        choose-cross-site
+      </button>
     </div>
   ),
 }));
@@ -150,6 +174,12 @@ describe('panel suggestion transport', () => {
       return vi.fn();
     });
     sendMessageMock.mockResolvedValue(undefined);
+    repairUrlSyncModeMock.mockResolvedValue({
+      status: 'success',
+      mode: 'follow-changed-tab',
+      repaired: false,
+    });
+    saveUrlSyncModeMock.mockResolvedValue(true);
   });
 
   it('keeps synchronized titles inside a closed shadow root unavailable to the host document', async () => {
@@ -159,6 +189,63 @@ describe('panel suggestion transport', () => {
     expect(container?.shadowRoot).toBeNull();
     expect(capturedPanelShadowRoot?.textContent).toContain('Private synchronized title');
     expect(document.body.textContent).not.toContain('Private synchronized title');
+  });
+
+  it('loads the persisted cross-site mode into the in-page panel', async () => {
+    repairUrlSyncModeMock.mockResolvedValue({
+      status: 'success',
+      mode: 'sync-page-path-across-sites',
+      repaired: false,
+    });
+    const ui = await mountPanel();
+
+    expect(await ui.findByTestId('panel-url-sync-mode')).toHaveTextContent(
+      'sync-page-path-across-sites',
+    );
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('none');
+  });
+
+  it('keeps the previous panel mode and exposes a notice when local persistence fails', async () => {
+    repairUrlSyncModeMock.mockResolvedValue({
+      status: 'success',
+      mode: 'follow-changed-tab',
+      repaired: false,
+    });
+    saveUrlSyncModeMock.mockResolvedValue(false);
+    const user = userEvent.setup();
+    const ui = await mountPanel();
+
+    await user.click(ui.getByRole('button', { name: 'choose-cross-site' }));
+
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('follow-changed-tab');
+    expect(await ui.findByTestId('panel-url-sync-notice')).toHaveTextContent(
+      'urlSyncSettingSaveFailedNotice',
+    );
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      expect.anything(),
+      'background',
+    );
+  });
+
+  it('applies an incoming persisted cross-site mode change to the panel', async () => {
+    repairUrlSyncModeMock.mockResolvedValue({
+      status: 'success',
+      mode: 'follow-changed-tab',
+      repaired: false,
+    });
+    saveUrlSyncModeMock.mockResolvedValue(true);
+    const ui = await mountPanel();
+
+    await act(async () => {
+      await getRequiredHandler('sync:url-mode-changed')({
+        data: { mode: 'sync-page-path-across-sites' },
+      });
+    });
+
+    expect(saveUrlSyncModeMock).toHaveBeenCalledWith('sync-page-path-across-sites');
+    expect(ui.getByTestId('panel-url-sync-mode')).toHaveTextContent('sync-page-path-across-sites');
+    expect(ui.getByTestId('panel-url-sync-notice')).toHaveTextContent('none');
   });
 
   it.each([

@@ -157,4 +157,30 @@ describe('SyncControlPanel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('manualSyncStateUnavailable');
     expect(screen.queryByRole('list', { name: 'syncedTabs' })).not.toBeInTheDocument();
   });
+
+  it('shows the persisted cross-site warning in the open in-page settings surface', () => {
+    usePanelStateMock.mockReturnValue({
+      isOpen: true,
+      syncedTabs: [],
+      syncStatusError: null,
+      autoSyncEnabled: false,
+      isAutoSyncActive: false,
+      autoSyncGroupCount: 0,
+      handleOpenChange: handleOpenChangeMock,
+      handleAutoSyncToggle: vi.fn(),
+    });
+
+    render(
+      <SyncControlPanel
+        urlSyncEnabled={false}
+        urlSyncMode="sync-page-path-across-sites"
+        urlSyncNotice={null}
+        onUrlSyncEnabledChange={vi.fn()}
+        onUrlSyncModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('urlSyncModeAcrossDifferentSites')).toBeInTheDocument();
+    expect(screen.getAllByText('urlSyncModeAcrossDifferentSitesWarning')).toHaveLength(1);
+  });
 });
