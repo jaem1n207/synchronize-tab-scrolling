@@ -312,7 +312,7 @@
     "message": "他のタブはそれぞれのウェブサイトに残り、対応するページを開きます。"
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "例: Aタブが docs.example.com/pricing に移動すると、Bタブは shop.example.com/pricing を開きます。"
+    "message": "例: タブ A が example.com/pricing に移動すると、タブ B は staging.example.com/pricing を開きます。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "可能な場合は言語設定を維持します。"

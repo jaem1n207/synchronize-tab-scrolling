@@ -312,7 +312,7 @@
     "message": "Les autres onglets restent sur leur propre site web et ouvrent la page correspondante."
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "Exemple : si l'onglet A ouvre docs.example.com/pricing, l'onglet B ouvre shop.example.com/pricing."
+    "message": "Exemple : si l'onglet A ouvre example.com/pricing, l'onglet B ouvre staging.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Les langues sont conservées lorsque c'est possible."

@@ -312,7 +312,7 @@
     "message": "Las demás pestañas permanecen en su propio sitio web y abren la página correspondiente."
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "Ejemplo: si la pestaña A va a docs.example.com/pricing, la pestaña B abre shop.example.com/pricing."
+    "message": "Ejemplo: si la pestaña A va a example.com/pricing, la pestaña B abre staging.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Los idiomas se mantienen cuando es posible."

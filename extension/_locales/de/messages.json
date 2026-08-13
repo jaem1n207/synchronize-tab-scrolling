@@ -312,7 +312,7 @@
     "message": "Andere Tabs bleiben auf ihrer eigenen Website und öffnen die passende Seite."
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "Beispiel: Wenn Tab A docs.example.com/pricing öffnet, öffnet Tab B shop.example.com/pricing."
+    "message": "Beispiel: Wenn Tab A example.com/pricing öffnet, öffnet Tab B staging.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Sprachen werden nach Möglichkeit beibehalten."

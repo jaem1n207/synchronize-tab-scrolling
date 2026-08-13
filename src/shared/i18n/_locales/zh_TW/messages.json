@@ -312,7 +312,7 @@
     "message": "其他分頁會留在各自的網站，並開啟對應頁面。"
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "範例：如果分頁 A 開啟 docs.example.com/pricing，分頁 B 會開啟 shop.example.com/pricing。"
+    "message": "範例：如果分頁 A 開啟 example.com/pricing，分頁 B 會開啟 staging.example.com/pricing。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "會盡可能保留語言設定。"
