@@ -22,7 +22,13 @@ vi.mock('~/shared/i18n', () => ({
       urlSyncModeKeepEachTabsWebsiteDescription:
         'Other tabs stay on their own website and open the matching page.',
       urlSyncModeKeepEachTabsWebsiteExample:
-        'Example: if tab A moves to docs.example.com/pricing, tab B opens shop.example.com/pricing.',
+        'Example: if tab A moves to example.com/pricing, tab B opens staging.example.com/pricing.',
+      urlSyncModeAcrossDifferentSites: 'Sync page path across different sites',
+      urlSyncModeAcrossDifferentSitesDescription:
+        'Each tab keeps its own site while the page path and relevant query data are applied to the other tabs.',
+      urlSyncModeAcrossDifferentSitesExample:
+        'Example: if localhost:3000 opens /pricing, example.com also opens /pricing without changing sites.',
+      urlSyncModeAcrossDifferentSitesWarning: '⚠ Path and query data may be sent to another site.',
       urlSyncModeLanguageHelper: 'Languages are kept when possible.',
       urlSyncModeResetNotice: 'URL Sync mode was reset because the saved setting was not valid.',
       urlSyncKeepWebsiteBlockedNotice:
@@ -266,7 +272,7 @@ describe('UrlSyncSettings', () => {
       expect(settings).toHaveTextContent('On');
       expect(settings).toHaveTextContent("Keep each tab's website");
       expect(settings).not.toHaveTextContent('example.com/products');
-      expect(settings).not.toHaveTextContent('docs.example.com/pricing');
+      expect(settings).not.toHaveTextContent('staging.example.com/pricing');
       expect(settings).not.toHaveTextContent('Languages are kept when possible.');
       expect(disclosure).toHaveAttribute('aria-expanded', 'false');
       expect(disclosure).toHaveAccessibleDescription(/On.*Keep each tab's website/);
@@ -307,9 +313,80 @@ describe('UrlSyncSettings', () => {
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          'Example: if tab A moves to docs.example.com/pricing, tab B opens shop.example.com/pricing.',
+          'Example: if tab A moves to example.com/pricing, tab B opens staging.example.com/pricing.',
         ),
       ).toBeInTheDocument();
+    });
+
+    it('keeps one cross-site advisory visible while collapsed and URL Sync is off', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <UrlSyncSettings
+          enabled={false}
+          mode="sync-page-path-across-sites"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={vi.fn()}
+        />,
+      );
+
+      const disclosure = screen.getByRole('button', {
+        name: 'Change page sync mode',
+      });
+
+      expect(
+        screen.getAllByText('⚠ Path and query data may be sent to another site.'),
+      ).toHaveLength(1);
+      expect(disclosure).toHaveAccessibleDescription(
+        /Off.*Sync page path across different sites.*Path and query data may be sent/i,
+      );
+
+      await user.click(disclosure);
+
+      expect(
+        screen.getAllByText('⚠ Path and query data may be sent to another site.'),
+      ).toHaveLength(1);
+      expect(
+        screen.getByRole('radio', {
+          name: /Sync page path across different sites/i,
+        }),
+      ).toBeDisabled();
+      expect(screen.getByText(/localhost:3000 opens \/pricing/)).toBeInTheDocument();
+    });
+
+    it('does not show the advisory when a cross-site selection fails', async () => {
+      const onModeChange = vi.fn().mockResolvedValue(false);
+      const user = userEvent.setup();
+
+      render(
+        <UrlSyncSettings
+          enabled={true}
+          mode="follow-changed-tab"
+          variant="inline-collapsible"
+          onEnabledChange={vi.fn()}
+          onModeChange={onModeChange}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Change page sync mode' }));
+      await user.click(
+        screen.getByRole('radio', {
+          name: /Sync page path across different sites/i,
+        }),
+      );
+
+      expect(onModeChange).toHaveBeenCalledWith('sync-page-path-across-sites');
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', {
+            name: 'Hide page sync modes',
+          }),
+        ).toHaveAttribute('aria-expanded', 'true');
+      });
+      expect(
+        screen.queryByText('⚠ Path and query data may be sent to another site.'),
+      ).not.toBeInTheDocument();
     });
 
     it('expands inline settings when expandToken changes to a positive value', () => {
@@ -445,6 +522,30 @@ describe('UrlSyncSettings', () => {
       expect(screen.getByRole('radio', { name: /Follow changed tab/i })).toBeDisabled();
       expect(screen.getByRole('radio', { name: /Keep each tab's website/i })).toBeDisabled();
     });
+  });
+
+  it('renders the cross-site option and persistent advisory in card layout', () => {
+    render(
+      <UrlSyncSettings
+        enabled={true}
+        mode="sync-page-path-across-sites"
+        onEnabledChange={vi.fn()}
+        onModeChange={vi.fn()}
+      />,
+    );
+
+    const option = screen.getByRole('radio', {
+      name: /Sync page path across different sites/i,
+    });
+    const warning = screen.getByText('⚠ Path and query data may be sent to another site.');
+
+    expect(option).toBeChecked();
+    expect(screen.getByText(/Each tab keeps its own site/)).toBeInTheDocument();
+    expect(option).toHaveAccessibleDescription(
+      '⚠ Path and query data may be sent to another site.',
+    );
+    expect(warning).not.toHaveAttribute('aria-live');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('renders compact mode without the popup frame', () => {
