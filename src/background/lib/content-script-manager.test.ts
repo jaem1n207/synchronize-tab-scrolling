@@ -1,19 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { isContentScriptAlive, reinjectContentScript } from './content-script-manager';
-import { sendMessageWithTimeout } from './messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from './sync-state';
+import type { StartSyncContentMessage } from '~/shared/types/messages';
 
-const {
-  executeScriptMock,
-  sendMessageWithTimeoutMock,
-  persistSyncStateMock,
-  broadcastSyncStatusMock,
-} = vi.hoisted(() => ({
+import {
+  isContentScriptAlive,
+  reinjectContentScript,
+  reinjectManualReconnect,
+} from './content-script-manager';
+import { sendMessageWithTimeout } from './messaging';
+
+import type { ReconnectAttemptToken } from './sync-session-orchestrator';
+
+const { executeScriptMock, sendMessageWithTimeoutMock } = vi.hoisted(() => ({
   executeScriptMock: vi.fn(),
   sendMessageWithTimeoutMock: vi.fn(),
-  persistSyncStateMock: vi.fn(),
-  broadcastSyncStatusMock: vi.fn(),
 }));
 
 vi.mock('webextension-polyfill', () => ({
@@ -37,26 +37,28 @@ vi.mock('./messaging', () => ({
   sendMessageWithTimeout: sendMessageWithTimeoutMock,
 }));
 
-vi.mock('./sync-state', () => ({
-  syncState: {
-    isActive: false,
-    linkedTabs: [] as Array<number>,
-    connectionStatuses: {} as Record<number, 'connected' | 'disconnected' | 'error'>,
-    lastActiveSyncedTabId: null as number | null,
-    mode: undefined as 'ratio' | 'element' | undefined,
-  },
-  persistSyncState: persistSyncStateMock,
-  broadcastSyncStatus: broadcastSyncStatusMock,
-}));
-
 describe('content-script-manager', () => {
-  beforeEach(() => {
-    syncState.linkedTabs = [1, 2, 3];
-    syncState.mode = undefined;
-    syncState.connectionStatuses = {};
+  function createManualReinjectionContext(
+    tabId = 2,
+    mode: 'ratio' | 'element' = 'ratio',
+    isSessionCurrent: () => boolean = () => true,
+  ): {
+    startMessage: StartSyncContentMessage;
+    isSessionCurrent: () => boolean;
+  } {
+    return {
+      startMessage: {
+        tabIds: [1, 2, 3],
+        mode,
+        currentTabId: tabId,
+        sessionEpoch: 8,
+      },
+      isSessionCurrent,
+    };
+  }
 
-    persistSyncStateMock.mockResolvedValue(undefined);
-    broadcastSyncStatusMock.mockResolvedValue(undefined);
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -100,12 +102,51 @@ describe('content-script-manager', () => {
   });
 
   describe('reinjectContentScript', () => {
-    it('reinjects script, waits 500ms, restarts sync, persists state, and returns true', async () => {
+    it('sends the caller-frozen start message instead of sampling replacement state', async () => {
+      vi.useFakeTimers();
+      executeScriptMock.mockResolvedValue(undefined);
+      sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 2 });
+      const context = createManualReinjectionContext();
+
+      const promise = reinjectContentScript(2, context);
+      await Promise.resolve();
+      vi.advanceTimersByTime(500);
+      await promise;
+
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        {
+          tabIds: [1, 2, 3],
+          mode: 'ratio',
+          currentTabId: 2,
+          sessionEpoch: 8,
+        },
+        { context: 'content-script', tabId: 2 },
+        3_000,
+      );
+    });
+
+    it('stops after injection when the captured session becomes stale during the delay', async () => {
+      vi.useFakeTimers();
+      executeScriptMock.mockResolvedValue(undefined);
+      let isCurrent = true;
+      const context = createManualReinjectionContext(2, 'ratio', () => isCurrent);
+
+      const promise = reinjectContentScript(2, context);
+      await Promise.resolve();
+      isCurrent = false;
+      vi.advanceTimersByTime(500);
+
+      await expect(promise).resolves.toBe(false);
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+    });
+
+    it('reinjects script, waits 500ms, restarts the frozen session, and returns true', async () => {
       vi.useFakeTimers();
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 2 });
 
-      const promise = reinjectContentScript(2);
+      const promise = reinjectContentScript(2, createManualReinjectionContext());
       await Promise.resolve();
 
       expect(executeScriptMock).toHaveBeenCalledWith({
@@ -124,22 +165,19 @@ describe('content-script-manager', () => {
           tabIds: [1, 2, 3],
           mode: 'ratio',
           currentTabId: 2,
+          sessionEpoch: 8,
         },
         { context: 'content-script', tabId: 2 },
         3000,
       );
-      expect(syncState.connectionStatuses[2]).toBe('connected');
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
-      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
-    it('uses existing sync mode when mode is set', async () => {
+    it('forwards the caller-captured sync mode', async () => {
       vi.useFakeTimers();
-      syncState.mode = 'element';
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 3 });
 
-      const promise = reinjectContentScript(3);
+      const promise = reinjectContentScript(3, createManualReinjectionContext(3, 'element'));
       await Promise.resolve();
       vi.advanceTimersByTime(500);
       await promise;
@@ -150,20 +188,49 @@ describe('content-script-manager', () => {
           tabIds: [1, 2, 3],
           mode: 'element',
           currentTabId: 3,
+          sessionEpoch: 8,
         },
         { context: 'content-script', tabId: 3 },
         3000,
       );
     });
 
+    it('forwards the caller-frozen auto-sync activation identity', async () => {
+      vi.useFakeTimers();
+      executeScriptMock.mockResolvedValue(undefined);
+      sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 4 });
+      const startMessage: StartSyncContentMessage = {
+        tabIds: [4, 5],
+        mode: 'ratio',
+        currentTabId: 4,
+        isAutoSync: true,
+        autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+      };
+
+      const promise = reinjectContentScript(4, {
+        startMessage,
+        isSessionCurrent: () => true,
+      });
+      await Promise.resolve();
+      vi.advanceTimersByTime(500);
+
+      await expect(promise).resolves.toBe(true);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        startMessage,
+        { context: 'content-script', tabId: 4 },
+        3_000,
+      );
+    });
+
     it('returns false when executeScript throws', async () => {
       executeScriptMock.mockRejectedValue(new Error('Cannot inject'));
 
-      await expect(reinjectContentScript(4)).resolves.toBe(false);
+      await expect(reinjectContentScript(4, createManualReinjectionContext(4))).resolves.toBe(
+        false,
+      );
 
       expect(sendMessageWithTimeoutMock).not.toHaveBeenCalled();
-      expect(persistSyncState).not.toHaveBeenCalled();
-      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
     it('returns false when scroll:start response has wrong tabId', async () => {
@@ -171,15 +238,11 @@ describe('content-script-manager', () => {
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 999 });
 
-      const promise = reinjectContentScript(5);
+      const promise = reinjectContentScript(5, createManualReinjectionContext(5));
       await Promise.resolve();
       vi.advanceTimersByTime(500);
 
       await expect(promise).resolves.toBe(false);
-
-      expect(syncState.connectionStatuses[5]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
-      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
     it('returns false when scroll:start response success is false', async () => {
@@ -187,15 +250,11 @@ describe('content-script-manager', () => {
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockResolvedValue({ success: false, tabId: 6 });
 
-      const promise = reinjectContentScript(6);
+      const promise = reinjectContentScript(6, createManualReinjectionContext(6));
       await Promise.resolve();
       vi.advanceTimersByTime(500);
 
       await expect(promise).resolves.toBe(false);
-
-      expect(syncState.connectionStatuses[6]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
-      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
     it('returns false when scroll:start times out', async () => {
@@ -203,15 +262,11 @@ describe('content-script-manager', () => {
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockRejectedValue(new Error('Timeout after 3000ms'));
 
-      const promise = reinjectContentScript(7);
+      const promise = reinjectContentScript(7, createManualReinjectionContext(7));
       await Promise.resolve();
       vi.advanceTimersByTime(500);
 
       await expect(promise).resolves.toBe(false);
-
-      expect(syncState.connectionStatuses[7]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
-      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
     it('returns false when scroll:start response is undefined', async () => {
@@ -219,47 +274,76 @@ describe('content-script-manager', () => {
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockResolvedValue(undefined);
 
-      const promise = reinjectContentScript(8);
+      const promise = reinjectContentScript(8, createManualReinjectionContext(8));
       await Promise.resolve();
       vi.advanceTimersByTime(500);
 
       await expect(promise).resolves.toBe(false);
-
-      expect(syncState.connectionStatuses[8]).toBeUndefined();
-      expect(persistSyncState).not.toHaveBeenCalled();
-      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
-    it('keeps existing status for a tab when reinjection fails', async () => {
+    it('returns false without owning connection-state mutation when reinjection fails', async () => {
       vi.useFakeTimers();
-      syncState.connectionStatuses[9] = 'disconnected';
       executeScriptMock.mockResolvedValue(undefined);
       sendMessageWithTimeoutMock.mockResolvedValue({ success: false, tabId: 9 });
 
-      const promise = reinjectContentScript(9);
+      const promise = reinjectContentScript(9, createManualReinjectionContext(9));
       await Promise.resolve();
       vi.advanceTimersByTime(500);
 
       await expect(promise).resolves.toBe(false);
-
-      expect(syncState.connectionStatuses[9]).toBe('disconnected');
     });
 
-    it('marks tab as connected only after successful scroll:start response', async () => {
+    it('revalidates the captured session after the scroll:start acknowledgement', async () => {
       vi.useFakeTimers();
-      syncState.connectionStatuses[10] = 'disconnected';
       executeScriptMock.mockResolvedValue(undefined);
-      sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 10 });
+      const acknowledgement = Promise.withResolvers<{ success: boolean; tabId: number }>();
+      sendMessageWithTimeoutMock.mockReturnValue(acknowledgement.promise);
+      let isCurrent = true;
 
-      const promise = reinjectContentScript(10);
+      const promise = reinjectContentScript(
+        10,
+        createManualReinjectionContext(10, 'ratio', () => isCurrent),
+      );
       await Promise.resolve();
-
-      expect(syncState.connectionStatuses[10]).toBe('disconnected');
-
       vi.advanceTimersByTime(500);
-      await promise;
+      await Promise.resolve();
+      isCurrent = false;
+      acknowledgement.resolve({ success: true, tabId: 10 });
 
-      expect(syncState.connectionStatuses[10]).toBe('connected');
+      await expect(promise).resolves.toBe(false);
+    });
+  });
+
+  describe('reinjectManualReconnect', () => {
+    it('returns an exact acknowledgement for the frozen reconnect token', async () => {
+      vi.useFakeTimers();
+      executeScriptMock.mockResolvedValue(undefined);
+      sendMessageWithTimeoutMock.mockResolvedValue({ success: true, tabId: 12 });
+      const token: ReconnectAttemptToken = {
+        tabId: 12,
+        revision: 9,
+        sessionEpoch: 4,
+        attemptGeneration: 3,
+        startMessage: {
+          tabIds: [12, 13],
+          mode: 'element',
+          currentTabId: 12,
+          isAutoSync: false,
+          sessionEpoch: 4,
+        },
+      };
+
+      const promise = reinjectManualReconnect(token, () => true);
+      await Promise.resolve();
+      vi.advanceTimersByTime(500);
+
+      await expect(promise).resolves.toEqual({ success: true, tabId: 12 });
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        token.startMessage,
+        { context: 'content-script', tabId: 12 },
+        3_000,
+      );
     });
   });
 });

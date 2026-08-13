@@ -75,8 +75,14 @@ unapplied future targets cannot pollute offsets or apply after state changes.
 
 ## Shadow DOM Mounting
 
-- Two independent React roots: `panel.tsx` (`#scroll-sync-panel-root`), `suggestion-toast.tsx`
-- `attachShadow({ mode: 'open' })` for style isolation from host page
+- Three independent React roots: `panel.tsx` (`#scroll-sync-panel-root`),
+  `suggestion-toast.tsx`, and `quick-sync-hud.tsx`
+- `panel.tsx` uses `attachShadow({ mode: 'closed' })`. Its synchronized-tab display may contain
+  only the current title, current-tab flag, signed manual pixel offset, and connection status.
+  Keep that data unavailable to host-page DOM traversal; never add URL, favicon, tab ID, or window
+  ID to the content snapshot.
+- `suggestion-toast.tsx` and `quick-sync-hud.tsx` use open Shadow roots because their UI contains no
+  synchronized-tab title or manual-offset data.
 - z-index `2147483647` — maximum safe value, ensures visibility above all page content
 - **Re-injection safety**: Check for existing orphaned containers before creating new Shadow DOM roots
 - `messageHandlersRegistered` flag prevents duplicate `onMessage` handler registration on re-injection

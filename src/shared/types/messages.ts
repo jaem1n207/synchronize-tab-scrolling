@@ -3,6 +3,7 @@
  * Implements P0 requirement: Basic Scroll Synchronization
  */
 
+import type { AutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
 import type {
   AutoSyncSuggestionMatchKind,
   TranslatedPageConfidence,
@@ -14,6 +15,18 @@ import type {
   ContextualHintScrollMetrics,
   PendingUrlSyncContextualHintId,
 } from './contextual-hints';
+import type { DismissQuickSyncRecentOutcomeMessage, QuickSyncFeedbackMessage } from './quick-sync';
+import type {
+  AutoSyncMessageIdentity,
+  ContentSyncStatusRequestMessage,
+  ManualMessageIdentity,
+  ManualReconnectResult,
+  ManualStopResult,
+  PopupSyncStatusRequestMessage,
+  ReconnectManualSessionMessage,
+  RuntimeRelayMessageIdentity,
+  SessionMessageIdentity,
+} from './sync-session';
 import type { UrlSyncMode, UrlSyncNotice } from './url-sync';
 
 /**
@@ -26,13 +39,31 @@ export type SyncMode = 'ratio' | 'element';
 /**
  * Message to start scroll synchronization
  */
-export interface StartSyncMessage {
+interface StartSyncBase {
   tabIds: Array<number>;
   mode: SyncMode;
-  /** When true, sync was initiated by auto-sync (not user action) */
-  isAutoSync?: boolean;
   currentTabId?: number;
 }
+
+export interface StartSyncMessage extends StartSyncBase {
+  /** When true, sync was initiated by auto-sync (not user action) */
+  isAutoSync?: boolean;
+}
+
+export interface ManualStartSyncContentMessage extends StartSyncBase {
+  currentTabId: number;
+  isAutoSync?: false;
+  sessionEpoch: number;
+}
+
+export interface AutoStartSyncContentMessage extends StartSyncBase {
+  currentTabId: number;
+  isAutoSync: true;
+  autoSyncGeneration: AutoSyncActivationId;
+  sessionEpoch?: never;
+}
+
+export type StartSyncContentMessage = ManualStartSyncContentMessage | AutoStartSyncContentMessage;
 
 export type StartSyncConnectionResult = {
   success: boolean;
@@ -48,13 +79,16 @@ export type StartSyncContentResponse = {
   success: boolean;
   tabId: number;
   metrics?: ContextualHintScrollMetrics;
+  reason?: 'stale-operation' | 'offset-reconciliation-failed';
 };
 
 export type StartSyncBackgroundResponse = {
   success: boolean;
   connectedTabs: Array<number>;
   connectionResults: StartSyncConnectionResults;
+  revision: number;
   error?: string;
+  warning?: 'auto-sync-degraded';
 };
 
 export type StartSyncResponse = StartSyncContentResponse | StartSyncBackgroundResponse;
@@ -62,76 +96,140 @@ export type StartSyncResponse = StartSyncContentResponse | StartSyncBackgroundRe
 /**
  * Message to stop scroll synchronization
  */
-export interface StopSyncMessage {
-  tabIds?: Array<number>;
-  /** When true, stop was initiated by auto-sync (not user action) */
-  isAutoSync?: boolean;
+export type StopSyncContentMessage =
+  | {
+      tabIds?: Array<number>;
+      isAutoSync?: false;
+      autoSyncGeneration?: never;
+      expectedRevision?: never;
+    }
+  | {
+      tabIds?: Array<number>;
+      /** Exact activation identity prevents stale auto cleanup from stopping a newer runtime. */
+      isAutoSync: true;
+      autoSyncGeneration?: AutoSyncActivationId;
+      expectedRevision?: never;
+    };
+
+export interface StopManualSyncMessage {
+  expectedRevision: number;
+  tabIds?: never;
+  isAutoSync?: never;
 }
+
+export type StopSyncMessage = StopSyncContentMessage | StopManualSyncMessage;
+
+export interface StopSyncContentResponse {
+  success: boolean;
+  tabId?: number;
+  reason?: string;
+}
+
+export type StopSyncResponse = StopSyncContentResponse | ManualStopResult;
+
+export type ReconnectManualSessionResponse = ManualReconnectResult;
 
 /**
  * Message to synchronize scroll position
  */
-export interface ScrollSyncMessage {
+export interface ScrollSyncPayload {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
-  sourceTabId: number;
   mode: SyncMode;
   timestamp: number;
 }
+
+export type ScrollSyncMessage = ScrollSyncPayload & RuntimeRelayMessageIdentity;
 
 /**
  * Message to handle manual scroll adjustment (P1)
  * When user holds Option/Alt key to scroll individual tab
  */
-export interface ManualScrollMessage {
+export interface ManualScrollPayload {
   tabId: number;
   enabled: boolean;
 }
+
+export type ManualScrollMessage = ManualScrollPayload & RuntimeRelayMessageIdentity;
+
+export type RuntimeRelayResponse =
+  | { success: true }
+  | {
+      success: false;
+      reason: 'stale-operation' | 'session-state-unavailable' | 'unauthorized-session';
+    };
 
 /**
  * Message to update sync baseline ratio across all tabs
  * Sent when a tab finishes manual adjustment to prevent jumps
  */
-export interface SyncBaselineUpdateMessage {
-  sourceTabId: number;
+export interface SyncBaselineUpdatePayload {
   baselineRatio: number;
   timestamp: number;
 }
 
+export type SyncBaselineUpdateMessage = SyncBaselineUpdatePayload & SessionMessageIdentity;
+
 /**
  * Message for URL navigation synchronization (P1)
  */
-export interface UrlSyncMessage {
+export interface UrlSyncPayload {
   url: string;
-  sourceTabId: number;
 }
+
+export type UrlSyncMessage =
+  | (UrlSyncPayload & ManualMessageIdentity)
+  | (UrlSyncPayload &
+      AutoSyncMessageIdentity & {
+        autoSyncGeneration: AutoSyncActivationId;
+      });
+
+export type UrlSyncContentResponse =
+  | { success: true }
+  | {
+      success: false;
+      reason: 'stale-operation' | 'offset-clear-failed' | 'offset-reconciliation-failed';
+    };
+
+export type UrlSyncBackgroundResponse =
+  | { success: true }
+  | { success: false; reason: 'session-state-unavailable' | 'unauthorized-session' }
+  | {
+      success: false;
+      reason:
+        | 'stale-operation'
+        | 'offset-clear-failed'
+        | 'offset-reconciliation-failed'
+        | 'persistence-failed';
+      revision: number;
+    };
+
+export type UrlSyncResponse = UrlSyncContentResponse | UrlSyncBackgroundResponse;
+
+export type ContentRuntimeDegradedMessage =
+  | (ManualMessageIdentity & { reason: 'offset-reconciliation-failed' })
+  | (AutoSyncMessageIdentity & {
+      autoSyncGeneration: AutoSyncActivationId;
+      reason: 'offset-reconciliation-failed';
+    });
+
+export type ContentRuntimeDegradedResponse =
+  | { success: true; revision: number }
+  | {
+      success: false;
+      reason:
+        | 'stale-operation'
+        | 'unauthorized-session'
+        | 'session-state-unavailable'
+        | 'persistence-failed';
+      revision: number;
+    };
 
 /**
  * Connection health status for a synced tab
  */
 export type ConnectionStatus = 'connected' | 'disconnected' | 'error';
-
-/**
- * Tab information included in sync status broadcasts
- */
-export interface SyncedTabInfo {
-  id: number;
-  title: string;
-  url: string;
-  favIconUrl?: string;
-  eligible: boolean;
-}
-
-/**
- * Broadcast payload for sync status updates to content scripts.
- * Sent by background to all synced tabs when sync state changes.
- */
-export interface SyncStatusBroadcastMessage {
-  linkedTabs: Array<SyncedTabInfo>;
-  connectionStatuses: Record<number, ConnectionStatus>;
-  currentTabId: number;
-}
 
 /**
  * Health check ping between background and content script
@@ -248,6 +346,7 @@ export interface SyncSuggestionMessage {
   tabCount: number;
   tabIds: Array<number>;
   tabTitles: Array<string>;
+  expectedRevision: number;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
   /** When true, another sync session is already active. Accepting this suggestion will replace it. */
@@ -270,6 +369,7 @@ export type TranslatedPageMetadataResponseMessage =
 export interface SyncSuggestionResponseMessage {
   normalizedUrl: string;
   accepted: boolean;
+  expectedRevision: number;
   /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
   snooze?: boolean;
   /** When true, the domain is permanently excluded from suggestions */
@@ -284,6 +384,7 @@ export interface AddTabToSyncMessage {
   tabTitle: string;
   hasManualOffsets: boolean;
   normalizedUrl: string;
+  expectedRevision: number;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
 }
@@ -294,12 +395,17 @@ export interface AddTabToSyncMessage {
 export interface AddTabToSyncResponseMessage {
   tabId: number;
   accepted: boolean;
+  expectedRevision: number;
   /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
   snooze?: boolean;
   /** When true, the domain is permanently excluded from suggestions */
   permanent?: boolean;
   normalizedUrl?: string;
 }
+
+export type SyncSuggestionDecisionResponse =
+  | { success: true; revision?: number; warning?: 'auto-sync-degraded' }
+  | { success: false; reason: string; warning?: 'auto-sync-degraded' };
 
 /**
  * Message to dismiss add-tab toast on all tabs (when one tab responds)
@@ -345,7 +451,7 @@ export interface ConsumePendingUrlSyncContextualHintResponse {
 }
 
 export interface ProtocolMap {
-  'scroll:start': StartSyncMessage;
+  'scroll:start': StartSyncMessage | StartSyncContentMessage;
   'scroll:stop': StopSyncMessage;
   'scroll:sync': ScrollSyncMessage;
   'scroll:manual': ManualScrollMessage;
@@ -353,8 +459,10 @@ export interface ProtocolMap {
   'scroll:ping': ScrollPingMessage;
   'scroll:reconnect': ScrollReconnectMessage;
   'scroll:request-reinject': ScrollRequestReinjectMessage;
-  'sync:status': SyncStatusBroadcastMessage;
+  'sync:get-status': PopupSyncStatusRequestMessage | ContentSyncStatusRequestMessage;
+  'sync:reconnect-session': ReconnectManualSessionMessage;
   'url:sync': UrlSyncMessage;
+  'sync:runtime-degraded': ContentRuntimeDegradedMessage;
   'element:match': ElementMatchMessage;
   'panel:position': PanelPositionMessage;
   'sync:url-enabled-changed': UrlSyncEnabledChangedMessage;
@@ -374,4 +482,6 @@ export interface ProtocolMap {
   'contextual-hint:show': ContextualHintShowMessage;
   'contextual-hint:save-pending-url-sync': SavePendingUrlSyncContextualHintMessage;
   'contextual-hint:consume-pending-url-sync': ConsumePendingUrlSyncContextualHintMessage;
+  'quick-sync:feedback': QuickSyncFeedbackMessage;
+  'quick-sync:dismiss-recent-outcome': DismissQuickSyncRecentOutcomeMessage;
 }

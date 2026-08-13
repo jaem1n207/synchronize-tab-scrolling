@@ -15,7 +15,7 @@ export default {
     [
       'semantic-release-chrome',
       {
-        distFolder: 'build/chrome',
+        distFolder: 'build/chromium',
         asset: 'synchronize-tab-scrolling-chrome.zip',
         extensionId: 'phceoocamipnafpgnchbfhkdlbleeafc',
       },
@@ -47,7 +47,7 @@ export default {
         submitReleaseNotes: false,
         submitSource: true,
         approvalNotes:
-          'Build from source: pnpm install && pnpm build-firefox. Output is in the extension/ directory.',
+          'Build from source: pnpm install && pnpm build-firefox. Output is in build/firefox.',
         compatibility: ['firefox'],
       },
     ],

@@ -5,6 +5,12 @@ export {
   normalizeDomain,
   normalizeUrlForAutoSync,
 } from './auto-sync-url-utils';
+export type { AutoSyncActivationId } from './auto-sync-activation';
+export {
+  createAutoSyncActivationId,
+  doesAutoSyncStopMatchActivation,
+  isAutoSyncActivationId,
+} from './auto-sync-activation';
 export {
   ANIMATION_DURATIONS,
   EASING_CSS,
@@ -18,6 +24,20 @@ export {
 } from './animations';
 export { isFirefox } from './env';
 export {
+  getQuickSyncPortName,
+  getQuickSyncRemainingSeconds,
+  parseQuickSyncPortGeneration,
+  QUICK_SYNC_BADGE_DURATION_MS,
+  QUICK_SYNC_CANDIDATE_DURATION_MS,
+  QUICK_SYNC_CONTROL_TIMEOUT_MS,
+  QUICK_SYNC_FAILURE_HUD_DURATION_MS,
+  QUICK_SYNC_PORT_PREFIX,
+  QUICK_SYNC_RECONNECT_TIMEOUT_MS,
+  QUICK_SYNC_RECENT_OUTCOME_DURATION_MS,
+  QUICK_SYNC_SUCCESS_HUD_DURATION_MS,
+  toQuickSyncShortcutLabel,
+} from './quick-sync';
+export {
   formatTitleWithKoreanJosa,
   isKoreanUiLanguage,
   type KoreanJosaParticle,
@@ -30,6 +50,7 @@ export {
 } from './locale-utils';
 export { ExtensionLogger } from './logger';
 export { throttleAndDebounce } from './performance-utils';
+export { isRuntimeRelayMessageIdentity } from './runtime-relay-identity';
 export * from './translated-page-url-utils';
 export {
   calculateScrollRatio,
@@ -43,6 +64,7 @@ export type { ManualScrollOffset, UrlSyncModeRepairResult } from './storage';
 export {
   clearAllManualScrollOffsets,
   clearManualScrollOffset,
+  clearManualScrollOffsetStrict,
   clearStorage,
   getManualScrollOffset,
   isContextualHintDismissed,
@@ -51,6 +73,7 @@ export {
   loadDismissedContextualHintIds,
   loadExcludedDomains,
   loadManualScrollOffsets,
+  loadManualScrollOffsetsStrict,
   loadPanelMinimized,
   loadSelectedTabIds,
   loadSyncMode,
@@ -62,6 +85,7 @@ export {
   saveDismissedContextualHintId,
   saveExcludedDomains,
   saveManualScrollOffset,
+  saveManualScrollOffsetStrict,
   savePanelMinimized,
   saveSelectedTabIds,
   saveSyncMode,

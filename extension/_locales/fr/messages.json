@@ -723,5 +723,166 @@
   },
   "contextualHintHideAction": {
     "message": "Masquer cette aide"
+  },
+  "quickSyncCommandDescription": {
+    "message": "Démarrer la synchronisation du défilement ou ajouter cet onglet"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "1 onglet sélectionné pour la synchronisation"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "Dans les $REMAININGSECONDS$ secondes, utilisez le même raccourci dans un autre onglet pour synchroniser son défilement avec celui-ci.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "Cet onglet est déjà sélectionné"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "Connexion des onglets…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "Synchronisation démarrée · $TABCOUNT$ onglets actuellement",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "Cet onglet a été ajouté · $TABCOUNT$ onglets actuellement",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "Cet onglet fait déjà partie de la synchronisation · $TABCOUNT$ onglets actuellement",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "Impossible de connecter cet onglet"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "Dans les $REMAININGSECONDS$ secondes, utilisez le même raccourci dans un autre onglet pour réessayer.",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "Impossible d’ajouter cet onglet"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "Les $TABCOUNT$ onglets existants restent synchronisés.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "La synchronisation du défilement n’est pas disponible dans cet onglet"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "Le délai pour sélectionner un autre onglet est écoulé."
+  },
+  "activeSyncHeading": {
+    "message": "Synchronisation du défilement active"
+  },
+  "activeSyncSummary": {
+    "message": "Le défilement est synchronisé dans $TABCOUNT$ onglets.",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "Appuyez sur $SHORTCUTLABEL$ dans un autre onglet pour le synchroniser aussi.",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "Onglets qui défilent ensemble"
+  },
+  "activeSyncEditNotice": {
+    "message": "Pour ajouter ou retirer des onglets dans cette fenêtre, arrêtez d’abord la synchronisation."
+  },
+  "currentTabLocation": {
+    "message": "Onglet actuel"
+  },
+  "otherSyncedTab": {
+    "message": "Autre onglet synchronisé"
+  },
+  "currentWindowLocation": {
+    "message": "Fenêtre actuelle"
+  },
+  "otherWindowLocation": {
+    "message": "Autre fenêtre"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "Réattribuer le raccourci"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "Aucun raccourci Quick Sync n’est attribué."
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "Impossible de charger le raccourci Quick Sync."
+  },
+  "activeSyncTabUnavailable": {
+    "message": "Impossible de charger les informations de l’onglet"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "Saisissez $SETTINGSURL$ dans la barre d’adresse pour réattribuer le raccourci.",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "Dans le gestionnaire de modules complémentaires, ouvrez le menu en forme d’engrenage et choisissez Gérer les raccourcis d’extensions."
+  },
+  "manualSyncStateUnavailable": {
+    "message": "Impossible de vérifier l’état de la synchronisation."
+  },
+  "retryStatusCheck": {
+    "message": "Vérifier à nouveau"
+  },
+  "syncCleanupIncomplete": {
+    "message": "Impossible de nettoyer les contrôles de synchronisation dans certains onglets. Rechargez-les pour les retirer."
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Raccourci Quick Sync"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync : $SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "syncSuggestionCleanupRetrying": {
+    "message": "La synchronisation a démarré ou a été modifiée. Le nettoyage des autres onglets est toujours en cours de nouvelle tentative. Consultez la fenêtre contextuelle pour voir l’état actuel."
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "Impossible de restaurer complètement la synchronisation automatique. La synchronisation manuelle n’a pas été modifiée."
+  },
+  "autoSyncReplacementFailed": {
+    "message": "Impossible de démarrer la synchronisation suggérée. La synchronisation précédente reste arrêtée."
   }
 }

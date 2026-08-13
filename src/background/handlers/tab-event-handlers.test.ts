@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
@@ -20,13 +20,30 @@ import {
   pendingSuggestions,
 } from '../lib/auto-sync-state';
 import { showAddTabSuggestion, showSyncSuggestion } from '../lib/auto-sync-suggestions';
-import { isContentScriptAlive, reinjectContentScript } from '../lib/content-script-manager';
+import {
+  isContentScriptAlive,
+  reinjectContentScript,
+  reinjectManualReconnect,
+} from '../lib/content-script-manager';
 import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+import { createQuickSyncCandidateStore } from '../lib/quick-sync-candidate';
+import { createQuickSyncCoordinator } from '../lib/quick-sync-coordinator';
+import { createQuickSyncHandshakeRegistry } from '../lib/quick-sync-feedback';
+import {
+  broadcastSyncStatus,
+  commitSyncState,
+  getSyncStateSnapshot,
+  persistSyncState,
+  syncState,
+} from '../lib/sync-state';
+import { syncTransitionGate } from '../lib/sync-transition-gate';
 
 import { registerTabEventHandlers } from './tab-event-handlers';
+
+import type { QuickSyncPort } from '../lib/quick-sync-feedback';
+import type { SyncTransitionGate } from '../lib/sync-transition-gate';
 
 type RemovedListener = (tabId: number) => Promise<void>;
 type CreatedListener = (tab: { id?: number; url?: string }) => Promise<void>;
@@ -50,6 +67,14 @@ type EventListeners = {
 };
 
 const eventListeners: EventListeners = {};
+const originalUserAgent = navigator.userAgent;
+
+const { quickSyncCoordinatorMock, waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+  quickSyncCoordinatorMock: {
+    invalidateCandidateForTab: vi.fn().mockResolvedValue(false),
+  },
+  waitForBackgroundInitializationMock: vi.fn(),
+}));
 
 vi.mock('webext-bridge/background', () => ({
   sendMessage: vi.fn(),
@@ -92,6 +117,10 @@ vi.mock('../lib/auto-sync-groups', () => ({
   getAutoSyncGroupKeyForTab: vi.fn(),
 }));
 
+vi.mock('../lib/background-initialization', () => ({
+  waitForBackgroundInitialization: waitForBackgroundInitializationMock,
+}));
+
 vi.mock('../lib/auto-sync-lifecycle', () => ({
   toggleAutoSync: vi.fn(),
 }));
@@ -115,6 +144,7 @@ vi.mock('../lib/auto-sync-state', () => ({
   dismissedUrlGroups: new Set<string>(),
   pendingSuggestions: new Set<string>(),
   addTabSuggestedTabs: new Set<number>(),
+  withAutoSyncLock: vi.fn(async (operation: () => Promise<unknown>) => operation()),
 }));
 
 vi.mock('../lib/auto-sync-suggestions', () => ({
@@ -132,6 +162,7 @@ vi.mock('../lib/contextual-hint-state', () => ({
 vi.mock('../lib/content-script-manager', () => ({
   isContentScriptAlive: vi.fn(),
   reinjectContentScript: vi.fn(),
+  reinjectManualReconnect: vi.fn(),
 }));
 
 vi.mock('../lib/keep-alive', () => ({
@@ -149,9 +180,34 @@ vi.mock('../lib/sync-state', () => ({
     connectionStatuses: {},
     mode: undefined,
     lastActiveSyncedTabId: null,
+    revision: 0,
+    sessionEpoch: 0,
   },
+  getSyncStateSnapshot: vi.fn(),
   persistSyncState: vi.fn(),
+  commitSyncState: vi.fn(),
   broadcastSyncStatus: vi.fn(),
+}));
+
+vi.mock('../lib/sync-transition-gate', () => ({
+  syncTransitionGate: {
+    run: vi.fn(
+      async (
+        transition: (context: {
+          operationGeneration: number;
+          expectedRevision: number;
+        }) => Promise<unknown>,
+      ) =>
+        transition({
+          operationGeneration: 1,
+          expectedRevision: syncState.revision,
+        }),
+    ),
+  },
+}));
+
+vi.mock('./quick-sync-command-handler', () => ({
+  quickSyncCoordinator: quickSyncCoordinatorMock,
 }));
 
 function getListener<K extends keyof EventListeners>(key: K): NonNullable<EventListeners[K]> {
@@ -160,10 +216,40 @@ function getListener<K extends keyof EventListeners>(key: K): NonNullable<EventL
   return listener as NonNullable<EventListeners[K]>;
 }
 
+const readyBackground = {
+  manual: { status: 'ready' as const },
+  auto: { status: 'ready' as const },
+};
+
+function createSerialGate(): SyncTransitionGate {
+  let tail: Promise<void> = Promise.resolve();
+  let operationGeneration = 0;
+  return {
+    run(transition) {
+      const result = tail.then(() =>
+        transition({
+          operationGeneration: ++operationGeneration,
+          expectedRevision: 0,
+        }),
+      );
+      tail = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
+    },
+  };
+}
+
 describe('registerTabEventHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    Object.defineProperty(navigator, 'userAgent', {
+      value:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+      configurable: true,
+    });
 
     for (const key of Object.keys(eventListeners) as Array<keyof EventListeners>) {
       delete eventListeners[key];
@@ -174,6 +260,8 @@ describe('registerTabEventHandlers', () => {
     syncState.connectionStatuses = {};
     syncState.mode = undefined;
     syncState.lastActiveSyncedTabId = null;
+    syncState.revision = 0;
+    syncState.sessionEpoch = 0;
 
     autoSyncState.enabled = false;
     autoSyncState.groups.clear();
@@ -202,15 +290,46 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(refreshAutoSyncGroupMetadata).mockReturnValue(false);
     vi.mocked(getAutoSyncGroupKeyForTab).mockReturnValue(null);
     vi.mocked(sendMessage).mockResolvedValue(undefined);
-    vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true, tabId: 1 });
+    vi.mocked(sendMessageWithTimeout).mockImplementation(async (_, __, destination) => ({
+      success: true,
+      tabId: destination.tabId,
+    }));
     vi.mocked(isContentScriptAlive).mockResolvedValue(true);
     vi.mocked(reinjectContentScript).mockResolvedValue(true);
+    vi.mocked(reinjectManualReconnect).mockImplementation(async (token, isSessionCurrent) => {
+      const success = await vi.mocked(reinjectContentScript)(token.tabId, {
+        startMessage: token.startMessage,
+        isSessionCurrent,
+      });
+      return { success, tabId: token.tabId };
+    });
     vi.mocked(stopKeepAlive).mockImplementation(() => {});
-    vi.mocked(persistSyncState).mockResolvedValue();
+    vi.mocked(getSyncStateSnapshot).mockImplementation(() => ({
+      ...syncState,
+      linkedTabs: [...syncState.linkedTabs],
+      connectionStatuses: { ...syncState.connectionStatuses },
+    }));
+    vi.mocked(persistSyncState).mockResolvedValue({ status: 'persisted' });
+    vi.mocked(commitSyncState).mockImplementation((nextState) => {
+      syncState.isActive = nextState.isActive;
+      syncState.linkedTabs = [...nextState.linkedTabs];
+      syncState.connectionStatuses = { ...nextState.connectionStatuses };
+      syncState.mode = nextState.mode;
+      syncState.lastActiveSyncedTabId = nextState.lastActiveSyncedTabId;
+      syncState.revision = nextState.revision;
+      syncState.sessionEpoch = nextState.sessionEpoch;
+    });
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
     vi.mocked(showAddTabSuggestion).mockResolvedValue();
     vi.mocked(showSyncSuggestion).mockResolvedValue();
     vi.mocked(toggleAutoSync).mockResolvedValue();
+    waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
+    vi.mocked(syncTransitionGate.run).mockImplementation(async (transition) =>
+      transition({
+        operationGeneration: 1,
+        expectedRevision: syncState.revision,
+      }),
+    );
 
     vi.mocked(browser.tabs.onRemoved.addListener).mockImplementation((listener) => {
       eventListeners['tabs.onRemoved'] = listener as RemovedListener;
@@ -231,7 +350,108 @@ describe('registerTabEventHandlers', () => {
     registerTabEventHandlers();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(navigator, 'userAgent', {
+      value: originalUserAgent,
+      configurable: true,
+    });
+  });
+
+  describe('background readiness', () => {
+    it('gates every tab and storage listener on initialization', async () => {
+      await getListener('tabs.onRemoved')(1);
+      await getListener('tabs.onCreated')({ id: 2 });
+      await getListener('tabs.onUpdated')(3, {}, { id: 3 });
+      await getListener('tabs.onActivated')({ tabId: 4 });
+      await getListener('storage.onChanged')({}, 'local');
+
+      expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(5);
+    });
+
+    it('does not mutate removed-tab state before readiness resolves', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      manualSyncOverriddenTabs.add(7);
+
+      const result = getListener('tabs.onRemoved')(7);
+      await Promise.resolve();
+
+      expect(manualSyncOverriddenTabs.has(7)).toBe(true);
+      expect(clearPendingUrlSyncContextualHint).not.toHaveBeenCalled();
+
+      release.resolve(readyBackground);
+      await result;
+
+      expect(manualSyncOverriddenTabs.has(7)).toBe(false);
+      expect(clearPendingUrlSyncContextualHint).toHaveBeenCalledWith(7);
+    });
+
+    it('captures created-tab identity before awaiting readiness', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      autoSyncState.enabled = true;
+      const tab = { id: 7, url: 'https://example.com/original' };
+
+      const result = getListener('tabs.onCreated')(tab);
+      tab.id = 8;
+      tab.url = 'https://example.com/mutated';
+      release.resolve(readyBackground);
+      await result;
+
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(
+        7,
+        'https://example.com/original',
+        true,
+        true,
+      );
+    });
+
+    it('captures updated-tab identity before awaiting readiness', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      autoSyncState.enabled = true;
+      const changeInfo = { url: 'https://example.com/original' };
+      const tab = { id: 9, url: 'https://example.com/original', title: 'Original' };
+
+      const result = getListener('tabs.onUpdated')(9, changeInfo, tab);
+      changeInfo.url = 'https://example.com/mutated';
+      tab.url = 'https://example.com/mutated';
+      release.resolve(readyBackground);
+      await result;
+
+      expect(updateAutoSyncGroup).toHaveBeenCalledWith(9, 'https://example.com/original');
+    });
+
+    it('captures storage change values before awaiting readiness', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      const changes = {
+        autoSyncEnabled: {
+          oldValue: false,
+          newValue: true,
+        },
+      };
+
+      const result = getListener('storage.onChanged')(changes, 'local');
+      changes.autoSyncEnabled.newValue = false;
+      release.resolve(readyBackground);
+      await result;
+
+      expect(toggleAutoSync).toHaveBeenCalledWith(true);
+    });
+  });
+
   describe('tabs.onRemoved', () => {
+    it('invalidates only a candidate owned by the removed tab through the transition gate', async () => {
+      await getListener('tabs.onRemoved')(7);
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).toHaveBeenCalledWith(
+        expect.objectContaining({ operationGeneration: 1 }),
+        7,
+      );
+    });
+
     it('removes tab from manualSyncOverriddenTabs', async () => {
       manualSyncOverriddenTabs.add(7);
 
@@ -268,10 +488,11 @@ describe('registerTabEventHandlers', () => {
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(syncState.mode).toBeUndefined();
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:stop',
-        {},
+        { tabIds: [20], isAutoSync: false },
         { context: 'content-script', tabId: 20 },
+        1_000,
       );
       expect(stopKeepAlive).toHaveBeenCalledTimes(1);
       expect(persistSyncState).toHaveBeenCalledTimes(1);
@@ -282,15 +503,44 @@ describe('registerTabEventHandlers', () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2, 3];
       syncState.connectionStatuses = { 1: 'connected', 2: 'connected', 3: 'connected' };
+      syncState.revision = 4;
 
       await getListener('tabs.onRemoved')(1);
 
       expect(syncState.linkedTabs).toEqual([2, 3]);
       expect(syncState.connectionStatuses[1]).toBeUndefined();
       expect(syncState.isActive).toBe(true);
+      expect(syncState.revision).toBe(5);
       expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(stopKeepAlive).not.toHaveBeenCalled();
+    });
+
+    it('keeps linked membership active when closed-tab persistence fails', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.revision = 6;
+      syncState.sessionEpoch = 3;
+      vi.mocked(persistSyncState).mockResolvedValue({ status: 'storage-error' });
+
+      await getListener('tabs.onRemoved')(1);
+
+      expect(syncState).toMatchObject({
+        isActive: true,
+        linkedTabs: [1, 2],
+        connectionStatuses: { 1: 'connected', 2: 'connected' },
+        revision: 6,
+        sessionEpoch: 3,
+      });
+      expect(stopKeepAlive).not.toHaveBeenCalled();
+      expect(sendMessageWithTimeout).not.toHaveBeenCalledWith(
+        'scroll:stop',
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
     it('does not change sync state for non-synced tab removal', async () => {
@@ -324,6 +574,191 @@ describe('registerTabEventHandlers', () => {
       await getListener('tabs.onRemoved')(1);
 
       expect(updateAutoSyncGroup).toHaveBeenCalledWith(2, 'https://example.com/rejoin');
+    });
+  });
+
+  describe('Quick Sync navigation invalidation', () => {
+    it.each([
+      ['HTTPS path', 'https://example.com/app/next'],
+      ['HTTPS hash', 'https://example.com/app#section'],
+      ['browser-readable local file', 'file:///Users/test/notes.html'],
+    ])('retains a candidate after an eligible %s update', async (_, url) => {
+      await getListener('tabs.onUpdated')(7, { url }, { id: 7, url });
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).not.toHaveBeenCalled();
+    });
+
+    it('retains the real candidate HUD and Port until the original deadline', async () => {
+      vi.useFakeTimers();
+      let now = 10_000;
+      const candidateStore = createQuickSyncCandidateStore();
+      const handshakeRegistry = createQuickSyncHandshakeRegistry({ now: () => now });
+      const transitionGate = createSerialGate();
+      const feedback: Array<{ tabId: number; outcome: string }> = [];
+      const port: QuickSyncPort = {
+        disconnect: vi.fn(),
+        onDisconnect: {
+          addListener: vi.fn(),
+        },
+      };
+      const coordinator = createQuickSyncCoordinator({
+        candidateStore,
+        handshakeRegistry,
+        transitionGate,
+        now: () => now,
+        getState: () => ({
+          isActive: false,
+          linkedTabs: [],
+          connectionStatuses: {},
+          lastActiveSyncedTabId: null,
+          revision: 0,
+          sessionEpoch: 0,
+        }),
+        ensureContentScript: async () => true,
+        revalidateInvocationTab: async () => undefined,
+        sendFeedback: async (tabId, message) => {
+          feedback.push({ tabId, outcome: message.outcome });
+          if (message.outcome === 'candidate-selected') {
+            handshakeRegistry.bindPort({
+              generation: message.generation,
+              senderTabId: tabId,
+              port,
+            });
+          }
+          return { status: 'ready', generation: message.generation };
+        },
+        startManualSession: async () => ({
+          status: 'committed',
+          connectedTabIds: [7, 8],
+          revision: 1,
+          sessionEpoch: 1,
+        }),
+        addTabToManualSession: async () => ({
+          status: 'committed',
+          linkedTabIds: [7, 8, 9],
+          revision: 1,
+          sessionEpoch: 1,
+        }),
+        setRecentOutcome: () => undefined,
+        showUnsupportedBadge: async () => undefined,
+        setTimer: setTimeout,
+      });
+      vi.mocked(syncTransitionGate.run).mockImplementation((transition) =>
+        transitionGate.run(transition),
+      );
+      quickSyncCoordinatorMock.invalidateCandidateForTab.mockImplementation((context, tabId) =>
+        coordinator.invalidateCandidateForTab(context, tabId),
+      );
+
+      await transitionGate.run((context) =>
+        coordinator.handle(context, {
+          commandReceivedAt: 10_000,
+          tabId: 7,
+          windowId: 1,
+        }),
+      );
+      now = 15_000;
+
+      await getListener('tabs.onUpdated')(
+        7,
+        { url: 'https://example.com/app#section' },
+        { id: 7, url: 'https://example.com/app#section' },
+      );
+
+      expect(candidateStore.read()).toEqual({
+        tabId: 7,
+        generation: 1,
+        expiresAt: 20_000,
+      });
+      expect(port.disconnect).not.toHaveBeenCalled();
+      expect(feedback).not.toContainEqual({ tabId: 7, outcome: 'clear' });
+
+      now = 20_000;
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(candidateStore.read()).toBeNull();
+      expect(port.disconnect).toHaveBeenCalledOnce();
+      expect(feedback.at(-1)).toEqual({ tabId: 7, outcome: 'clear' });
+    });
+
+    it.each([
+      ['browser-internal page', 'chrome://settings'],
+      ['unsupported local document', 'file:///Users/test/report.pdf'],
+    ])('invalidates a candidate after a restricted %s update', async (_, url) => {
+      await getListener('tabs.onUpdated')(7, { url }, { id: 7, url });
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).toHaveBeenCalledWith(
+        expect.objectContaining({ operationGeneration: 1 }),
+        7,
+      );
+    });
+
+    it.each([
+      ['missing tab ID', { url: 'https://example.com/next' }],
+      ['mismatched tab ID', { id: 8, url: 'https://example.com/next' }],
+      ['missing current URL', { id: 7 }],
+      ['mismatched current URL', { id: 7, url: 'https://example.com/stale' }],
+      ['malformed current URL', { id: 7, url: 'not a url' }],
+    ])('fails closed for %s metadata', async (_, tab) => {
+      await getListener('tabs.onUpdated')(7, { url: 'https://example.com/next' }, tab);
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).toHaveBeenCalledWith(
+        expect.objectContaining({ operationGeneration: 1 }),
+        7,
+      );
+    });
+
+    it('serializes restricted navigation with a reservation and expiry transition', async () => {
+      let tail: Promise<void> = Promise.resolve();
+      let operationGeneration = 0;
+      const order: Array<string> = [];
+      const releaseReservation = Promise.withResolvers<void>();
+      vi.mocked(syncTransitionGate.run).mockImplementation((transition) => {
+        const result = tail.then(() =>
+          transition({
+            operationGeneration: ++operationGeneration,
+            expectedRevision: syncState.revision,
+          }),
+        );
+        tail = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
+      });
+      quickSyncCoordinatorMock.invalidateCandidateForTab.mockImplementation(async () => {
+        order.push('navigation');
+        return true;
+      });
+
+      const reservation = syncTransitionGate.run(async () => {
+        order.push('reservation');
+        await releaseReservation.promise;
+      });
+      const navigation = getListener('tabs.onUpdated')(
+        7,
+        { url: 'chrome://settings' },
+        { id: 7, url: 'chrome://settings' },
+      );
+      await Promise.resolve();
+      const expiry = syncTransitionGate.run(async () => {
+        order.push('expiry');
+      });
+
+      expect(order).toEqual(['reservation']);
+
+      releaseReservation.resolve();
+      await Promise.all([reservation, navigation, expiry]);
+      expect(order).toEqual(['reservation', 'navigation', 'expiry']);
+    });
+
+    it('does not invalidate a candidate for a status-only update', async () => {
+      await getListener('tabs.onUpdated')(
+        7,
+        { status: 'complete' },
+        { id: 7, url: 'https://example.com/current' },
+      );
+
+      expect(quickSyncCoordinatorMock.invalidateCandidateForTab).not.toHaveBeenCalled();
     });
   });
 
@@ -418,6 +853,67 @@ describe('registerTabEventHandlers', () => {
   });
 
   describe('tabs.onUpdated', () => {
+    it('does not relay a stale URL event into a replacement manual session', async () => {
+      const urlSyncEnabled = Promise.withResolvers<boolean>();
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.sessionEpoch = 3;
+      vi.mocked(loadUrlSyncEnabled).mockReturnValue(urlSyncEnabled.promise);
+
+      const event = getListener('tabs.onUpdated')(
+        1,
+        { url: 'https://example.com/stale' },
+        { id: 1, url: 'https://example.com/stale', title: 'Stale' },
+      );
+      await Promise.resolve();
+
+      syncState.linkedTabs = [10, 11];
+      syncState.connectionStatuses = { 10: 'connected', 11: 'connected' };
+      syncState.mode = 'element';
+      syncState.sessionEpoch = 4;
+      urlSyncEnabled.resolve(true);
+      await event;
+
+      expect(sendMessage).not.toHaveBeenCalledWith(
+        'url:sync',
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(syncState.linkedTabs).toEqual([10, 11]);
+      expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
+    });
+
+    it('does not mutate a replacement session after a stale reconnect acknowledgement', async () => {
+      const reconnect = Promise.withResolvers<{ success: boolean; tabId: number }>();
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'error', 2: 'connected' };
+      syncState.mode = 'ratio';
+      syncState.sessionEpoch = 5;
+      vi.mocked(sendMessage).mockReturnValue(reconnect.promise);
+
+      const event = getListener('tabs.onUpdated')(
+        1,
+        { status: 'complete' },
+        { id: 1, url: 'https://example.com/reload', title: 'Reloaded' },
+      );
+      await Promise.resolve();
+
+      syncState.linkedTabs = [10, 11];
+      syncState.connectionStatuses = { 10: 'connected', 11: 'connected' };
+      syncState.mode = 'element';
+      syncState.sessionEpoch = 6;
+      reconnect.resolve({ success: true, tabId: 1 });
+      await event;
+
+      expect(syncState.linkedTabs).toEqual([10, 11]);
+      expect(syncState.connectionStatuses).toEqual({ 10: 'connected', 11: 'connected' });
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+    });
+
     it('broadcasts URL sync to other linked tabs when URL sync is enabled', async () => {
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2, 3];
@@ -433,12 +929,22 @@ describe('registerTabEventHandlers', () => {
 
       expect(sendMessage).toHaveBeenCalledWith(
         'url:sync',
-        { url: 'https://example.com/next', sourceTabId: 1 },
+        {
+          isAutoSync: false,
+          sessionEpoch: 0,
+          sourceTabId: 1,
+          url: 'https://example.com/next',
+        },
         { context: 'content-script', tabId: 2 },
       );
       expect(sendMessage).toHaveBeenCalledWith(
         'url:sync',
-        { url: 'https://example.com/next', sourceTabId: 1 },
+        {
+          isAutoSync: false,
+          sessionEpoch: 0,
+          sourceTabId: 1,
+          url: 'https://example.com/next',
+        },
         { context: 'content-script', tabId: 3 },
       );
     });
@@ -455,10 +961,17 @@ describe('registerTabEventHandlers', () => {
         { id: 1, url: 'https://example.com/reload', title: 'Reloaded' },
       );
 
-      expect(sendMessage).toHaveBeenCalledWith(
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:start',
-        { tabIds: [1, 2], mode: 'ratio', currentTabId: 1 },
+        {
+          tabIds: [1, 2],
+          mode: 'ratio',
+          currentTabId: 1,
+          isAutoSync: false,
+          sessionEpoch: 0,
+        },
         { context: 'content-script', tabId: 1 },
+        3_000,
       );
       expect(syncState.connectionStatuses[1]).toBe('connected');
       expect(persistSyncState).toHaveBeenCalledTimes(1);
@@ -843,14 +1356,52 @@ describe('registerTabEventHandlers', () => {
 
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:start',
-        { tabIds: [15, 16], mode: 'ratio', currentTabId: 15 },
+        {
+          tabIds: [15, 16],
+          mode: 'ratio',
+          currentTabId: 15,
+          isAutoSync: false,
+          sessionEpoch: 0,
+        },
         { context: 'content-script', tabId: 15 },
-        2_000,
+        3_000,
       );
       expect(syncState.connectionStatuses[15]).toBe('connected');
       expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(reinjectContentScript).not.toHaveBeenCalled();
+    });
+
+    it('reinjects with the captured manual session and owns the successful status mutation', async () => {
+      syncState.isActive = true;
+      syncState.linkedTabs = [25, 26];
+      syncState.mode = 'element';
+      syncState.sessionEpoch = 4;
+      syncState.connectionStatuses = { 25: 'error', 26: 'connected' };
+      vi.mocked(isContentScriptAlive).mockResolvedValue(false);
+      vi.mocked(sendMessageWithTimeout).mockRejectedValue(new Error('content script missing'));
+      vi.mocked(reinjectContentScript).mockImplementation(async (_tabId, context) =>
+        context.isSessionCurrent(),
+      );
+
+      await getListener('tabs.onActivated')({ tabId: 25 });
+
+      expect(reinjectContentScript).toHaveBeenCalledWith(
+        25,
+        expect.objectContaining({
+          startMessage: {
+            tabIds: [25, 26],
+            mode: 'element',
+            currentTabId: 25,
+            isAutoSync: false,
+            sessionEpoch: 4,
+          },
+          isSessionCurrent: expect.any(Function),
+        }),
+      );
+      expect(syncState.connectionStatuses[25]).toBe('connected');
+      expect(persistSyncState).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
     });
 
     it('updates connection status when content script is alive', async () => {
@@ -880,6 +1431,88 @@ describe('registerTabEventHandlers', () => {
       );
 
       expect(toggleAutoSync).toHaveBeenCalledWith(true);
+    });
+
+    it('enters the transition gate before applying a stored disable', async () => {
+      const events: Array<string> = [];
+      vi.mocked(syncTransitionGate.run).mockImplementationOnce(async (transition) => {
+        events.push('gate:enter');
+        const result = await transition({
+          operationGeneration: 2,
+          expectedRevision: syncState.revision,
+        });
+        events.push('gate:exit');
+        return result;
+      });
+      vi.mocked(toggleAutoSync).mockImplementationOnce(async () => {
+        events.push('toggle');
+      });
+
+      await getListener('storage.onChanged')(
+        {
+          autoSyncEnabled: {
+            oldValue: true,
+            newValue: false,
+          },
+        },
+        'local',
+      );
+
+      expect(events).toEqual(['gate:enter', 'toggle', 'gate:exit']);
+    });
+
+    it('serializes concurrent stored enable and disable requests in arrival order', async () => {
+      let tail: Promise<void> = Promise.resolve();
+      let operationGeneration = 0;
+      vi.mocked(syncTransitionGate.run).mockImplementation((transition) => {
+        const result = tail.then(() =>
+          transition({
+            operationGeneration: ++operationGeneration,
+            expectedRevision: syncState.revision,
+          }),
+        );
+        tail = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
+      });
+      const firstToggle = Promise.withResolvers<void>();
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        if (enabled) {
+          await firstToggle.promise;
+        }
+        autoSyncState.enabled = enabled;
+      });
+
+      const enable = getListener('storage.onChanged')(
+        {
+          autoSyncEnabled: {
+            oldValue: false,
+            newValue: true,
+          },
+        },
+        'local',
+      );
+      const disable = getListener('storage.onChanged')(
+        {
+          autoSyncEnabled: {
+            oldValue: true,
+            newValue: false,
+          },
+        },
+        'local',
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+      const callsBeforeFirstToggleSettled = [...vi.mocked(toggleAutoSync).mock.calls];
+
+      firstToggle.resolve();
+      await enable;
+      await disable;
+      expect(callsBeforeFirstToggleSettled).toEqual([[true]]);
+      expect(toggleAutoSync).toHaveBeenNthCalledWith(2, false);
+      expect(autoSyncState.enabled).toBe(false);
     });
 
     it('ignores storage changes outside local area', async () => {

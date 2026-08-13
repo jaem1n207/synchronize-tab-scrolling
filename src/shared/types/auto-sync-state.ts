@@ -1,3 +1,4 @@
+import type { AutoSyncActivationId } from '~/shared/lib/auto-sync-activation';
 import type {
   AutoSyncSuggestionMatchKind,
   TranslatedPageConfidence,
@@ -10,6 +11,8 @@ import type {
 export interface AutoSyncGroup {
   tabIds: Set<number>;
   isActive: boolean;
+  /** Opaque UUID identity of the latest activation attempt for this group. */
+  activationGeneration?: AutoSyncActivationId;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
   tabUrls?: Map<number, string>;

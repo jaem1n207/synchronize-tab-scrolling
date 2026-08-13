@@ -66,6 +66,11 @@ describe('createInitialSyncState', () => {
     expect(state.tabId).toBe(0);
   });
 
+  it('starts without a committed manual session epoch', () => {
+    const state = createInitialSyncState();
+    expect(state.sessionEpoch).toBe(0);
+  });
+
   it('should return object with isManualScrollEnabled = false', () => {
     const state = createInitialSyncState();
     expect(state.isManualScrollEnabled).toBe(false);
@@ -103,6 +108,7 @@ describe('createInitialSyncState', () => {
     expect(state).toHaveProperty('isAutoSync');
     expect(state).toHaveProperty('mode');
     expect(state).toHaveProperty('tabId');
+    expect(state).toHaveProperty('sessionEpoch');
     expect(state).toHaveProperty('isManualScrollEnabled');
     expect(state).toHaveProperty('lastNavigationUrl');
     expect(state).toHaveProperty('lastSyncedRatio');

@@ -1,11 +1,12 @@
 /// <reference types="vitest/globals" />
 
-import { render } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 
 import { SyncControlPanel } from './sync-control-panel';
 
-const { handleOpenChangeMock } = vi.hoisted(() => ({
+const { handleOpenChangeMock, usePanelStateMock } = vi.hoisted(() => ({
   handleOpenChangeMock: vi.fn(),
+  usePanelStateMock: vi.fn(),
 }));
 
 vi.mock('../hooks', () => ({
@@ -18,15 +19,7 @@ vi.mock('../hooks', () => ({
     wasDraggedRef: { current: false },
     handleMouseDown: vi.fn(),
   }),
-  usePanelState: () => ({
-    isOpen: false,
-    syncedTabs: [],
-    autoSyncEnabled: false,
-    isAutoSyncActive: false,
-    autoSyncGroupCount: 0,
-    handleOpenChange: handleOpenChangeMock,
-    handleAutoSyncToggle: vi.fn(),
-  }),
+  usePanelState: usePanelStateMock,
 }));
 
 vi.mock('~/shared/hooks/use-system-theme', () => ({
@@ -54,6 +47,16 @@ vi.mock('~/shared/lib/animations', () => ({
 describe('SyncControlPanel', () => {
   beforeEach(() => {
     handleOpenChangeMock.mockClear();
+    usePanelStateMock.mockReturnValue({
+      isOpen: false,
+      syncedTabs: [],
+      syncStatusError: null,
+      autoSyncEnabled: false,
+      isAutoSyncActive: false,
+      autoSyncGroupCount: 0,
+      handleOpenChange: handleOpenChangeMock,
+      handleAutoSyncToggle: vi.fn(),
+    });
   });
 
   it('consumes the URL Sync settings open token after opening the panel', () => {
@@ -73,5 +76,85 @@ describe('SyncControlPanel', () => {
 
     expect(handleOpenChangeMock).toHaveBeenCalledWith(true);
     expect(onUrlSyncSettingsTokenHandled).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders synchronized titles, current marker, and signed manual offsets accessibly', () => {
+    const createPanel = () => (
+      <SyncControlPanel
+        urlSyncEnabled={true}
+        urlSyncMode="follow-changed-tab"
+        urlSyncNotice={null}
+        onUrlSyncEnabledChange={vi.fn()}
+        onUrlSyncModeChange={vi.fn()}
+      />
+    );
+    const view = render(createPanel());
+
+    usePanelStateMock.mockReturnValue({
+      isOpen: true,
+      syncedTabs: [
+        {
+          displayTitle: 'Current article',
+          isCurrent: true,
+          manualOffsetPixels: 136,
+          connectionStatus: 'connected',
+        },
+        {
+          displayTitle: 'Zero offset article',
+          isCurrent: false,
+          manualOffsetPixels: 0,
+          connectionStatus: 'disconnected',
+        },
+        {
+          displayTitle: 'Negative offset article',
+          isCurrent: false,
+          manualOffsetPixels: -42,
+          connectionStatus: 'error',
+        },
+      ],
+      syncStatusError: null,
+      autoSyncEnabled: false,
+      isAutoSyncActive: false,
+      autoSyncGroupCount: 0,
+      handleOpenChange: handleOpenChangeMock,
+      handleAutoSyncToggle: vi.fn(),
+    });
+    view.rerender(createPanel());
+
+    const list = screen.getByRole('list', { name: 'syncedTabs' });
+    expect(within(list).getByText('syncedTabs')).toBeVisible();
+    expect(within(list).getByText('Current article (current)')).toBeInTheDocument();
+    expect(within(list).getByText('+136px')).toBeInTheDocument();
+    expect(within(list).getByText('Zero offset article')).toBeInTheDocument();
+    expect(within(list).getByText('+0px')).toBeInTheDocument();
+    expect(within(list).getByText('Negative offset article')).toBeInTheDocument();
+    expect(within(list).getByText('-42px')).toBeInTheDocument();
+    expect(screen.getByText('autoSyncSameUrl')).toBeInTheDocument();
+  });
+
+  it('renders a truthful status error instead of synchronized rows', () => {
+    usePanelStateMock.mockReturnValue({
+      isOpen: true,
+      syncedTabs: [],
+      syncStatusError: 'manualSyncStateUnavailable',
+      autoSyncEnabled: false,
+      isAutoSyncActive: false,
+      autoSyncGroupCount: 0,
+      handleOpenChange: handleOpenChangeMock,
+      handleAutoSyncToggle: vi.fn(),
+    });
+
+    render(
+      <SyncControlPanel
+        urlSyncEnabled={true}
+        urlSyncMode="follow-changed-tab"
+        urlSyncNotice={null}
+        onUrlSyncEnabledChange={vi.fn()}
+        onUrlSyncModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('manualSyncStateUnavailable');
+    expect(screen.queryByRole('list', { name: 'syncedTabs' })).not.toBeInTheDocument();
   });
 });

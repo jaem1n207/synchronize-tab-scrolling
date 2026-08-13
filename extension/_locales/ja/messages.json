@@ -723,5 +723,166 @@
   },
   "contextualHintHideAction": {
     "message": "この案内を非表示"
+  },
+  "quickSyncCommandDescription": {
+    "message": "スクロール同期を開始またはこのタブを追加"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "同期するタブを1つ選択しました"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "$REMAININGSECONDS$秒以内に別のタブで同じショートカットを押すと、このタブと一緒にスクロールが同期されます。",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "このタブはすでに選択されています"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "タブを接続しています…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "スクロール同期を開始しました · 現在$TABCOUNT$個のタブ",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "このタブを同期に追加しました · 現在$TABCOUNT$個のタブ",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "このタブはすでに現在の同期に含まれています · 現在$TABCOUNT$個のタブ",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "このタブに接続できませんでした"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "$REMAININGSECONDS$秒以内に別のタブで同じショートカットを押すと、もう一度試せます。",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "このタブを追加できませんでした"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "既存の$TABCOUNT$個のタブは引き続き同期しています。",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "このタブではスクロール同期を使用できません"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "別のタブを選択できる時間が終了しました。"
+  },
+  "activeSyncHeading": {
+    "message": "スクロール同期中"
+  },
+  "activeSyncSummary": {
+    "message": "現在$TABCOUNT$個のタブが一緒にスクロールします。",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "別のタブで$SHORTCUTLABEL$を押すと、そのタブも一緒にスクロールします。",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "一緒にスクロールするタブ"
+  },
+  "activeSyncEditNotice": {
+    "message": "このポップアップでタブを追加または解除するには、先に同期を停止してください。"
+  },
+  "currentTabLocation": {
+    "message": "現在のタブ"
+  },
+  "otherSyncedTab": {
+    "message": "同期中の別のタブ"
+  },
+  "currentWindowLocation": {
+    "message": "現在のウィンドウ"
+  },
+  "otherWindowLocation": {
+    "message": "別のウィンドウ"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "ショートカットを再設定"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "Quick Syncのショートカットが設定されていません。"
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "Quick Syncのショートカットを読み込めませんでした。"
+  },
+  "activeSyncTabUnavailable": {
+    "message": "タブ情報を読み込めませんでした"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "アドレスバーに$SETTINGSURL$と入力して、ショートカットを再設定してください。",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "アドオンマネージャーで歯車メニューを開き、「拡張機能のショートカットを管理」を選択してください。"
+  },
+  "manualSyncStateUnavailable": {
+    "message": "同期状態を確認できません。"
+  },
+  "retryStatusCheck": {
+    "message": "もう一度確認"
+  },
+  "syncCleanupIncomplete": {
+    "message": "一部のタブで同期コントロールを消去できませんでした。表示を消すには、そのタブを再読み込みしてください。"
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Quick Syncショートカット"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync: $SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "syncSuggestionCleanupRetrying": {
+    "message": "同期は開始または変更されました。他のタブのクリーンアップを再試行しています。現在の状態はポップアップで確認してください。"
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "自動同期の状態を完全に復元できませんでした。手動同期は変更されていません。"
+  },
+  "autoSyncReplacementFailed": {
+    "message": "提案された同期を開始できませんでした。以前の同期は停止したままです。"
   }
 }

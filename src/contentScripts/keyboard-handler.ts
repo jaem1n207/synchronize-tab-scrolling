@@ -11,6 +11,8 @@ import {
   saveManualScrollOffset,
   type ManualScrollOffset,
 } from '~/shared/lib/storage';
+import type { ManualScrollMessage } from '~/shared/types/messages';
+import type { RuntimeRelayMessageIdentity } from '~/shared/types/sync-session';
 
 import { createManualScrollOffset } from './lib/manual-scroll-offset';
 
@@ -35,6 +37,8 @@ let isManualModeActive = false;
 let currentTabId = 0;
 let manualModeBaselineSnapshot = 0;
 let getScrollInfoCallback: (() => KeyboardScrollInfo) | null = null;
+let getRuntimeRelayMessageIdentityCallback: (() => RuntimeRelayMessageIdentity | null) | null =
+  null;
 let pendingManualModeExit: Promise<void> | null = null;
 let pendingManualModeExitAllowsPersistence = true;
 let pendingManualModeExitNeedsPersistedClear = false;
@@ -44,9 +48,14 @@ let pendingManualModeExitNeedsPersistedClear = false;
  * @param tabId - Current tab ID
  * @param getScrollInfo - Callback to get current scroll position and last synced ratio
  */
-export function initKeyboardHandler(tabId: number, getScrollInfo?: () => KeyboardScrollInfo) {
+export function initKeyboardHandler(
+  tabId: number,
+  getScrollInfo?: () => KeyboardScrollInfo,
+  getRuntimeRelayMessageIdentity?: () => RuntimeRelayMessageIdentity | null,
+) {
   currentTabId = tabId;
   getScrollInfoCallback = getScrollInfo || null;
+  getRuntimeRelayMessageIdentityCallback = getRuntimeRelayMessageIdentity || null;
 
   // Listen for Option/Alt key press
   window.addEventListener('keydown', handleKeyDown, { passive: true });
@@ -58,12 +67,33 @@ export function initKeyboardHandler(tabId: number, getScrollInfo?: () => Keyboar
   logger.info('Keyboard handler initialized');
 }
 
+function getRuntimeRelayMessageIdentity(): RuntimeRelayMessageIdentity | null {
+  if (getRuntimeRelayMessageIdentityCallback) {
+    return getRuntimeRelayMessageIdentityCallback();
+  }
+
+  return {
+    isAutoSync: false,
+    sourceTabId: currentTabId,
+    sessionEpoch: 0,
+  };
+}
+
 /**
  * Handle keydown event
  */
 function handleKeyDown(event: KeyboardEvent) {
+  if (event.isComposing || event.keyCode === 229) {
+    return;
+  }
+
   // Check for Option (macOS) or Alt (Windows/Linux)
   if ((event.altKey || event.metaKey) && !isManualModeActive) {
+    const runtimeIdentity = getRuntimeRelayMessageIdentity();
+    if (!runtimeIdentity) {
+      return;
+    }
+
     // Snapshot baseline IMMEDIATELY when entering manual mode (synchronous, no race condition)
     if (getScrollInfoCallback) {
       const { lastSyncedRatio, setManualModeActive } = getScrollInfoCallback();
@@ -81,14 +111,12 @@ function handleKeyDown(event: KeyboardEvent) {
     logger.debug('Manual scroll mode enabled');
 
     // Notify content script to disable scroll syn
-    sendMessage(
-      'scroll:manual',
-      {
-        tabId: currentTabId,
-        enabled: true,
-      },
-      'background',
-    ).catch((error) => {
+    const message: ManualScrollMessage = {
+      ...runtimeIdentity,
+      tabId: currentTabId,
+      enabled: true,
+    };
+    sendMessage('scroll:manual', message, 'background').catch((error) => {
       logger.error('Failed to send manual mode message', { error });
     });
 
@@ -101,6 +129,10 @@ function handleKeyDown(event: KeyboardEvent) {
  * Handle keyup event
  */
 function handleKeyUp(event: KeyboardEvent) {
+  if (event.isComposing || event.keyCode === 229) {
+    return;
+  }
+
   // Check if Option/Alt key was released
   if (!event.altKey && !event.metaKey && isManualModeActive) {
     void startManualModeExit();
@@ -211,16 +243,17 @@ async function disableManualMode() {
   }
 
   // Notify content script to re-enable scroll sync
-  sendMessage(
-    'scroll:manual',
-    {
+  const runtimeIdentity = getRuntimeRelayMessageIdentity();
+  if (runtimeIdentity) {
+    const message: ManualScrollMessage = {
+      ...runtimeIdentity,
       tabId: currentTabId,
       enabled: false,
-    },
-    'background',
-  ).catch((error) => {
-    logger.error('Failed to send manual mode message', { error });
-  });
+    };
+    sendMessage('scroll:manual', message, 'background').catch((error) => {
+      logger.error('Failed to send manual mode message', { error });
+    });
+  }
 
   // Remove visual feedback
   document.documentElement.classList.remove('scroll-sync-manual-mode');
@@ -240,5 +273,6 @@ export async function cleanupKeyboardHandler({
     await startManualModeExit({ persistOffset: persistManualOffset });
   }
 
+  getRuntimeRelayMessageIdentityCallback = null;
   logger.info('Keyboard handler cleaned up');
 }

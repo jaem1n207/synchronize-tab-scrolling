@@ -1,5 +1,26 @@
 export { sendMessageWithTimeout } from './messaging';
-export { syncState, persistSyncState, restoreSyncState, broadcastSyncStatus } from './sync-state';
+export {
+  initializeBackground,
+  waitForBackgroundInitialization,
+  getManualReadinessSnapshot,
+  reconcileRestoredManualSession,
+} from './background-initialization';
+export type {
+  AutoSyncReadiness,
+  BackgroundReadiness,
+  ManualReadinessSnapshot,
+} from './background-initialization';
+export {
+  syncState,
+  getSyncStateSnapshot,
+  commitSyncState,
+  persistSyncState,
+  restoreSyncState,
+  broadcastSyncStatus,
+} from './sync-state';
+export type { PersistSyncStateResult, RestoreSyncStateResult } from './sync-state';
+export { parseStoredSyncState } from './sync-state-parser';
+export type { ParseSyncStateResult, SyncStateValidationReason } from './sync-state-parser';
 export { isContentScriptAlive, reinjectContentScript } from './content-script-manager';
 export { startKeepAlive, stopKeepAlive } from './keep-alive';
 export {
@@ -29,3 +50,30 @@ export {
   broadcastAutoSyncGroupUpdate,
 } from './auto-sync-groups';
 export { initializeAutoSync, toggleAutoSync } from './auto-sync-lifecycle';
+export type { AutoSyncInitializationResult } from './auto-sync-lifecycle';
+export { createSyncTransitionGate, syncTransitionGate } from './sync-transition-gate';
+export type { SyncTransitionContext, SyncTransitionGate } from './sync-transition-gate';
+export {
+  createManualOverrideAdapter,
+  isTabProvisionallyManuallyOverridden,
+  manualOverrideAdapter,
+} from './manual-override-adapter';
+export type { ManualOverrideAdapter, ManualOverrideSnapshot } from './manual-override-adapter';
+export { createSyncSessionOrchestrator } from './sync-session-orchestrator';
+export type {
+  AddManualSessionTabInput,
+  StartManualSessionInput,
+  SyncSessionOrchestrator,
+  SyncSessionOrchestratorDependencies,
+} from './sync-session-orchestrator';
+export { buildManualSyncSnapshot } from './sync-session-snapshot';
+export { createQuickSyncCandidateStore, quickSyncCandidateStore } from './quick-sync-candidate';
+export { createQuickSyncCoordinator } from './quick-sync-coordinator';
+export {
+  createQuickSyncBadgeController,
+  createQuickSyncFeedbackSender,
+  createQuickSyncHandshakeRegistry,
+  createRecentQuickSyncOutcomeStore,
+  quickSyncHandshakeRegistry,
+  recentQuickSyncOutcomeStore,
+} from './quick-sync-feedback';

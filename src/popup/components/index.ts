@@ -1,7 +1,10 @@
 export { ActionsMenu } from './actions-menu';
+export { ActiveSyncSession } from './active-sync-session';
 export { ErrorNotification } from './error-notification';
 export { ExcludedDomainsDialog } from './excluded-domains-dialog';
 export { FooterInfo } from './footer-info';
+export { QuickSyncShortcutStatus } from './quick-sync-shortcut-status';
+export { QuickSyncRecentOutcome } from './quick-sync-recent-outcome';
 export { ScrollSyncPopup } from './scroll-sync-popup';
 export { SelectedTabsChips } from './selected-tabs-chips';
 export { SyncControlButtons } from './sync-control-buttons';

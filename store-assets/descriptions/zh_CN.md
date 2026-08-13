@@ -7,6 +7,22 @@
 4. 点击“开始同步”，然后在任意一个已连接的标签页中滚动。
 ---
 
+Quick Sync 快捷键
+
+无需打开弹出窗口，即可开始同步或添加标签页。
+
+1. 在第一个标签页按 `Cmd+Shift+.`（Mac）或 `Ctrl+Shift+.`（Windows/Linux）。
+2. 在 10 秒内切换到另一个标签页并再次按下，即可开始同步。
+3. 同步期间，在其他标签页按下同一快捷键即可将其加入同步。
+
+可在弹出窗口的“操作”菜单中重新设置快捷键。
+
+扩展本身可在 Arc 中使用，但由于 Arc 不会向扩展触发标准 WebExtension `commands.onCommand` 事件，因此不支持 Quick Sync 快捷键。在 Arc 中，请使用弹出窗口选择标签页并点击“开始同步”。
+
+详情：https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/docs/guides/quick-sync-shortcut.md
+
+---
+
 基础滚动同步
 
 在一个标签页中滚动时，其他已连接的标签页会根据各自页面长度移动到相同的相对位置。
@@ -87,6 +103,7 @@ URL Sync 提供两种模式。
 
 • 手动同步浏览器可直接渲染的本地 file:// 页面，包括 HTML、Markdown、JSON、文本、CSV 和日志
 • 多个标签页之间实时同步滚动位置
+• 使用 Quick Sync 快捷键，无需打开弹出窗口即可开始同步并添加标签页
 • 使用 URL Sync 同步受支持的页面跳转
 • 提供跟随同一网站的模式，以及保持每个标签页所在网站的模式
 • 支持同步路径(path)、搜索词、筛选条件、排序等查询参数

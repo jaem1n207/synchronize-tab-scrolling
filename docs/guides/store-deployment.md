@@ -10,15 +10,15 @@
 ```
 push to main
     │
-    ├─ Build Chrome → extension/ → copy to build/chrome/
-    ├─ Build Firefox → extension/ → copy to build/firefox/
+    ├─ Build Chrome → extension/ staging → validate/copy to build/chromium/
+    ├─ Build Firefox → extension/ staging → validate/copy to build/firefox/
     │
     └─ semantic-release
          ├─ analyzeCommits → 커밋 메시지 분석 → 다음 버전 결정
          ├─ generateNotes → 릴리스 노트 생성
          ├─ prepare:
          │    ├─ changelog → CHANGELOG.md 업데이트
-         │    ├─ semantic-release-chrome → build/chrome/manifest.json에 버전 기록, zip 생성
+         │    ├─ semantic-release-chrome → build/chromium/manifest.json에 버전 기록, zip 생성
          │    ├─ semantic-release-amo → build/firefox/manifest.json에 버전 기록, zip 생성
          │    ├─ npm → package.json 버전 업데이트
          │    └─ git → CHANGELOG.md + package.json 커밋
@@ -44,19 +44,18 @@ push to main
 
 ## 빌드 파이프라인
 
-Chrome과 Firefox 빌드는 동일한 `extension/` 디렉토리에 출력됩니다.
-CI에서는 빌드 후 별도 디렉토리로 복사하여 충돌을 방지합니다:
+Chrome과 Firefox compilation은 기존처럼 동일한 `extension/` staging 디렉토리에 출력됩니다.
+각 build 명령의 마지막 단계가 manifest, Quick Sync command/runtime listener, 필수 파일을 검증한 뒤
+브라우저별 안정 경로로 전체 artifact를 복사합니다:
 
 ```bash
-pnpm build             # Chrome 빌드 → extension/
-cp -r extension/* build/chrome/
-
-pnpm build-firefox     # Firefox 빌드 → extension/ (덮어쓰기)
-cp -r extension/* build/firefox/
+pnpm build             # Chrome staging → build/chromium/
+pnpm build-firefox     # Firefox staging → build/firefox/
 ```
 
-- **Chrome/Edge/Brave**: `build/chrome/` 사용 (Chromium 기반 — 동일 빌드)
+- **Chrome/Edge/Brave**: `build/chromium/` 사용 (Chromium 기반 — 동일 빌드)
 - **Firefox**: `build/firefox/` 사용 (gecko 전용 manifest 포함)
+- Firefox build가 `extension/` staging을 덮어써도 이미 검증된 `build/chromium/`은 유지됩니다.
 - CI는 `pnpm install --frozen-lockfile`로 감사된 `pnpm-lock.yaml`과 보안 override를 그대로
   사용합니다. 다른 패키지 매니저로 release dependency graph를 다시 해석하지 않습니다.
 
@@ -67,7 +66,7 @@ cp -r extension/* build/firefox/
 ### Chrome Web Store
 
 - **플러그인**: `semantic-release-chrome`
-- **동작**: prepare 단계에서 `build/chrome/manifest.json`에 버전 기록 후 zip 생성, publish 단계에서 Chrome Web Store API로 업로드
+- **동작**: prepare 단계에서 `build/chromium/manifest.json`에 버전 기록 후 zip 생성, publish 단계에서 Chrome Web Store API로 업로드
 - **자격증명**: OAuth 2.0 (Client ID, Client Secret, Refresh Token)
 
 ### Firefox AMO
@@ -227,7 +226,7 @@ repository role bypass를 제거하지 않습니다. 성공이 확인되면 `REL
 GitHub Actions 로그에서 각 단계별 출력을 확인할 수 있습니다:
 
 ```
-semantic-release → Wrote version X.Y.Z to build/chrome/manifest.json
+semantic-release → Wrote version X.Y.Z to build/chromium/manifest.json
 semantic-release → Published Chrome extension
 semantic-release → Published Firefox add-on
 Edge Add-ons: vX.Y.Z submitted successfully.

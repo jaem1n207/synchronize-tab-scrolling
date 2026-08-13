@@ -8,7 +8,8 @@
 *.pem
 *.xpi
 *.zip
-build
+# Generated browser artifacts
+/build/
 dist
 dist-landing
 dist-ssr
@@ -26,6 +27,7 @@ vite.config.*.timestamp-*
 
 # Test artifacts
 .extension-e2e/
+.worktrees/
 playwright-report-extension/
 test-results/
 

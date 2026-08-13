@@ -4,13 +4,14 @@ Event handler modules that register message listeners and browser event listener
 
 ## Module Overview
 
-| Module                    | Lines | Events Handled                                                                                                                                      |
-| ------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scroll-sync-handlers.ts` | 338   | `scroll:start`, `scroll:stop`, `scroll:sync`, `scroll:manual`, `url:sync`, `sync:url-enabled-changed`, `sync:url-mode-changed`                      |
-| `connection-handlers.ts`  | 160   | `sync:get-status`, `scroll:ping`, `scroll:reconnect`, `scroll:request-reinject`                                                                     |
-| `auto-sync-handlers.ts`   | 291   | `auto-sync:status-changed`, `auto-sync:get-status`, `auto-sync:get-detailed-status`, `sync-suggestion:response`, `sync-suggestion:add-tab-response` |
-| `tab-event-handlers.ts`   | 353   | `tabs.onRemoved`, `tabs.onCreated`, `tabs.onUpdated`, `tabs.onActivated`, `storage.onChanged`                                                       |
-| `index.ts`                | —     | Barrel file re-exporting all register functions                                                                                                     |
+| Module                          | Events handled                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| `quick-sync-command-handler.ts` | `commands.onCommand`, candidate runtime Port, recent-outcome dismiss                |
+| `scroll-sync-handlers.ts`       | `scroll:start`, `scroll:stop`, guarded relay/manual/URL messages, URL Sync settings |
+| `connection-handlers.ts`        | authoritative `sync:get-status`, health, reconnect, re-injection                    |
+| `auto-sync-handlers.ts`         | auto-sync status and revision-aware accepted Replace/Add responses                  |
+| `tab-event-handlers.ts`         | tab lifecycle, candidate invalidation, gated topology repair, storage changes       |
+| `index.ts`                      | Barrel file re-exporting all register functions                                     |
 
 ## Registration Pattern
 
@@ -27,6 +28,7 @@ export function registerScrollSyncHandlers(): void {
 `main.ts` calls all registration functions at startup:
 
 ```typescript
+registerQuickSyncCommandHandler();
 registerScrollSyncHandlers();
 registerConnectionHandlers();
 registerAutoSyncHandlers();
@@ -37,7 +39,14 @@ registerTabEventHandlers();
 
 ### Scroll Sync Handlers
 
-Core synchronization flow: starting/stopping sync sessions, relaying scroll positions between tabs, forwarding manual mode toggles and URL navigation.
+Popup Start/Stop delegates to the shared session orchestrator. Hot relay paths validate sender,
+committed membership, and `sessionEpoch` synchronously.
+
+### Quick Sync Command Handler
+
+Captures the command event timestamp and invocation tab before awaiting background initialization,
+then delegates candidate/Start/Add decisions to the coordinator under `syncTransitionGate`. It does
+not mutate persisted session state directly.
 
 ### Connection Handlers
 
@@ -45,7 +54,9 @@ Connection health: status queries from content scripts, ping/pong health checks,
 
 ### Auto-Sync Handlers
 
-Automatic sync management: toggling auto-sync, querying group status, processing user responses to sync suggestion toasts.
+Automatic sync management: toggling explicit opt-in, querying group status, and routing accepted
+suggestion responses through the same transition gate. Add uses the shared orchestrator; Replace
+uses durable manual Stop plus the legacy auto-sync adapter.
 
 ### Tab Event Handlers
 
@@ -54,3 +65,6 @@ Browser lifecycle events: tab creation/removal/update/activation, storage change
 ## Testing
 
 Each handler module has co-located integration tests (`*.test.ts`) that mock `webext-bridge`, `webextension-polyfill`, and background lib modules.
+
+See [`docs/guides/quick-sync-shortcut.md`](../../../docs/guides/quick-sync-shortcut.md) for the
+transaction and evidence contract.

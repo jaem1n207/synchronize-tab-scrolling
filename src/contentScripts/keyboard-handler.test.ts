@@ -44,6 +44,12 @@ function setDocumentScrollState(scrollHeight: number, clientHeight: number, scro
   document.documentElement.scrollTop = scrollTop;
 }
 
+function createImeKeyCodeEvent(): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', { altKey: true });
+  Object.defineProperty(event, 'keyCode', { value: 229 });
+  return event;
+}
+
 async function flushAsyncHandlers() {
   for (let index = 0; index < 5; index += 1) {
     await Promise.resolve();
@@ -103,13 +109,113 @@ describe('keyboard-handler', () => {
 
       expect(mocks.sendMessageMock).toHaveBeenCalledWith(
         'scroll:manual',
-        { tabId: 99, enabled: true },
+        expect.objectContaining({ tabId: 99, enabled: true }),
         'background',
       );
     });
   });
 
   describe('keydown handling', () => {
+    it('includes the cached manual session identity in keyboard messages', () => {
+      initKeyboardHandler(
+        9,
+        () => ({
+          currentScrollTop: 150,
+          lastSyncedRatio: 0.2,
+          setManualModeActive: vi.fn(),
+          updateOffsetCache: vi.fn(),
+        }),
+        () => ({
+          isAutoSync: false,
+          sourceTabId: 9,
+          sessionEpoch: 7,
+        }),
+      );
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+
+      expect(mocks.sendMessageMock).toHaveBeenCalledWith(
+        'scroll:manual',
+        {
+          enabled: true,
+          isAutoSync: false,
+          sessionEpoch: 7,
+          sourceTabId: 9,
+          tabId: 9,
+        },
+        'background',
+      );
+    });
+
+    it('includes the exact auto activation identity in keyboard messages', () => {
+      initKeyboardHandler(
+        9,
+        () => ({
+          currentScrollTop: 150,
+          lastSyncedRatio: 0.2,
+          setManualModeActive: vi.fn(),
+          updateOffsetCache: vi.fn(),
+        }),
+        () => ({
+          isAutoSync: true,
+          sourceTabId: 9,
+          autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+        }),
+      );
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+
+      expect(mocks.sendMessageMock).toHaveBeenCalledWith(
+        'scroll:manual',
+        {
+          enabled: true,
+          isAutoSync: true,
+          sourceTabId: 9,
+          autoSyncGeneration: '11111111-1111-4111-8111-111111111111',
+          tabId: 9,
+        },
+        'background',
+      );
+    });
+
+    it('fails closed when the current runtime relay identity is unavailable', () => {
+      const setManualModeActive = vi.fn();
+      initKeyboardHandler(
+        9,
+        () => ({
+          currentScrollTop: 150,
+          lastSyncedRatio: 0.2,
+          setManualModeActive,
+          updateOffsetCache: vi.fn(),
+        }),
+        () => null,
+      );
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true }));
+
+      expect(setManualModeActive).not.toHaveBeenCalled();
+      expect(mocks.sendMessageMock).not.toHaveBeenCalled();
+      expect(document.documentElement.classList.contains('scroll-sync-manual-mode')).toBe(false);
+    });
+
+    it.each([
+      new KeyboardEvent('keydown', { altKey: true, isComposing: true }),
+      createImeKeyCodeEvent(),
+    ])('ignores IME composition events', (event) => {
+      const setManualModeActive = vi.fn();
+      initKeyboardHandler(9, () => ({
+        currentScrollTop: 150,
+        lastSyncedRatio: 0.2,
+        setManualModeActive,
+        updateOffsetCache: vi.fn(),
+      }));
+
+      window.dispatchEvent(event);
+
+      expect(setManualModeActive).not.toHaveBeenCalled();
+      expect(mocks.sendMessageMock).not.toHaveBeenCalled();
+    });
+
     it('activates manual mode on Alt key press', () => {
       const setManualModeActive = vi.fn();
 
@@ -125,7 +231,7 @@ describe('keyboard-handler', () => {
       expect(setManualModeActive).toHaveBeenCalledWith(true);
       expect(mocks.sendMessageMock).toHaveBeenCalledWith(
         'scroll:manual',
-        { tabId: 10, enabled: true },
+        expect.objectContaining({ tabId: 10, enabled: true }),
         'background',
       );
       expect(document.documentElement.classList.contains('scroll-sync-manual-mode')).toBe(true);
@@ -146,7 +252,7 @@ describe('keyboard-handler', () => {
       expect(setManualModeActive).toHaveBeenCalledWith(true);
       expect(mocks.sendMessageMock).toHaveBeenCalledWith(
         'scroll:manual',
-        { tabId: 11, enabled: true },
+        expect.objectContaining({ tabId: 11, enabled: true }),
         'background',
       );
     });
@@ -170,7 +276,7 @@ describe('keyboard-handler', () => {
       expect(mocks.sendMessageMock).toHaveBeenCalledTimes(1);
       expect(mocks.sendMessageMock).toHaveBeenCalledWith(
         'scroll:manual',
-        { tabId: 12, enabled: true },
+        expect.objectContaining({ tabId: 12, enabled: true }),
         'background',
       );
     });
@@ -220,7 +326,7 @@ describe('keyboard-handler', () => {
 
       expect(mocks.sendMessageMock).toHaveBeenCalledWith(
         'scroll:manual',
-        { tabId: 14, enabled: true },
+        expect.objectContaining({ tabId: 14, enabled: true }),
         'background',
       );
       expect(document.documentElement.classList.contains('scroll-sync-manual-mode')).toBe(true);
@@ -246,7 +352,7 @@ describe('keyboard-handler', () => {
       expect(setManualModeActive).toHaveBeenNthCalledWith(2, false);
       expect(mocks.sendMessageMock).toHaveBeenLastCalledWith(
         'scroll:manual',
-        { tabId: 20, enabled: false },
+        expect.objectContaining({ tabId: 20, enabled: false }),
         'background',
       );
     });
@@ -582,7 +688,7 @@ describe('keyboard-handler', () => {
       expect(setManualModeActive).toHaveBeenNthCalledWith(2, false);
       expect(mocks.sendMessageMock).toHaveBeenLastCalledWith(
         'scroll:manual',
-        { tabId: 30, enabled: false },
+        expect.objectContaining({ tabId: 30, enabled: false }),
         'background',
       );
     });
@@ -628,7 +734,7 @@ describe('keyboard-handler', () => {
       expect(setManualModeActive).toHaveBeenNthCalledWith(2, false);
       expect(mocks.sendMessageMock).toHaveBeenLastCalledWith(
         'scroll:manual',
-        { tabId: 41, enabled: false },
+        expect.objectContaining({ tabId: 41, enabled: false }),
         'background',
       );
       expect(document.documentElement.classList.contains('scroll-sync-manual-mode')).toBe(false);
@@ -655,7 +761,7 @@ describe('keyboard-handler', () => {
       expect(mocks.saveManualScrollOffsetMock).not.toHaveBeenCalled();
       expect(mocks.sendMessageMock).toHaveBeenLastCalledWith(
         'scroll:manual',
-        { tabId: 43, enabled: false },
+        expect.objectContaining({ tabId: 43, enabled: false }),
         'background',
       );
     });

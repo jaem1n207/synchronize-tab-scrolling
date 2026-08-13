@@ -22,11 +22,13 @@ import {
   saveDismissedContextualHintId,
   saveExcludedDomains,
   saveManualScrollOffset,
+  saveManualScrollOffsetStrict,
   savePanelMinimized,
   saveSelectedTabIds,
   saveSyncMode,
   saveUrlSyncEnabled,
   saveUrlSyncMode,
+  clearManualScrollOffsetStrict,
 } from './storage';
 
 const {
@@ -682,6 +684,44 @@ describe('clearManualScrollOffset', () => {
     await clearManualScrollOffset(4);
 
     expect(loggerErrorMock).toHaveBeenCalledWith('Failed to clear manual scroll offset:', error);
+  });
+});
+
+describe('strict manual scroll offset writes', () => {
+  it('returns the removed offset after a successful strict clear', async () => {
+    storageGetMock.mockResolvedValue({
+      manualScrollOffsets: {
+        1: { ratio: 0.1, pixels: 10 },
+        2: { ratio: 0.2, pixels: 20 },
+      },
+    });
+    storageSetMock.mockResolvedValue(undefined);
+
+    await expect(clearManualScrollOffsetStrict(2)).resolves.toEqual({
+      ratio: 0.2,
+      pixels: 20,
+    });
+    expect(storageSetMock).toHaveBeenCalledWith({
+      manualScrollOffsets: {
+        1: { ratio: 0.1, pixels: 10 },
+      },
+    });
+  });
+
+  it('rejects a strict compensation save when storage set fails', async () => {
+    const error = new Error('strict set failed');
+    storageGetMock.mockResolvedValue({ manualScrollOffsets: {} });
+    storageSetMock.mockRejectedValue(error);
+
+    await expect(saveManualScrollOffsetStrict(3, 0.3, 30)).rejects.toBe(error);
+  });
+
+  it('rejects a strict compensation save when storage read fails', async () => {
+    const error = new Error('strict get failed');
+    storageGetMock.mockRejectedValue(error);
+
+    await expect(saveManualScrollOffsetStrict(4, 0.4, 40)).rejects.toBe(error);
+    expect(storageSetMock).not.toHaveBeenCalled();
   });
 });
 

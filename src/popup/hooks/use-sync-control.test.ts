@@ -1,24 +1,28 @@
-import { act, createElement } from 'react';
-
-import { createRoot } from 'react-dom/client';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
 
 import { getFileSchemeAccessInfo } from '~/shared/lib/file-scheme-access';
+import { loadSelectedTabIds } from '~/shared/lib/storage';
 
 import { useSyncControl } from './use-sync-control';
 
 import type { TabInfo } from '../types';
 
-const { sendMessageMock, tabsCreateMock, tabsReloadMock, getFileSchemeAccessInfoMock } = vi.hoisted(
-  () => ({
-    sendMessageMock: vi.fn(),
-    tabsCreateMock: vi.fn(),
-    tabsReloadMock: vi.fn(),
-    getFileSchemeAccessInfoMock: vi.fn(),
-  }),
-);
+const {
+  getFileSchemeAccessInfoMock,
+  loadSelectedTabIdsMock,
+  sendMessageMock,
+  tabsCreateMock,
+  tabsReloadMock,
+} = vi.hoisted(() => ({
+  getFileSchemeAccessInfoMock: vi.fn(),
+  loadSelectedTabIdsMock: vi.fn(),
+  sendMessageMock: vi.fn(),
+  tabsCreateMock: vi.fn(),
+  tabsReloadMock: vi.fn(),
+}));
 
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: sendMessageMock,
@@ -38,7 +42,7 @@ vi.mock('~/shared/lib/file-scheme-access', () => ({
 }));
 
 vi.mock('~/shared/lib/storage', () => ({
-  loadSelectedTabIds: vi.fn().mockResolvedValue([]),
+  loadSelectedTabIds: loadSelectedTabIdsMock,
 }));
 
 vi.mock('~/shared/i18n', () => ({
@@ -57,213 +61,286 @@ vi.mock('~/shared/lib/logger', () => ({
   })),
 }));
 
-interface HookResult<T> {
-  current: T;
+interface RenderSyncControlOptions {
+  selectedTabIds?: Array<number>;
+  onSelectedTabIdsChange?: (
+    updater: Array<number> | ((previous: Array<number>) => Array<number>),
+  ) => void;
+  onSessionChange?: () => Promise<void>;
 }
 
-interface RenderHookResult<T> {
-  result: HookResult<T>;
-  unmount: () => void;
-}
+const webTabs: Array<TabInfo> = [
+  { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
+  { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
+  { id: 3, title: 'three', url: 'https://example.com/three', eligible: true },
+];
 
-interface SearchInputRef {
-  current: { focus: () => void } | null;
-}
+function renderSyncControl(tabs: Array<TabInfo>, options: RenderSyncControlOptions = {}) {
+  const searchInputRef: React.RefObject<{ focus: () => void } | null> = {
+    current: { focus: vi.fn() },
+  };
+  const onSelectedTabIdsChange = options.onSelectedTabIdsChange ?? vi.fn();
+  const onSessionChange = options.onSessionChange ?? vi.fn().mockResolvedValue(undefined);
 
-function enableReactActEnvironment(): void {
-  Object.defineProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT', {
-    configurable: true,
-    value: true,
-    writable: true,
-  });
-}
-
-function renderHook<T>(hook: () => T): RenderHookResult<T> {
-  const container = document.createElement('div');
-  const root = createRoot(container);
-  let value: T;
-
-  function HookHost(): null {
-    value = hook();
-    return null;
-  }
-
-  act(() => {
-    root.render(createElement(HookHost));
-  });
+  const hook = renderHook(() =>
+    useSyncControl({
+      selectedTabIds: options.selectedTabIds ?? tabs.map((tab) => tab.id),
+      tabs,
+      searchInputRef,
+      onSelectedTabIdsChange,
+      onSessionChange,
+    }),
+  );
 
   return {
-    result: {
-      get current() {
-        return value;
-      },
-    },
-    unmount: () => {
-      act(() => {
-        root.unmount();
-      });
-    },
+    ...hook,
+    onSelectedTabIdsChange,
+    onSessionChange,
+    searchInputRef,
   };
 }
 
-async function waitFor(assertion: () => void): Promise<void> {
-  const timeoutAt = Date.now() + 1_000;
-  while (Date.now() < timeoutAt) {
-    try {
-      assertion();
-      return;
-    } catch {
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      });
-    }
-  }
-  assertion();
-}
+beforeEach(() => {
+  vi.useRealTimers();
+  vi.clearAllMocks();
+  loadSelectedTabIdsMock.mockResolvedValue([]);
+  getFileSchemeAccessInfoMock.mockResolvedValue({
+    canCheck: true,
+    allowed: true,
+    settingsUrl: 'chrome://extensions/?id=test-id',
+  });
+  tabsReloadMock.mockResolvedValue(undefined);
+  tabsCreateMock.mockResolvedValue({
+    id: 99,
+    index: 0,
+    highlighted: false,
+    active: true,
+    pinned: false,
+    incognito: false,
+  });
+});
 
-function renderUseSyncControl(tabs: Array<TabInfo>) {
-  const searchInputRef: SearchInputRef = { current: { focus: vi.fn() } };
-  return renderHook(() =>
-    useSyncControl({
-      selectedTabIds: tabs.map((tab) => tab.id),
-      tabs,
-      searchInputRef,
-      onSelectedTabIdsChange: vi.fn(),
-    }),
-  );
-}
+describe('useSyncControl inactive picker ownership', () => {
+  it('restores only saved tab IDs that remain in the inactive picker input', async () => {
+    loadSelectedTabIdsMock.mockResolvedValue([2, 9]);
+    const onSelectedTabIdsChange = vi.fn();
 
-describe('useSyncControl local file failures', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    enableReactActEnvironment();
-    vi.mocked(sendMessage).mockImplementation(async (message) => {
-      if (message === 'sync:get-status') {
-        return { success: true, isActive: false };
-      }
+    renderSyncControl(webTabs, { onSelectedTabIdsChange });
 
-      return {
-        success: false,
-        connectedTabs: [],
-        connectionResults: {
-          1: { success: false, error: 'Could not establish connection' },
-          2: { success: false, error: 'Could not establish connection' },
-        },
-        error: 'Failed to connect to at least 2 tabs',
-      };
+    await waitFor(() => expect(onSelectedTabIdsChange).toHaveBeenCalledWith([2]));
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not query or fabricate authoritative session status', async () => {
+    const { result } = renderSyncControl(webTabs);
+
+    await waitFor(() => expect(loadSelectedTabIds).toHaveBeenCalledOnce());
+
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'sync:get-status',
+      expect.anything(),
+      'background',
+    );
+    expect(sendMessageMock).not.toHaveBeenCalledWith(
+      'quick-sync:dismiss-recent-outcome',
+      expect.anything(),
+      'background',
+    );
+    expect(Object.keys(result.current).sort()).toEqual([
+      'error',
+      'handleDismissError',
+      'handleStart',
+    ]);
+  });
+
+  it('keeps the existing minimum selection validation', async () => {
+    const { result } = renderSyncControl([webTabs[0]], { selectedTabIds: [1] });
+
+    act(() => result.current.handleStart());
+
+    await waitFor(() => expect(result.current.error?.message).toBe('errorMinTabsRequired'));
+    expect(sendMessage).not.toHaveBeenCalledWith('scroll:start', expect.anything(), 'background');
+  });
+
+  it('sends the existing popup manual Start request and refetches session truth after commit', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      success: true,
+      connectedTabs: [1, 2],
+      connectionResults: {
+        1: { success: true },
+        2: { success: true },
+      },
+      revision: 6,
     });
-    vi.mocked(getFileSchemeAccessInfo).mockResolvedValue({
+    const onSessionChange = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderSyncControl(webTabs.slice(0, 2), { onSessionChange });
+
+    act(() => result.current.handleStart());
+
+    await waitFor(() => expect(onSessionChange).toHaveBeenCalledOnce());
+    expect(sendMessage).toHaveBeenCalledWith(
+      'scroll:start',
+      {
+        tabIds: [1, 2],
+        mode: 'ratio',
+        currentTabId: 1,
+      },
+      'background',
+    );
+    expect(result.current.error).toMatchObject({
+      message: 'successfullyConnectedToTabs:2',
+      severity: 'info',
+    });
+  });
+
+  it('preserves partial Start success and refetches the committed session', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      success: true,
+      connectedTabs: [1, 2],
+      connectionResults: {
+        1: { success: true },
+        2: { success: true },
+        3: { success: false, error: 'unreachable' },
+      },
+      revision: 7,
+    });
+    const onSessionChange = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderSyncControl(webTabs, { onSessionChange });
+
+    act(() => result.current.handleStart());
+
+    await waitFor(() => expect(onSessionChange).toHaveBeenCalledOnce());
+    expect(result.current.error).toMatchObject({
+      message: 'connectedToTabs:2,3,1',
+      severity: 'warning',
+    });
+  });
+
+  it('renders the explicit recovery copy after a committed degraded Start', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      success: true,
+      connectedTabs: [1, 2],
+      connectionResults: {
+        1: { success: true },
+        2: { success: true },
+      },
+      revision: 8,
+      warning: 'auto-sync-degraded',
+    });
+    const onSessionChange = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderSyncControl(webTabs.slice(0, 2), { onSessionChange });
+
+    act(() => result.current.handleStart());
+
+    await waitFor(() => expect(onSessionChange).toHaveBeenCalledOnce());
+    expect(result.current.error).toEqual({
+      message: 'autoSyncRecoveryDegraded',
+      severity: 'warning',
+      timestamp: expect.any(Number),
+    });
+  });
+
+  it('does not claim success after a rejected degraded Start', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      success: false,
+      connectedTabs: [],
+      connectionResults: {
+        1: { success: false, error: 'invalid acknowledgement' },
+        2: { success: false, error: 'invalid acknowledgement' },
+      },
+      revision: 8,
+      error: 'Failed to start synchronization',
+      warning: 'auto-sync-degraded',
+    });
+    const onSessionChange = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderSyncControl(webTabs.slice(0, 2), { onSessionChange });
+
+    act(() => result.current.handleStart());
+
+    await waitFor(() => expect(result.current.error?.message).toBe('autoSyncRecoveryDegraded'));
+    expect(result.current.error?.severity).toBe('warning');
+    expect(onSessionChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('useSyncControl file access and retry', () => {
+  const fileTabs: Array<TabInfo> = [
+    { id: 1, title: 'one.md', url: 'file:///Users/me/one.md', eligible: true },
+    { id: 2, title: 'two.md', url: 'file:///Users/me/two.md', eligible: true },
+  ];
+
+  beforeEach(() => {
+    sendMessageMock.mockResolvedValue({
+      success: false,
+      connectedTabs: [],
+      connectionResults: {
+        1: { success: false, error: 'Could not establish connection' },
+        2: { success: false, error: 'Could not establish connection' },
+      },
+      revision: 0,
+      error: 'Failed to connect to at least 2 tabs',
+    });
+  });
+
+  it('shows file access guidance only when selected local tabs fail and access is disabled', async () => {
+    getFileSchemeAccessInfoMock.mockResolvedValue({
       canCheck: true,
       allowed: false,
       settingsUrl: 'chrome://extensions/?id=test-id',
     });
-    vi.mocked(browser.tabs.create).mockResolvedValue({
-      id: 99,
-      index: 0,
-      highlighted: false,
-      active: true,
-      pinned: false,
-      incognito: false,
-    });
-  });
+    const { result } = renderSyncControl(fileTabs);
 
-  it('shows file access guidance when selected local file tabs fail to connect', async () => {
-    const { result, unmount } = renderUseSyncControl([
-      { id: 1, title: 'one.md', url: 'file:///Users/me/one.md', eligible: true },
-      { id: 2, title: 'two.md', url: 'file:///Users/me/two.md', eligible: true },
-    ]);
-
-    await act(async () => {
-      result.current.handleStart();
-    });
+    act(() => result.current.handleStart());
 
     await waitFor(() => expect(result.current.error?.message).toBe('fileAccessConnectionFailed'));
     expect(result.current.error?.action?.label).toBe('openExtensionSettings');
 
-    act(() => {
-      result.current.error?.action?.handler();
-    });
-
+    act(() => result.current.error?.action?.handler());
     expect(browser.tabs.create).toHaveBeenCalledWith({
       url: 'chrome://extensions/?id=test-id',
     });
-
-    unmount();
   });
 
-  it('keeps the generic retry action for non-file connection failures', async () => {
-    const { result, unmount } = renderUseSyncControl([
-      { id: 1, title: 'one', url: 'https://example.com/one', eligible: true },
-      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
-    ]);
+  it('keeps generic retry for non-file connection failures', async () => {
+    const { result } = renderSyncControl(webTabs.slice(0, 2));
 
-    await act(async () => {
-      result.current.handleStart();
-    });
+    act(() => result.current.handleStart());
 
     await waitFor(() =>
       expect(result.current.error?.message).toBe('Failed to connect to at least 2 tabs'),
     );
-    expect(result.current.error?.action?.label).toBe('retry');
-
-    unmount();
-  });
-
-  it('keeps the generic retry action when only a non-file tab fails in a mixed selection', async () => {
-    vi.mocked(sendMessage).mockImplementation(async (message) => {
-      if (message === 'sync:get-status') {
-        return { success: true, isActive: false };
-      }
-
-      return {
-        success: false,
-        connectedTabs: [1],
-        connectionResults: {
-          1: { success: true },
-          2: { success: false, error: 'Could not establish connection' },
-        },
-        error: 'HTTPS tab failed',
-      };
-    });
-
-    const { result, unmount } = renderUseSyncControl([
-      { id: 1, title: 'one.md', url: 'file:///Users/me/one.md', eligible: true },
-      { id: 2, title: 'two', url: 'https://example.com/two', eligible: true },
-    ]);
-
-    await act(async () => {
-      result.current.handleStart();
-    });
-
-    await waitFor(() => expect(result.current.error?.message).toBe('HTTPS tab failed'));
     expect(result.current.error?.action?.label).toBe('retry');
     expect(getFileSchemeAccessInfo).not.toHaveBeenCalled();
-
-    unmount();
   });
 
-  it('keeps the generic retry action when local file access is already allowed', async () => {
-    vi.mocked(getFileSchemeAccessInfo).mockResolvedValue({
-      canCheck: true,
-      allowed: true,
-      settingsUrl: 'chrome://extensions/?id=test-id',
-    });
-
-    const { result, unmount } = renderUseSyncControl([
-      { id: 1, title: 'one.md', url: 'file:///Users/me/one.md', eligible: true },
-      { id: 2, title: 'two.md', url: 'file:///Users/me/two.md', eligible: true },
-    ]);
-
+  it('reloads the selected tabs before retrying Start', async () => {
+    vi.useFakeTimers();
+    const { result } = renderSyncControl(webTabs.slice(0, 2));
+    act(() => result.current.handleStart());
     await act(async () => {
-      result.current.handleStart();
+      await Promise.resolve();
     });
 
-    await waitFor(() =>
-      expect(result.current.error?.message).toBe('Failed to connect to at least 2 tabs'),
-    );
-    expect(result.current.error?.action?.label).toBe('retry');
-    expect(browser.tabs.create).not.toHaveBeenCalled();
+    const retry = result.current.error?.action?.handler;
+    expect(retry).toBeDefined();
 
-    unmount();
+    act(() => retry?.());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(browser.tabs.reload).toHaveBeenCalledWith(1);
+    expect(browser.tabs.reload).toHaveBeenCalledWith(2);
+    expect(sendMessageMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('dismisses popup-local Start guidance', async () => {
+    const { result } = renderSyncControl([webTabs[0]], { selectedTabIds: [1] });
+    act(() => result.current.handleStart());
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+
+    act(() => result.current.handleDismissError());
+
+    expect(result.current.error).toBeNull();
   });
 });

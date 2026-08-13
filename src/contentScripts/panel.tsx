@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
+import { t } from '~/shared/i18n';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {
   loadUrlSyncEnabled,
@@ -44,6 +45,7 @@ function PanelApp() {
   const [urlSyncNotice, setUrlSyncNotice] = useState<UrlSyncNotice | null>(null);
   const [syncSuggestion, setSyncSuggestion] = useState<SyncSuggestionMessage | null>(null);
   const [addTabSuggestion, setAddTabSuggestion] = useState<AddTabToSyncMessage | null>(null);
+  const [suggestionCleanupDegraded, setSuggestionCleanupDegraded] = useState(false);
   const [isConnectionHealthy, setIsConnectionHealthy] = useState(true);
   const [openUrlSyncSettingsToken, setOpenUrlSyncSettingsToken] = useState(0);
 
@@ -229,11 +231,16 @@ function PanelApp() {
     if (!syncSuggestion) return;
 
     try {
-      await sendMessage(
+      const response = await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: syncSuggestion.normalizedUrl, accepted: true },
+        {
+          normalizedUrl: syncSuggestion.normalizedUrl,
+          accepted: true,
+          expectedRevision: syncSuggestion.expectedRevision,
+        },
         'background',
       );
+      setSuggestionCleanupDegraded(response.success && response.warning === 'auto-sync-degraded');
     } catch (error) {
       // Gracefully handle extension context invalidation (happens during rapid toggle)
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
@@ -252,7 +259,11 @@ function PanelApp() {
     try {
       await sendMessage(
         'sync-suggestion:response',
-        { normalizedUrl: syncSuggestion.normalizedUrl, accepted: false },
+        {
+          normalizedUrl: syncSuggestion.normalizedUrl,
+          accepted: false,
+          expectedRevision: syncSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -270,11 +281,16 @@ function PanelApp() {
     if (!addTabSuggestion) return;
 
     try {
-      await sendMessage(
+      const response = await sendMessage(
         'sync-suggestion:add-tab-response',
-        { tabId: addTabSuggestion.tabId, accepted: true },
+        {
+          tabId: addTabSuggestion.tabId,
+          accepted: true,
+          expectedRevision: addTabSuggestion.expectedRevision,
+        },
         'background',
       );
+      setSuggestionCleanupDegraded(response.success && response.warning === 'auto-sync-degraded');
     } catch (error) {
       if (error instanceof Error && error.message.includes('Extension context invalidated')) {
         await logger.warn('[Panel] Extension context invalidated, closing suggestion');
@@ -292,7 +308,11 @@ function PanelApp() {
     try {
       await sendMessage(
         'sync-suggestion:add-tab-response',
-        { tabId: addTabSuggestion.tabId, accepted: false },
+        {
+          tabId: addTabSuggestion.tabId,
+          accepted: false,
+          expectedRevision: addTabSuggestion.expectedRevision,
+        },
         'background',
       );
     } catch (error) {
@@ -349,6 +369,16 @@ function PanelApp() {
           onAccept={handleAddTabAccept}
           onReject={handleAddTabReject}
         />
+      )}
+
+      {suggestionCleanupDegraded && (
+        <div
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-[2147483647] max-w-sm rounded-lg border border-amber-500/40 bg-background/95 p-4 text-sm text-foreground shadow-2xl"
+          role="status"
+        >
+          {t('syncSuggestionCleanupRetrying')}
+        </div>
       )}
     </>
   );
@@ -408,8 +438,9 @@ export function showPanel() {
   // Append to body
   document.body.appendChild(panelContainer);
 
-  // Create shadow DOM for style isolation
-  const shadowRoot = panelContainer.attachShadow({ mode: 'open' });
+  // Keep synchronized-tab display data inaccessible to the host page while retaining an internal
+  // root reference for React mounting, theme updates, and cleanup.
+  const shadowRoot = panelContainer.attachShadow({ mode: 'closed' });
 
   // Create theme wrapper with minimal fixed positioning context
   // Uses system theme to match .light or .dark selector

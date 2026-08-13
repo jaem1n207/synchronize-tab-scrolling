@@ -61,14 +61,14 @@ manual sync만 지원한다.
 
 ```bash
 pnpm build
-rg -nF 'file:///*' extension/manifest.json
+rg -nF 'file:///*' build/chromium/manifest.json
 pnpm i18n:validate
 pnpm test
 ```
 
 Manual QA:
 
-1. Chromium 브라우저에서 빌드된 `extension/` 폴더를 load unpacked 한다.
+1. Chromium 브라우저에서 빌드된 `build/chromium/` 폴더를 load unpacked 한다.
 2. file URL access를 끈 상태로 로컬 `.html`, `.md`, `.json` 파일을 연다.
 3. 로컬 파일 row가 settings action과 함께 unavailable로 표시되는지 확인한다.
 4. 이 확장 프로그램의 **Allow access to file URLs**를 켠다.

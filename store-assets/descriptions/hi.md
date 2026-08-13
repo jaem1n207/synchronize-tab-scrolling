@@ -7,6 +7,22 @@
 4. "Start Sync" पर click करें, फिर किसी भी connected tab में scroll करें।
 ---
 
+Quick Sync शॉर्टकट
+
+Popup खोले बिना sync शुरू करें या tabs जोड़ें।
+
+1. पहले tab में Mac पर Cmd+Shift+. या Windows/Linux पर Ctrl+Shift+. दबाएँ।
+2. 10 seconds के अंदर दूसरे tab में वही shortcut दबाएँ; sync शुरू हो जाएगा।
+3. Sync चल रहा हो तो किसी दूसरे tab में वही shortcut दबाकर उसे जोड़ें।
+
+Shortcut बदलने के लिए popup का Actions menu खोलें।
+
+Known limitation: Extension Arc में काम करता है, लेकिन Arc standard WebExtension commands.onCommand event deliver नहीं करता, इसलिए Quick Sync shortcut supported नहीं है। Arc में existing popup से tabs चुनें और "सिंक शुरू करें" दबाएँ।
+
+विवरण: https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/docs/guides/quick-sync-shortcut.md
+
+---
+
 Basic scroll sync
 
 जब आप किसी एक tab में scroll करते हैं, तो बाकी connected tabs अपनी-अपनी page length के आधार पर उसी relative position पर चले जाते हैं।
@@ -87,6 +103,7 @@ Browser security policies या site restrictions की वजह से unsup
 
 • HTML, Markdown, JSON, text, CSV और logs जैसे browser द्वारा सीधे render किए जा सकने वाले local file:// pages का manual sync
 • कई tabs के बीच real-time scroll position sync
+• Popup खोले बिना sync शुरू करने या tabs जोड़ने के लिए Quick Sync shortcut
 • URL Sync से supported page navigation भी sync करें
 • Same website follow करने वाला mode और हर tab की अपनी website बनाए रखने वाला mode
 • Paths, search terms, filters, sorting और दूसरे query parameters के sync का support

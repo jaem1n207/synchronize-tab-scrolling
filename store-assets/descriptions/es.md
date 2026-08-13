@@ -7,6 +7,22 @@ Cómo usarlo
 4. Haz clic en "Iniciar sincronización" y luego desplázate en cualquier pestaña conectada.
 ---
 
+Quick Sync con atajo
+
+Inicia la sincronización o añade pestañas sin abrir la ventana de la extensión:
+
+1. En la primera pestaña, pulsa Cmd+Shift+. (Mac) o Ctrl+Shift+. (Windows/Linux).
+2. En los siguientes 10 segundos, usa el mismo atajo en otra pestaña para iniciar la sincronización.
+3. Durante una sincronización activa, úsalo en otra pestaña para añadirla.
+
+Puedes reasignar el atajo desde el menú "Acciones" de la ventana de la extensión.
+
+Limitación conocida: La extensión funciona en Arc, pero Arc no admite el atajo de Quick Sync porque no entrega a la extensión el evento estándar de WebExtension commands.onCommand. En Arc, selecciona las pestañas como siempre en la ventana de la extensión y haz clic en "Iniciar sincronización".
+
+Detalles: https://github.com/jaem1n207/synchronize-tab-scrolling/blob/main/docs/guides/quick-sync-shortcut.md
+
+---
+
 Sincronización básica de scroll
 
 Cuando haces scroll en una pestaña, las otras pestañas conectadas se mueven a la misma posición relativa según la longitud de cada página.
@@ -87,6 +103,7 @@ Funciones principales
 
 • Sincronización manual de páginas locales file:// que el navegador puede renderizar directamente, como HTML, Markdown, JSON, texto, CSV y logs
 • Sincronización en tiempo real de la posición de scroll entre varias pestañas
+• Quick Sync con atajo para iniciar la sincronización y añadir pestañas sin abrir la ventana de la extensión
 • URL Sync para sincronizar también la navegación de páginas compatibles
 • Modos para seguir el mismo sitio web o mantener cada pestaña en su propio sitio web
 • Compatibilidad con sincronización de rutas(path), términos de búsqueda, filtros, ordenación y otros parámetros de consulta

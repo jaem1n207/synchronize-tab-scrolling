@@ -723,5 +723,166 @@
   },
   "contextualHintHideAction": {
     "message": "隱藏此提示"
+  },
+  "quickSyncCommandDescription": {
+    "message": "開始捲動同步或新增此分頁"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "已選取 1 個要同步的分頁"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "請在 $REMAININGSECONDS$ 秒內於另一個分頁按下相同快速鍵，使其與此分頁同步捲動。",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "此分頁已被選取"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "正在連接分頁…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "已開始捲動同步 · 目前 $TABCOUNT$ 個分頁",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "已將此分頁新增至同步 · 目前 $TABCOUNT$ 個分頁",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "此分頁已在目前的同步中 · 目前 $TABCOUNT$ 個分頁",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "無法連接此分頁"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "請在 $REMAININGSECONDS$ 秒內於另一個分頁按下相同快速鍵以重試。",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "無法新增此分頁"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "現有的 $TABCOUNT$ 個分頁仍在同步。",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "此分頁不支援捲動同步"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "選取另一個分頁的時間已結束。"
+  },
+  "activeSyncHeading": {
+    "message": "正在同步捲動"
+  },
+  "activeSyncSummary": {
+    "message": "目前 $TABCOUNT$ 個分頁會同步捲動。",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "在另一個分頁按下 $SHORTCUTLABEL$，即可將其加入同步。",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "同步捲動的分頁"
+  },
+  "activeSyncEditNotice": {
+    "message": "若要在此彈出視窗中新增或移除分頁，請先停止同步。"
+  },
+  "currentTabLocation": {
+    "message": "目前分頁"
+  },
+  "otherSyncedTab": {
+    "message": "另一個同步分頁"
+  },
+  "currentWindowLocation": {
+    "message": "目前視窗"
+  },
+  "otherWindowLocation": {
+    "message": "其他視窗"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "重新設定快速鍵"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "尚未設定 Quick Sync 快速鍵。"
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "無法載入 Quick Sync 快速鍵。"
+  },
+  "activeSyncTabUnavailable": {
+    "message": "無法載入分頁資訊"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "請在網址列輸入 $SETTINGSURL$ 以重新設定快速鍵。",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "請在附加元件管理員中開啟齒輪選單，然後選擇「管理擴充套件快速鍵」。"
+  },
+  "manualSyncStateUnavailable": {
+    "message": "無法確認同步狀態。"
+  },
+  "retryStatusCheck": {
+    "message": "重新檢查"
+  },
+  "syncCleanupIncomplete": {
+    "message": "無法清理部分分頁中的同步控制項。請重新載入這些分頁以將其移除。"
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Quick Sync 快速鍵"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync：$SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "syncSuggestionCleanupRetrying": {
+    "message": "同步已開始或變更。仍在重試清理其他分頁。請在彈出式視窗中查看目前狀態。"
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "無法完整還原自動同步狀態。手動同步未變更。"
+  },
+  "autoSyncReplacementFailed": {
+    "message": "無法啟動建議的同步。先前的同步仍處於停止狀態。"
   }
 }

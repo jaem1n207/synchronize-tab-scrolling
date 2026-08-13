@@ -2,27 +2,35 @@ import type { ContextualHintShowMessage } from '~/shared/types/contextual-hints'
 import type {
   AddTabToSyncMessage,
   AddTabToSyncResponseMessage,
+  AutoStartSyncContentMessage,
   AutoSyncGroupUpdatedMessage,
   AutoSyncStatusChangedMessage,
   ConsumePendingUrlSyncContextualHintMessage,
   ConsumePendingUrlSyncContextualHintResponse,
+  ContentRuntimeDegradedMessage,
+  ContentRuntimeDegradedResponse,
   DismissAddTabToastMessage,
   DismissSyncSuggestionToastMessage,
   ElementMatchMessage,
   ExcludedDomainsChangedMessage,
   ManualScrollMessage,
+  ManualStartSyncContentMessage,
   PanelPositionMessage,
+  ReconnectManualSessionResponse,
+  RuntimeRelayResponse,
   ScrollPingMessage,
   ScrollReconnectMessage,
   ScrollRequestReinjectMessage,
   ScrollSyncMessage,
   SavePendingUrlSyncContextualHintMessage,
   SavePendingUrlSyncContextualHintResponse,
+  StartSyncBackgroundResponse,
+  StartSyncContentResponse,
   StartSyncMessage,
-  StartSyncResponse,
   StopSyncMessage,
+  StopSyncResponse,
   SyncBaselineUpdateMessage,
-  SyncStatusBroadcastMessage,
+  SyncSuggestionDecisionResponse,
   SyncSuggestionMessage,
   SyncSuggestionResponseMessage,
   TranslatedPageMetadataRequestMessage,
@@ -30,7 +38,20 @@ import type {
   UrlSyncEnabledChangedMessage,
   UrlSyncMessage,
   UrlSyncModeChangedMessage,
+  UrlSyncResponse,
 } from '~/shared/types/messages';
+import type {
+  DismissQuickSyncRecentOutcomeMessage,
+  DismissQuickSyncRecentOutcomeResponse,
+  QuickSyncFeedbackMessage,
+  QuickSyncFeedbackResponse,
+} from '~/shared/types/quick-sync';
+import type {
+  ContentSyncStatusRequestMessage,
+  PopupSyncStatusRequestMessage,
+  ReconnectManualSessionMessage,
+  SyncStatusResponseMessage,
+} from '~/shared/types/sync-session';
 
 import type { AttributifyAttributes } from 'unocss/preset-attributify';
 import type { ProtocolWithReturn } from 'webext-bridge';
@@ -41,16 +62,30 @@ declare module 'react' {
 
 declare module 'webext-bridge' {
   export interface ProtocolMap {
-    'scroll:start': ProtocolWithReturn<StartSyncMessage, StartSyncResponse>;
-    'scroll:stop': ProtocolWithReturn<StopSyncMessage, unknown>;
-    'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, unknown>;
-    'scroll:manual': ProtocolWithReturn<ManualScrollMessage, unknown>;
-    'scroll:baseline-update': SyncBaselineUpdateMessage;
+    'scroll:start': ProtocolWithReturn<
+      StartSyncMessage | ManualStartSyncContentMessage | AutoStartSyncContentMessage,
+      StartSyncContentResponse | StartSyncBackgroundResponse
+    >;
+    'scroll:stop': ProtocolWithReturn<StopSyncMessage, StopSyncResponse>;
+    'scroll:sync': ProtocolWithReturn<ScrollSyncMessage, RuntimeRelayResponse>;
+    'scroll:manual': ProtocolWithReturn<ManualScrollMessage, RuntimeRelayResponse>;
+    'scroll:baseline-update': ProtocolWithReturn<SyncBaselineUpdateMessage, unknown>;
     'scroll:ping': ProtocolWithReturn<ScrollPingMessage, unknown>;
     'scroll:reconnect': ProtocolWithReturn<ScrollReconnectMessage, unknown>;
     'scroll:request-reinject': ProtocolWithReturn<ScrollRequestReinjectMessage, unknown>;
-    'sync:status': SyncStatusBroadcastMessage;
-    'url:sync': ProtocolWithReturn<UrlSyncMessage, unknown>;
+    'sync:get-status': ProtocolWithReturn<
+      PopupSyncStatusRequestMessage | ContentSyncStatusRequestMessage,
+      SyncStatusResponseMessage
+    >;
+    'sync:reconnect-session': ProtocolWithReturn<
+      ReconnectManualSessionMessage,
+      ReconnectManualSessionResponse
+    >;
+    'url:sync': ProtocolWithReturn<UrlSyncMessage, UrlSyncResponse>;
+    'sync:runtime-degraded': ProtocolWithReturn<
+      ContentRuntimeDegradedMessage,
+      ContentRuntimeDegradedResponse
+    >;
     'element:match': ElementMatchMessage;
     'panel:position': PanelPositionMessage;
     'sync:url-enabled-changed': ProtocolWithReturn<UrlSyncEnabledChangedMessage, unknown>;
@@ -59,13 +94,19 @@ declare module 'webext-bridge' {
     'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
     'auto-sync:get-status': ProtocolWithReturn<Record<string, never>, unknown>;
     'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, unknown>;
-    'sync-suggestion:response': ProtocolWithReturn<SyncSuggestionResponseMessage, unknown>;
+    'sync-suggestion:response': ProtocolWithReturn<
+      SyncSuggestionResponseMessage,
+      SyncSuggestionDecisionResponse
+    >;
     'translated-page:get-metadata': ProtocolWithReturn<
       TranslatedPageMetadataRequestMessage,
       TranslatedPageMetadataResponseMessage
     >;
     'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, unknown>;
-    'sync-suggestion:add-tab-response': ProtocolWithReturn<AddTabToSyncResponseMessage, unknown>;
+    'sync-suggestion:add-tab-response': ProtocolWithReturn<
+      AddTabToSyncResponseMessage,
+      SyncSuggestionDecisionResponse
+    >;
     'sync-suggestion:dismiss-add-tab': DismissAddTabToastMessage;
     'sync-suggestion:dismiss': DismissSyncSuggestionToastMessage;
     'auto-sync:excluded-domains-changed': ExcludedDomainsChangedMessage;
@@ -81,6 +122,11 @@ declare module 'webext-bridge' {
     'contextual-hint:consume-pending-url-sync': ProtocolWithReturn<
       ConsumePendingUrlSyncContextualHintMessage,
       ConsumePendingUrlSyncContextualHintResponse
+    >;
+    'quick-sync:feedback': ProtocolWithReturn<QuickSyncFeedbackMessage, QuickSyncFeedbackResponse>;
+    'quick-sync:dismiss-recent-outcome': ProtocolWithReturn<
+      DismissQuickSyncRecentOutcomeMessage,
+      DismissQuickSyncRecentOutcomeResponse
     >;
   }
 }

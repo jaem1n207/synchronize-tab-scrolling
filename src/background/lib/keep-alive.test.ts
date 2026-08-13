@@ -10,6 +10,10 @@ const {
   isContentScriptAliveMock,
   reinjectContentScriptMock,
   persistSyncStateMock,
+  commitSyncStateMock,
+  broadcastSyncStatusMock,
+  tabsGetMock,
+  sendMessageWithTimeoutMock,
   syncStateMock,
 } = vi.hoisted(() => ({
   loggerDebugMock: vi.fn(),
@@ -19,11 +23,26 @@ const {
   isContentScriptAliveMock: vi.fn(),
   reinjectContentScriptMock: vi.fn(),
   persistSyncStateMock: vi.fn(),
+  commitSyncStateMock: vi.fn(),
+  broadcastSyncStatusMock: vi.fn(),
+  tabsGetMock: vi.fn(),
+  sendMessageWithTimeoutMock: vi.fn(),
   syncStateMock: {
     isActive: false as boolean,
     linkedTabs: [] as Array<number>,
     connectionStatuses: {} as Record<number, SyncState['connectionStatuses'][number]>,
     lastActiveSyncedTabId: null as number | null,
+    mode: undefined as 'ratio' | 'element' | undefined,
+    revision: 0,
+    sessionEpoch: 0,
+  },
+}));
+
+vi.mock('webextension-polyfill', () => ({
+  default: {
+    tabs: {
+      get: tabsGetMock,
+    },
   },
 }));
 
@@ -39,19 +58,60 @@ vi.mock('~/shared/lib/logger', () => ({
 vi.mock('./content-script-manager', () => ({
   isContentScriptAlive: isContentScriptAliveMock,
   reinjectContentScript: reinjectContentScriptMock,
+  reinjectManualReconnect: vi.fn(async (token, isSessionCurrent) => {
+    const success = await reinjectContentScriptMock(token.tabId, {
+      startMessage: token.startMessage,
+      isSessionCurrent,
+    });
+    return { success, tabId: token.tabId };
+  }),
+}));
+
+vi.mock('./auto-sync-state', () => ({
+  manualSyncOverriddenTabs: new Set<number>(),
+  withAutoSyncLock: vi.fn(async (operation: () => Promise<unknown>) => operation()),
+}));
+
+vi.mock('./messaging', () => ({
+  sendMessageWithTimeout: sendMessageWithTimeoutMock,
 }));
 
 vi.mock('./sync-state', () => ({
   syncState: syncStateMock,
+  getSyncStateSnapshot: vi.fn(() => ({
+    ...syncStateMock,
+    linkedTabs: [...syncStateMock.linkedTabs],
+    connectionStatuses: { ...syncStateMock.connectionStatuses },
+  })),
   persistSyncState: persistSyncStateMock,
+  commitSyncState: commitSyncStateMock,
+  broadcastSyncStatus: broadcastSyncStatusMock,
+}));
+
+vi.mock('./sync-transition-gate', () => ({
+  syncTransitionGate: {
+    run: vi.fn(
+      async (
+        transition: (context: {
+          operationGeneration: number;
+          expectedRevision: number;
+        }) => Promise<unknown>,
+      ) =>
+        transition({
+          operationGeneration: 1,
+          expectedRevision: syncStateMock.revision,
+        }),
+    ),
+  },
 }));
 
 import { startKeepAlive, stopKeepAlive } from './keep-alive';
 
 async function triggerKeepAliveTick(): Promise<void> {
-  vi.advanceTimersByTime(25_000);
-  await Promise.resolve();
-  await Promise.resolve();
+  await vi.advanceTimersByTimeAsync(25_000);
+  for (let index = 0; index < 12; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 describe('keep-alive', () => {
@@ -64,6 +124,27 @@ describe('keep-alive', () => {
     syncStateMock.linkedTabs = [];
     syncStateMock.connectionStatuses = {};
     syncStateMock.lastActiveSyncedTabId = null;
+    syncStateMock.mode = undefined;
+    syncStateMock.revision = 0;
+    syncStateMock.sessionEpoch = 0;
+    tabsGetMock.mockImplementation(async (tabId: number) => ({ id: tabId }));
+    sendMessageWithTimeoutMock.mockImplementation(
+      async (_message: string, _data: unknown, destination: { tabId: number }) => ({
+        success: true,
+        tabId: destination.tabId,
+      }),
+    );
+    persistSyncStateMock.mockResolvedValue({ status: 'persisted' });
+    commitSyncStateMock.mockImplementation((nextState: SyncState) => {
+      syncStateMock.isActive = nextState.isActive;
+      syncStateMock.linkedTabs = [...nextState.linkedTabs];
+      syncStateMock.connectionStatuses = { ...nextState.connectionStatuses };
+      syncStateMock.lastActiveSyncedTabId = nextState.lastActiveSyncedTabId;
+      syncStateMock.mode = nextState.mode;
+      syncStateMock.revision = nextState.revision;
+      syncStateMock.sessionEpoch = nextState.sessionEpoch;
+    });
+    broadcastSyncStatusMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -147,6 +228,11 @@ describe('keep-alive', () => {
     it('checks all linked tabs when sync is active', async () => {
       syncStateMock.isActive = true;
       syncStateMock.linkedTabs = [1, 2, 3];
+      syncStateMock.connectionStatuses = {
+        1: 'connected',
+        2: 'connected',
+        3: 'connected',
+      };
       isContentScriptAliveMock.mockResolvedValue(true);
 
       startKeepAlive();
@@ -182,7 +268,44 @@ describe('keep-alive', () => {
       await triggerKeepAliveTick();
 
       expect(reinjectContentScriptMock).toHaveBeenCalledTimes(1);
-      expect(reinjectContentScriptMock).toHaveBeenCalledWith(8);
+      expect(reinjectContentScriptMock).toHaveBeenCalledWith(
+        8,
+        expect.objectContaining({
+          startMessage: {
+            tabIds: [8],
+            mode: 'ratio',
+            currentTabId: 8,
+            isAutoSync: false,
+            sessionEpoch: 0,
+          },
+          isSessionCurrent: expect.any(Function),
+        }),
+      );
+    });
+
+    it('does not reinject after a health check crosses into a replacement manual session', async () => {
+      const healthCheck = Promise.withResolvers<boolean>();
+      syncStateMock.isActive = true;
+      syncStateMock.linkedTabs = [8, 9];
+      syncStateMock.connectionStatuses = { 8: 'connected', 9: 'connected' };
+      syncStateMock.mode = 'ratio';
+      syncStateMock.sessionEpoch = 3;
+      isContentScriptAliveMock.mockReturnValue(healthCheck.promise);
+
+      startKeepAlive();
+      vi.advanceTimersByTime(25_000);
+      await Promise.resolve();
+
+      syncStateMock.linkedTabs = [18, 19];
+      syncStateMock.connectionStatuses = { 18: 'connected', 19: 'connected' };
+      syncStateMock.mode = 'element';
+      syncStateMock.sessionEpoch = 4;
+      healthCheck.resolve(false);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(reinjectContentScriptMock).not.toHaveBeenCalled();
+      expect(persistSyncStateMock).not.toHaveBeenCalled();
     });
 
     it('sets error status and persists state when reinjection fails', async () => {

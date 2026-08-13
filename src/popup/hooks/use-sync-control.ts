@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { sendMessage } from 'webext-bridge/popup';
 import browser from 'webextension-polyfill';
@@ -8,16 +8,11 @@ import { getFileSchemeAccessInfo } from '~/shared/lib/file-scheme-access';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import { loadSelectedTabIds } from '~/shared/lib/storage';
 import { isFileUrl } from '~/shared/lib/url-utils';
+import type { StartSyncBackgroundResponse } from '~/shared/types/messages';
 
-import type { TabInfo, SyncStatus, ConnectionStatus, ErrorState } from '../types';
+import type { ErrorState, TabInfo } from '../types';
 
 const logger = new ExtensionLogger({ scope: 'popup' });
-
-const INITIAL_SYNC_STATUS: SyncStatus = {
-  isActive: false,
-  connectedTabs: [],
-  connectionStatuses: {},
-};
 
 type StartConnectionResults = Record<number, { success: boolean; error?: string }>;
 
@@ -40,17 +35,14 @@ interface UseSyncControlParams {
   tabs: Array<TabInfo>;
   searchInputRef: React.RefObject<{ focus: () => void } | null>;
   onSelectedTabIdsChange: (
-    updater: Array<number> | ((prev: Array<number>) => Array<number>),
+    updater: Array<number> | ((previous: Array<number>) => Array<number>),
   ) => void;
+  onSessionChange: () => Promise<void>;
 }
 
 interface UseSyncControlReturn {
-  syncStatus: SyncStatus;
   error: ErrorState | null;
-  hasConnectionError: boolean;
   handleStart: () => void;
-  handleStop: () => Promise<void>;
-  handleResync: () => void;
   handleDismissError: () => void;
 }
 
@@ -59,80 +51,40 @@ export function useSyncControl({
   tabs,
   searchInputRef,
   onSelectedTabIdsChange,
+  onSessionChange,
 }: UseSyncControlParams): UseSyncControlReturn {
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>(INITIAL_SYNC_STATUS);
   const [error, setError] = useState<ErrorState | null>(null);
-
-  const syncStateRestoredRef = useRef(false);
+  const selectionRestoredRef = useRef(false);
 
   useEffect(() => {
-    if (tabs.length === 0 || syncStateRestoredRef.current) return;
-    syncStateRestoredRef.current = true;
+    if (tabs.length === 0 || selectionRestoredRef.current) {
+      return;
+    }
+    selectionRestoredRef.current = true;
 
-    const restoreSyncState = async () => {
+    const restoreSelection = async (): Promise<void> => {
       try {
-        let hasActiveSync = false;
-        let syncedTabIds: Array<number> = [];
-        try {
-          const syncStatusResponse = await sendMessage('sync:get-status', {}, 'background');
-          const response = syncStatusResponse as {
-            success: boolean;
-            isActive: boolean;
-            connectedTabs?: Array<number>;
-            connectionStatuses?: Record<number, ConnectionStatus>;
-          };
-          if (response?.isActive) {
-            hasActiveSync = true;
-            syncedTabIds = response.connectedTabs || [];
-            setSyncStatus({
-              isActive: true,
-              connectedTabs: syncedTabIds,
-              connectionStatuses: response.connectionStatuses || {},
-            });
-            onSelectedTabIdsChange(syncedTabIds);
-          }
-        } catch {
-          // No active sync to restore - this is expected on first load
-        }
-
         const savedTabIds = await loadSelectedTabIds();
         const availableTabIds = new Set(tabs.map((tab) => tab.id));
-
-        if (hasActiveSync) {
-          const validSelectedIds = syncedTabIds.filter((id) => availableTabIds.has(id));
-
-          if (validSelectedIds.length !== syncedTabIds.length) {
-            logger.warn(
-              '[useSyncControl] Some synced tabs no longer available, updating selection',
-            );
-            onSelectedTabIdsChange(validSelectedIds);
-
-            if (validSelectedIds.length < 2) {
-              logger.warn(
-                '[useSyncControl] Sync state inconsistent: fewer than 2 tabs available. Resetting sync status.',
-              );
-              setSyncStatus(INITIAL_SYNC_STATUS);
-              sendMessage('scroll:stop', { tabIds: syncedTabIds }, 'background').catch((err) => {
-                logger.warn('[useSyncControl] Failed to stop sync in background:', err);
-              });
-            }
-          }
-        } else {
-          const restoredSelection = savedTabIds.filter((id) => availableTabIds.has(id));
-          if (restoredSelection.length > 0) {
-            onSelectedTabIdsChange(restoredSelection);
-          }
+        const restoredSelection = savedTabIds.filter((id) => availableTabIds.has(id));
+        if (restoredSelection.length > 0) {
+          onSelectedTabIdsChange(restoredSelection);
         }
-      } catch (err) {
-        logger.error('Failed to restore sync state:', err);
+      } catch (restoreError) {
+        logger.error('Failed to restore selected tabs', {
+          reason:
+            restoreError instanceof Error
+              ? 'selection-restore-rejected'
+              : 'selection-restore-unknown-failure',
+        });
       }
     };
 
-    restoreSyncState();
-  }, [tabs, onSelectedTabIdsChange]);
+    void restoreSelection();
+  }, [onSelectedTabIdsChange, tabs]);
 
   const handleStartWithRetry = useCallback(
-    async (isRetry = false) => {
+    async (isRetry = false): Promise<void> => {
       setError(null);
 
       const showFileAccessGuidance = async (
@@ -154,8 +106,13 @@ export function useSyncControl({
           action: {
             label: t('openExtensionSettings'),
             handler: () => {
-              browser.tabs.create({ url: fileSchemeAccessInfo.settingsUrl }).catch((error) => {
-                logger.warn('Failed to open extension settings:', error);
+              browser.tabs.create({ url: fileSchemeAccessInfo.settingsUrl }).catch((openError) => {
+                logger.warn('Failed to open extension settings', {
+                  reason:
+                    openError instanceof Error
+                      ? 'settings-open-rejected'
+                      : 'settings-open-unknown-failure',
+                });
               });
             },
           },
@@ -183,13 +140,18 @@ export function useSyncControl({
 
           await Promise.all(
             selectedTabIds.map((tabId) =>
-              browser.tabs.reload(tabId).catch((err) => {
-                logger.warn(`Failed to reload tab ${tabId}:`, err);
+              browser.tabs.reload(tabId).catch((reloadError) => {
+                logger.warn('Failed to reload selected tab', {
+                  tabId,
+                  reason:
+                    reloadError instanceof Error
+                      ? 'tab-reload-rejected'
+                      : 'tab-reload-unknown-failure',
+                });
               }),
             ),
           );
-
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1_000));
         }
 
         setError({
@@ -198,7 +160,7 @@ export function useSyncControl({
           timestamp: Date.now(),
         });
 
-        const response = (await sendMessage(
+        const startResponse = await sendMessage(
           'scroll:start',
           {
             tabIds: selectedTabIds,
@@ -206,21 +168,29 @@ export function useSyncControl({
             currentTabId: selectedTabIds[0],
           },
           'background',
-        )) as {
-          success: boolean;
-          connectedTabs: Array<number>;
-          connectionResults: StartConnectionResults;
-          error?: string;
-        };
+        );
+        if (!('connectedTabs' in startResponse) || !('connectionResults' in startResponse)) {
+          throw new Error('Invalid background start response');
+        }
+        const response: StartSyncBackgroundResponse = startResponse;
 
         if (!response.success) {
-          if (await showFileAccessGuidance(response.connectionResults || {})) {
+          if (response.warning === 'auto-sync-degraded') {
+            setError({
+              message: t('autoSyncRecoveryDegraded'),
+              severity: 'warning',
+              timestamp: Date.now(),
+            });
             return;
           }
 
-          const failedTabs = Object.entries(response.connectionResults || {})
+          if (await showFileAccessGuidance(response.connectionResults)) {
+            return;
+          }
+
+          const failedTabs = Object.entries(response.connectionResults)
             .filter(([, result]) => !result.success)
-            .map(([tabId, result]) => `Tab ${tabId}: ${result.error || 'Unknown error'}`);
+            .map(([tabId, result]) => `Tab ${tabId}: ${result.error ?? 'Unknown error'}`);
 
           setError({
             message:
@@ -230,157 +200,83 @@ export function useSyncControl({
             timestamp: Date.now(),
             action: {
               label: t('retry'),
-              handler: () => handleStartWithRetry(true),
+              handler: () => {
+                void handleStartWithRetry(true);
+              },
             },
           });
-
           return;
         }
 
-        const statuses: Record<number, ConnectionStatus> = {};
-        response.connectedTabs.forEach((id) => {
-          statuses[id] = 'connected';
-        });
+        await onSessionChange();
 
-        setSyncStatus({
-          isActive: true,
-          connectedTabs: response.connectedTabs,
-          connectionStatuses: statuses,
-        });
+        if (response.warning === 'auto-sync-degraded') {
+          setError({
+            message: t('autoSyncRecoveryDegraded'),
+            severity: 'warning',
+            timestamp: Date.now(),
+          });
+          return;
+        }
 
         const connectedCount = response.connectedTabs.length;
         const attemptedCount = selectedTabIds.length;
-
         if (connectedCount < attemptedCount) {
-          if (await showFileAccessGuidance(response.connectionResults || {})) {
+          if (await showFileAccessGuidance(response.connectionResults)) {
             return;
           }
 
-          const failedCount = attemptedCount - connectedCount;
           setError({
             message: t('connectedToTabs', [
               String(connectedCount),
               String(attemptedCount),
-              String(failedCount),
+              String(attemptedCount - connectedCount),
             ]),
             severity: 'warning',
             timestamp: Date.now(),
           });
-        } else {
-          setError({
-            message: t('successfullyConnectedToTabs', [String(connectedCount)]),
-            severity: 'info',
-            timestamp: Date.now(),
-          });
+          return;
         }
-      } catch (err) {
-        logger.error('Failed to start sync:', err);
 
         setError({
-          message: t('failedToStartSync', [err instanceof Error ? err.message : String(err)]),
+          message: t('successfullyConnectedToTabs', [String(connectedCount)]),
+          severity: 'info',
+          timestamp: Date.now(),
+        });
+      } catch (startError) {
+        logger.error('Failed to start sync', {
+          reason: startError instanceof Error ? 'start-rejected' : 'start-unknown-failure',
+        });
+        setError({
+          message: t('failedToStartSync', [
+            startError instanceof Error ? startError.message : String(startError),
+          ]),
           severity: 'error',
           timestamp: Date.now(),
           action: {
             label: t('retry'),
-            handler: () => handleStartWithRetry(true),
+            handler: () => {
+              void handleStartWithRetry(true);
+            },
           },
         });
       }
     },
-    [selectedTabIds, tabs],
+    [onSessionChange, selectedTabIds, tabs],
   );
 
-  const handleStart = useCallback(() => {
-    handleStartWithRetry(false);
+  const handleStart = useCallback((): void => {
+    void handleStartWithRetry(false);
     setTimeout(() => searchInputRef.current?.focus(), 100);
   }, [handleStartWithRetry, searchInputRef]);
 
-  const handleStop = useCallback(async () => {
-    setError(null);
-
-    setError({
-      message: t('stoppingSynchronization'),
-      severity: 'info',
-      timestamp: Date.now(),
-    });
-
-    try {
-      const stopPromise = sendMessage(
-        'scroll:stop',
-        { tabIds: syncStatus.connectedTabs },
-        'background',
-      );
-
-      const TIMEOUT_SYMBOL = Symbol('timeout');
-      await Promise.race([
-        stopPromise,
-        new Promise((_, reject) => setTimeout(() => reject(TIMEOUT_SYMBOL), 1_000)),
-      ]);
-
-      setSyncStatus(INITIAL_SYNC_STATUS);
-
-      setError({
-        message: t('successSyncStopped'),
-        severity: 'info',
-        timestamp: Date.now(),
-      });
-    } catch (err) {
-      setSyncStatus(INITIAL_SYNC_STATUS);
-
-      if (typeof err === 'symbol') {
-        logger.warn('Stop sync timed out, but local state was cleared successfully');
-        setError({
-          message: t('successSyncStopped'),
-          severity: 'info',
-          timestamp: Date.now(),
-        });
-      } else {
-        logger.error('Failed to stop sync:', err);
-        setError({
-          message: t('warningStopSyncFailed', [
-            err instanceof Error ? err.message : t('errorStopSyncFailed'),
-          ]),
-          severity: 'warning',
-          timestamp: Date.now(),
-        });
-      }
-    }
-
-    setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [syncStatus.connectedTabs, searchInputRef]);
-
-  const handleResync = useCallback(() => {
-    const newStatuses = { ...syncStatus.connectionStatuses };
-    Object.keys(newStatuses).forEach((key) => {
-      const tabId = Number(key);
-      if (newStatuses[tabId] === 'disconnected' || newStatuses[tabId] === 'error') {
-        newStatuses[tabId] = 'connected';
-      }
-    });
-
-    setSyncStatus((prev) => ({
-      ...prev,
-      connectionStatuses: newStatuses,
-    }));
-
-    setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [syncStatus.connectionStatuses, searchInputRef]);
-
-  const handleDismissError = useCallback(() => {
+  const handleDismissError = useCallback((): void => {
     setError(null);
   }, []);
 
-  const hasConnectionError = Object.values(syncStatus.connectionStatuses).some(
-    (status) => status === 'disconnected' || status === 'error',
-  );
-
   return {
-    syncStatus,
     error,
-    hasConnectionError,
     handleStart,
-    handleStop,
-    handleResync,
     handleDismissError,
   };
 }

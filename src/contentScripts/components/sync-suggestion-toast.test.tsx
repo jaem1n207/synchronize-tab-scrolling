@@ -61,6 +61,7 @@ vi.mock('~/shared/i18n', () => ({
 
 describe('AddTabToSyncToast', () => {
   const suggestion: AddTabToSyncMessage = {
+    expectedRevision: 4,
     hasManualOffsets: true,
     normalizedUrl: 'example.com/docs',
     tabId: 3,

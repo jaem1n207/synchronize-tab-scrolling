@@ -7,6 +7,7 @@ const KEEP_EACH_TABS_WEBSITE_NAME = /Keep each tab's website|각 탭의 웹사�
 const START_SYNC_NAME =
   /^(?:Start synchronization|동기화 시작|Select at least 2 tabs to start \(\d+ selected\)|시작하려면 2개 이상의 탭을 선택하세요 \(\d+개 선택됨\))$/i;
 const STOP_SYNC_NAME = /Stop synchronization|동기화 중지/i;
+const URL_SYNC_COLLAPSE_SETTINGS_NAME = /Hide page sync modes|페이지 이동 방식 접기/i;
 const URL_SYNC_EXPAND_SETTINGS_NAME = /Change page sync mode|페이지 이동 방식 변경/i;
 const URL_SYNC_SWITCH_NAME = /Sync page changes|페이지 이동도 동기화/i;
 const LAYOUT_ORDER_TOLERANCE_PX = 1;
@@ -59,11 +60,13 @@ async function chooseKeepEachTabsWebsiteMode(popup: Page): Promise<void> {
   await popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
   await popup.locator('label').filter({ hasText: KEEP_EACH_TABS_WEBSITE_NAME }).click();
   await expect(popup.getByText(KEEP_EACH_TABS_WEBSITE_NAME).first()).toBeVisible();
+  await expect(popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME })).toBeVisible();
 }
 
 async function expectFollowChangedTabMode(popup: Page): Promise<void> {
   await popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
   await expect(popup.getByRole('radio', { name: FOLLOW_CHANGED_TAB_NAME })).toBeChecked();
+  await popup.getByRole('button', { name: URL_SYNC_COLLAPSE_SETTINGS_NAME }).click();
 }
 
 async function turnUrlSyncOff(popup: Page): Promise<void> {

@@ -22,9 +22,17 @@ import {
   suggestionSnoozeUntil,
   withAutoSyncLock,
 } from '../lib/auto-sync-state';
-import { stopKeepAlive } from '../lib/keep-alive';
+import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
+import { createManualOverrideAdapter } from '../lib/manual-override-adapter';
 import { sendMessageWithTimeout } from '../lib/messaging';
-import { broadcastSyncStatus, persistSyncState, syncState } from '../lib/sync-state';
+import {
+  broadcastSyncStatus,
+  commitSyncState,
+  getSyncStateSnapshot,
+  persistSyncState,
+  syncState,
+} from '../lib/sync-state';
+import { syncTransitionGate } from '../lib/sync-transition-gate';
 
 import { registerAutoSyncHandlers } from './auto-sync-handlers';
 
@@ -36,6 +44,7 @@ type RegisteredMessageHandler = (payload: {
     tabId?: number;
     snooze?: boolean;
     permanent?: boolean;
+    expectedRevision?: number;
     domains?: Array<string>;
   };
   sender: { tabId?: number };
@@ -44,6 +53,16 @@ type RegisteredMessageHandler = (payload: {
 const { messageHandlers, onMessageMock } = vi.hoisted(() => ({
   messageHandlers: new Map<string, RegisteredMessageHandler>(),
   onMessageMock: vi.fn(),
+}));
+
+const { waitForBackgroundInitializationMock } = vi.hoisted(() => ({
+  waitForBackgroundInitializationMock: vi.fn(),
+}));
+
+const { quickSyncCoordinatorMock } = vi.hoisted(() => ({
+  quickSyncCoordinatorMock: {
+    invalidateCandidate: vi.fn().mockResolvedValue(false),
+  },
 }));
 
 vi.mock('webext-bridge/background', () => ({
@@ -82,11 +101,16 @@ vi.mock('../lib/auto-sync-groups', () => ({
   updateAutoSyncGroup: vi.fn(),
 }));
 
+vi.mock('../lib/background-initialization', () => ({
+  waitForBackgroundInitialization: waitForBackgroundInitializationMock,
+}));
+
 vi.mock('../lib/auto-sync-lifecycle', () => ({
   toggleAutoSync: vi.fn(),
 }));
 
 vi.mock('../lib/keep-alive', () => ({
+  startKeepAlive: vi.fn(),
   stopKeepAlive: vi.fn(),
 }));
 
@@ -109,16 +133,40 @@ vi.mock('../lib/messaging', () => ({
   sendMessageWithTimeout: vi.fn(),
 }));
 
-vi.mock('../lib/sync-state', () => ({
-  syncState: {
+vi.mock('../lib/sync-state', () => {
+  const state = {
     isActive: false,
     linkedTabs: [] as Array<number>,
     connectionStatuses: {} as Record<number, 'connected' | 'disconnected' | 'error'>,
     lastActiveSyncedTabId: null,
     mode: undefined as 'ratio' | 'element' | undefined,
-  },
-  persistSyncState: vi.fn(),
-  broadcastSyncStatus: vi.fn(),
+    revision: 0,
+    sessionEpoch: 0,
+  };
+
+  return {
+    syncState: state,
+    getSyncStateSnapshot: vi.fn(() => ({
+      ...state,
+      linkedTabs: [...state.linkedTabs],
+      connectionStatuses: { ...state.connectionStatuses },
+    })),
+    commitSyncState: vi.fn((nextState: typeof state) => {
+      state.isActive = nextState.isActive;
+      state.linkedTabs = [...nextState.linkedTabs];
+      state.connectionStatuses = { ...nextState.connectionStatuses };
+      state.lastActiveSyncedTabId = nextState.lastActiveSyncedTabId;
+      state.mode = nextState.mode;
+      state.revision = nextState.revision;
+      state.sessionEpoch = nextState.sessionEpoch;
+    }),
+    persistSyncState: vi.fn(),
+    broadcastSyncStatus: vi.fn(),
+  };
+});
+
+vi.mock('./quick-sync-command-handler', () => ({
+  quickSyncCoordinator: quickSyncCoordinatorMock,
 }));
 
 function getRequiredHandler(messageId: string): RegisteredMessageHandler {
@@ -129,10 +177,17 @@ function getRequiredHandler(messageId: string): RegisteredMessageHandler {
   return handler;
 }
 
+const readyBackground = {
+  manual: { status: 'ready' as const },
+  auto: { status: 'ready' as const },
+};
+
 describe('registerAutoSyncHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     messageHandlers.clear();
+    syncState.sessionEpoch = 9;
+    syncState.revision = 6;
 
     onMessageMock.mockImplementation((messageId: string, handler: RegisteredMessageHandler) => {
       messageHandlers.set(messageId, handler);
@@ -155,6 +210,7 @@ describe('registerAutoSyncHandlers', () => {
 
     vi.mocked(sendMessageWithTimeout).mockResolvedValue({ success: true });
     vi.mocked(toggleAutoSync).mockResolvedValue();
+    vi.mocked(startKeepAlive).mockReset();
     vi.mocked(stopKeepAlive).mockReset();
     vi.mocked(extractDomainFromUrl).mockReset();
     vi.mocked(extractDomainFromUrl).mockImplementation((url: string) => {
@@ -181,10 +237,67 @@ describe('registerAutoSyncHandlers', () => {
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(updateAutoSyncGroup).mockResolvedValue('https://example.com/page');
     vi.mocked(withAutoSyncLock).mockImplementation((fn: () => Promise<unknown>) => fn());
-    vi.mocked(persistSyncState).mockResolvedValue();
+    vi.mocked(persistSyncState).mockResolvedValue({ status: 'persisted' });
+    vi.mocked(commitSyncState).mockClear();
+    vi.mocked(getSyncStateSnapshot).mockClear();
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
+    waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
     registerAutoSyncHandlers();
+  });
+
+  describe('background readiness', () => {
+    it.each([
+      { messageId: 'auto-sync:status-changed', data: { enabled: true } },
+      { messageId: 'auto-sync:get-status' },
+      { messageId: 'auto-sync:get-detailed-status' },
+      {
+        messageId: 'sync-suggestion:response',
+        data: { accepted: false, normalizedUrl: 'https://example.com/page' },
+      },
+      {
+        messageId: 'sync-suggestion:add-tab-response',
+        data: { accepted: false, tabId: 7 },
+      },
+      {
+        messageId: 'auto-sync:excluded-domains-changed',
+        data: { domains: [] },
+      },
+      { messageId: 'auto-sync:get-excluded-domains' },
+    ])('$messageId waits for initialization', async ({ messageId, data }) => {
+      const handler = getRequiredHandler(messageId);
+
+      await handler({ data, sender: { tabId: 7 } });
+
+      expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads auto-sync status only after readiness resolves', async () => {
+      const release = Promise.withResolvers<typeof readyBackground>();
+      waitForBackgroundInitializationMock.mockReturnValue(release.promise);
+      autoSyncState.enabled = false;
+      const handler = getRequiredHandler('auto-sync:get-status');
+
+      const response = handler({ sender: {} });
+      autoSyncState.enabled = true;
+      release.resolve(readyBackground);
+
+      await expect(response).resolves.toMatchObject({ success: true, enabled: true });
+    });
+
+    it('fails closed instead of toggling auto-sync when initialization is degraded', async () => {
+      waitForBackgroundInitializationMock.mockResolvedValue({
+        manual: { status: 'storage-error' },
+        auto: { status: 'degraded', reason: 'manual-state-unavailable' },
+      });
+      const handler = getRequiredHandler('auto-sync:status-changed');
+
+      await expect(handler({ data: { enabled: true }, sender: {} })).resolves.toEqual({
+        success: false,
+        reason: 'initialization-unavailable',
+      });
+      expect(toggleAutoSync).not.toHaveBeenCalled();
+    });
   });
 
   describe('auto-sync:status-changed', () => {
@@ -198,6 +311,115 @@ describe('registerAutoSyncHandlers', () => {
 
       expect(toggleAutoSync).toHaveBeenCalledWith(true);
       expect(response).toEqual({ success: true, enabled: true });
+    });
+
+    it('waits for an in-flight manual transition before disabling auto-sync', async () => {
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set('https://example.com/page', {
+        tabIds: new Set([11, 22]),
+        isActive: true,
+      });
+      const manualTransition = Promise.withResolvers<void>();
+      const transition = syncTransitionGate.run(async () => {
+        await manualTransition.promise;
+      });
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        autoSyncState.enabled = enabled;
+        if (!enabled) {
+          autoSyncState.groups.clear();
+        }
+      });
+
+      const handler = getRequiredHandler('auto-sync:status-changed');
+      const disable = handler({ data: { enabled: false }, sender: {} });
+      await Promise.resolve();
+      const toggledBeforeManualTransitionSettled = vi.mocked(toggleAutoSync).mock.calls.length > 0;
+
+      manualTransition.resolve();
+      await transition;
+      await expect(disable).resolves.toEqual({ success: true, enabled: false });
+      expect(toggledBeforeManualTransitionSettled).toBe(false);
+      expect(autoSyncState.groups.size).toBe(0);
+    });
+
+    it('does not restore automatic runtime after a deferred manual override rollback disables', async () => {
+      const activationGeneration = '11111111-1111-4111-8111-111111111111';
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set('https://example.com/page', {
+        tabIds: new Set([11, 22]),
+        isActive: true,
+        activationGeneration,
+      });
+      const events: Array<string> = [];
+      const deferredAcknowledgement = Promise.withResolvers<void>();
+      const adapter = createManualOverrideAdapter({
+        groups: autoSyncState.groups,
+        overrideTabIds: manualSyncOverriddenTabs,
+        pendingSuggestions,
+        withAutoSyncLock: async (operation) => operation(),
+        restoreRuntime: async () => {
+          events.push('runtime:restore');
+          return true;
+        },
+        stopResidualRuntime: async () => true,
+      });
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        events.push('auto:disable');
+        autoSyncState.enabled = enabled;
+        autoSyncState.groups.clear();
+      });
+
+      const manualTransition = syncTransitionGate.run(async (context) => {
+        const snapshot = await adapter.prepare(context.operationGeneration, [11]);
+        events.push('override:prepared');
+        await deferredAcknowledgement.promise;
+        await adapter.rollback(snapshot);
+        events.push('override:rolled-back');
+      });
+      for (let attempt = 0; attempt < 5 && events.length === 0; attempt += 1) {
+        await Promise.resolve();
+      }
+
+      const handler = getRequiredHandler('auto-sync:status-changed');
+      const disable = handler({ data: { enabled: false }, sender: {} });
+      await Promise.resolve();
+      expect(events).toEqual(['override:prepared']);
+
+      deferredAcknowledgement.resolve();
+      await manualTransition;
+      await disable;
+
+      expect(events).toEqual([
+        'override:prepared',
+        'runtime:restore',
+        'override:rolled-back',
+        'auto:disable',
+      ]);
+      expect(autoSyncState.enabled).toBe(false);
+      expect(autoSyncState.groups.size).toBe(0);
+    });
+
+    it('serializes concurrent enable and disable requests in arrival order', async () => {
+      const firstToggle = Promise.withResolvers<void>();
+      vi.mocked(toggleAutoSync).mockImplementation(async (enabled: boolean) => {
+        if (enabled) {
+          await firstToggle.promise;
+        }
+        autoSyncState.enabled = enabled;
+      });
+
+      const handler = getRequiredHandler('auto-sync:status-changed');
+      const enable = handler({ data: { enabled: true }, sender: {} });
+      const disable = handler({ data: { enabled: false }, sender: {} });
+      await Promise.resolve();
+      await Promise.resolve();
+      const callsBeforeFirstToggleSettled = [...vi.mocked(toggleAutoSync).mock.calls];
+
+      firstToggle.resolve();
+      await enable;
+      await expect(disable).resolves.toEqual({ success: true, enabled: false });
+      expect(callsBeforeFirstToggleSettled).toEqual([[true]]);
+      expect(toggleAutoSync).toHaveBeenNthCalledWith(2, false);
     });
   });
 
@@ -288,9 +510,35 @@ describe('registerAutoSyncHandlers', () => {
   });
 
   describe('sync-suggestion:response', () => {
-    it('accepted response starts manual sync, clears pending suggestion, and broadcasts dismiss', async () => {
+    it('rejects stale acceptance without changing manual or auto suggestion state', async () => {
+      const normalizedUrl = 'https://fixture.invalid/group';
+      const group = { tabIds: new Set([10, 20]), isActive: false };
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set(normalizedUrl, group);
+      pendingSuggestions.add(normalizedUrl);
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+
+      const handler = getRequiredHandler('sync-suggestion:response');
+      const response = await handler({
+        data: { normalizedUrl, accepted: true, expectedRevision: 5 },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: false, reason: 'stale-revision' });
+      expect(syncState.isActive).toBe(true);
+      expect(syncState.linkedTabs).toEqual([1, 2]);
+      expect(autoSyncState.groups.get(normalizedUrl)).toBe(group);
+      expect(group.isActive).toBe(false);
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).not.toHaveBeenCalled();
+    });
+
+    it('accepted response starts auto sync, advances inactive revision, and broadcasts dismiss', async () => {
       const normalizedUrl = 'https://example.com/shared';
       autoSyncState.groups.set(normalizedUrl, { tabIds: new Set([10, 20]), isActive: false });
+      autoSyncState.enabled = true;
       pendingSuggestions.add(normalizedUrl);
 
       vi.mocked(sendMessageWithTimeout).mockImplementation(
@@ -308,19 +556,36 @@ describe('registerAutoSyncHandlers', () => {
 
       const handler = getRequiredHandler('sync-suggestion:response');
       const response = await handler({
-        data: { normalizedUrl, accepted: true },
+        data: { normalizedUrl, accepted: true, expectedRevision: 6 },
         sender: {},
       });
 
-      expect(response).toEqual({ success: true });
+      expect(response).toEqual({ success: true, revision: 7 });
       expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
-      expect(manualSyncOverriddenTabs.has(10)).toBe(true);
-      expect(manualSyncOverriddenTabs.has(20)).toBe(true);
-      expect(autoSyncState.groups.has(normalizedUrl)).toBe(false);
-      expect(syncState.isActive).toBe(true);
-      expect(syncState.linkedTabs).toEqual([10, 20]);
+      expect(manualSyncOverriddenTabs.has(10)).toBe(false);
+      expect(manualSyncOverriddenTabs.has(20)).toBe(false);
+      expect(autoSyncState.groups.get(normalizedUrl)?.isActive).toBe(true);
+      expect(syncState.isActive).toBe(false);
+      expect(syncState.linkedTabs).toEqual([]);
+      expect(syncState.revision).toBe(7);
+      expect(syncState.sessionEpoch).toBe(9);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        expect.objectContaining({
+          isAutoSync: true,
+          autoSyncGeneration: expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+          ),
+        }),
+        expect.anything(),
+        2_000,
+      );
       expect(persistSyncState).toHaveBeenCalledTimes(1);
-      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedRevision: 6 }),
+        'consumed',
+      );
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'sync-suggestion:dismiss',
         { normalizedUrl },
@@ -342,6 +607,7 @@ describe('registerAutoSyncHandlers', () => {
 
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
       syncState.mode = 'ratio';
       autoSyncState.enabled = true;
 
@@ -380,29 +646,32 @@ describe('registerAutoSyncHandlers', () => {
 
       const handler = getRequiredHandler('sync-suggestion:response');
       const response = await handler({
-        data: { normalizedUrl: newNormalizedUrl, accepted: true },
+        data: { normalizedUrl: newNormalizedUrl, accepted: true, expectedRevision: 6 },
         sender: {},
       });
 
-      expect(response).toEqual({ success: true });
+      expect(response).toEqual({ success: true, revision: 8 });
 
       // Verify scroll:stop was sent to old tabs
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:stop',
-        { tabIds: [1, 2] },
+        { tabIds: [1], isAutoSync: false },
         { context: 'content-script', tabId: 1 },
         1_000,
       );
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
         'scroll:stop',
-        { tabIds: [1, 2] },
+        { tabIds: [2], isAutoSync: false },
         { context: 'content-script', tabId: 2 },
         1_000,
       );
 
-      // Verify new sync started with new tabs
-      expect(syncState.isActive).toBe(true);
-      expect(syncState.linkedTabs).toEqual([10, 20]);
+      // Verify accepted auto sync started while manual truth remains inactive
+      expect(syncState.isActive).toBe(false);
+      expect(syncState.linkedTabs).toEqual([]);
+      expect(syncState.revision).toBe(8);
+      expect(syncState.sessionEpoch).toBe(9);
+      expect(autoSyncState.groups.get(newNormalizedUrl)?.isActive).toBe(true);
 
       // Verify old tabs are NOT in manualSyncOverriddenTabs
       expect(manualSyncOverriddenTabs.has(1)).toBe(false);
@@ -410,9 +679,9 @@ describe('registerAutoSyncHandlers', () => {
       expect(updateAutoSyncGroup).toHaveBeenCalledWith(1, 'https://old.test/one');
       expect(updateAutoSyncGroup).toHaveBeenCalledWith(2, 'https://old.test/two');
 
-      // Verify new tabs ARE in manualSyncOverriddenTabs
-      expect(manualSyncOverriddenTabs.has(10)).toBe(true);
-      expect(manualSyncOverriddenTabs.has(20)).toBe(true);
+      // Accepted auto tabs are not manual overrides
+      expect(manualSyncOverriddenTabs.has(10)).toBe(false);
+      expect(manualSyncOverriddenTabs.has(20)).toBe(false);
 
       // Verify stopKeepAlive was called
       expect(stopKeepAlive).toHaveBeenCalled();
@@ -424,9 +693,10 @@ describe('registerAutoSyncHandlers', () => {
       expect(pendingSuggestions.has(newNormalizedUrl)).toBe(false);
     });
 
-    it('deletes accepted suggestion group under the auto-sync lock', async () => {
+    it('marks accepted suggestion group active under the auto-sync lock', async () => {
       const normalizedUrl = 'https://locked-delete.test/page';
       autoSyncState.groups.set(normalizedUrl, { tabIds: new Set([10, 20]), isActive: false });
+      autoSyncState.enabled = true;
 
       vi.mocked(sendMessageWithTimeout).mockImplementation(
         async (
@@ -442,10 +712,13 @@ describe('registerAutoSyncHandlers', () => {
       );
 
       const handler = getRequiredHandler('sync-suggestion:response');
-      await handler({ data: { normalizedUrl, accepted: true }, sender: {} });
+      await handler({
+        data: { normalizedUrl, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
 
       expect(withAutoSyncLock).toHaveBeenCalled();
-      expect(autoSyncState.groups.has(normalizedUrl)).toBe(false);
+      expect(autoSyncState.groups.get(normalizedUrl)?.isActive).toBe(true);
     });
 
     it('rejected response adds URL to dismissed groups', async () => {
@@ -461,9 +734,10 @@ describe('registerAutoSyncHandlers', () => {
       expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
-    it('clears sync state when accepted but fewer than two tabs connect', async () => {
+    it('keeps inactive manual truth when accepted auto start has fewer than two connections', async () => {
       const normalizedUrl = 'https://example.com/unstable';
       autoSyncState.groups.set(normalizedUrl, { tabIds: new Set([1, 2]), isActive: false });
+      autoSyncState.enabled = true;
 
       vi.mocked(sendMessageWithTimeout).mockImplementation(
         async (
@@ -477,33 +751,60 @@ describe('registerAutoSyncHandlers', () => {
           if (messageId === 'scroll:start' && destination.tabId === 2) {
             throw new Error('No response');
           }
+          if (messageId === 'scroll:stop' && destination.tabId === 2) {
+            return { success: true, tabId: 99 };
+          }
           return { success: true, tabId: destination.tabId };
         },
       );
 
       const handler = getRequiredHandler('sync-suggestion:response');
-      const response = await handler({ data: { normalizedUrl, accepted: true }, sender: {} });
+      const response = await handler({
+        data: { normalizedUrl, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
 
-      expect(response).toEqual({ success: true });
+      expect(response).toEqual({
+        success: false,
+        reason: 'auto-start-failed',
+        warning: 'auto-sync-degraded',
+      });
       expect(syncState.isActive).toBe(false);
       expect(syncState.linkedTabs).toEqual([]);
       expect(syncState.connectionStatuses).toEqual({});
       expect(manualSyncOverriddenTabs.has(1)).toBe(false);
       expect(manualSyncOverriddenTabs.has(2)).toBe(false);
       expect(autoSyncState.groups.has(normalizedUrl)).toBe(true);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
-      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
+      expect(autoSyncState.groups.get(normalizedUrl)?.isActive).toBe(false);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { isAutoSync: true },
+        { context: 'content-script', tabId: 1 },
+        1_000,
+      );
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { isAutoSync: true },
+        { context: 'content-script', tabId: 2 },
+        1_000,
+      );
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
-    it('returns success when accepted suggestion group no longer exists', async () => {
+    it('rejects without clearing pending state when accepted suggestion group no longer exists', async () => {
       const normalizedUrl = 'https://example.com/missing';
+      autoSyncState.enabled = true;
       pendingSuggestions.add(normalizedUrl);
 
       const handler = getRequiredHandler('sync-suggestion:response');
-      const response = await handler({ data: { normalizedUrl, accepted: true }, sender: {} });
+      const response = await handler({
+        data: { normalizedUrl, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
 
-      expect(response).toEqual({ success: true });
-      expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
+      expect(response).toEqual({ success: false, reason: 'auto-start-failed' });
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
       expect(sendMessageWithTimeout).not.toHaveBeenCalled();
     });
 
@@ -544,14 +845,22 @@ describe('registerAutoSyncHandlers', () => {
     it('does not save snooze when accepted', async () => {
       const normalizedUrl = 'https://example.com/accepted';
       autoSyncState.groups.set(normalizedUrl, { tabIds: new Set([1, 2]), isActive: false });
+      autoSyncState.enabled = true;
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (
+          _messageId: string,
+          _data: unknown,
+          destination: { context: 'content-script'; tabId: number },
+        ) => ({ success: true, tabId: destination.tabId }),
+      );
 
       const handler = getRequiredHandler('sync-suggestion:response');
       const response = await handler({
-        data: { normalizedUrl, accepted: true, snooze: true },
+        data: { normalizedUrl, accepted: true, expectedRevision: 6, snooze: true },
         sender: {},
       });
 
-      expect(response).toEqual({ success: true });
+      expect(response).toEqual({ success: true, revision: 7 });
       expect(saveSuggestionSnooze).not.toHaveBeenCalled();
       expect(suggestionSnoozeUntil.size).toBe(0);
     });
@@ -591,13 +900,125 @@ describe('registerAutoSyncHandlers', () => {
 
       expect(excludedDomains.size).toBe(0);
       expect(saveExcludedDomains).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).not.toHaveBeenCalled();
     });
   });
 
   describe('sync-suggestion:add-tab-response', () => {
-    it('accepted response adds tab to existing sync and broadcasts dismiss', async () => {
+    it('rejects stale add acceptance without changing the active session', async () => {
+      autoSyncState.enabled = true;
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: { tabId: 3, accepted: true, expectedRevision: 5 },
+        sender: {},
+      });
+
+      expect(response).toEqual({ success: false, reason: 'stale-revision' });
+      expect(syncState.linkedTabs).toEqual([1, 2]);
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
+      expect(quickSyncCoordinatorMock.invalidateCandidate).not.toHaveBeenCalled();
+    });
+
+    it('starts only the accepted new tab when adding it to the manual session', async () => {
+      autoSyncState.enabled = true;
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (
+          messageId: string,
+          _data: unknown,
+          destination: { context: 'content-script'; tabId: number },
+        ) => ({ success: true, tabId: destination.tabId, messageId }),
+      );
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: { tabId: 3, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
+
+      expect(response).toMatchObject({ success: true, revision: 7 });
+      const startTargets = vi
+        .mocked(sendMessageWithTimeout)
+        .mock.calls.filter((call) => call[0] === 'scroll:start')
+        .map((call) => Reflect.get(call[2], 'tabId'));
+      expect(startTargets).toEqual([3]);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        {
+          tabIds: [1, 2, 3],
+          mode: 'ratio',
+          currentTabId: 3,
+          isAutoSync: false,
+          sessionEpoch: 9,
+        },
+        { context: 'content-script', tabId: 3 },
+        1_000,
+      );
+      expect(quickSyncCoordinatorMock.invalidateCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({ expectedRevision: 6 }),
+        'consumed',
+      );
+    });
+
+    it('preserves a committed residual auto cleanup warning in the accepted response', async () => {
+      const activationGeneration = '11111111-1111-4111-8111-111111111111';
+      const normalizedUrl = 'https://fixture.invalid/active-group';
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set(normalizedUrl, {
+        tabIds: new Set([3, 4]),
+        isActive: true,
+        activationGeneration,
+      });
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      syncState.mode = 'ratio';
+      vi.mocked(sendMessageWithTimeout).mockImplementation(
+        async (
+          messageId: string,
+          _data: unknown,
+          destination: { context: 'content-script'; tabId: number },
+        ) => {
+          if (messageId === 'scroll:stop' && destination.tabId === 4) {
+            return { success: false, tabId: 4 };
+          }
+          return { success: true, tabId: destination.tabId };
+        },
+      );
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: { tabId: 3, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
+
+      expect(response).toEqual({
+        success: true,
+        revision: 7,
+        warning: 'auto-sync-degraded',
+      });
+      expect(syncState.linkedTabs).toEqual([1, 2, 3]);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:stop',
+        { isAutoSync: true, autoSyncGeneration: activationGeneration },
+        { context: 'content-script', tabId: 4 },
+        1_000,
+      );
+    });
+
+    it('accepted response adds tab to existing sync and broadcasts dismiss', async () => {
+      autoSyncState.enabled = true;
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
       syncState.mode = 'ratio';
       vi.mocked(browser.tabs.get).mockResolvedValue({
         id: 3,
@@ -623,12 +1044,23 @@ describe('registerAutoSyncHandlers', () => {
       );
 
       const handler = getRequiredHandler('sync-suggestion:add-tab-response');
-      const response = await handler({ data: { tabId: 3, accepted: true }, sender: {} });
+      const response = await handler({
+        data: { tabId: 3, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
 
-      expect(response).toEqual({ success: true });
+      expect(response).toEqual({ success: true, revision: 7 });
       expect(manualSyncOverriddenTabs.has(3)).toBe(true);
-      expect(removeTabFromAllAutoSyncGroups).toHaveBeenCalledWith(3);
       expect(syncState.linkedTabs).toEqual([1, 2, 3]);
+      expect(sendMessageWithTimeout).toHaveBeenCalledWith(
+        'scroll:start',
+        expect.objectContaining({
+          isAutoSync: false,
+          sessionEpoch: 9,
+        }),
+        expect.anything(),
+        1_000,
+      );
       expect(persistSyncState).toHaveBeenCalledTimes(1);
       expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
       expect(sendMessageWithTimeout).toHaveBeenCalledWith(
@@ -652,8 +1084,10 @@ describe('registerAutoSyncHandlers', () => {
     });
 
     it('does not persist a new tab when its scroll start ack fails', async () => {
+      autoSyncState.enabled = true;
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
       syncState.mode = 'ratio';
       manualSyncOverriddenTabs.add(1);
       manualSyncOverriddenTabs.add(2);
@@ -684,16 +1118,19 @@ describe('registerAutoSyncHandlers', () => {
       );
 
       const handler = getRequiredHandler('sync-suggestion:add-tab-response');
-      const response = await handler({ data: { tabId: 3, accepted: true }, sender: {} });
+      const response = await handler({
+        data: { tabId: 3, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
 
-      expect(response).toEqual({ success: false, error: 'Tab failed to join sync' });
+      expect(response).toEqual({ success: false, reason: 'invalid-acknowledgement' });
       expect(syncState.linkedTabs).toEqual([1, 2]);
-      expect(syncState.connectionStatuses[3]).toBe('error');
+      expect(syncState.connectionStatuses[3]).toBeUndefined();
       expect(manualSyncOverriddenTabs.has(1)).toBe(true);
       expect(manualSyncOverriddenTabs.has(2)).toBe(true);
       expect(manualSyncOverriddenTabs.has(3)).toBe(false);
-      expect(persistSyncState).toHaveBeenCalledTimes(1);
-      expect(broadcastSyncStatus).toHaveBeenCalledTimes(1);
+      expect(persistSyncState).not.toHaveBeenCalled();
+      expect(broadcastSyncStatus).not.toHaveBeenCalled();
     });
 
     it('rejected response dismisses toast without adding tab to sync', async () => {
@@ -713,14 +1150,19 @@ describe('registerAutoSyncHandlers', () => {
     });
 
     it('returns error when target tab is unavailable', async () => {
+      autoSyncState.enabled = true;
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
       vi.mocked(browser.tabs.get).mockRejectedValue(new Error('Tab no longer exists'));
 
       const handler = getRequiredHandler('sync-suggestion:add-tab-response');
-      const response = await handler({ data: { tabId: 99, accepted: true }, sender: {} });
+      const response = await handler({
+        data: { tabId: 99, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
 
-      expect(response).toEqual({ success: false, error: 'Error: Tab no longer exists' });
+      expect(response).toEqual({ success: false, reason: 'content-unreachable' });
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
       expect(syncState.linkedTabs).toEqual([1, 2]);
       expect(persistSyncState).not.toHaveBeenCalled();
@@ -728,14 +1170,19 @@ describe('registerAutoSyncHandlers', () => {
     });
 
     it('ignores duplicate accepted add-tab responses for an already linked tab', async () => {
+      autoSyncState.enabled = true;
       syncState.isActive = true;
       syncState.linkedTabs = [1, 2, 3];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected', 3: 'connected' };
       manualSyncOverriddenTabs.add(3);
 
       const handler = getRequiredHandler('sync-suggestion:add-tab-response');
-      const response = await handler({ data: { tabId: 3, accepted: true }, sender: {} });
+      const response = await handler({
+        data: { tabId: 3, accepted: true, expectedRevision: 6 },
+        sender: {},
+      });
 
-      expect(response).toEqual({ success: true });
+      expect(response).toEqual({ success: false, reason: 'invalid-acknowledgement' });
       expect(browser.tabs.get).not.toHaveBeenCalled();
       expect(removeTabFromAllAutoSyncGroups).not.toHaveBeenCalled();
       expect(syncState.linkedTabs).toEqual([1, 2, 3]);

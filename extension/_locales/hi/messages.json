@@ -723,5 +723,166 @@
   },
   "contextualHintHideAction": {
     "message": "यह संकेत छिपाएं"
+  },
+  "quickSyncCommandDescription": {
+    "message": "स्क्रॉल सिंक शुरू करें या यह टैब जोड़ें"
+  },
+  "quickSyncCandidateSelectedTitle": {
+    "message": "सिंक के लिए 1 टैब चुना गया"
+  },
+  "quickSyncCandidateInstruction": {
+    "message": "$REMAININGSECONDS$ सेकंड के भीतर किसी दूसरे टैब में यही शॉर्टकट दबाएँ, ताकि उसका स्क्रॉल इस टैब के साथ सिंक हो सके।",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSameCandidateTitle": {
+    "message": "यह टैब पहले से चुना गया है"
+  },
+  "quickSyncConnectingTitle": {
+    "message": "टैब कनेक्ट किए जा रहे हैं…"
+  },
+  "quickSyncStartSucceededTitle": {
+    "message": "स्क्रॉल सिंक शुरू हो गया · अभी $TABCOUNT$ टैब",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddSucceededTitle": {
+    "message": "यह टैब सिंक में जोड़ दिया गया · अभी $TABCOUNT$ टैब",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAlreadyIncludedTitle": {
+    "message": "यह टैब मौजूदा सिंक में पहले से शामिल है · अभी $TABCOUNT$ टैब",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncSecondTabFailedTitle": {
+    "message": "इस टैब से कनेक्ट नहीं हो सका"
+  },
+  "quickSyncSecondTabRetryInstruction": {
+    "message": "$REMAININGSECONDS$ सेकंड के भीतर किसी दूसरे टैब में यही शॉर्टकट दबाकर फिर कोशिश करें।",
+    "placeholders": {
+      "remainingSeconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncAddFailedTitle": {
+    "message": "इस टैब को जोड़ नहीं सके"
+  },
+  "quickSyncExistingTabsContinue": {
+    "message": "मौजूदा $TABCOUNT$ टैब अभी भी सिंक हो रहे हैं।",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncUnsupportedTab": {
+    "message": "इस टैब पर स्क्रॉल सिंक उपलब्ध नहीं है"
+  },
+  "quickSyncCandidateExpiredAnnouncement": {
+    "message": "दूसरा टैब चुनने का समय समाप्त हो गया।"
+  },
+  "activeSyncHeading": {
+    "message": "स्क्रॉल सिंक चालू है"
+  },
+  "activeSyncSummary": {
+    "message": "अभी $TABCOUNT$ टैब का स्क्रॉल एक साथ चल रहा है।",
+    "placeholders": {
+      "tabCount": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncAddInstruction": {
+    "message": "दूसरे टैब में $SHORTCUTLABEL$ दबाएँ, ताकि वह भी साथ स्क्रॉल हो।",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "activeSyncTabsHeading": {
+    "message": "साथ स्क्रॉल होने वाले टैब"
+  },
+  "activeSyncEditNotice": {
+    "message": "इस पॉपअप में टैब जोड़ने या हटाने के लिए पहले सिंक रोकें।"
+  },
+  "currentTabLocation": {
+    "message": "मौजूदा टैब"
+  },
+  "otherSyncedTab": {
+    "message": "दूसरा सिंक किया गया टैब"
+  },
+  "currentWindowLocation": {
+    "message": "मौजूदा विंडो"
+  },
+  "otherWindowLocation": {
+    "message": "दूसरी विंडो"
+  },
+  "reassignQuickSyncShortcut": {
+    "message": "शॉर्टकट फिर से सेट करें"
+  },
+  "quickSyncShortcutUnassigned": {
+    "message": "Quick Sync का कोई शॉर्टकट सेट नहीं है।"
+  },
+  "quickSyncShortcutUnavailable": {
+    "message": "Quick Sync शॉर्टकट लोड नहीं हो सका।"
+  },
+  "activeSyncTabUnavailable": {
+    "message": "टैब की जानकारी लोड नहीं हो सकी"
+  },
+  "quickSyncShortcutSettingsFallbackChromium": {
+    "message": "शॉर्टकट फिर से सेट करने के लिए एड्रेस बार में $SETTINGSURL$ लिखें।",
+    "placeholders": {
+      "settingsUrl": {
+        "content": "$1"
+      }
+    }
+  },
+  "quickSyncShortcutSettingsFallbackFirefox": {
+    "message": "ऐड-ऑन मैनेजर में गियर मेन्यू खोलें और एक्सटेंशन शॉर्टकट प्रबंधित करें चुनें।"
+  },
+  "manualSyncStateUnavailable": {
+    "message": "सिंक की स्थिति सत्यापित नहीं हो सकी।"
+  },
+  "retryStatusCheck": {
+    "message": "फिर जाँचें"
+  },
+  "syncCleanupIncomplete": {
+    "message": "कुछ टैब में सिंक नियंत्रण साफ़ नहीं हो सके। उन्हें हटाने के लिए उन टैब को फिर लोड करें।"
+  },
+  "quickSyncShortcutHeading": {
+    "message": "Quick Sync शॉर्टकट"
+  },
+  "quickSyncShortcutAssignedSummary": {
+    "message": "Quick Sync: $SHORTCUTLABEL$",
+    "placeholders": {
+      "shortcutLabel": {
+        "content": "$1"
+      }
+    }
+  },
+  "syncSuggestionCleanupRetrying": {
+    "message": "सिंक शुरू हो गया है या बदल गया है। दूसरे टैब की सफ़ाई का फिर से प्रयास किया जा रहा है। मौजूदा स्थिति के लिए पॉपअप देखें।"
+  },
+  "autoSyncRecoveryDegraded": {
+    "message": "ऑटोमैटिक सिंक की स्थिति पूरी तरह बहाल नहीं हो सकी। मैन्युअल सिंक नहीं बदला गया।"
+  },
+  "autoSyncReplacementFailed": {
+    "message": "सुझाया गया सिंक शुरू नहीं हो सका। पिछला सिंक रुका हुआ है।"
   }
 }

@@ -1,8 +1,12 @@
 import '~/shared/styles';
+import { initQuickSyncHud } from './quick-sync-hud';
 import { initScrollSync } from './scroll-sync';
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
 (() => {
+  // Register Quick Sync feedback before synchronization work can begin.
+  initQuickSyncHud();
+
   // Initialize scroll synchronization system
   initScrollSync();
 

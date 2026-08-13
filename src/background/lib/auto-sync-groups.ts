@@ -1,6 +1,10 @@
 import { sendMessage } from 'webext-bridge/background';
 import browser from 'webextension-polyfill';
 
+import {
+  isAutoSyncActivationId,
+  type AutoSyncActivationId,
+} from '~/shared/lib/auto-sync-activation';
 import { isLocalDevelopmentServer, isUrlExcluded } from '~/shared/lib/auto-sync-url-utils';
 import { ExtensionLogger } from '~/shared/lib/logger';
 import {
@@ -29,6 +33,7 @@ import {
   isDomainSnoozed,
   isDomainPermanentlyExcluded,
 } from './auto-sync-suggestions';
+import { isTabProvisionallyManuallyOverridden } from './manual-override-adapter';
 import { sendMessageWithTimeout } from './messaging';
 import {
   findTranslatedPageCandidateGroup,
@@ -40,6 +45,10 @@ const logger = new ExtensionLogger({ scope: 'background/auto-sync-groups' });
 const CONTENT_SCRIPT_FILE = 'dist/contentScripts/index.global.js';
 const CONTENT_SCRIPT_SETTLE_DELAY_MS = 100;
 const MAX_TRANSLATED_PAGE_INIT_REPROBE_GROUPS = 10;
+
+function isTabExcludedFromAutoSync(tabId: number): boolean {
+  return isTabManuallyOverridden(tabId) || isTabProvisionallyManuallyOverridden(tabId);
+}
 
 interface GroupMetadata {
   matchKind: AutoSyncSuggestionMatchKind;
@@ -381,6 +390,7 @@ function cloneAutoSyncGroup(group: AutoSyncGroup): AutoSyncGroup {
   return {
     tabIds: new Set(group.tabIds),
     isActive: group.isActive,
+    activationGeneration: group.activationGeneration,
     matchKind: group.matchKind,
     matchConfidence: group.matchConfidence,
     tabUrls: group.tabUrls ? new Map(group.tabUrls) : undefined,
@@ -466,6 +476,7 @@ async function refreshTranslatedPageCandidateGroupsFromSnapshots(
       if (
         !sourceGroup ||
         !targetGroup ||
+        isTabExcludedFromAutoSync(sourceSnapshot.tabId) ||
         sourceGroup.isActive ||
         targetGroup.isActive ||
         getSingletonTabId(sourceGroup) !== sourceSnapshot.tabId ||
@@ -602,6 +613,20 @@ export function getAutoSyncGroupMembers(tabId: number): number[] {
     }
   }
   return [];
+}
+
+/**
+ * Get the exact activation identity of the active auto-sync group containing a tab.
+ */
+export function getAutoSyncActivationGenerationForTab(tabId: number): AutoSyncActivationId | null {
+  for (const [, group] of autoSyncState.groups) {
+    if (!group.isActive || !group.tabIds.has(tabId)) {
+      continue;
+    }
+
+    return isAutoSyncActivationId(group.activationGeneration) ? group.activationGeneration : null;
+  }
+  return null;
 }
 
 /**
@@ -744,7 +769,7 @@ async function prepareUpdateAutoSyncGroup(
     return { status: 'complete', result: null };
   }
 
-  if (isTabManuallyOverridden(tabId)) {
+  if (isTabExcludedFromAutoSync(tabId)) {
     logger.debug(`[AUTO-SYNC] Tab ${tabId} is in manual sync, skipping auto-sync`);
     return { status: 'complete', result: null };
   }
@@ -884,7 +909,7 @@ async function applyUpdateAutoSyncGroup(
     return null;
   }
 
-  if (isTabManuallyOverridden(context.tabId)) {
+  if (isTabExcludedFromAutoSync(context.tabId)) {
     logger.debug(`[AUTO-SYNC] Tab ${context.tabId} is in manual sync before apply`);
     return null;
   }

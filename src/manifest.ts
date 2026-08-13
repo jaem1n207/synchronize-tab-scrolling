@@ -43,6 +43,15 @@ export async function getManifest(): Promise<Manifest.WebExtensionManifest> {
       512: 'icons/logo-512.png',
     },
     permissions: ['tabs', 'storage', 'scripting'],
+    commands: {
+      'quick-sync-start-or-add': {
+        suggested_key: {
+          default: 'Ctrl+Shift+Period',
+          mac: 'Command+Shift+Period',
+        },
+        description: '__MSG_quickSyncCommandDescription__',
+      },
+    },
     host_permissions: ['*://*/*', FILE_URL_MATCH_PATTERN],
     content_scripts: [
       {
