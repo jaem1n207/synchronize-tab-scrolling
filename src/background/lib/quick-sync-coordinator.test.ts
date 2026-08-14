@@ -215,8 +215,10 @@ describe('createQuickSyncCoordinator', () => {
   });
 
   it('arms a first candidate without binding the injected timer receiver', async () => {
+    const timerInvocations: unknown[][] = [];
     const strictTimer = new Proxy(setTimeout, {
       apply(target, receiver, arguments_) {
+        timerInvocations.push(arguments_);
         if (receiver !== undefined) {
           throw new TypeError('unexpected-timer-receiver');
         }
@@ -248,6 +250,8 @@ describe('createQuickSyncCoordinator', () => {
       },
     });
     expect(harness.port.disconnect).not.toHaveBeenCalled();
+    expect(timerInvocations).toHaveLength(1);
+    expect(timerInvocations[0]?.[1]).toBe(10_000);
   });
 
   it('rejects an unreachable first-tab runtime without reserving a candidate or Port', async () => {
