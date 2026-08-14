@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { t } from '~/shared/i18n';
-import { ANIMATION_DURATIONS, EASING_CSS, prefersReducedMotion } from '~/shared/lib/animations';
+import { EASING_CSS, prefersReducedMotion } from '~/shared/lib/animations';
 import {
   QUICK_SYNC_FAILURE_HUD_DURATION_MS,
+  QUICK_SYNC_HUD_MOTION_DURATION_MS,
   QUICK_SYNC_SUCCESS_HUD_DURATION_MS,
 } from '~/shared/lib/quick-sync';
 import type { QuickSyncFeedbackMessage } from '~/shared/types/quick-sync';
@@ -28,9 +29,10 @@ interface Lifetime {
   deadline: number | null;
 }
 
-interface Announcement {
-  identity: string;
-  text: string;
+interface HudPresentation {
+  announcement: string;
+  clock: number;
+  lifetime: Lifetime;
 }
 
 function getMessageIdentity(message: QuickSyncHudMessage): string {
@@ -40,11 +42,12 @@ function getMessageIdentity(message: QuickSyncHudMessage): string {
     case 'second-tab-failed':
       return `${message.generation}:${message.outcome}:${message.expiresAt}`;
     case 'connecting':
+      return `${message.generation}:${message.outcome}`;
     case 'start-succeeded':
     case 'add-succeeded':
     case 'already-included':
     case 'add-failed':
-      return `${message.generation}:${message.outcome}`;
+      return `${message.generation}:${message.outcome}:${message.tabCount}`;
   }
 }
 
@@ -161,6 +164,20 @@ function isCandidateLifetime(message: QuickSyncHudMessage): boolean {
   );
 }
 
+function createHudPresentation(message: QuickSyncHudMessage, now: number): HudPresentation {
+  const lifetime = getLifetime(message, now);
+  const remainingSeconds =
+    lifetime.deadline === null ? null : getRemainingSeconds(lifetime.deadline, now);
+  const announcementCopy = getCopy(message, remainingSeconds, false);
+  return {
+    announcement: [announcementCopy.title, announcementCopy.supportingText]
+      .filter((part) => part !== null)
+      .join(' '),
+    clock: now,
+    lifetime,
+  };
+}
+
 export function QuickSyncExpirationAnnouncement() {
   return (
     <p aria-atomic="true" aria-live="polite" className="sr-only" role="status">
@@ -169,31 +186,19 @@ export function QuickSyncExpirationAnnouncement() {
   );
 }
 
-export function QuickSyncHud({ message, onLifetimeEnd, phase }: QuickSyncHudProps) {
-  const lifetimeRef = useRef<Lifetime>(getLifetime(message, Date.now()));
-  const notifiedLifetimeEndRef = useRef<string | null>(null);
-  const nextIdentity = getMessageIdentity(message);
-  if (lifetimeRef.current.identity !== nextIdentity) {
-    lifetimeRef.current = getLifetime(message, Date.now());
-    notifiedLifetimeEndRef.current = null;
-  }
+export function QuickSyncHud(props: QuickSyncHudProps) {
+  return <QuickSyncHudPresentation key={getMessageIdentity(props.message)} {...props} />;
+}
 
-  const lifetime = lifetimeRef.current;
-  const [clock, setClock] = useState(Date.now());
+function QuickSyncHudPresentation({ message, onLifetimeEnd, phase }: QuickSyncHudProps) {
+  const [presentation] = useState(() => createHudPresentation(message, Date.now()));
+  const lifetime = presentation.lifetime;
+  const notifiedLifetimeEndRef = useRef<string | null>(null);
+  const [clock, setClock] = useState(presentation.clock);
   const remainingSeconds =
     lifetime.deadline === null ? null : getRemainingSeconds(lifetime.deadline, clock);
   const copy = getCopy(message, remainingSeconds, true);
-  const announcementRef = useRef<Announcement | null>(null);
-  if (announcementRef.current?.identity !== nextIdentity) {
-    const announcementCopy = getCopy(message, remainingSeconds, false);
-    announcementRef.current = {
-      identity: nextIdentity,
-      text: [announcementCopy.title, announcementCopy.supportingText]
-        .filter((part) => part !== null)
-        .join(' '),
-    };
-  }
-  const announcement = announcementRef.current.text;
+  const announcement = presentation.announcement;
   const hasCandidateLifetime = isCandidateLifetime(message);
   const candidateDeadlineReached = hasCandidateLifetime && remainingSeconds === null;
   const geometryCopy = candidateDeadlineReached ? getCopy(message, 1, true) : copy;
@@ -239,10 +244,9 @@ export function QuickSyncHud({ message, onLifetimeEnd, phase }: QuickSyncHudProp
 
   const reducedMotion = prefersReducedMotion();
   const isVisible = phase === 'visible';
-  const motionDuration = ANIMATION_DURATIONS.fast * 1_000;
   const transition = reducedMotion
     ? 'none'
-    : `opacity ${motionDuration}ms ${EASING_CSS.easeOutCubic}, transform ${motionDuration}ms ${EASING_CSS.easeOutCubic}`;
+    : `opacity ${QUICK_SYNC_HUD_MOTION_DURATION_MS}ms ${EASING_CSS.easeOutCubic}, transform ${QUICK_SYNC_HUD_MOTION_DURATION_MS}ms ${EASING_CSS.easeOutCubic}`;
   const markerColor =
     message.outcome === 'add-failed' || message.outcome === 'second-tab-failed'
       ? '#fca5a5'

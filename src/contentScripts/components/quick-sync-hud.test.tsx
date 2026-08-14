@@ -246,6 +246,45 @@ describe('QuickSyncHud', () => {
     expect(announcement).toHaveTextContent('10초 안에 다른 탭에서 같은 단축키를 누르면');
   });
 
+  it('uses the replacement message clock for its visual copy and announcement', () => {
+    const view = renderHud({ outcome: 'connecting', generation: 7 });
+
+    vi.setSystemTime(new Date(25_000));
+    view.rerender(
+      <QuickSyncHud
+        message={{
+          outcome: 'second-tab-failed',
+          generation: 7,
+          expiresAt: 30_000,
+          reason: 'content-unreachable',
+        }}
+        phase="visible"
+      />,
+    );
+
+    expect(document.querySelector('[data-quick-sync-supporting-text]')).toHaveTextContent(
+      '5초 안에 다른 탭에서 같은 단축키를 누르면',
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '5초 안에 다른 탭에서 같은 단축키를 누르면',
+    );
+  });
+
+  it('refreshes the announcement when copy-affecting message fields change', () => {
+    const view = renderHud({ outcome: 'add-succeeded', generation: 7, tabCount: 3 });
+
+    view.rerender(
+      <QuickSyncHud
+        message={{ outcome: 'add-succeeded', generation: 7, tabCount: 4 }}
+        phase="visible"
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '이 탭을 동기화에 추가했어요 · 현재 4개 탭',
+    );
+  });
+
   it('never renders zero seconds at the exact deadline', () => {
     vi.setSystemTime(new Date(29_999));
     renderHud({
