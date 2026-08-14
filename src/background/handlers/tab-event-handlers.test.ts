@@ -25,7 +25,10 @@ import {
   reinjectContentScript,
   reinjectManualReconnect,
 } from '../lib/content-script-manager';
-import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
+import {
+  clearPendingUrlSyncContextualHint,
+  hasPendingUrlSyncContextualHint,
+} from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { createQuickSyncCandidateStore } from '../lib/quick-sync-candidate';
@@ -157,6 +160,7 @@ vi.mock('../lib/auto-sync-suggestions', () => ({
 
 vi.mock('../lib/contextual-hint-state', () => ({
   clearPendingUrlSyncContextualHint: vi.fn(),
+  hasPendingUrlSyncContextualHint: vi.fn(),
 }));
 
 vi.mock('../lib/content-script-manager', () => ({
@@ -283,6 +287,7 @@ describe('registerTabEventHandlers', () => {
     vi.mocked(browser.tabs.query).mockResolvedValue([]);
 
     vi.mocked(loadUrlSyncEnabled).mockResolvedValue(true);
+    vi.mocked(hasPendingUrlSyncContextualHint).mockReturnValue(false);
 
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(broadcastAutoSyncGroupUpdate).mockResolvedValue();
@@ -946,6 +951,32 @@ describe('registerTabEventHandlers', () => {
           url: 'https://example.com/next',
         },
         { context: 'content-script', tabId: 3 },
+      );
+    });
+
+    it('does not echo a URL Sync navigation back to the source tab', async () => {
+      const readiness = Promise.withResolvers<typeof readyBackground>();
+      let hasPendingNavigation = true;
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+      syncState.connectionStatuses = { 1: 'connected', 2: 'connected' };
+      waitForBackgroundInitializationMock.mockReturnValueOnce(readiness.promise);
+      vi.mocked(hasPendingUrlSyncContextualHint).mockImplementation(() => hasPendingNavigation);
+
+      const event = getListener('tabs.onUpdated')(
+        2,
+        { url: 'https://example.com/relayed' },
+        { id: 2, url: 'https://example.com/relayed', title: 'Relayed' },
+      );
+      hasPendingNavigation = false;
+      readiness.resolve(readyBackground);
+      await event;
+
+      expect(hasPendingUrlSyncContextualHint).toHaveBeenCalledWith(2);
+      expect(sendMessage).not.toHaveBeenCalledWith(
+        'url:sync',
+        expect.anything(),
+        expect.anything(),
       );
     });
 

@@ -38,7 +38,10 @@ import {
 } from '../lib/auto-sync-suggestions';
 import { waitForBackgroundInitialization } from '../lib/background-initialization';
 import { isContentScriptAlive, reinjectManualReconnect } from '../lib/content-script-manager';
-import { clearPendingUrlSyncContextualHint } from '../lib/contextual-hint-state';
+import {
+  clearPendingUrlSyncContextualHint,
+  hasPendingUrlSyncContextualHint,
+} from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
 import { createManualCleanupRetryScheduler } from '../lib/sync-cleanup-retry';
@@ -488,6 +491,8 @@ export function registerTabEventHandlers(): void {
       url: incomingTab.url,
       title: incomingTab.title,
     };
+    const isRelayedUrlSyncNavigation =
+      changeInfo.url !== undefined && hasPendingUrlSyncContextualHint(tabId);
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
       return;
@@ -617,7 +622,7 @@ export function registerTabEventHandlers(): void {
       return;
     }
 
-    if (changeInfo.url) {
+    if (changeInfo.url && !isRelayedUrlSyncNavigation) {
       const changedUrl = changeInfo.url;
       logger.info(`Synced tab ${tabId} URL changed, broadcasting`, { tabId });
 
@@ -644,6 +649,12 @@ export function registerTabEventHandlers(): void {
           });
         }
       }
+    }
+    if (changeInfo.url && isRelayedUrlSyncNavigation) {
+      logger.info('Skipping URL Sync echo for relayed navigation', {
+        tabId,
+        reason: 'relayed-navigation',
+      });
     }
 
     if (changeInfo.status !== 'complete') {
