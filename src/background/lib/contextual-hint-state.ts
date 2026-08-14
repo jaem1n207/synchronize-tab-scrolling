@@ -17,6 +17,10 @@ export function consumePendingUrlSyncContextualHint(
   return hintId;
 }
 
+export function hasPendingUrlSyncContextualHint(tabId: number): boolean {
+  return pendingUrlSyncContextualHints.has(tabId);
+}
+
 export function clearPendingUrlSyncContextualHint(tabId: number): void {
   pendingUrlSyncContextualHints.delete(tabId);
 }

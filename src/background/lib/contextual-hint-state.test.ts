@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   clearPendingUrlSyncContextualHint,
   consumePendingUrlSyncContextualHint,
+  hasPendingUrlSyncContextualHint,
   savePendingUrlSyncContextualHint,
 } from './contextual-hint-state';
 
@@ -14,6 +15,14 @@ describe('contextual hint state', () => {
     expect(consumePendingUrlSyncContextualHint(10)).toBe('page-change-synced');
     expect(consumePendingUrlSyncContextualHint(10)).toBeNull();
     expect(consumePendingUrlSyncContextualHint(20)).toBe('keep-website-path-synced');
+  });
+
+  it('reports a pending URL Sync navigation without consuming its hint', () => {
+    savePendingUrlSyncContextualHint(25, 'keep-website-path-synced');
+
+    expect(hasPendingUrlSyncContextualHint(25)).toBe(true);
+    expect(consumePendingUrlSyncContextualHint(25)).toBe('keep-website-path-synced');
+    expect(hasPendingUrlSyncContextualHint(25)).toBe(false);
   });
 
   it('clears a pending hint without consuming other tabs', () => {
