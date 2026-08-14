@@ -101,6 +101,7 @@ export function createQuickSyncCoordinator(
   dependencies: QuickSyncCoordinatorDependencies,
 ): QuickSyncCoordinator {
   const activePorts = new Map<number, ActiveCandidatePort>();
+  const setTimer = dependencies.setTimer;
 
   function recordFailure(
     tabId: number,
@@ -166,7 +167,7 @@ export function createQuickSyncCoordinator(
 
   function bindActiveCandidatePort(candidate: QuickSyncCandidate, port: QuickSyncPort): void {
     activePorts.set(candidate.generation, { candidate, port });
-    dependencies.setTimer(
+    setTimer(
       () => {
         void dependencies.transitionGate.run((context) =>
           expireCandidate(context, candidate.generation, dependencies.now()),
