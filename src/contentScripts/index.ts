@@ -10,6 +10,8 @@ import { initScrollSync } from './scroll-sync';
   // Initialize scroll synchronization system
   initScrollSync();
 
+  Reflect.set(globalThis, '__synchronizeTabScrollingRuntimeReady', true);
+
   // Note: Keyboard handler requires tab ID which will be provided when sync starts
   // Cannot use browser.tabs.getCurrent() in content scripts due to Chrome restrictions
 })();

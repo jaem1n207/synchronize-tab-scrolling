@@ -51,9 +51,11 @@ Production build의 load-unpacked 경로는 Chromium `build/chromium/`, Firefox
 
 ## Candidate generation과 Port lifecycle
 
-1. coordinator가 명령을 받은 현재 탭의 content runtime을 ping하고, 없으면 content script를
-   주입한 뒤 bounded ping으로 endpoint 준비를 확인한다. 이 준비 단계는 첫 후보뿐 아니라
-   두 번째 탭 Start, 활성 세션 Add, 이미 포함된 탭 피드백에도 동일하게 적용한다.
+1. coordinator가 명령을 받은 현재 탭의 content runtime sentinel을 먼저 probe한다. sentinel이
+   없으면 content script를 주입하고 다시 probe하며, script function probe를 지원하지 않거나
+   결과를 확인할 수 없는 브라우저에서만 bounded webext ping handshake로 fallback한다. 이 준비
+   단계는 첫 후보뿐 아니라 두 번째 탭 Start, 활성 세션 Add, 이미 포함된 탭 피드백에도 동일하게
+   적용한다.
 2. runtime 준비 실패나 tab revalidation 실패는 badge/recent outcome으로 명시하고 generation,
    HUD, Port를 만들지 않는다.
 3. coordinator가 transition gate 안에서 provisional generation을 만든다.
@@ -67,8 +69,18 @@ Production build의 load-unpacked 경로는 Chromium `build/chromium/`, Firefox
 9. 마감 전에 접수된 두 번째 입력이 generation을 reserve했다면 Start 시도가 끝날 때까지
    timeout/Port callback이 그 generation을 지우지 못한다.
 
-서비스 워커가 재시작되면 Port가 끊기고 후보 HUD도 즉시 사라진다. 후보를 storage에서
-복원하지 않는 것이 정상적인 fail-closed 동작이다.
+서비스 워커가 재시작되면 Port가 끊기고 후보 HUD는 exit 상태를 거친 뒤 정리된다. 후보를
+storage에서 복원하지 않는 것이 정상적인 fail-closed 동작이다. 새 worker가 같은 숫자
+generation을 다시 사용하더라도 content 쪽 presentation identity는 새 후보의 절대 만료 시각과
+Port lifecycle을 기준으로 분리한다.
+
+HUD의 fixed layout, 색상, typography, screen-reader-only status는 Shadow DOM inline critical
+style만으로 표시할 수 있어야 한다. 외부 content stylesheet는 enhancement이며 load/error가
+feedback ACK나 첫 paint를 막지 않는다. host와 React root는 content runtime 수명 동안
+재사용하고, visual은 `enter → visible → exit` 상태로 150ms 동안 opacity/translate만 전환한 뒤
+정리한다. reduced-motion에서는 enter frame이나 exit animation timer 없이 즉시 같은 의미
+피드백을 표시·정리한다. countdown은 고정 grid와 2자리 숫자 공간을 사용하며 tick이 component
+identity나 live status announcement를 다시 만들지 않는다.
 
 ## Gate, revision, epoch
 

@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { t } from '~/shared/i18n';
-import { prefersReducedMotion } from '~/shared/lib/animations';
+import { EASING_CSS, prefersReducedMotion } from '~/shared/lib/animations';
 import {
   QUICK_SYNC_FAILURE_HUD_DURATION_MS,
+  QUICK_SYNC_HUD_MOTION_DURATION_MS,
   QUICK_SYNC_SUCCESS_HUD_DURATION_MS,
 } from '~/shared/lib/quick-sync';
 import type { QuickSyncFeedbackMessage } from '~/shared/types/quick-sync';
 
 export type QuickSyncHudMessage = Exclude<QuickSyncFeedbackMessage, { outcome: 'clear' }>;
+export type QuickSyncHudPhase = 'enter' | 'visible' | 'exit';
 
 interface QuickSyncHudProps {
   message: QuickSyncHudMessage;
   onLifetimeEnd?: () => void;
-  semanticOutcome?: 'expired';
+  phase: QuickSyncHudPhase;
 }
 
 interface HudCopy {
@@ -27,9 +29,26 @@ interface Lifetime {
   deadline: number | null;
 }
 
-interface Announcement {
-  identity: string;
-  text: string;
+interface HudPresentation {
+  announcement: string;
+  clock: number;
+  lifetime: Lifetime;
+}
+
+function getMessageIdentity(message: QuickSyncHudMessage): string {
+  switch (message.outcome) {
+    case 'candidate-selected':
+    case 'same-candidate':
+    case 'second-tab-failed':
+      return `${message.generation}:${message.outcome}:${message.expiresAt}`;
+    case 'connecting':
+      return `${message.generation}:${message.outcome}`;
+    case 'start-succeeded':
+    case 'add-succeeded':
+    case 'already-included':
+    case 'add-failed':
+      return `${message.generation}:${message.outcome}:${message.tabCount}`;
+  }
 }
 
 function getRemainingSeconds(deadline: number, now: number): number | null {
@@ -40,7 +59,7 @@ function getRemainingSeconds(deadline: number, now: number): number | null {
 }
 
 function getLifetime(message: QuickSyncHudMessage, now: number): Lifetime {
-  const identity = `${message.generation}:${message.outcome}`;
+  const identity = getMessageIdentity(message);
   switch (message.outcome) {
     case 'candidate-selected':
     case 'same-candidate':
@@ -57,7 +76,16 @@ function getLifetime(message: QuickSyncHudMessage, now: number): Lifetime {
   }
 }
 
-function getCopy(message: QuickSyncHudMessage, remainingSeconds: number | null): HudCopy {
+function formatRemainingSeconds(remainingSeconds: number, reserveWidth: boolean): string {
+  const value = String(remainingSeconds);
+  return reserveWidth ? value.padStart(2, '\u2007') : value;
+}
+
+function getCopy(
+  message: QuickSyncHudMessage,
+  remainingSeconds: number | null,
+  reserveCountdownWidth: boolean,
+): HudCopy {
   switch (message.outcome) {
     case 'candidate-selected':
       return {
@@ -66,7 +94,10 @@ function getCopy(message: QuickSyncHudMessage, remainingSeconds: number | null):
         supportingText:
           remainingSeconds === null
             ? null
-            : t('quickSyncCandidateInstruction', String(remainingSeconds)),
+            : t(
+                'quickSyncCandidateInstruction',
+                formatRemainingSeconds(remainingSeconds, reserveCountdownWidth),
+              ),
       };
     case 'same-candidate':
       return {
@@ -75,7 +106,10 @@ function getCopy(message: QuickSyncHudMessage, remainingSeconds: number | null):
         supportingText:
           remainingSeconds === null
             ? null
-            : t('quickSyncCandidateInstruction', String(remainingSeconds)),
+            : t(
+                'quickSyncCandidateInstruction',
+                formatRemainingSeconds(remainingSeconds, reserveCountdownWidth),
+              ),
       };
     case 'connecting':
       return {
@@ -108,7 +142,10 @@ function getCopy(message: QuickSyncHudMessage, remainingSeconds: number | null):
         supportingText:
           remainingSeconds === null
             ? null
-            : t('quickSyncSecondTabRetryInstruction', String(remainingSeconds)),
+            : t(
+                'quickSyncSecondTabRetryInstruction',
+                formatRemainingSeconds(remainingSeconds, reserveCountdownWidth),
+              ),
       };
     case 'add-failed':
       return {
@@ -127,31 +164,47 @@ function isCandidateLifetime(message: QuickSyncHudMessage): boolean {
   );
 }
 
-export function QuickSyncHud({ message, onLifetimeEnd, semanticOutcome }: QuickSyncHudProps) {
-  const lifetimeRef = useRef<Lifetime>(getLifetime(message, Date.now()));
-  const nextIdentity = `${message.generation}:${message.outcome}`;
-  if (lifetimeRef.current.identity !== nextIdentity) {
-    lifetimeRef.current = getLifetime(message, Date.now());
-  }
+function createHudPresentation(message: QuickSyncHudMessage, now: number): HudPresentation {
+  const lifetime = getLifetime(message, now);
+  const remainingSeconds =
+    lifetime.deadline === null ? null : getRemainingSeconds(lifetime.deadline, now);
+  const announcementCopy = getCopy(message, remainingSeconds, false);
+  return {
+    announcement: [announcementCopy.title, announcementCopy.supportingText]
+      .filter((part) => part !== null)
+      .join(' '),
+    clock: now,
+    lifetime,
+  };
+}
 
-  const lifetime = lifetimeRef.current;
-  const [clock, setClock] = useState(Date.now());
-  const [endedIdentity, setEndedIdentity] = useState<string | null>(null);
+export function QuickSyncExpirationAnnouncement() {
+  return (
+    <p aria-atomic="true" aria-live="polite" className="sr-only" role="status">
+      {t('quickSyncCandidateExpiredAnnouncement')}
+    </p>
+  );
+}
+
+export function QuickSyncHud(props: QuickSyncHudProps) {
+  return <QuickSyncHudPresentation key={getMessageIdentity(props.message)} {...props} />;
+}
+
+function QuickSyncHudPresentation({ message, onLifetimeEnd, phase }: QuickSyncHudProps) {
+  const [presentation] = useState(() => createHudPresentation(message, Date.now()));
+  const lifetime = presentation.lifetime;
+  const notifiedLifetimeEndRef = useRef<string | null>(null);
+  const [clock, setClock] = useState(presentation.clock);
   const remainingSeconds =
     lifetime.deadline === null ? null : getRemainingSeconds(lifetime.deadline, clock);
-  const copy = getCopy(message, remainingSeconds);
-  const announcementRef = useRef<Announcement | null>(null);
-  if (announcementRef.current?.identity !== nextIdentity) {
-    announcementRef.current = {
-      identity: nextIdentity,
-      text: [copy.title, copy.supportingText].filter((part) => part !== null).join(' '),
-    };
-  }
-  const announcement = announcementRef.current.text;
+  const copy = getCopy(message, remainingSeconds, true);
+  const announcement = presentation.announcement;
   const hasCandidateLifetime = isCandidateLifetime(message);
+  const candidateDeadlineReached = hasCandidateLifetime && remainingSeconds === null;
+  const geometryCopy = candidateDeadlineReached ? getCopy(message, 1, true) : copy;
+  const timerSeconds = candidateDeadlineReached ? 1 : remainingSeconds;
 
   useEffect(() => {
-    setEndedIdentity(null);
     if (lifetime.deadline === null) {
       return;
     }
@@ -161,8 +214,8 @@ export function QuickSyncHud({ message, onLifetimeEnd, semanticOutcome }: QuickS
       const now = Date.now();
       if (lifetime.deadline !== null && now >= lifetime.deadline) {
         setClock(now);
-        if (!hasCandidateLifetime) {
-          setEndedIdentity(lifetime.identity);
+        if (!hasCandidateLifetime && notifiedLifetimeEndRef.current !== lifetime.identity) {
+          notifiedLifetimeEndRef.current = lifetime.identity;
           onLifetimeEnd?.();
         }
         return;
@@ -189,18 +242,11 @@ export function QuickSyncHud({ message, onLifetimeEnd, semanticOutcome }: QuickS
     };
   }, [hasCandidateLifetime, lifetime, onLifetimeEnd]);
 
-  if (semanticOutcome === 'expired') {
-    return (
-      <p aria-atomic="true" aria-live="polite" className="sr-only" role="status">
-        {t('quickSyncCandidateExpiredAnnouncement')}
-      </p>
-    );
-  }
-  if (endedIdentity === lifetime.identity) {
-    return null;
-  }
-
   const reducedMotion = prefersReducedMotion();
+  const isVisible = phase === 'visible';
+  const transition = reducedMotion
+    ? 'none'
+    : `opacity ${QUICK_SYNC_HUD_MOTION_DURATION_MS}ms ${EASING_CSS.easeOutCubic}, transform ${QUICK_SYNC_HUD_MOTION_DURATION_MS}ms ${EASING_CSS.easeOutCubic}`;
   const markerColor =
     message.outcome === 'add-failed' || message.outcome === 'second-tab-failed'
       ? '#fca5a5'
@@ -210,56 +256,81 @@ export function QuickSyncHud({ message, onLifetimeEnd, semanticOutcome }: QuickS
 
   return (
     <aside
-      className="pointer-events-none fixed left-1/2 top-4 z-[2147483647] -translate-x-1/2"
       data-quick-sync-generation={message.generation}
+      data-quick-sync-phase={phase}
       style={{
-        animation: reducedMotion
-          ? 'none'
-          : 'quick-sync-hud-enter 120ms cubic-bezier(0.215, 0.61, 0.355, 1)',
-        transition: reducedMotion ? 'none' : 'opacity 120ms ease-out, transform 120ms ease-out',
+        animation: 'none',
+        boxSizing: 'border-box',
+        left: '50%',
+        maxWidth: 'calc(100vw - 32px)',
+        opacity: isVisible ? 1 : 0,
+        pointerEvents: 'none',
+        position: 'fixed',
+        top: '16px',
+        transform: isVisible ? 'translate(-50%, 0)' : 'translate(-50%, -4px)',
+        transition,
+        width: '440px',
+        zIndex: 2_147_483_647,
       }}
     >
-      <style>{`
-        @keyframes quick-sync-hud-enter {
-          from { opacity: 0; transform: translate(-50%, -4px); }
-          to { opacity: 1; transform: translate(-50%, 0); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          aside { animation: none; transition: none; }
-        }
-      `}</style>
       <div
+        data-quick-sync-surface=""
         style={{
           alignItems: 'center',
           backgroundColor: '#111827',
           border: '1px solid #6b7280',
           borderRadius: '12px',
+          boxSizing: 'border-box',
           boxShadow: '0 12px 32px rgba(0, 0, 0, 0.28)',
           color: '#f9fafb',
-          display: 'flex',
+          display: 'grid',
           fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
           gap: '10px',
-          maxWidth: 'min(520px, calc(100vw - 32px))',
+          gridTemplateColumns: '24px minmax(0, 1fr) 2ch',
           padding: '10px 14px',
+          width: '100%',
         }}
       >
         <span
           aria-hidden="true"
+          data-quick-sync-marker=""
           style={{
+            alignSelf: 'center',
             alignItems: 'center',
             border: `1px solid ${markerColor}`,
             borderRadius: '999px',
+            boxSizing: 'border-box',
             color: markerColor,
-            display: 'inline-flex',
-            flex: '0 0 24px',
+            display: 'grid',
             fontSize: '13px',
             fontWeight: 700,
             height: '24px',
-            justifyContent: 'center',
+            justifySelf: 'center',
             lineHeight: 1,
+            placeItems: 'center',
+            width: '24px',
           }}
         >
-          {copy.marker}
+          {copy.marker === '+' ? (
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              height="14"
+              style={{ display: 'block' }}
+              viewBox="0 0 14 14"
+              width="14"
+            >
+              <path
+                d="M7 2.5v9M2.5 7h9"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="2"
+              />
+            </svg>
+          ) : (
+            copy.marker
+          )}
         </span>
         <div style={{ minWidth: 0 }}>
           <p
@@ -274,23 +345,27 @@ export function QuickSyncHud({ message, onLifetimeEnd, semanticOutcome }: QuickS
           >
             {copy.title}
           </p>
-          {copy.supportingText !== null ? (
+          {geometryCopy.supportingText !== null ? (
             <p
               aria-hidden="true"
+              data-quick-sync-supporting-text=""
               style={{
                 color: '#d1d5db',
                 fontSize: '12px',
+                fontVariantNumeric: 'tabular-nums',
                 lineHeight: 1.45,
                 margin: '2px 0 0',
+                visibility: candidateDeadlineReached ? 'hidden' : 'visible',
               }}
             >
-              {copy.supportingText}
+              {geometryCopy.supportingText}
             </p>
           ) : null}
         </div>
-        {remainingSeconds !== null ? (
+        {timerSeconds !== null ? (
           <span
             aria-live="off"
+            data-quick-sync-timer=""
             role="timer"
             style={{
               color: '#f9fafb',
@@ -298,12 +373,14 @@ export function QuickSyncHud({ message, onLifetimeEnd, semanticOutcome }: QuickS
               fontSize: '13px',
               fontVariantNumeric: 'tabular-nums',
               fontWeight: 700,
+              justifySelf: 'end',
               lineHeight: 1,
-              minWidth: '18px',
+              minWidth: '2ch',
               textAlign: 'right',
+              visibility: candidateDeadlineReached ? 'hidden' : 'visible',
             }}
           >
-            {remainingSeconds}
+            {timerSeconds}
           </span>
         ) : null}
       </div>

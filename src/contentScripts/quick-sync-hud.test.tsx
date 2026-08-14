@@ -33,6 +33,9 @@ const browserState = vi.hoisted(() => ({
   getURL: vi.fn((path: string) => `extension://${path}`),
 }));
 
+let nextAnimationFrameId = 1;
+let animationFrames = new Map<number, FrameRequestCallback>();
+
 const translations: Record<string, string> = {
   quickSyncCandidateSelectedTitle: '동기화할 탭 1개 선택됨',
   quickSyncCandidateInstruction:
@@ -131,23 +134,6 @@ async function sendFeedback(message: QuickSyncFeedbackMessage): Promise<QuickSyn
   return handler({ data: message });
 }
 
-async function settleFeedback(
-  responsePromise: Promise<QuickSyncFeedbackResponse>,
-  stylesheetEvent?: 'load' | 'error',
-): Promise<QuickSyncFeedbackResponse> {
-  let response: QuickSyncFeedbackResponse | undefined;
-  await act(async () => {
-    if (stylesheetEvent !== undefined) {
-      getStyleLink().dispatchEvent(new Event(stylesheetEvent));
-    }
-    response = await responsePromise;
-  });
-  if (response === undefined) {
-    throw new Error('Expected Quick Sync feedback response');
-  }
-  return response;
-}
-
 async function settleImmediateFeedback(
   message: QuickSyncFeedbackMessage,
 ): Promise<QuickSyncFeedbackResponse> {
@@ -161,6 +147,14 @@ async function settleImmediateFeedback(
   return response;
 }
 
+function flushAnimationFrame(): void {
+  const pendingFrames = [...animationFrames.values()];
+  animationFrames.clear();
+  act(() => {
+    pendingFrames.forEach((callback) => callback(performance.now()));
+  });
+}
+
 describe('initQuickSyncHud', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -170,6 +164,25 @@ describe('initQuickSyncHud', () => {
     bridgeState.feedbackHandler = undefined;
     browserState.connect.mockReset();
     browserState.getURL.mockClear();
+    nextAnimationFrameId = 1;
+    animationFrames = new Map();
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      writable: true,
+      value: vi.fn((callback: FrameRequestCallback) => {
+        const frameId = nextAnimationFrameId;
+        nextAnimationFrameId += 1;
+        animationFrames.set(frameId, callback);
+        return frameId;
+      }),
+    });
+    Object.defineProperty(window, 'cancelAnimationFrame', {
+      configurable: true,
+      writable: true,
+      value: vi.fn((frameId: number) => {
+        animationFrames.delete(frameId);
+      }),
+    });
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -201,26 +214,30 @@ describe('initQuickSyncHud', () => {
     expect(bridgeState.feedbackHandler).toBeTypeOf('function');
   });
 
-  it('fails closed when the existing content stylesheet cannot load', async () => {
+  it('renders self-contained candidate feedback before the enhancement stylesheet settles', async () => {
     const port = createPort();
     browserState.connect.mockReturnValue(port);
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const responsePromise = sendFeedback({
+    const response = await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
-    const response = await settleFeedback(responsePromise, 'error');
 
-    expect(response).toEqual({
-      status: 'failed',
-      generation: 7,
-      reason: 'hud-unavailable',
-    });
-    expect(browserState.connect).not.toHaveBeenCalled();
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(response).toEqual({ status: 'ready', generation: 7 });
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-generation',
+      '7',
+    );
+
+    act(() => getStyleLink().dispatchEvent(new Event('error')));
+
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-generation',
+      '7',
+    );
   });
 
   it('renders the exact generation and connects the validated candidate Port before ready', async () => {
@@ -229,12 +246,11 @@ describe('initQuickSyncHud', () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const responsePromise = sendFeedback({
+    const response = await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
-    const response = await settleFeedback(responsePromise, 'load');
 
     expect(response).toEqual({ status: 'ready', generation: 7 });
     expect(browserState.connect).toHaveBeenCalledWith({ name: 'quick-sync-candidate:7' });
@@ -243,6 +259,16 @@ describe('initQuickSyncHud', () => {
       'data-quick-sync-generation',
       '7',
     );
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'enter');
+    const announcement = getHudUi().getByRole('status');
+
+    flushAnimationFrame();
+
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-phase',
+      'visible',
+    );
+    expect(getHudUi().getByRole('status')).toBe(announcement);
   });
 
   it('returns port-unavailable and clears the provisional HUD when Port setup fails', async () => {
@@ -252,19 +278,42 @@ describe('initQuickSyncHud', () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const responsePromise = sendFeedback({
+    const response = await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
-    const response = await settleFeedback(responsePromise, 'load');
 
     expect(response).toEqual({
       status: 'failed',
       generation: 7,
       reason: 'port-unavailable',
     });
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('does not retain an older active generation after a replacement Port fails', async () => {
+    const previousPort = createPort();
+    browserState.connect.mockReturnValueOnce(previousPort).mockImplementationOnce(() => {
+      throw new Error('port unavailable');
+    });
+    const { initQuickSyncHud } = await import('./quick-sync-hud');
+    initQuickSyncHud();
+
+    await settleImmediateFeedback({
+      outcome: 'candidate-selected',
+      generation: 6,
+      expiresAt: 30_000,
+    });
+    await settleImmediateFeedback({
+      outcome: 'candidate-selected',
+      generation: 7,
+      expiresAt: 30_000,
+    });
+    await settleImmediateFeedback({ outcome: 'clear', generation: 6, reason: 'expired' });
+
+    expect(previousPort.disconnect).toHaveBeenCalledOnce();
+    expect(getHudUi().queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('ignores a stale clear without removing the current generation', async () => {
@@ -272,12 +321,11 @@ describe('initQuickSyncHud', () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const candidatePromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
-    await settleFeedback(candidatePromise, 'load');
 
     await settleImmediateFeedback({ outcome: 'clear', generation: 6, reason: 'invalidated' });
 
@@ -287,49 +335,91 @@ describe('initQuickSyncHud', () => {
     );
   });
 
-  it('cancels a provisional generation before a delayed stylesheet can arm it', async () => {
+  it('keeps the host mounted while matching clear feedback completes its exit motion', async () => {
     browserState.connect.mockReturnValue(createPort());
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
+    const host = getHost();
 
-    const candidatePromise = sendFeedback({
+    await settleImmediateFeedback({
+      outcome: 'candidate-selected',
+      generation: 7,
+      expiresAt: 30_000,
+    });
+    flushAnimationFrame();
+
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'invalidated' });
+
+    expect(getHost()).toBe(host);
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'exit');
+    act(() => vi.advanceTimersByTime(149));
+    expect(getHudUi().getByRole('complementary')).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
+    expect(getHost()).toBe(host);
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
+  });
+
+  it('shows and clears immediately without animation scheduling for reduced motion', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    });
+    browserState.connect.mockReturnValue(createPort());
+    const { initQuickSyncHud } = await import('./quick-sync-hud');
+    initQuickSyncHud();
+    const host = getHost();
+
+    await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
 
-    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'invalidated' });
-    const response = await settleFeedback(candidatePromise);
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-phase',
+      'visible',
+    );
+    expect(window.requestAnimationFrame).not.toHaveBeenCalled();
 
-    expect(response).toEqual({
-      status: 'failed',
-      generation: 7,
-      reason: 'hud-unavailable',
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'invalidated' });
+
+    expect(getHost()).toBe(host);
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
+    expect(vi.getTimerCount()).toBe(0);
+
+    await settleImmediateFeedback({
+      outcome: 'start-succeeded',
+      generation: 8,
+      tabCount: 2,
     });
-    expect(browserState.connect).not.toHaveBeenCalled();
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-phase',
+      'visible',
+    );
+    act(() => vi.advanceTimersByTime(2_500));
+
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('lets the newest pending generation win a shared stylesheet handshake', async () => {
+  it('does not let an older exit cleanup remove a newer generation', async () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const stalePromise = sendFeedback({ outcome: 'connecting', generation: 7 });
-    const currentPromise = sendFeedback({ outcome: 'connecting', generation: 8 });
+    await settleImmediateFeedback({ outcome: 'connecting', generation: 7 });
+    flushAnimationFrame();
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'invalidated' });
+    act(() => vi.advanceTimersByTime(75));
 
-    let staleResponse: QuickSyncFeedbackResponse | undefined;
-    let currentResponse: QuickSyncFeedbackResponse | undefined;
-    await act(async () => {
-      getStyleLink().dispatchEvent(new Event('load'));
-      [staleResponse, currentResponse] = await Promise.all([stalePromise, currentPromise]);
-    });
+    await settleImmediateFeedback({ outcome: 'connecting', generation: 8 });
+    flushAnimationFrame();
+    act(() => vi.advanceTimersByTime(75));
 
-    expect(staleResponse).toEqual({
-      status: 'failed',
-      generation: 7,
-      reason: 'hud-unavailable',
-    });
-    expect(currentResponse).toEqual({ status: 'ready', generation: 8 });
     expect(getHudUi().getByRole('status')).toHaveTextContent('탭을 연결하고 있어요…');
     expect(getHudUi().getByRole('complementary')).toHaveAttribute(
       'data-quick-sync-generation',
@@ -337,22 +427,64 @@ describe('initQuickSyncHud', () => {
     );
   });
 
-  it('unmounts immediately when the matching candidate Port disconnects', async () => {
+  it('treats a reused worker generation as a new presentation after disconnect', async () => {
+    const firstPort = createPort();
+    const replacementPort = createPort();
+    browserState.connect.mockReturnValueOnce(firstPort).mockReturnValueOnce(replacementPort);
+    const { initQuickSyncHud } = await import('./quick-sync-hud');
+    initQuickSyncHud();
+
+    await settleImmediateFeedback({
+      outcome: 'candidate-selected',
+      generation: 1,
+      expiresAt: 30_000,
+    });
+    flushAnimationFrame();
+    const firstAnnouncement = getHudUi().getByRole('status');
+
+    act(() => firstPort.triggerDisconnect());
+    act(() => vi.advanceTimersByTime(75));
+    await settleImmediateFeedback({
+      outcome: 'candidate-selected',
+      generation: 1,
+      expiresAt: 30_075,
+    });
+
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'enter');
+    expect(getHudUi().getByRole('status')).not.toBe(firstAnnouncement);
+    expect(getHudUi().getByRole('status')).toHaveTextContent(
+      '10초 안에 다른 탭에서 같은 단축키를 누르면',
+    );
+
+    flushAnimationFrame();
+    act(() => vi.advanceTimersByTime(9_925));
+
+    expect(getHudUi().getByRole('timer')).toHaveTextContent('1');
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-phase',
+      'visible',
+    );
+  });
+
+  it('exits before cleaning up when the matching candidate Port disconnects', async () => {
     const port = createPort();
     browserState.connect.mockReturnValue(port);
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const candidatePromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
-    await settleFeedback(candidatePromise, 'load');
+    flushAnimationFrame();
 
     act(() => port.triggerDisconnect());
 
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'exit');
+    act(() => vi.advanceTimersByTime(150));
+    expect(getHost()).toBeInTheDocument();
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
   });
 
   it('waits for matching clear:expired before announcing expiration exactly once', async () => {
@@ -361,12 +493,12 @@ describe('initQuickSyncHud', () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const candidatePromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 21_000,
     });
-    await settleFeedback(candidatePromise, 'load');
+    flushAnimationFrame();
 
     act(() => vi.advanceTimersByTime(1_000));
 
@@ -378,20 +510,26 @@ describe('initQuickSyncHud', () => {
 
     act(() => port.triggerDisconnect());
 
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'exit');
     expect(document.body).not.toHaveTextContent('다른 탭을 선택할 수 있는 시간이 끝났어요.');
 
     await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'expired' });
     await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'expired' });
 
-    expect(getHudUi().getAllByRole('status')).toHaveLength(1);
+    expect(getHudUi().getAllByText('다른 탭을 선택할 수 있는 시간이 끝났어요.')).toHaveLength(1);
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'exit');
+
+    act(() => vi.advanceTimersByTime(149));
+    expect(getHudUi().getByRole('complementary')).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
     expect(getHudUi().getByRole('status')).toHaveTextContent(
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
     );
+    act(() => vi.advanceTimersByTime(350));
 
-    act(() => vi.advanceTimersByTime(500));
-
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHost()).toBeInTheDocument();
+    expect(getHudUi().queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('cleans up silently when a reserved attempt disconnects after the deadline then clears consumed', async () => {
@@ -400,12 +538,12 @@ describe('initQuickSyncHud', () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const candidatePromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 21_000,
     });
-    await settleFeedback(candidatePromise, 'load');
+    flushAnimationFrame();
 
     act(() => vi.advanceTimersByTime(1_000));
 
@@ -415,26 +553,62 @@ describe('initQuickSyncHud', () => {
 
     act(() => port.triggerDisconnect());
     await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'consumed' });
+    act(() => vi.advanceTimersByTime(150));
 
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHost()).toBeInTheDocument();
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent('다른 탭을 선택할 수 있는 시간이 끝났어요.');
   });
 
-  it('does not let an older terminal timer clear a newer generation', async () => {
+  it('does not let an older terminal exit timer clear a newer generation', async () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const startedPromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'start-succeeded',
       generation: 8,
       tabCount: 2,
     });
-    await settleFeedback(startedPromise, 'load');
+    flushAnimationFrame();
+    act(() => vi.advanceTimersByTime(2_500));
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'exit');
+    act(() => vi.advanceTimersByTime(75));
+    await settleImmediateFeedback({ outcome: 'connecting', generation: 9 });
+    flushAnimationFrame();
+    act(() => vi.advanceTimersByTime(75));
 
-    act(() => vi.advanceTimersByTime(2_000));
-    await settleFeedback(sendFeedback({ outcome: 'connecting', generation: 9 }));
-    act(() => vi.advanceTimersByTime(1_000));
+    expect(getHudUi().getByRole('status')).toHaveTextContent('탭을 연결하고 있어요…');
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-generation',
+      '9',
+    );
+  });
 
+  it('does not let an older expiration announcement cleanup clear a newer generation', async () => {
+    const port = createPort();
+    browserState.connect.mockReturnValue(port);
+    const { initQuickSyncHud } = await import('./quick-sync-hud');
+    initQuickSyncHud();
+
+    await settleImmediateFeedback({
+      outcome: 'candidate-selected',
+      generation: 7,
+      expiresAt: 21_000,
+    });
+    act(() => port.triggerDisconnect());
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'expired' });
+    expect(getHudUi().getAllByText('다른 탭을 선택할 수 있는 시간이 끝났어요.')).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(250));
+
+    await settleImmediateFeedback({ outcome: 'connecting', generation: 8 });
+    flushAnimationFrame();
+    act(() => vi.advanceTimersByTime(250));
+    await settleImmediateFeedback({ outcome: 'clear', generation: 7, reason: 'expired' });
+
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute(
+      'data-quick-sync-generation',
+      '8',
+    );
     expect(getHudUi().getByRole('status')).toHaveTextContent('탭을 연결하고 있어요…');
   });
 
@@ -442,32 +616,37 @@ describe('initQuickSyncHud', () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const successPromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'add-succeeded',
       generation: 10,
       tabCount: 3,
     });
-    await settleFeedback(successPromise, 'load');
+    flushAnimationFrame();
 
     act(() => vi.advanceTimersByTime(2_499));
     expect(getHudUi().getByRole('status')).toHaveTextContent(
       '이 탭을 동기화에 추가했어요 · 현재 3개 탭',
     );
     act(() => vi.advanceTimersByTime(1));
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'exit');
+    act(() => vi.advanceTimersByTime(150));
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
 
-    const failurePromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'add-failed',
       generation: 11,
       tabCount: 3,
       reason: 'content-unreachable',
     });
-    await settleFeedback(failurePromise, 'load');
+    flushAnimationFrame();
 
     act(() => vi.advanceTimersByTime(3_999));
     expect(getHudUi().getByRole('status')).toHaveTextContent('이 탭을 추가하지 못했어요');
     act(() => vi.advanceTimersByTime(1));
-    expect(document.querySelector('#scroll-sync-quick-sync-hud-root')).toBeNull();
+    expect(getHudUi().getByRole('complementary')).toHaveAttribute('data-quick-sync-phase', 'exit');
+    act(() => vi.advanceTimersByTime(150));
+    expect(getHost()).toBeInTheDocument();
+    expect(getHudUi().queryByRole('complementary')).not.toBeInTheDocument();
   });
 
   it('clears terminal and restart state without a false expiration announcement', async () => {
@@ -475,18 +654,19 @@ describe('initQuickSyncHud', () => {
     const { initQuickSyncHud } = await import('./quick-sync-hud');
     initQuickSyncHud();
 
-    const candidatePromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
-    await settleFeedback(candidatePromise, 'load');
+    flushAnimationFrame();
 
     await settleImmediateFeedback({
       outcome: 'clear',
       generation: 7,
       reason: 'worker-disconnected',
     });
+    act(() => vi.advanceTimersByTime(150));
 
     expect(document.body).not.toHaveTextContent('다른 탭을 선택할 수 있는 시간이 끝났어요.');
 
@@ -506,32 +686,14 @@ describe('initQuickSyncHud', () => {
     initQuickSyncHud();
     const focusedBefore = document.activeElement;
 
-    const candidatePromise = sendFeedback({
+    await settleImmediateFeedback({
       outcome: 'candidate-selected',
       generation: 7,
       expiresAt: 30_000,
     });
-    await settleFeedback(candidatePromise, 'load');
 
     expect(document.activeElement).toBe(focusedBefore);
     expect(getHudUi().queryByRole('button')).not.toBeInTheDocument();
     expect(getHudUi().queryByRole('link')).not.toBeInTheDocument();
-  });
-});
-
-describe('content script entrypoint', () => {
-  it('registers Quick Sync feedback synchronously before scroll synchronization starts', async () => {
-    vi.resetModules();
-    const calls: Array<string> = [];
-    vi.doMock('./quick-sync-hud', () => ({
-      initQuickSyncHud: () => calls.push('quick-sync-hud'),
-    }));
-    vi.doMock('./scroll-sync', () => ({
-      initScrollSync: () => calls.push('scroll-sync'),
-    }));
-
-    await import('./index');
-
-    expect(calls).toEqual(['quick-sync-hud', 'scroll-sync']);
   });
 });

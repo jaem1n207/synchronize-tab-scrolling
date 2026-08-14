@@ -88,28 +88,77 @@ describe('registerQuickSyncCommandHandler', () => {
     vi.clearAllMocks();
   });
 
-  it('injects a missing content runtime and requires the endpoint to become ready', async () => {
+  it('injects a stale content runtime without waiting for a webext ping', async () => {
     vi.mocked(browser.tabs.get).mockResolvedValue(createTab(33, 3));
+    vi.mocked(browser.scripting.executeScript)
+      .mockResolvedValueOnce([{ frameId: 0, result: false }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ frameId: 0, result: true }]);
+
+    await expect(ensureQuickSyncContentScript(33)).resolves.toBe(true);
+
+    expect(isContentScriptAlive).not.toHaveBeenCalled();
+    expect(browser.scripting.executeScript).toHaveBeenNthCalledWith(1, {
+      target: { tabId: 33 },
+      func: expect.any(Function),
+    });
+    expect(browser.scripting.executeScript).toHaveBeenNthCalledWith(2, {
+      target: { tabId: 33 },
+      files: ['dist/contentScripts/index.global.js'],
+    });
+    expect(browser.scripting.executeScript).toHaveBeenNthCalledWith(3, {
+      target: { tabId: 33 },
+      func: expect.any(Function),
+    });
+  });
+
+  it('rejects a reinjected runtime whose sentinel never becomes ready', async () => {
+    vi.mocked(browser.tabs.get).mockResolvedValue(createTab(33, 3));
+    vi.mocked(browser.scripting.executeScript)
+      .mockResolvedValueOnce([{ frameId: 0, result: false }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ frameId: 0, result: false }]);
+
+    await expect(ensureQuickSyncContentScript(33)).resolves.toBe(false);
+
+    expect(browser.scripting.executeScript).toHaveBeenCalledTimes(3);
+    expect(isContentScriptAlive).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the webext ping handshake when the sentinel probe is unavailable', async () => {
+    vi.mocked(browser.tabs.get).mockResolvedValue(createTab(33, 3));
+    vi.mocked(browser.scripting.executeScript)
+      .mockRejectedValueOnce(new Error('probe unavailable'))
+      .mockResolvedValueOnce([]);
     vi.mocked(isContentScriptAlive).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
     await expect(ensureQuickSyncContentScript(33)).resolves.toBe(true);
 
-    expect(isContentScriptAlive).toHaveBeenNthCalledWith(1, 33);
-    expect(browser.scripting.executeScript).toHaveBeenCalledWith({
+    expect(browser.scripting.executeScript).toHaveBeenNthCalledWith(1, {
+      target: { tabId: 33 },
+      func: expect.any(Function),
+    });
+    expect(browser.scripting.executeScript).toHaveBeenNthCalledWith(2, {
       target: { tabId: 33 },
       files: ['dist/contentScripts/index.global.js'],
     });
+    expect(isContentScriptAlive).toHaveBeenNthCalledWith(1, 33);
     expect(isContentScriptAlive).toHaveBeenNthCalledWith(2, 33);
   });
 
-  it('rejects a reinjected runtime whose endpoint never becomes ready', async () => {
+  it('falls back to one webext ping when the post-injection sentinel probe is unavailable', async () => {
     vi.mocked(browser.tabs.get).mockResolvedValue(createTab(33, 3));
-    vi.mocked(isContentScriptAlive).mockResolvedValue(false);
+    vi.mocked(browser.scripting.executeScript)
+      .mockResolvedValueOnce([{ frameId: 0, result: false }])
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error('probe unavailable'));
+    vi.mocked(isContentScriptAlive).mockResolvedValueOnce(true);
 
-    await expect(ensureQuickSyncContentScript(33)).resolves.toBe(false);
+    await expect(ensureQuickSyncContentScript(33)).resolves.toBe(true);
 
-    expect(browser.scripting.executeScript).toHaveBeenCalledOnce();
-    expect(isContentScriptAlive).toHaveBeenCalledTimes(2);
+    expect(browser.scripting.executeScript).toHaveBeenCalledTimes(3);
+    expect(isContentScriptAlive).toHaveBeenCalledOnce();
+    expect(isContentScriptAlive).toHaveBeenCalledWith(33);
   });
 
   it('commits two supplied eligible tabs through the real coordinator and orchestrator', async () => {

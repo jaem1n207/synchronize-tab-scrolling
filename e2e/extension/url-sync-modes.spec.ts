@@ -194,12 +194,16 @@ test.describe('URL Sync modes', () => {
     await chooseCrossSiteMode(popup);
     await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
 
-    await source.goto(
-      fixtureSites.primary.url('/en/about?tab=pricing&utm_source=mail#source-section'),
+    const expectedSourceUrl = fixtureSites.primary.url(
+      '/en/about?tab=pricing&utm_source=mail#source-section',
     );
+    await source.goto(expectedSourceUrl);
 
     const expectedTargetUrl = fixtureSites.unrelated.url('/ko/about?tab=pricing#target-home');
     await expect(target).toHaveURL(expectedTargetUrl);
+    await expect(source).toHaveURL(expectedSourceUrl);
+    await expect(source.locator('#scroll-sync-panel-root')).toBeAttached();
+    await expect(target.locator('#scroll-sync-panel-root')).toBeAttached();
 
     await source.evaluate(() => {
       window.scrollTo(0, 900);

@@ -3,7 +3,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { QuickSyncHud } from './quick-sync-hud';
+import { QuickSyncExpirationAnnouncement, QuickSyncHud } from './quick-sync-hud';
 
 import type { QuickSyncHudMessage } from './quick-sync-hud';
 
@@ -41,7 +41,7 @@ vi.mock('~/shared/i18n', () => ({
 }));
 
 function renderHud(message: QuickSyncHudMessage) {
-  return render(<QuickSyncHud message={message} />);
+  return render(<QuickSyncHud message={message} phase="visible" />);
 }
 
 const outcomeCopyCases = [
@@ -105,6 +105,128 @@ describe('QuickSyncHud', () => {
     vi.useRealTimers();
   });
 
+  it('moves the same overlay through enter, visible, and exit phases', () => {
+    const message: QuickSyncHudMessage = { outcome: 'connecting', generation: 11 };
+    const view = render(<QuickSyncHud message={message} phase="enter" />);
+    const hud = screen.getByRole('complementary');
+
+    expect(hud).toHaveAttribute('data-quick-sync-phase', 'enter');
+    expect(hud).toHaveStyle({
+      opacity: '0',
+      transform: 'translate(-50%, -4px)',
+      transition:
+        'opacity 150ms cubic-bezier(0.215, 0.61, 0.355, 1), transform 150ms cubic-bezier(0.215, 0.61, 0.355, 1)',
+    });
+
+    view.rerender(<QuickSyncHud message={message} phase="visible" />);
+
+    expect(screen.getByRole('complementary')).toBe(hud);
+    expect(hud).toHaveAttribute('data-quick-sync-phase', 'visible');
+    expect(hud).toHaveStyle({
+      opacity: '1',
+      transform: 'translate(-50%, 0)',
+    });
+
+    view.rerender(<QuickSyncHud message={message} phase="exit" />);
+
+    expect(screen.getByRole('complementary')).toBe(hud);
+    expect(hud).toHaveAttribute('data-quick-sync-phase', 'exit');
+    expect(hud).toHaveStyle({
+      opacity: '0',
+      transform: 'translate(-50%, -4px)',
+    });
+  });
+
+  it('centers the add icon without relying on font glyph metrics', () => {
+    renderHud({ outcome: 'add-succeeded', generation: 2, tabCount: 3 });
+
+    const marker = document.querySelector<HTMLElement>('[data-quick-sync-marker]');
+    const icon = marker?.querySelector('svg');
+    expect(marker).toHaveStyle({
+      alignSelf: 'center',
+      boxSizing: 'border-box',
+      display: 'grid',
+      height: '24px',
+      justifySelf: 'center',
+      placeItems: 'center',
+      width: '24px',
+    });
+    expect(icon).toHaveAttribute('height', '14');
+    expect(icon).toHaveAttribute('width', '14');
+    expect(icon).toHaveStyle({ display: 'block' });
+  });
+
+  it('keeps overlay and surface identity with fixed geometry across countdown ticks', () => {
+    renderHud({
+      outcome: 'candidate-selected',
+      generation: 7,
+      expiresAt: 30_000,
+    });
+
+    const hud = screen.getByRole('complementary');
+    const surface = document.querySelector<HTMLElement>('[data-quick-sync-surface]');
+    const supportingText = document.querySelector<HTMLElement>('[data-quick-sync-supporting-text]');
+    const announcement = screen.getByRole('status');
+    if (surface === null || supportingText === null) {
+      throw new Error('Expected Quick Sync HUD geometry');
+    }
+
+    expect(hud).toHaveStyle({
+      boxSizing: 'border-box',
+      left: '50%',
+      maxWidth: 'calc(100vw - 32px)',
+      position: 'fixed',
+      top: '16px',
+      width: '440px',
+      zIndex: '2147483647',
+    });
+    expect(surface).toHaveStyle({
+      boxSizing: 'border-box',
+      display: 'grid',
+      gridTemplateColumns: '24px minmax(0, 1fr) 2ch',
+      width: '100%',
+    });
+    expect(supportingText).toHaveStyle({
+      fontVariantNumeric: 'tabular-nums',
+    });
+    expect(screen.getByRole('timer')).toHaveStyle({
+      minWidth: '2ch',
+    });
+
+    act(() => vi.advanceTimersByTime(1_000));
+
+    expect(screen.getByRole('complementary')).toBe(hud);
+    expect(document.querySelector('[data-quick-sync-surface]')).toBe(surface);
+    expect(screen.getByRole('status')).toBe(announcement);
+    expect(screen.getByRole('timer')).toHaveTextContent('9');
+    expect(supportingText.textContent).toContain('\u20079초');
+    expect(announcement).toHaveTextContent('10초 안에 다른 탭에서 같은 단축키를 누르면');
+  });
+
+  it('keeps terminal feedback visible until the runtime begins its exit phase', () => {
+    const onLifetimeEnd = vi.fn();
+    const message: QuickSyncHudMessage = {
+      outcome: 'start-succeeded',
+      generation: 8,
+      tabCount: 2,
+    };
+    const view = render(
+      <QuickSyncHud message={message} phase="visible" onLifetimeEnd={onLifetimeEnd} />,
+    );
+    const hud = screen.getByRole('complementary');
+
+    act(() => vi.advanceTimersByTime(2_500));
+
+    expect(onLifetimeEnd).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('complementary')).toBe(hud);
+    expect(screen.getByRole('status')).toHaveTextContent('스크롤 동기화를 시작했어요');
+
+    view.rerender(<QuickSyncHud message={message} phase="exit" onLifetimeEnd={onLifetimeEnd} />);
+
+    expect(screen.getByRole('complementary')).toBe(hud);
+    expect(hud).toHaveAttribute('data-quick-sync-phase', 'exit');
+  });
+
   it('updates the visual timer without re-announcing the status', () => {
     renderHud({
       outcome: 'candidate-selected',
@@ -124,6 +246,45 @@ describe('QuickSyncHud', () => {
     expect(announcement).toHaveTextContent('10초 안에 다른 탭에서 같은 단축키를 누르면');
   });
 
+  it('uses the replacement message clock for its visual copy and announcement', () => {
+    const view = renderHud({ outcome: 'connecting', generation: 7 });
+
+    vi.setSystemTime(new Date(25_000));
+    view.rerender(
+      <QuickSyncHud
+        message={{
+          outcome: 'second-tab-failed',
+          generation: 7,
+          expiresAt: 30_000,
+          reason: 'content-unreachable',
+        }}
+        phase="visible"
+      />,
+    );
+
+    expect(document.querySelector('[data-quick-sync-supporting-text]')).toHaveTextContent(
+      '5초 안에 다른 탭에서 같은 단축키를 누르면',
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '5초 안에 다른 탭에서 같은 단축키를 누르면',
+    );
+  });
+
+  it('refreshes the announcement when copy-affecting message fields change', () => {
+    const view = renderHud({ outcome: 'add-succeeded', generation: 7, tabCount: 3 });
+
+    view.rerender(
+      <QuickSyncHud
+        message={{ outcome: 'add-succeeded', generation: 7, tabCount: 4 }}
+        phase="visible"
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '이 탭을 동기화에 추가했어요 · 현재 4개 탭',
+    );
+  });
+
   it('never renders zero seconds at the exact deadline', () => {
     vi.setSystemTime(new Date(29_999));
     renderHud({
@@ -132,10 +293,19 @@ describe('QuickSyncHud', () => {
       expiresAt: 30_000,
     });
 
-    expect(screen.getByRole('timer')).toHaveTextContent('1');
+    const surface = document.querySelector('[data-quick-sync-surface]');
+    const supportingText = document.querySelector('[data-quick-sync-supporting-text]');
+    const timer = document.querySelector('[data-quick-sync-timer]');
+    expect(screen.getByRole('timer')).toBe(timer);
+    expect(timer).toHaveTextContent('1');
     act(() => vi.advanceTimersByTime(1));
 
     expect(screen.queryByRole('timer')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-quick-sync-surface]')).toBe(surface);
+    expect(document.querySelector('[data-quick-sync-supporting-text]')).toBe(supportingText);
+    expect(document.querySelector('[data-quick-sync-timer]')).toBe(timer);
+    expect(supportingText).toHaveStyle({ visibility: 'hidden' });
+    expect(timer).toHaveStyle({ visibility: 'hidden' });
     expect(screen.getByRole('status')).toHaveTextContent('동기화할 탭 1개 선택됨');
     expect(screen.getByRole('status')).not.toHaveTextContent(
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
@@ -157,6 +327,7 @@ describe('QuickSyncHud', () => {
           generation: 7,
           expiresAt: 30_000,
         }}
+        phase="visible"
       />,
     );
 
@@ -198,7 +369,7 @@ describe('QuickSyncHud', () => {
       generation: 7,
       expiresAt: 21_000,
     };
-    const view = renderHud(message);
+    renderHud(message);
 
     act(() => vi.advanceTimersByTime(1_000));
 
@@ -207,17 +378,17 @@ describe('QuickSyncHud', () => {
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
     );
 
-    view.rerender(<QuickSyncHud message={message} semanticOutcome="expired" />);
+    render(<QuickSyncExpirationAnnouncement />);
 
-    expect(screen.getAllByRole('status')).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(screen.getAllByRole('status')).toHaveLength(2);
+    expect(screen.getAllByRole('status')[1]).toHaveTextContent(
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
     );
 
     act(() => vi.advanceTimersByTime(5_000));
 
-    expect(screen.getAllByRole('status')).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent(
+    expect(screen.getAllByRole('status')).toHaveLength(2);
+    expect(screen.getAllByRole('status')[1]).toHaveTextContent(
       '다른 탭을 선택할 수 있는 시간이 끝났어요.',
     );
   });
@@ -240,7 +411,7 @@ describe('QuickSyncHud', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('disables all motion when reduced motion is preferred', () => {
+  it('applies phase changes immediately without animation when reduced motion is preferred', () => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -251,10 +422,22 @@ describe('QuickSyncHud', () => {
       })),
     });
 
-    renderHud({ outcome: 'connecting', generation: 11 });
+    const message: QuickSyncHudMessage = { outcome: 'connecting', generation: 11 };
+    const view = render(<QuickSyncHud message={message} phase="enter" />);
+    const hud = screen.getByRole('complementary');
 
-    expect(screen.getByRole('complementary')).toHaveStyle({
+    expect(hud).toHaveStyle({
       animation: 'none',
+      opacity: '0',
+      transition: 'none',
+    });
+
+    view.rerender(<QuickSyncHud message={message} phase="visible" />);
+
+    expect(screen.getByRole('complementary')).toBe(hud);
+    expect(hud).toHaveStyle({
+      animation: 'none',
+      opacity: '1',
       transition: 'none',
     });
   });

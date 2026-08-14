@@ -32,6 +32,7 @@ import {
 import { isContentScriptAlive } from '../lib/content-script-manager';
 import {
   consumePendingUrlSyncContextualHint,
+  restorePendingUrlSyncContextualHints,
   savePendingUrlSyncContextualHint,
 } from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
@@ -148,6 +149,7 @@ vi.mock('../lib/auto-sync-state', () => ({
 
 vi.mock('../lib/contextual-hint-state', () => ({
   consumePendingUrlSyncContextualHint: vi.fn(),
+  restorePendingUrlSyncContextualHints: vi.fn(),
   savePendingUrlSyncContextualHint: vi.fn(),
 }));
 
@@ -327,7 +329,10 @@ describe('registerScrollSyncHandlers', () => {
     isContextualHintDismissedMock.mockResolvedValue(false);
     vi.mocked(consumePendingUrlSyncContextualHint).mockReset();
     vi.mocked(consumePendingUrlSyncContextualHint).mockReturnValue(null);
+    vi.mocked(restorePendingUrlSyncContextualHints).mockReset();
+    vi.mocked(restorePendingUrlSyncContextualHints).mockResolvedValue(true);
     vi.mocked(savePendingUrlSyncContextualHint).mockReset();
+    vi.mocked(savePendingUrlSyncContextualHint).mockResolvedValue(true);
     getManualReadinessSnapshotMock.mockReturnValue('ready');
     waitForBackgroundInitializationMock.mockResolvedValue(readyBackground);
 
@@ -479,18 +484,42 @@ describe('registerScrollSyncHandlers', () => {
   });
 
   describe('contextual-hint:save-pending-url-sync', () => {
-    it('stores pending URL Sync hints by sender tab ID', async () => {
+    it('restores state and persists pending URL Sync hints before responding', async () => {
       const handler = getHandler<{ hintId: 'page-change-synced' }>(
         'contextual-hint:save-pending-url-sync',
       );
+      const persistence = Promise.withResolvers<boolean>();
+      vi.mocked(savePendingUrlSyncContextualHint).mockReturnValueOnce(persistence.promise);
+      let responseSettled = false;
+
+      const resultPromise = handler({
+        data: { hintId: 'page-change-synced' },
+        sender: { tabId: 7 },
+      });
+      void Promise.resolve(resultPromise).then(() => {
+        responseSettled = true;
+      });
+      await vi.waitFor(() => expect(savePendingUrlSyncContextualHint).toHaveBeenCalledOnce());
+
+      expect(responseSettled).toBe(false);
+      expect(restorePendingUrlSyncContextualHints).toHaveBeenCalledOnce();
+      expect(savePendingUrlSyncContextualHint).toHaveBeenCalledWith(7, 'page-change-synced');
+      persistence.resolve(true);
+      await expect(resultPromise).resolves.toEqual({ status: 'success' });
+    });
+
+    it('reports failure when pending URL Sync hint persistence fails', async () => {
+      const handler = getHandler<{ hintId: 'page-change-synced' }>(
+        'contextual-hint:save-pending-url-sync',
+      );
+      vi.mocked(savePendingUrlSyncContextualHint).mockResolvedValueOnce(false);
 
       const result = await handler({
         data: { hintId: 'page-change-synced' },
         sender: { tabId: 7 },
       });
 
-      expect(result).toEqual({ status: 'success' });
-      expect(savePendingUrlSyncContextualHint).toHaveBeenCalledWith(7, 'page-change-synced');
+      expect(result).toEqual({ status: 'failed' });
     });
 
     it('rejects pending URL Sync hints without sender tab ID', async () => {
@@ -509,7 +538,7 @@ describe('registerScrollSyncHandlers', () => {
   });
 
   describe('contextual-hint:consume-pending-url-sync', () => {
-    it('consumes pending URL Sync hints by sender tab ID', async () => {
+    it('restores state before consuming pending URL Sync hints by sender tab ID', async () => {
       const handler = getHandler<Record<string, never>>('contextual-hint:consume-pending-url-sync');
       vi.mocked(consumePendingUrlSyncContextualHint).mockReturnValue('keep-website-path-synced');
 
@@ -522,6 +551,7 @@ describe('registerScrollSyncHandlers', () => {
         status: 'success',
         hintId: 'keep-website-path-synced',
       });
+      expect(restorePendingUrlSyncContextualHints).toHaveBeenCalledOnce();
       expect(consumePendingUrlSyncContextualHint).toHaveBeenCalledWith(12);
     });
   });

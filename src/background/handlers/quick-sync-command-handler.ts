@@ -47,6 +47,8 @@ import type { SyncTransitionGate } from '../lib/sync-transition-gate';
 
 export const QUICK_SYNC_COMMAND = 'quick-sync-start-or-add';
 
+type QuickSyncRuntimeProbeResult = 'ready' | 'missing' | 'unavailable';
+
 interface QuickSyncInvocationTab {
   id?: number;
   windowId?: number;
@@ -279,17 +281,55 @@ const feedbackSender = createQuickSyncFeedbackSender((tabId, message) =>
   sendMessage('quick-sync:feedback', message, { context: 'content-script', tabId }),
 );
 
+function hasQuickSyncRuntimeSentinel(): boolean {
+  return Reflect.get(globalThis, '__synchronizeTabScrollingRuntimeReady') === true;
+}
+
+async function probeQuickSyncRuntime(tabId: number): Promise<QuickSyncRuntimeProbeResult> {
+  try {
+    const results = await browser.scripting.executeScript({
+      target: { tabId },
+      func: hasQuickSyncRuntimeSentinel,
+    });
+    const result = results[0]?.result;
+    if (result === true) {
+      return 'ready';
+    }
+    return result === false ? 'missing' : 'unavailable';
+  } catch {
+    return 'unavailable';
+  }
+}
+
+async function ensureQuickSyncContentScriptWithPing(tabId: number): Promise<boolean> {
+  if (await isContentScriptAlive(tabId)) {
+    return true;
+  }
+  await browser.scripting.executeScript({
+    target: { tabId },
+    files: ['dist/contentScripts/index.global.js'],
+  });
+  return isContentScriptAlive(tabId);
+}
+
 export async function ensureQuickSyncContentScript(tabId: number): Promise<boolean> {
   try {
     await browser.tabs.get(tabId);
-    if (await isContentScriptAlive(tabId)) {
+    const initialProbe = await probeQuickSyncRuntime(tabId);
+    if (initialProbe === 'ready') {
       return true;
+    }
+    if (initialProbe === 'unavailable') {
+      return ensureQuickSyncContentScriptWithPing(tabId);
     }
     await browser.scripting.executeScript({
       target: { tabId },
       files: ['dist/contentScripts/index.global.js'],
     });
-    return isContentScriptAlive(tabId);
+    const injectedProbe = await probeQuickSyncRuntime(tabId);
+    return injectedProbe === 'unavailable'
+      ? isContentScriptAlive(tabId)
+      : injectedProbe === 'ready';
   } catch {
     return false;
   }

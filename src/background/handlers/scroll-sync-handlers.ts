@@ -48,6 +48,7 @@ import {
 import { isContentScriptAlive } from '../lib/content-script-manager';
 import {
   consumePendingUrlSyncContextualHint,
+  restorePendingUrlSyncContextualHints,
   savePendingUrlSyncContextualHint,
 } from '../lib/contextual-hint-state';
 import { startKeepAlive, stopKeepAlive } from '../lib/keep-alive';
@@ -613,23 +614,27 @@ async function startPopupManualSession(startRequest: {
 
 export function registerScrollSyncHandlers(): void {
   logger.info('Registering scroll:start handler');
-  onMessage('contextual-hint:save-pending-url-sync', ({ data, sender }) => {
+  onMessage('contextual-hint:save-pending-url-sync', async ({ data, sender }) => {
     if (!sender.tabId || !isPendingUrlSyncContextualHintId(data.hintId)) {
       const response: SavePendingUrlSyncContextualHintResponse = { status: 'failed' };
       return response;
     }
 
-    savePendingUrlSyncContextualHint(sender.tabId, data.hintId);
-    const response: SavePendingUrlSyncContextualHintResponse = { status: 'success' };
+    await restorePendingUrlSyncContextualHints();
+    const persisted = await savePendingUrlSyncContextualHint(sender.tabId, data.hintId);
+    const response: SavePendingUrlSyncContextualHintResponse = {
+      status: persisted ? 'success' : 'failed',
+    };
     return response;
   });
 
-  onMessage('contextual-hint:consume-pending-url-sync', ({ sender }) => {
+  onMessage('contextual-hint:consume-pending-url-sync', async ({ sender }) => {
     if (!sender.tabId) {
       const response: ConsumePendingUrlSyncContextualHintResponse = { status: 'failed' };
       return response;
     }
 
+    await restorePendingUrlSyncContextualHints();
     const response: ConsumePendingUrlSyncContextualHintResponse = {
       status: 'success',
       hintId: consumePendingUrlSyncContextualHint(sender.tabId),

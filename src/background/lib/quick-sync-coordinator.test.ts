@@ -64,7 +64,10 @@ function createSerialGate(getRevision: () => number): SyncTransitionGate {
   };
 }
 
-function createHarness(initialState: SyncState = createInactiveState()): CoordinatorHarness {
+function createHarness(
+  initialState: SyncState = createInactiveState(),
+  setTimer: typeof setTimeout = setTimeout,
+): CoordinatorHarness {
   let state = initialState;
   let now = 10_000;
   let disconnectListener = (): void => undefined;
@@ -135,7 +138,7 @@ function createHarness(initialState: SyncState = createInactiveState()): Coordin
       recentOutcomes.push(outcome);
     },
     showUnsupportedBadge,
-    setTimer: setTimeout,
+    setTimer,
   });
 
   return {
@@ -209,6 +212,46 @@ describe('createQuickSyncCoordinator', () => {
       expiresAt: 20_000,
     });
     expect(harness.revalidateInvocationTab).toHaveBeenCalledWith(11);
+  });
+
+  it('arms a first candidate without binding the injected timer receiver', async () => {
+    const timerInvocations: unknown[][] = [];
+    const strictTimer = new Proxy(setTimeout, {
+      apply(target, receiver, arguments_) {
+        timerInvocations.push(arguments_);
+        if (receiver !== undefined) {
+          throw new TypeError('unexpected-timer-receiver');
+        }
+        return Reflect.apply(target, undefined, arguments_);
+      },
+    });
+    const harness = createHarness(createInactiveState(), strictTimer);
+
+    const result = await harness.transitionGate.run((context) =>
+      harness.coordinator.handle(context, {
+        commandReceivedAt: 10_000,
+        tabId: 11,
+        windowId: 1,
+      }),
+    );
+
+    expect(result).toEqual({ status: 'candidate-armed', generation: 1, expiresAt: 20_000 });
+    expect(harness.candidateStore.read()).toEqual({
+      tabId: 11,
+      generation: 1,
+      expiresAt: 20_000,
+    });
+    expect(harness.feedback).not.toContainEqual({
+      tabId: 11,
+      message: {
+        outcome: 'clear',
+        generation: 1,
+        reason: 'invalidated',
+      },
+    });
+    expect(harness.port.disconnect).not.toHaveBeenCalled();
+    expect(timerInvocations).toHaveLength(1);
+    expect(timerInvocations[0]?.[1]).toBe(10_000);
   });
 
   it('rejects an unreachable first-tab runtime without reserving a candidate or Port', async () => {
