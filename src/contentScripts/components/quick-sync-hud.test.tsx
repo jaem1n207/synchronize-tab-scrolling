@@ -137,6 +137,25 @@ describe('QuickSyncHud', () => {
     });
   });
 
+  it('centers the add icon without relying on font glyph metrics', () => {
+    renderHud({ outcome: 'add-succeeded', generation: 2, tabCount: 3 });
+
+    const marker = document.querySelector<HTMLElement>('[data-quick-sync-marker]');
+    const icon = marker?.querySelector('svg');
+    expect(marker).toHaveStyle({
+      alignSelf: 'center',
+      boxSizing: 'border-box',
+      display: 'grid',
+      height: '24px',
+      justifySelf: 'center',
+      placeItems: 'center',
+      width: '24px',
+    });
+    expect(icon).toHaveAttribute('height', '14');
+    expect(icon).toHaveAttribute('width', '14');
+    expect(icon).toHaveStyle({ display: 'block' });
+  });
+
   it('keeps overlay and surface identity with fixed geometry across countdown ticks', () => {
     renderHud({
       outcome: 'candidate-selected',

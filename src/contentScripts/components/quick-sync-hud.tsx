@@ -289,21 +289,44 @@ export function QuickSyncHud({ message, onLifetimeEnd, phase }: QuickSyncHudProp
       >
         <span
           aria-hidden="true"
+          data-quick-sync-marker=""
           style={{
+            alignSelf: 'center',
             alignItems: 'center',
             border: `1px solid ${markerColor}`,
             borderRadius: '999px',
+            boxSizing: 'border-box',
             color: markerColor,
-            display: 'inline-flex',
-            flex: '0 0 24px',
+            display: 'grid',
             fontSize: '13px',
             fontWeight: 700,
             height: '24px',
-            justifyContent: 'center',
+            justifySelf: 'center',
             lineHeight: 1,
+            placeItems: 'center',
+            width: '24px',
           }}
         >
-          {copy.marker}
+          {copy.marker === '+' ? (
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              height="14"
+              style={{ display: 'block' }}
+              viewBox="0 0 14 14"
+              width="14"
+            >
+              <path
+                d="M7 2.5v9M2.5 7h9"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeWidth="2"
+              />
+            </svg>
+          ) : (
+            copy.marker
+          )}
         </span>
         <div style={{ minWidth: 0 }}>
           <p
