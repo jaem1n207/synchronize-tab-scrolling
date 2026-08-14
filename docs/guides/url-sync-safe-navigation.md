@@ -3,6 +3,7 @@
 이 문서는 URL Sync의 세 모드가 언제 페이지 이동을 적용하고, 언제 의도적으로 건너뛰어야
 하는지 설명합니다. `src/shared/lib/translated-page-url-utils.ts`,
 `src/contentScripts/scroll-sync.ts`, URL Sync E2E를 수정하기 전에 먼저 읽으세요.
+브라우저 수동 검증은 [`url-sync-manual-testing.md`](./url-sync-manual-testing.md)를 따릅니다.
 
 ## 사용자 계약
 
@@ -21,6 +22,12 @@ URL Sync는 스크롤 동기화 중 한 탭의 페이지 이동을 다른 동기
 `follow-changed-tab`은 실제 source URL을 따라가는 모드라서 서로 다른 host도 허용합니다.
 `keep-each-tabs-website`는 target 사이트 위에 source path/query를 합성하는 모드라서,
 합성이 안전하지 않으면 fail closed 해야 합니다.
+
+Mode는 `browser.storage.local`에 persisted global preference로 저장됩니다. Popup과 content panel은
+요청된 값이 아니라 실제 저장되어 runtime에 적용된 mode를 표시해야 합니다. Save/read/repair가
+실패하면 기존 active mode를 유지하고 actionable notice를 보여야 하며, storage change나
+`sync:url-mode-changed` notification이 더 최신 상태를 전달하면 비동기 작업의 stale 결과로
+덮어쓰면 안 됩니다.
 
 ## Site Boundary 호환성
 
@@ -102,5 +109,9 @@ compatible site-family로, `127.0.0.1`과 `localhost`는 unrelated site-family�
 - [ ] 새 모드가 invalid/non-HTTP(S) URL에서 offset을 지우거나 navigation하지 않는다.
 - [ ] `keep-each-tabs-website`의 기존 incompatible-boundary 차단은 그대로 유지된다.
 - [ ] 새 notice key는 `extension/_locales/*`와 `src/shared/i18n/_locales/*`에 모두 있다.
+- [ ] Popup과 content panel이 persisted mode, cross-site warning, read/write/repair failure를
+      동일하고 truthful하게 표시한다.
+- [ ] [`url-sync-manual-testing.md`](./url-sync-manual-testing.md)의 양방향 unrelated-origin,
+      기존 두 mode 회귀, invalid URL, manual-offset 시나리오를 확인한다.
 - [ ] URL Sync 변경 후 `pnpm privacy:logging`, resolver unit test, content-script scenario test,
       extension E2E를 실행한다.
