@@ -296,6 +296,18 @@
   "urlSyncModeDescription": {
     "message": "リンクしたタブがページ変更にどう追従するかを選択します。"
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "異なるサイト間でページパスを同期"
+  },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "各タブはそれぞれのサイトを維持したまま、ページパスと関連するクエリデータを他のタブに適用します。"
+  },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "例: localhost:3000 で /pricing を開くと、example.com もサイトを変更せずに /pricing を開きます。"
+  },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ パスとクエリデータが別のサイトに送信される場合があります。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "変更したタブに従う"
   },
@@ -312,7 +324,7 @@
     "message": "他のタブはそれぞれのウェブサイトに残り、対応するページを開きます。"
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "例: Aタブが docs.example.com/pricing に移動すると、Bタブは shop.example.com/pricing を開きます。"
+    "message": "例: タブ A が example.com/pricing に移動すると、タブ B は staging.example.com/pricing を開きます。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "可能な場合は言語設定を維持します。"

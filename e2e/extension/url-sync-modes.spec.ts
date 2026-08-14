@@ -4,6 +4,10 @@ import { test, expect } from './fixtures';
 
 const FOLLOW_CHANGED_TAB_NAME = /Follow changed tab|변경한 탭 따라가기/i;
 const KEEP_EACH_TABS_WEBSITE_NAME = /Keep each tab's website|각 탭의 웹사이트 유지/i;
+const SYNC_PAGE_PATH_ACROSS_SITES_NAME =
+  /Sync page path across different sites|서로 다른 사이트 간 페이지 경로 동기화/i;
+const CROSS_SITE_WARNING =
+  /Path and query data may be sent to another site|경로와 쿼리 데이터가 다른 사이트로 전달될 수 있습니다/i;
 const START_SYNC_NAME =
   /^(?:Start synchronization|동기화 시작|Select at least 2 tabs to start \(\d+ selected\)|시작하려면 2개 이상의 탭을 선택하세요 \(\d+개 선택됨\))$/i;
 const STOP_SYNC_NAME = /Stop synchronization|동기화 중지/i;
@@ -61,6 +65,13 @@ async function chooseKeepEachTabsWebsiteMode(popup: Page): Promise<void> {
   await popup.locator('label').filter({ hasText: KEEP_EACH_TABS_WEBSITE_NAME }).click();
   await expect(popup.getByText(KEEP_EACH_TABS_WEBSITE_NAME).first()).toBeVisible();
   await expect(popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME })).toBeVisible();
+}
+
+async function chooseCrossSiteMode(popup: Page): Promise<void> {
+  await popup.getByRole('button', { name: URL_SYNC_EXPAND_SETTINGS_NAME }).click();
+  await popup.locator('label').filter({ hasText: SYNC_PAGE_PATH_ACROSS_SITES_NAME }).click();
+  await expect(popup.getByText(SYNC_PAGE_PATH_ACROSS_SITES_NAME).first()).toBeVisible();
+  await expect(popup.getByText(CROSS_SITE_WARNING)).toBeVisible();
 }
 
 async function expectFollowChangedTabMode(popup: Page): Promise<void> {
@@ -166,6 +177,38 @@ test.describe('URL Sync modes', () => {
       .poll(async () => target.evaluate(() => window.scrollY), { timeout: 3_000 })
       .toBeGreaterThan(100);
     await expect(target).toHaveURL(targetInitialUrl);
+  });
+
+  test('explicit cross-site mode keeps unrelated target origin, filtered query, hash, and scroll sync', async ({
+    extensionContext,
+    fixtureSites,
+    openPopup,
+  }) => {
+    const source = await extensionContext.newPage();
+    const target = await extensionContext.newPage();
+
+    await source.goto(fixtureSites.primary.url('/en/home#source-home'));
+    await target.goto(fixtureSites.unrelated.url('/ko/home?view=compact#target-home'));
+
+    const popup = await openPopup();
+    await chooseCrossSiteMode(popup);
+    await selectTabsAndStartSync(popup, 'Primary Home', 'Unrelated Home');
+
+    await source.goto(
+      fixtureSites.primary.url('/en/about?tab=pricing&utm_source=mail#source-section'),
+    );
+
+    const expectedTargetUrl = fixtureSites.unrelated.url('/ko/about?tab=pricing#target-home');
+    await expect(target).toHaveURL(expectedTargetUrl);
+
+    await source.evaluate(() => {
+      window.scrollTo(0, 900);
+    });
+
+    await expect
+      .poll(async () => target.evaluate(() => window.scrollY), { timeout: 3_000 })
+      .toBeGreaterThan(100);
+    await expect(target).toHaveURL(expectedTargetUrl);
   });
 
   test('Follow changed tab still moves unrelated target to source website', async ({

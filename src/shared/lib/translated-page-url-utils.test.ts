@@ -394,6 +394,96 @@ describe('resolveUrlSyncTarget', () => {
     });
   });
 
+  it('keeps conservative mode blocked between localhost and production', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'http://localhost:3000/product2',
+        'https://company.cz/product1',
+        'keep-each-tabs-website',
+      ),
+    ).toEqual({
+      status: 'blocked',
+      reason: 'incompatible-site-boundary',
+      notice: { key: 'urlSyncIncompatibleSiteNotice', severity: 'warning' },
+    });
+  });
+
+  it.each([
+    {
+      name: 'localhost to production',
+      source: 'http://localhost:3000/product2?view=details&utm_source=mail#source-section',
+      target: 'https://company.cz/product1?view=summary#target-section',
+      expected: 'https://company.cz/product2?view=details#target-section',
+    },
+    {
+      name: 'production to localhost',
+      source: 'https://company.cz/product2?view=details#source-section',
+      target: 'http://localhost:3000/product1#target-section',
+      expected: 'http://localhost:3000/product2?view=details#target-section',
+    },
+    {
+      name: 'cloud-provider staging to production',
+      source: 'https://test1.company.cloudprovider.cz/product2?tab=specs',
+      target: 'https://company.cz/product1#production',
+      expected: 'https://company.cz/product2?tab=specs#production',
+    },
+    {
+      name: 'market staging to market production',
+      source: 'https://test1.ua.company.cloudprovider.cz/product2?tab=specs',
+      target: 'https://company.com.ua/product1#market',
+      expected: 'https://company.com.ua/product2?tab=specs#market',
+    },
+    {
+      name: 'production to cloud-provider staging',
+      source: 'https://company.cz/product2?tab=specs',
+      target: 'https://test1.company.cloudprovider.cz/product1#staging',
+      expected: 'https://test1.company.cloudprovider.cz/product2?tab=specs#staging',
+    },
+    {
+      name: 'market production to market staging',
+      source: 'https://company.com.ua/product2?tab=specs',
+      target: 'https://test1.ua.company.cloudprovider.cz/product1#market-staging',
+      expected: 'https://test1.ua.company.cloudprovider.cz/product2?tab=specs#market-staging',
+    },
+  ])('syncs page movement across unrelated sites: $name', ({ source, target, expected }) => {
+    expect(resolveUrlSyncTarget(source, target, 'sync-page-path-across-sites')).toEqual({
+      status: 'navigate',
+      url: expected,
+    });
+  });
+
+  it('preserves target query locale while filtering source noise across sites', () => {
+    expect(
+      resolveUrlSyncTarget(
+        'https://company.cz/product2?lang=en&page=2&utm_campaign=mail#source',
+        'https://company.com.ua/product1?lang=uk#target',
+        'sync-page-path-across-sites',
+      ),
+    ).toEqual({
+      status: 'navigate',
+      url: 'https://company.com.ua/product2?page=2&lang=uk#target',
+    });
+  });
+
+  it.each([
+    {
+      source: 'file:///tmp/product2',
+      target: 'https://company.cz/product1',
+      reason: 'invalid-source-url',
+    },
+    {
+      source: 'https://company.cz/product2',
+      target: 'chrome://extensions',
+      reason: 'invalid-target-url',
+    },
+  ])('blocks non-HTTP(S) cross-site input', ({ source, target, reason }) => {
+    expect(resolveUrlSyncTarget(source, target, 'sync-page-path-across-sites')).toEqual({
+      status: 'blocked',
+      reason,
+      notice: { key: 'urlSyncKeepWebsiteBlockedNotice', severity: 'warning' },
+    });
+  });
+
   it('blocks keep-each-tabs-website for unrelated translated article hosts', () => {
     expect(
       resolveUrlSyncTarget(

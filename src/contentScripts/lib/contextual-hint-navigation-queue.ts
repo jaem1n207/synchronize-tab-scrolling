@@ -3,7 +3,7 @@ import type { PendingUrlSyncContextualHintId } from '~/shared/types/contextual-h
 import type { UrlSyncMode } from '~/shared/types/url-sync';
 
 export function getPendingUrlSyncHintIdForMode(mode: UrlSyncMode): PendingUrlSyncContextualHintId {
-  return mode === 'keep-each-tabs-website' ? 'keep-website-path-synced' : 'page-change-synced';
+  return mode === 'follow-changed-tab' ? 'page-change-synced' : 'keep-website-path-synced';
 }
 
 export { isPendingUrlSyncContextualHintId };

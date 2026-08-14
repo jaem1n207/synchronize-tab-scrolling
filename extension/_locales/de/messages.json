@@ -296,6 +296,18 @@
   "urlSyncModeDescription": {
     "message": "Wählen Sie, wie verknüpfte Tabs Seitenänderungen folgen."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "Seitenpfad zwischen verschiedenen Websites synchronisieren"
+  },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Jeder Tab behält seine eigene Website, während der Seitenpfad und relevante Abfragedaten auf die anderen Tabs angewendet werden."
+  },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "Beispiel: Wenn localhost:3000 /pricing öffnet, öffnet example.com ebenfalls /pricing, ohne die Website zu wechseln."
+  },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ Pfad- und Abfragedaten können an eine andere Website gesendet werden."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Geändertem Tab folgen"
   },
@@ -312,7 +324,7 @@
     "message": "Andere Tabs bleiben auf ihrer eigenen Website und öffnen die passende Seite."
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "Beispiel: Wenn Tab A docs.example.com/pricing öffnet, öffnet Tab B shop.example.com/pricing."
+    "message": "Beispiel: Wenn Tab A example.com/pricing öffnet, öffnet Tab B staging.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Sprachen werden nach Möglichkeit beibehalten."

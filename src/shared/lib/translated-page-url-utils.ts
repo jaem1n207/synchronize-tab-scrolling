@@ -643,7 +643,7 @@ export function resolveUrlSyncTarget(
     };
   }
 
-  if (!areUrlSyncSiteBoundariesCompatible(source, target)) {
+  if (mode === 'keep-each-tabs-website' && !areUrlSyncSiteBoundariesCompatible(source, target)) {
     return {
       status: 'blocked',
       reason: 'incompatible-site-boundary',

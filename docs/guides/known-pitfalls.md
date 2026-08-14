@@ -80,11 +80,13 @@ const enabled = typeof storedValue === 'boolean' ? storedValue : false;
 
 ---
 
-## Pitfall 0.5: Keep-Website URL Sync의 site boundary를 넓게 잡는 문제
+## Pitfall 0.5: Keep-Website guard와 명시적 cross-site opt-in을 섞는 문제
 
 ### 규칙
 
 > `keep-each-tabs-website`는 host boundary가 호환될 때만 target-site URL을 합성해야 합니다.
+> Unrelated origin 지원은 guard를 약화하지 말고 별도 `sync-page-path-across-sites` mode에서만
+> 명시적으로 허용하세요.
 
 ### 배경
 
@@ -92,6 +94,12 @@ const enabled = typeof storedValue === 'boolean' ? storedValue : false;
 `keep-each-tabs-website`는 target tab의 웹사이트 위에 source path/query를 얹는 모드입니다.
 서로 다른 URL 체계를 가진 사이트에서 이 합성을 수행하면 target tab이 404나 엉뚱한 페이지로
 이동할 수 있습니다.
+
+Local development, staging, production, market별 origin처럼 구조가 다른 환경을 비교하려는 사용자는
+별도 `sync-page-path-across-sites` mode를 명시적으로 선택할 수 있습니다. 이 mode는 target origin을
+유지하면서 기존 path/query builder를 재사용하되 site-boundary 검사만 생략합니다. 따라서 기존
+보수적 mode의 heuristic에 `localhost`, 특정 cloud provider, 국가 TLD 같은 예외를 추가하면 안
+됩니다.
 
 ```text
 developer.chrome.com/blog/inside-browser-part4?hl=en
@@ -104,6 +112,12 @@ d2.naver.com/helloworld/6204533
 ### 적용 원칙
 
 - `keep-each-tabs-website`는 shared resolver에서 먼저 site boundary를 검사합니다.
+- `sync-page-path-across-sites`만 그 검사를 생략하며 다른 mode가 조용히 fallback하면 안 됩니다.
+- Cross-site mode도 source와 target을 HTTP(S)로 검증하고 invalid URL은 차단합니다.
+- Cross-site mode는 target protocol/hostname/port/hash와 가능한 locale carrier를 유지하고 source
+  hash는 복사하지 않습니다.
+- Query는 raw 전체 복사가 아니라 기존 filtering을 사용하지만 allowlist가 아니므로, UI에
+  path/query data가 다른 site로 전달될 수 있다는 경고를 계속 표시합니다.
 - unrelated host와 sibling product host는 차단합니다.
 - broad registrable-domain 또는 last-two-label heuristic을 쓰지 않습니다.
 - `www.`는 무시할 수 있고, 일반 site host의 locale/environment label은 제거할 수 있습니다.
@@ -116,6 +130,11 @@ d2.naver.com/helloworld/6204533
 
 - [ ] `resolveUrlSyncTarget()`의 `keep-each-tabs-website` branch가 incompatible boundary를
       `reason: 'incompatible-site-boundary'`로 차단하는가?
+- [ ] `sync-page-path-across-sites`에서만 compatibility guard가 생략되고 HTTP(S) parsing은
+      유지되는가?
+- [ ] Cross-site mode가 target origin/hash/locale을 보존하고 source hash와 tracking query를
+      복사하지 않는가?
+- [ ] Cross-site warning과 persisted mode가 popup/content panel의 실제 active mode와 일치하는가?
 - [ ] 차단 경로에서 `clearManualScrollOffset()`과 `navigateToUrl()`가 호출되지 않는가?
 - [ ] hosted public suffix tenant 테스트가 locale-looking, environment-looking label 모두를 막는가?
 - [ ] E2E no-navigation helper가 Playwright `TimeoutError`만 삼키고 다른 예외는 다시 throw하는가?
@@ -459,5 +478,7 @@ computed `scroll-behavior`를 따라 부드러운 스크롤 애니메이션을 �
 - [ ] 새로운 인메모리 `Set`/`Map`이 서비스 워커 재시작 후 복원되는가?
 - [ ] content script ping 전에 `syncState` 기반 사전 체크가 있는가?
 - [ ] `keep-each-tabs-website`가 incompatible site boundary에서 target URL과 manual offset을 보존하는가?
+- [ ] `sync-page-path-across-sites`만 unrelated origin navigation을 허용하고 target origin/hash를
+      보존하는가?
 - [ ] `DialogContent` 내부의 Grid 항목에 `min-w-0`이 있는가? (`truncate` 사용 시 필수)
 - [ ] Dialog 내부에서 Radix `ScrollArea`를 사용하고 있지 않은가? (네이티브 `overflow-y-auto` 사용)

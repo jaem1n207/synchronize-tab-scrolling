@@ -178,6 +178,13 @@ cachedManualOffset은 다음 시점에 갱신됩니다:
 manual offset도 그대로 유지합니다. 이후 들어오는 `scroll:sync`는 기존 offset을 계속 적용해야 합니다.
 호환되는 URL로 실제 navigation이 발생할 때만 offset을 clear합니다.
 
+명시적 `sync-page-path-across-sites`는 unrelated boundary 검사를 생략하지만 이 offset 순서를
+바꾸지 않습니다. Source/target이 HTTP(S)가 아니거나 resolver가 blocked를 반환하거나 same URL로
+resolve되면 offset을 보존합니다. Target origin을 유지한 새 URL로 실제 navigation이 commit될
+때만 `clearManualScrollOffset()`을 호출합니다. URL Sync navigation의 성공, 차단, skip은
+`revision`, `sessionEpoch`, sender authorization 같은 Scroll Sync relay identity를 약화하거나
+session을 종료하면 안 됩니다.
+
 ## 연결 상태 모니터링
 
 ```

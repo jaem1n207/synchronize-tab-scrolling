@@ -23,11 +23,18 @@ interface UrlSyncSettingsProps {
 
 const URL_SYNC_MODE_OPTIONS: Array<{
   mode: UrlSyncMode;
-  labelKey: 'urlSyncModeFollowChangedTab' | 'urlSyncModeKeepEachTabsWebsite';
+  labelKey:
+    | 'urlSyncModeFollowChangedTab'
+    | 'urlSyncModeKeepEachTabsWebsite'
+    | 'urlSyncModeAcrossDifferentSites';
   descriptionKey:
     | 'urlSyncModeFollowChangedTabDescription'
-    | 'urlSyncModeKeepEachTabsWebsiteDescription';
-  exampleKey: 'urlSyncModeFollowChangedTabExample' | 'urlSyncModeKeepEachTabsWebsiteExample';
+    | 'urlSyncModeKeepEachTabsWebsiteDescription'
+    | 'urlSyncModeAcrossDifferentSitesDescription';
+  exampleKey:
+    | 'urlSyncModeFollowChangedTabExample'
+    | 'urlSyncModeKeepEachTabsWebsiteExample'
+    | 'urlSyncModeAcrossDifferentSitesExample';
 }> = [
   {
     mode: 'follow-changed-tab',
@@ -41,7 +48,15 @@ const URL_SYNC_MODE_OPTIONS: Array<{
     descriptionKey: 'urlSyncModeKeepEachTabsWebsiteDescription',
     exampleKey: 'urlSyncModeKeepEachTabsWebsiteExample',
   },
+  {
+    mode: 'sync-page-path-across-sites',
+    labelKey: 'urlSyncModeAcrossDifferentSites',
+    descriptionKey: 'urlSyncModeAcrossDifferentSitesDescription',
+    exampleKey: 'urlSyncModeAcrossDifferentSitesExample',
+  },
 ];
+
+const CROSS_SITE_URL_SYNC_MODE: UrlSyncMode = 'sync-page-path-across-sites';
 
 function getNoticeClassName(notice: UrlSyncNotice) {
   if (notice.severity === 'error') {
@@ -70,9 +85,11 @@ export function UrlSyncSettings({
   const radioGroupName = React.useId();
   const inlineEditorId = React.useId();
   const summaryId = React.useId();
+  const crossSiteWarningId = React.useId();
   const resolvedVariant: UrlSyncSettingsVariant = variant ?? (compact ? 'panel-compact' : 'card');
   const selectedOption =
     URL_SYNC_MODE_OPTIONS.find((option) => option.mode === mode) ?? URL_SYNC_MODE_OPTIONS[0];
+  const showCrossSiteWarning = mode === CROSS_SITE_URL_SYNC_MODE;
   const isInlineCollapsible = resolvedVariant === 'inline-collapsible';
   const [inlineEditorExpanded, setInlineEditorExpanded] = React.useState(false);
   const pendingEnabledRef = React.useRef(false);
@@ -135,6 +152,19 @@ export function UrlSyncSettings({
       });
   };
 
+  const renderCrossSiteWarning = (className?: string) => (
+    <p
+      className={cn(
+        'rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5',
+        'text-xs leading-snug text-amber-900',
+        className,
+      )}
+      id={crossSiteWarningId}
+    >
+      {t('urlSyncModeAcrossDifferentSitesWarning')}
+    </p>
+  );
+
   const renderModeOption = (
     option: (typeof URL_SYNC_MODE_OPTIONS)[number],
     layout: 'card' | 'inline',
@@ -147,6 +177,9 @@ export function UrlSyncSettings({
     return (
       <div key={option.mode} className="relative">
         <input
+          aria-describedby={
+            selected && option.mode === CROSS_SITE_URL_SYNC_MODE ? crossSiteWarningId : undefined
+          }
           checked={selected}
           className="peer sr-only"
           disabled={!enabled || enabledChangePending || modeChangePending}
@@ -193,6 +226,7 @@ export function UrlSyncSettings({
             )}
           </span>
         </label>
+        {selected && option.mode === CROSS_SITE_URL_SYNC_MODE && renderCrossSiteWarning('mt-1')}
       </div>
     );
   };
@@ -207,7 +241,11 @@ export function UrlSyncSettings({
         <div className="flex min-w-0 items-center gap-2">
           <button
             aria-controls={inlineEditorId}
-            aria-describedby={summaryId}
+            aria-describedby={
+              !inlineEditorExpanded && showCrossSiteWarning
+                ? `${summaryId} ${crossSiteWarningId}`
+                : summaryId
+            }
             aria-expanded={inlineEditorExpanded}
             aria-label={t(
               inlineEditorExpanded ? 'urlSyncCollapseSettings' : 'urlSyncExpandSettings',
@@ -258,6 +296,8 @@ export function UrlSyncSettings({
             {URL_SYNC_MODE_OPTIONS.map((option) => renderModeOption(option, 'inline'))}
           </fieldset>
         )}
+
+        {!inlineEditorExpanded && showCrossSiteWarning && renderCrossSiteWarning('mt-2')}
 
         {notice && (
           <p

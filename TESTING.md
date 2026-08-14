@@ -38,7 +38,9 @@
 - ✅ 현재 탭에 "Current" 배지 표시
 - ✅ 선택된 탭 개수 표시
 - ✅ "페이지 이동도 동기화"가 탭 선택 목록 아래, "Start Sync" 버튼 위에 표시됨
-- ✅ URL Sync mode editor에서 "변경한 탭 따라가기"와 "각 탭의 웹사이트 유지"를 선택 가능
+- ✅ URL Sync mode editor에서 "변경한 탭 따라가기", "각 탭의 웹사이트 유지",
+  "서로 다른 사이트 간 페이지 경로 동기화"를 선택 가능
+- ✅ Cross-site 모드 선택 중에는 path/query data가 다른 사이트로 전달될 수 있다는 경고 표시
 - ✅ Start Sync 버튼 클릭 시 동기화 시작
 
 ### 콘텐츠 스크립트 패널
@@ -59,8 +61,18 @@
 
 - ✅ URL Sync ON + "변경한 탭 따라가기"에서 변경한 탭의 페이지 이동을 다른 탭이 따라감
 - ✅ URL Sync ON + "각 탭의 웹사이트 유지"에서 가능한 경우 각 탭이 자기 웹사이트에 남아 대응 페이지를 염
+- ✅ "각 탭의 웹사이트 유지"가 unrelated boundary를 차단하고 target URL/manual offset을 유지
+- ✅ URL Sync ON + "서로 다른 사이트 간 페이지 경로 동기화"에서 target origin을 유지하고
+  source path와 필터링된 query를 적용
+- ✅ Cross-site 모드에서 target protocol/hostname/port/locale/hash 유지, source hash 미복사
+- ✅ Tracking query 제거 및 target locale query 유지
+- ✅ Invalid/non-HTTP(S) URL에서는 navigation을 건너뛰고 Scroll Sync session 유지
 - ✅ URL Sync OFF에서 스크롤 동기화는 유지되지만 페이지 이동은 전파되지 않음
 - ✅ 팝업과 content panel이 저장된 실제 URL Sync mode를 동일하게 표시
+- ✅ Storage read/write/repair 실패 시 요청한 mode를 성공한 것처럼 표시하지 않고 notice 노출
+
+상세 URL, 기대 결과, Arc/Chromium load-unpacked 절차는
+[`docs/guides/url-sync-manual-testing.md`](./docs/guides/url-sync-manual-testing.md)를 따릅니다.
 
 ### Privacy logging guard
 

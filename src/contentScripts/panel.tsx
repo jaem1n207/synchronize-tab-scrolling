@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { createRoot } from 'react-dom/client';
 import { onMessage, sendMessage } from 'webext-bridge/content-script';
@@ -20,6 +20,7 @@ import type {
 } from '~/shared/types/messages';
 import {
   DEFAULT_URL_SYNC_MODE,
+  isUrlSyncMode,
   isUrlSyncPanelNoticeEventDetail,
   type UrlSyncMode,
   type UrlSyncNotice,
@@ -39,6 +40,11 @@ interface ConnectionStatusEvent extends CustomEvent {
   detail: { isConnected: boolean; tabId: number };
 }
 
+interface UrlSyncStorageAuthority {
+  generation: number;
+  mode: UrlSyncMode | null;
+}
+
 function PanelApp() {
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(true);
   const [urlSyncMode, setUrlSyncMode] = useState<UrlSyncMode>(DEFAULT_URL_SYNC_MODE);
@@ -48,6 +54,41 @@ function PanelApp() {
   const [suggestionCleanupDegraded, setSuggestionCleanupDegraded] = useState(false);
   const [isConnectionHealthy, setIsConnectionHealthy] = useState(true);
   const [openUrlSyncSettingsToken, setOpenUrlSyncSettingsToken] = useState(0);
+  const isMountedRef = useRef(false);
+  const urlSyncOperationGenerationRef = useRef(0);
+  const urlSyncStorageGenerationRef = useRef(0);
+  const urlSyncStorageAuthorityRef = useRef<UrlSyncStorageAuthority>({
+    generation: 0,
+    mode: null,
+  });
+  const urlSyncNoticeGenerationRef = useRef(0);
+  const presentedUrlSyncModeRef = useRef<UrlSyncMode>(DEFAULT_URL_SYNC_MODE);
+  const presentedUrlSyncNoticeRef = useRef<UrlSyncNotice | null>(null);
+
+  const presentUrlSyncMode = useCallback((mode: UrlSyncMode) => {
+    presentedUrlSyncModeRef.current = mode;
+    setUrlSyncMode(mode);
+  }, []);
+
+  const presentUrlSyncNotice = useCallback((notice: UrlSyncNotice | null) => {
+    urlSyncNoticeGenerationRef.current += 1;
+    presentedUrlSyncNoticeRef.current = notice;
+    setUrlSyncNotice(notice);
+  }, []);
+
+  const clearSupersededSettingNotice = useCallback(
+    (mode: UrlSyncMode) => {
+      const currentNotice = presentedUrlSyncNoticeRef.current;
+      if (
+        currentNotice?.key === 'urlSyncSettingSaveFailedNotice' ||
+        currentNotice?.key === 'urlSyncSettingReadFailedNotice' ||
+        (currentNotice?.key === 'urlSyncModeResetNotice' && mode !== DEFAULT_URL_SYNC_MODE)
+      ) {
+        presentUrlSyncNotice(null);
+      }
+    },
+    [presentUrlSyncNotice],
+  );
 
   // Listen for connection status events from scrollSync.ts via CustomEvent
   useEffect(() => {
@@ -64,26 +105,60 @@ function PanelApp() {
 
   useEffect(() => {
     let isMounted = true;
+    isMountedRef.current = true;
 
     const loadUrlSyncPreferences = async () => {
+      const loadGeneration = urlSyncOperationGenerationRef.current + 1;
+      urlSyncOperationGenerationRef.current = loadGeneration;
+      const loadStorageGeneration = urlSyncStorageGenerationRef.current;
+      const loadNoticeGeneration = urlSyncNoticeGenerationRef.current;
+
       try {
         const [enabled, modeRepairResult] = await Promise.all([
           loadUrlSyncEnabled(),
           repairUrlSyncMode(),
         ]);
 
-        if (!isMounted) {
+        if (!isMounted || !isMountedRef.current) {
           return;
         }
 
         setUrlSyncEnabled(enabled);
+        const loadOperationRemainsCurrent =
+          urlSyncOperationGenerationRef.current === loadGeneration;
+        const storageIsCurrent =
+          loadOperationRemainsCurrent &&
+          urlSyncStorageGenerationRef.current === loadStorageGeneration;
+        const currentStorageGeneration = urlSyncStorageGenerationRef.current;
+        const currentAuthority = urlSyncStorageAuthorityRef.current;
+        const repairedModeRemainsAuthority =
+          modeRepairResult.status === 'success' &&
+          modeRepairResult.repaired &&
+          loadOperationRemainsCurrent &&
+          currentAuthority.generation === currentStorageGeneration &&
+          currentAuthority.mode === modeRepairResult.mode;
+        const shouldApplyNotice =
+          (storageIsCurrent || repairedModeRemainsAuthority) &&
+          urlSyncNoticeGenerationRef.current === loadNoticeGeneration;
+
         if (modeRepairResult.status === 'success') {
-          setUrlSyncMode(modeRepairResult.mode);
-          setUrlSyncNotice(modeRepairResult.notice ?? null);
+          if (storageIsCurrent) {
+            urlSyncStorageAuthorityRef.current = {
+              generation: loadStorageGeneration,
+              mode: modeRepairResult.mode,
+            };
+            presentUrlSyncMode(modeRepairResult.mode);
+          }
+
+          if (shouldApplyNotice) {
+            presentUrlSyncNotice(modeRepairResult.notice ?? null);
+          }
           return;
         }
 
-        setUrlSyncNotice(modeRepairResult.notice);
+        if (shouldApplyNotice) {
+          presentUrlSyncNotice(modeRepairResult.notice);
+        }
       } catch (error) {
         await logger.error('Failed to load URL sync preferences', error);
       }
@@ -95,25 +170,107 @@ function PanelApp() {
       const { enabled } = data;
       const saved = await saveUrlSyncEnabled(enabled);
       if (!saved) {
-        setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+        presentUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
         return;
       }
 
       setUrlSyncEnabled(enabled);
-      setUrlSyncNotice(null);
+      presentUrlSyncNotice(null);
     });
 
-    const unsubscribeMode = onMessage('sync:url-mode-changed', async ({ data }) => {
+    const unsubscribeMode = onMessage('sync:url-mode-changed', ({ data }) => {
       const { mode, notice } = data;
-      const saved = await saveUrlSyncMode(mode);
-      if (!saved) {
-        setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+      presentUrlSyncMode(mode);
+      presentUrlSyncNotice(notice ?? null);
+    });
+
+    const handleStorageChange = (
+      changes: Record<string, browser.Storage.StorageChange>,
+      areaName: string,
+    ) => {
+      if (areaName !== 'local') {
         return;
       }
 
-      setUrlSyncMode(mode);
-      setUrlSyncNotice(notice ?? null);
-    });
+      const modeChange = changes.urlSyncMode;
+      if (!modeChange) {
+        return;
+      }
+
+      const storageGeneration = urlSyncStorageGenerationRef.current + 1;
+      urlSyncStorageGenerationRef.current = storageGeneration;
+
+      if (isUrlSyncMode(modeChange.newValue)) {
+        urlSyncStorageAuthorityRef.current = {
+          generation: storageGeneration,
+          mode: modeChange.newValue,
+        };
+        presentUrlSyncMode(modeChange.newValue);
+        clearSupersededSettingNotice(modeChange.newValue);
+        return;
+      }
+
+      if (modeChange.newValue === undefined) {
+        urlSyncStorageAuthorityRef.current = {
+          generation: storageGeneration,
+          mode: DEFAULT_URL_SYNC_MODE,
+        };
+        presentUrlSyncMode(DEFAULT_URL_SYNC_MODE);
+        clearSupersededSettingNotice(DEFAULT_URL_SYNC_MODE);
+        return;
+      }
+
+      const repairNoticeGeneration = urlSyncNoticeGenerationRef.current;
+      const repairGeneration = urlSyncOperationGenerationRef.current + 1;
+      urlSyncOperationGenerationRef.current = repairGeneration;
+      urlSyncStorageAuthorityRef.current = {
+        generation: storageGeneration,
+        mode: null,
+      };
+      repairUrlSyncMode()
+        .then((modeRepairResult) => {
+          if (!isMounted || !isMountedRef.current) {
+            return;
+          }
+
+          const currentStorageGeneration = urlSyncStorageGenerationRef.current;
+          const currentAuthority = urlSyncStorageAuthorityRef.current;
+          const repairOperationRemainsCurrent =
+            urlSyncOperationGenerationRef.current === repairGeneration;
+          const repairedDefaultRemainsAuthority =
+            modeRepairResult.status === 'success' &&
+            modeRepairResult.repaired &&
+            currentAuthority.generation === currentStorageGeneration &&
+            currentAuthority.mode === modeRepairResult.mode;
+          const repairReadRemainsCurrent = currentStorageGeneration === storageGeneration;
+
+          if (
+            !repairOperationRemainsCurrent ||
+            (!repairReadRemainsCurrent && !repairedDefaultRemainsAuthority)
+          ) {
+            return;
+          }
+
+          if (modeRepairResult.status === 'success') {
+            urlSyncStorageAuthorityRef.current = {
+              generation: currentStorageGeneration,
+              mode: modeRepairResult.mode,
+            };
+            presentUrlSyncMode(modeRepairResult.mode);
+            if (urlSyncNoticeGenerationRef.current === repairNoticeGeneration) {
+              presentUrlSyncNotice(modeRepairResult.notice ?? null);
+            }
+            return;
+          }
+
+          if (urlSyncNoticeGenerationRef.current === repairNoticeGeneration) {
+            presentUrlSyncNotice(modeRepairResult.notice);
+          }
+        })
+        .catch((error) => {
+          logger.error('Failed to repair invalid external URL sync mode', error);
+        });
+    };
 
     const handleUrlSyncNotice = (event: Event) => {
       if (!(event instanceof CustomEvent)) {
@@ -126,20 +283,23 @@ function PanelApp() {
       }
 
       if (detail.mode) {
-        setUrlSyncMode(detail.mode);
+        presentUrlSyncMode(detail.mode);
       }
-      setUrlSyncNotice(detail.notice);
+      presentUrlSyncNotice(detail.notice);
     };
 
+    browser.storage.onChanged.addListener(handleStorageChange);
     window.addEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
 
     return () => {
       isMounted = false;
+      isMountedRef.current = false;
       unsubscribeEnabled();
       unsubscribeMode();
+      browser.storage.onChanged.removeListener(handleStorageChange);
       window.removeEventListener('scroll-sync-url-sync-notice', handleUrlSyncNotice);
     };
-  }, []);
+  }, [clearSupersededSettingNotice, presentUrlSyncMode, presentUrlSyncNotice]);
 
   useEffect(() => {
     const handleOpenUrlSyncSettings = () => {
@@ -192,39 +352,109 @@ function PanelApp() {
     };
   }, []);
 
-  const handleUrlSyncEnabledChange = useCallback(async (enabled: boolean) => {
-    const saved = await saveUrlSyncEnabled(enabled);
-    if (!saved) {
-      setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
-      return;
-    }
+  const handleUrlSyncEnabledChange = useCallback(
+    async (enabled: boolean) => {
+      const saved = await saveUrlSyncEnabled(enabled);
+      if (!saved) {
+        presentUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+        return;
+      }
 
-    setUrlSyncEnabled(enabled);
-    setUrlSyncNotice(null);
-    // Broadcast to other synced tabs via background
-    try {
-      await sendMessage('sync:url-enabled-changed', { enabled }, 'background');
-    } catch (error) {
-      await logger.error('Failed to broadcast URL sync enabled change', error);
-    }
-  }, []);
+      setUrlSyncEnabled(enabled);
+      presentUrlSyncNotice(null);
+      // Broadcast to other synced tabs via background
+      try {
+        await sendMessage('sync:url-enabled-changed', { enabled }, 'background');
+      } catch (error) {
+        await logger.error('Failed to broadcast URL sync enabled change', error);
+      }
+    },
+    [presentUrlSyncNotice],
+  );
 
-  const handleUrlSyncModeChange = useCallback(async (mode: UrlSyncMode) => {
-    const saved = await saveUrlSyncMode(mode);
-    if (!saved) {
-      setUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
-      return false;
-    }
+  const handleUrlSyncModeChange = useCallback(
+    async (mode: UrlSyncMode) => {
+      const operationNoticeGeneration = urlSyncNoticeGenerationRef.current;
+      const saved = await saveUrlSyncMode(mode);
+      if (!isMountedRef.current) {
+        return false;
+      }
 
-    setUrlSyncMode(mode);
-    setUrlSyncNotice(null);
-    try {
-      await sendMessage('sync:url-mode-changed', { mode }, 'background');
-    } catch (error) {
-      await logger.error('Failed to broadcast URL sync mode change', error);
-    }
-    return true;
-  }, []);
+      const readGeneration = urlSyncOperationGenerationRef.current + 1;
+      urlSyncOperationGenerationRef.current = readGeneration;
+      const readStorageGeneration = urlSyncStorageGenerationRef.current;
+      const modeRepairResult = await repairUrlSyncMode();
+
+      if (!isMountedRef.current || urlSyncOperationGenerationRef.current !== readGeneration) {
+        return false;
+      }
+
+      const storageChangedDuringRead =
+        urlSyncStorageGenerationRef.current !== readStorageGeneration;
+      const eventAuthority = urlSyncStorageAuthorityRef.current;
+      let authoritativeMode: UrlSyncMode | null = null;
+      let authoritativeNotice: UrlSyncNotice | null = null;
+
+      if (storageChangedDuringRead) {
+        authoritativeMode = eventAuthority.mode;
+        authoritativeNotice = presentedUrlSyncNoticeRef.current;
+      } else if (modeRepairResult.status === 'success') {
+        authoritativeMode = modeRepairResult.mode;
+        authoritativeNotice = modeRepairResult.notice ?? null;
+        urlSyncStorageAuthorityRef.current = {
+          generation: readStorageGeneration,
+          mode: modeRepairResult.mode,
+        };
+      } else {
+        if (urlSyncNoticeGenerationRef.current === operationNoticeGeneration) {
+          presentUrlSyncNotice(modeRepairResult.notice);
+        }
+        return false;
+      }
+
+      if (authoritativeMode === null) {
+        return false;
+      }
+
+      const requestedModeIsAuthoritative = authoritativeMode === mode;
+      const noticeChangedDuringOperation =
+        urlSyncNoticeGenerationRef.current !== operationNoticeGeneration;
+      if (presentedUrlSyncModeRef.current !== authoritativeMode) {
+        presentUrlSyncMode(authoritativeMode);
+      }
+
+      if (!noticeChangedDuringOperation) {
+        if (!saved && !requestedModeIsAuthoritative) {
+          presentUrlSyncNotice(URL_SYNC_SAVE_FAILED_NOTICE);
+        } else {
+          presentUrlSyncNotice(authoritativeNotice);
+        }
+      }
+
+      if (!saved || !requestedModeIsAuthoritative) {
+        return requestedModeIsAuthoritative;
+      }
+
+      try {
+        await sendMessage('sync:url-mode-changed', { mode }, 'background');
+      } catch (error) {
+        await logger.error('Failed to broadcast URL sync mode change', error);
+      }
+
+      const currentAuthority = urlSyncStorageAuthorityRef.current;
+      if (
+        !isMountedRef.current ||
+        urlSyncOperationGenerationRef.current !== readGeneration ||
+        currentAuthority.generation !== urlSyncStorageGenerationRef.current ||
+        currentAuthority.mode !== mode
+      ) {
+        return false;
+      }
+
+      return true;
+    },
+    [presentUrlSyncMode, presentUrlSyncNotice],
+  );
 
   // Handle sync suggestion accept
   const handleSyncSuggestionAccept = useCallback(async () => {

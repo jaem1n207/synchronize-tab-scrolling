@@ -207,6 +207,27 @@ describe('useUrlSync', () => {
     unmount();
   });
 
+  it('commits cross-site mode only after persistence succeeds', async () => {
+    const { result, unmount } = renderHook(() => useUrlSync());
+    await waitFor(() => expect(result.current.urlSyncMode).toBe('follow-changed-tab'));
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.handleUrlSyncModeChange('sync-page-path-across-sites');
+    });
+
+    expect(saved).toBe(true);
+    expect(saveUrlSyncMode).toHaveBeenCalledWith('sync-page-path-across-sites');
+    expect(result.current.urlSyncMode).toBe('sync-page-path-across-sites');
+    expect(sendMessage).toHaveBeenCalledWith(
+      'sync:url-mode-changed',
+      { mode: 'sync-page-path-across-sites' },
+      'background',
+    );
+
+    unmount();
+  });
+
   it('keeps mode state and skips broadcast when persistence fails', async () => {
     vi.mocked(saveUrlSyncMode).mockResolvedValue(false);
     const { result, unmount } = renderHook(() => useUrlSync());
@@ -268,6 +289,26 @@ describe('useUrlSync', () => {
     });
 
     expect(result.current.urlSyncMode).toBe('keep-each-tabs-website');
+    expect(result.current.urlSyncNotice).toBeNull();
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it('accepts cross-site mode from external local storage changes', async () => {
+    const { result, unmount } = renderHook(() => useUrlSync());
+    await waitFor(() => expect(result.current.urlSyncMode).toBe('follow-changed-tab'));
+
+    act(() => {
+      triggerStorageChange({
+        urlSyncMode: {
+          oldValue: 'follow-changed-tab',
+          newValue: 'sync-page-path-across-sites',
+        },
+      });
+    });
+
+    expect(result.current.urlSyncMode).toBe('sync-page-path-across-sites');
     expect(result.current.urlSyncNotice).toBeNull();
     expect(sendMessage).not.toHaveBeenCalled();
 
