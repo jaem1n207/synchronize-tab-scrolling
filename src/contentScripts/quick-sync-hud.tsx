@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { onMessage } from 'webext-bridge/content-script';
 import browser from 'webextension-polyfill';
 
-import { ANIMATION_DURATIONS, prefersReducedMotion } from '~/shared/lib/animations';
-import { getQuickSyncPortName } from '~/shared/lib/quick-sync';
+import { prefersReducedMotion } from '~/shared/lib/animations';
+import { getQuickSyncPortName, QUICK_SYNC_HUD_MOTION_DURATION_MS } from '~/shared/lib/quick-sync';
 import type {
   QuickSyncFeedbackMessage,
   QuickSyncFeedbackResponse,
@@ -17,7 +17,6 @@ import type { QuickSyncHudMessage, QuickSyncHudPhase } from './components/quick-
 const HUD_HOST_ID = 'scroll-sync-quick-sync-hud-root';
 const HUD_APP_ID = 'scroll-sync-quick-sync-hud-app';
 const EXPIRATION_ANNOUNCEMENT_GRACE_MS = 500;
-const HUD_MOTION_DURATION_MS = ANIMATION_DURATIONS.fast * 1_000;
 
 interface CandidatePort {
   disconnect(): void;
@@ -234,7 +233,7 @@ function startExit(message: QuickSyncHudMessage, disconnectPort: boolean): void 
     finishExit(message, sequence);
     return;
   }
-  exitTimer = setTimeout(() => finishExit(message, sequence), HUD_MOTION_DURATION_MS);
+  exitTimer = setTimeout(() => finishExit(message, sequence), QUICK_SYNC_HUD_MOTION_DURATION_MS);
 }
 
 function handleLifetimeEnd(message: QuickSyncHudMessage): void {
