@@ -296,6 +296,18 @@
   "urlSyncModeDescription": {
     "message": "选择关联标签页如何跟随页面变化。"
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "在不同网站之间同步页面路径"
+  },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "每个标签页保留各自的网站，同时将页面路径和相关查询数据应用到其他标签页。"
+  },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "示例：如果 localhost:3000 打开 /pricing，example.com 也会在不更换网站的情况下打开 /pricing。"
+  },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ 路径和查询数据可能会发送到其他网站。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟随已更改的标签页"
   },
@@ -312,7 +324,7 @@
     "message": "其他标签页会留在各自的网站，并打开对应页面。"
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "示例：如果标签页 A 打开 docs.example.com/pricing，标签页 B 会打开 shop.example.com/pricing。"
+    "message": "示例：如果标签页 A 打开 example.com/pricing，标签页 B 会打开 staging.example.com/pricing。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "会尽可能保留语言设置。"

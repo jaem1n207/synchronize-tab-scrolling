@@ -296,6 +296,18 @@
   "urlSyncModeDescription": {
     "message": "Elige cómo las pestañas vinculadas siguen los cambios de página."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "Sincronizar la ruta de la página entre sitios diferentes"
+  },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Cada pestaña mantiene su propio sitio mientras la ruta de la página y los datos de consulta relevantes se aplican a las demás pestañas."
+  },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "Ejemplo: si localhost:3000 abre /pricing, example.com también abre /pricing sin cambiar de sitio."
+  },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ La ruta y los datos de consulta pueden enviarse a otro sitio."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Seguir la pestaña cambiada"
   },
@@ -312,7 +324,7 @@
     "message": "Las demás pestañas permanecen en su propio sitio web y abren la página correspondiente."
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "Ejemplo: si la pestaña A va a docs.example.com/pricing, la pestaña B abre shop.example.com/pricing."
+    "message": "Ejemplo: si la pestaña A va a example.com/pricing, la pestaña B abre staging.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Los idiomas se mantienen cuando es posible."

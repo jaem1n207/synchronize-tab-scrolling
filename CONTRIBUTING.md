@@ -43,12 +43,13 @@ pnpm dev-firefox  # Firefox
 
 ### Loading the Extension
 
-**Chrome/Edge/Brave:**
+**Chrome/Edge/Brave/Arc:**
 
 1. Navigate to `chrome://extensions` (or `edge://extensions`)
 2. Enable "Developer mode"
 3. Click "Load unpacked"
-4. Select the `extension` folder
+4. For `pnpm dev`, select the `extension` staging folder
+5. For production manual QA, run `pnpm build` and select the stable `build/chromium` artifact
 
 To test manual local-file sync in Chromium browsers, open the extension details page and enable
 **"Allow access to file URLs"**. The popup links directly to `chrome://extensions/?id=<runtime.id>`
@@ -58,7 +59,8 @@ or `edge://extensions/?id=<runtime.id>` when this setting is off.
 
 1. Navigate to `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on"
-3. Select any file in the `extension` folder
+3. For `pnpm dev-firefox`, select `extension/manifest.json`
+4. For production manual QA, run `pnpm build-firefox` and select `build/firefox/manifest.json`
 
 ---
 
@@ -94,7 +96,8 @@ synchronize-tab-scrolling/
 │   │   ├── styles/          # Global styles
 │   │   └── types/           # Shared TypeScript definitions
 │   └── manifest.ts          # Dynamic manifest generation
-├── extension/               # Build output
+├── extension/               # Shared build staging directory
+├── build/                   # Stable browser-specific manual QA artifacts
 ├── scripts/                 # Build and publish scripts
 └── docs/                    # Architecture guides and release notes
 ```
@@ -275,7 +278,11 @@ starts scroll sync and then changes page in one synced tab.
 - **Sync page changes** is the compact popup setting near the final Start Sync button.
 - **Follow changed tab** moves other synced tabs to the changed tab's website/page.
 - **Keep each tab's website** keeps each tab on its own website and opens the matching page path
-  when possible.
+  only when the shared resolver accepts a compatible site boundary.
+- **Sync page path across different sites** is an explicit opt-in mode for local development,
+  staging, production, and market-specific origins. It keeps each target origin, applies the source
+  path and filtered query data, preserves the target hash, and shows a persistent cross-site data
+  warning.
 - The expanded popup editor shows fixed-domain examples. Do not render raw user URLs in examples,
   logs, telemetry, docs screenshots, or issue/PR comments unless the user explicitly provides them.
 
@@ -295,29 +302,34 @@ starts scroll sync and then changes page in one synced tab.
 
 ### Browser Support
 
-| Browser | Manifest | Background        |
-| ------- | -------- | ----------------- |
-| Chrome  | V3       | Service Worker    |
-| Edge    | V3       | Service Worker    |
-| Brave   | V3       | Service Worker    |
-| Firefox | V3       | Background Script |
+| Browser | Manifest | Background                                 |
+| ------- | -------- | ------------------------------------------ |
+| Chrome  | V3       | Service Worker                             |
+| Edge    | V3       | Service Worker                             |
+| Brave   | V3       | Service Worker                             |
+| Arc     | V3       | Service Worker; popup flow for reliable QA |
+| Firefox | V3       | Background Script                          |
 
 ---
 
 ## Development Commands
 
-| Command               | Description                                 |
-| --------------------- | ------------------------------------------- |
-| `pnpm dev`            | Start dev server (Chrome/Edge/Brave)        |
-| `pnpm dev-firefox`    | Start dev server (Firefox)                  |
-| `pnpm build`          | Production build                            |
-| `pnpm typecheck`      | TypeScript type checking                    |
-| `pnpm lint:fix`       | Lint and auto-fix                           |
-| `pnpm format:fix`     | Format with Prettier                        |
-| `pnpm test`           | Run test suite                              |
-| `pnpm pack`           | Package for distribution (.zip, .crx, .xpi) |
-| `pnpm start:chromium` | Launch in Chrome/Edge/Brave                 |
-| `pnpm start:firefox`  | Launch in Firefox                           |
+| Command                | Description                                 |
+| ---------------------- | ------------------------------------------- |
+| `pnpm dev`             | Start dev server (Chrome/Edge/Brave)        |
+| `pnpm dev-firefox`     | Start dev server (Firefox)                  |
+| `pnpm build`           | Production build                            |
+| `pnpm build-firefox`   | Production Firefox build                    |
+| `pnpm typecheck`       | TypeScript type checking                    |
+| `pnpm lint:check`      | Lint without modifying files                |
+| `pnpm lint:fix`        | Lint and auto-fix                           |
+| `pnpm format:fix`      | Format with Prettier                        |
+| `pnpm test`            | Run test suite                              |
+| `pnpm i18n:validate`   | Validate both locale trees                  |
+| `pnpm privacy:logging` | Reject raw URL/title/payload logging        |
+| `pnpm pack`            | Package for distribution (.zip, .crx, .xpi) |
+| `pnpm start:chromium`  | Launch in Chrome/Edge/Brave                 |
+| `pnpm start:firefox`   | Launch in Firefox                           |
 
 ---
 
@@ -337,6 +349,22 @@ error handling:
 6. Confirm local `.pdf`, `.doc`, and `.docx` tabs remain unavailable.
 
 Auto-sync suggestions intentionally do not group `file://` pages.
+
+### Manual QA: URL Sync
+
+Use [`docs/guides/url-sync-manual-testing.md`](./docs/guides/url-sync-manual-testing.md) when
+changing the URL resolver, URL Sync modes, storage repair, popup/content-panel settings, navigation
+notices, or manual-offset clearing.
+
+At minimum:
+
+1. Verify all three modes against compatible and unrelated origins.
+2. Confirm the explicit cross-site mode preserves the target protocol, hostname, port, locale, and
+   hash while applying the filtered source path/query.
+3. Confirm the conservative keep-website mode remains fail-closed and blocked navigation keeps the
+   target URL, manual offset, and Scroll Sync session.
+4. Run the resolver, storage, popup/panel, content scenario, privacy logging, i18n, typecheck, and one
+   targeted URL Sync Playwright spec before shipping.
 
 ### Manual QA: Smooth-Scroll Pages
 
@@ -404,6 +432,9 @@ refactor: simplify message handling
 - [ ] Tests added/updated if needed
 - [ ] TypeScript types are complete
 - [ ] No lint errors
+- [ ] Relevant stable docs and manual QA guides match the implemented behavior
+- [ ] URL/storage/logging changes pass `pnpm privacy:logging`
+- [ ] i18n keys exist in both locale trees and pass `pnpm i18n:validate`
 - [ ] Commit messages follow convention
 
 ---
@@ -482,12 +513,13 @@ pnpm dev-firefox  # Firefox
 
 ### 확장 프로그램 로드
 
-**Chrome/Edge/Brave:**
+**Chrome/Edge/Brave/Arc:**
 
 1. `chrome://extensions` (또는 `edge://extensions`) 접속
 2. "개발자 모드" 활성화
 3. "압축해제된 확장 프로그램을 로드합니다" 클릭
-4. `extension` 폴더 선택
+4. `pnpm dev` 사용 시 staging 폴더인 `extension` 선택
+5. Production 수동 QA는 `pnpm build` 후 안정 경로인 `build/chromium` 선택
 
 Chromium 브라우저에서 로컬 파일 수동 동기화를 테스트할 때는 확장 프로그램 상세 페이지에서
 **"파일 URL에 대한 액세스 허용"**을 켜 주세요. 이 설정이 꺼져 있으면 팝업이
@@ -498,7 +530,26 @@ Chromium 브라우저에서 로컬 파일 수동 동기화를 테스트할 때�
 
 1. `about:debugging#/runtime/this-firefox` 접속
 2. "임시 부가 기능 로드" 클릭
-3. `extension` 폴더 내 아무 파일 선택
+3. `pnpm dev-firefox` 사용 시 `extension/manifest.json` 선택
+4. Production 수동 QA는 `pnpm build-firefox` 후 `build/firefox/manifest.json` 선택
+
+---
+
+## 수동 QA: URL Sync
+
+URL resolver, URL Sync mode, storage repair, popup/content panel 설정, navigation notice, manual
+offset clear 경로를 수정했다면
+[`docs/guides/url-sync-manual-testing.md`](./docs/guides/url-sync-manual-testing.md)를 따르세요.
+
+최소 확인 항목:
+
+1. 호환되는 origin과 unrelated origin에서 세 모드를 모두 확인합니다.
+2. 명시적 cross-site 모드가 target protocol, hostname, port, locale, hash를 유지하면서
+   필터링된 source path/query를 적용하는지 확인합니다.
+3. 기존 keep-website 모드가 fail-closed를 유지하고, 차단 시 target URL/manual offset/Scroll
+   Sync session이 그대로인지 확인합니다.
+4. Resolver, storage, popup/panel, content scenario, privacy logging, i18n, typecheck와 targeted
+   URL Sync Playwright spec 하나를 실행합니다.
 
 ---
 
@@ -560,6 +611,9 @@ refactor: 메시지 처리 단순화
 - [ ] 필요시 테스트 추가/업데이트
 - [ ] TypeScript 타입 완전함
 - [ ] 린트 오류 없음
+- [ ] 관련 안정 문서와 수동 QA 가이드가 실제 동작과 일치함
+- [ ] URL/storage/logging 변경은 `pnpm privacy:logging` 통과
+- [ ] i18n key가 양쪽 locale tree에 존재하고 `pnpm i18n:validate` 통과
 - [ ] 커밋 메시지 컨벤션 준수
 
 ---

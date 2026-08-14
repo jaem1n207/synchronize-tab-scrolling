@@ -1913,6 +1913,42 @@ describe('Scenario: URL sync toggle behavior', () => {
     }
   });
 
+  it('applies a successful mode change on the next page movement without restarting', async () => {
+    await startContentSync(210);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('keep-each-tabs-website');
+    setWindowUrl('https://company.cz/product1#target');
+
+    const firstResponse = await invokeContentMessage('url:sync', {
+      url: 'http://localhost:3000/product2?view=details#source',
+      sourceTabId: 999,
+      isAutoSync: false,
+      sessionEpoch: 1,
+    });
+
+    expect(firstResponse).toEqual({ success: true });
+    expect(window.location.href).toBe('https://company.cz/product1#target');
+
+    await saveUrlSyncMode('sync-page-path-across-sites');
+
+    const secondResponse = await invokeContentMessage('url:sync', {
+      url: 'http://localhost:3000/product2?view=details#source',
+      sourceTabId: 999,
+      isAutoSync: false,
+      sessionEpoch: 1,
+    });
+
+    expect(secondResponse).toEqual({ success: true });
+    expect(window.location.href).toBe('https://company.cz/product2?view=details#target');
+    expect(getScrollSyncState()).toEqual(
+      expect.objectContaining({
+        isActive: true,
+        tabId: 210,
+        sessionEpoch: 1,
+      }),
+    );
+  });
+
   it('invalid stored URL sync mode is repaired before navigation', async () => {
     await startContentSync(26);
     await saveUrlSyncEnabled(true);
@@ -2813,6 +2849,72 @@ describe('Scenario: manual offset reset when URL changes', () => {
 
     expect(document.documentElement.scrollTop).toBe(500);
     await expect(getManualScrollOffset(207)).resolves.toEqual({ ratio: 0, pixels: 0 });
+  });
+
+  it('cross-site URL sync clears the target offset only before successful navigation', async () => {
+    await saveManualScrollOffset(208, 0.2, 70);
+    await startContentSync(208);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('sync-page-path-across-sites');
+    setDocumentScrollMetrics(2000, 1000);
+    document.documentElement.scrollTop = 0;
+    setWindowUrl('https://company.cz/product1#target');
+
+    await invokeContentMessage('url:sync', {
+      url: 'http://localhost:3000/product2?view=details&utm_source=mail#source',
+      sourceTabId: 999,
+      isAutoSync: false,
+      sessionEpoch: 1,
+    });
+
+    expect(window.location.href).toBe('https://company.cz/product2?view=details#target');
+
+    await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      sourceTabId: 999,
+      sessionEpoch: 1,
+      mode: 'ratio',
+    });
+    await flushAnimationFrame();
+
+    expect(document.documentElement.scrollTop).toBe(500);
+    await expect(getManualScrollOffset(208)).resolves.toEqual({ ratio: 0, pixels: 0 });
+  });
+
+  it('invalid cross-site URL sync keeps the target offset and runtime active', async () => {
+    await saveManualScrollOffset(209, 0.25, 75);
+    await startContentSync(209);
+    await saveUrlSyncEnabled(true);
+    await saveUrlSyncMode('sync-page-path-across-sites');
+    setDocumentScrollMetrics(2000, 1000);
+    document.documentElement.scrollTop = 0;
+    setWindowUrl('https://company.cz/product1#target');
+
+    await invokeContentMessage('url:sync', {
+      url: 'file:///tmp/product2',
+      sourceTabId: 999,
+      isAutoSync: false,
+      sessionEpoch: 1,
+    });
+
+    expect(window.location.href).toBe('https://company.cz/product1#target');
+    await expect(getManualScrollOffset(209)).resolves.toEqual({ ratio: 0.25, pixels: 75 });
+
+    await invokeContentMessage('scroll:sync', {
+      isAutoSync: false,
+      scrollTop: 500,
+      scrollHeight: 2000,
+      clientHeight: 1000,
+      sourceTabId: 999,
+      sessionEpoch: 1,
+      mode: 'ratio',
+    });
+    await flushAnimationFrame();
+
+    expect(document.documentElement.scrollTop).toBe(750);
   });
 
   it('same-url resolution does not clear target offset', async () => {

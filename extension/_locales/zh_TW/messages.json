@@ -296,6 +296,18 @@
   "urlSyncModeDescription": {
     "message": "選擇連結的分頁如何跟隨頁面變更。"
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "在不同網站之間同步頁面路徑"
+  },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "每個分頁保留各自的網站，同時將頁面路徑和相關查詢資料套用到其他分頁。"
+  },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "範例：如果 localhost:3000 開啟 /pricing，example.com 也會在不更換網站的情況下開啟 /pricing。"
+  },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ 路徑和查詢資料可能會傳送到其他網站。"
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "跟隨已變更的分頁"
   },
@@ -312,7 +324,7 @@
     "message": "其他分頁會留在各自的網站，並開啟對應頁面。"
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "範例：如果分頁 A 開啟 docs.example.com/pricing，分頁 B 會開啟 shop.example.com/pricing。"
+    "message": "範例：如果分頁 A 開啟 example.com/pricing，分頁 B 會開啟 staging.example.com/pricing。"
   },
   "urlSyncModeLanguageHelper": {
     "message": "會盡可能保留語言設定。"

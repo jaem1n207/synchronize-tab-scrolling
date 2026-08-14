@@ -296,6 +296,18 @@
   "urlSyncModeDescription": {
     "message": "Choose how linked tabs follow page changes."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "Sync page path across different sites"
+  },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Each tab keeps its own site while the page path and relevant query data are applied to the other tabs."
+  },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "Example: if localhost:3000 opens /pricing, example.com also opens /pricing without changing sites."
+  },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ Path and query data may be sent to another site."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Follow changed tab"
   },
@@ -312,7 +324,7 @@
     "message": "Other tabs stay on their own website and open the matching page."
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "Example: if tab A moves to docs.example.com/pricing, tab B opens shop.example.com/pricing."
+    "message": "Example: if tab A moves to example.com/pricing, tab B opens staging.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Languages are kept when possible."

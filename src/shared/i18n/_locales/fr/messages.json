@@ -296,6 +296,18 @@
   "urlSyncModeDescription": {
     "message": "Choisissez comment les onglets liés suivent les changements de page."
   },
+  "urlSyncModeAcrossDifferentSites": {
+    "message": "Synchroniser le chemin de page entre différents sites"
+  },
+  "urlSyncModeAcrossDifferentSitesDescription": {
+    "message": "Chaque onglet conserve son propre site tandis que le chemin de page et les données de requête pertinentes sont appliqués aux autres onglets."
+  },
+  "urlSyncModeAcrossDifferentSitesExample": {
+    "message": "Exemple : si localhost:3000 ouvre /pricing, example.com ouvre aussi /pricing sans changer de site."
+  },
+  "urlSyncModeAcrossDifferentSitesWarning": {
+    "message": "⚠ Le chemin et les données de requête peuvent être envoyés à un autre site."
+  },
   "urlSyncModeFollowChangedTab": {
     "message": "Suivre l'onglet modifié"
   },
@@ -312,7 +324,7 @@
     "message": "Les autres onglets restent sur leur propre site web et ouvrent la page correspondante."
   },
   "urlSyncModeKeepEachTabsWebsiteExample": {
-    "message": "Exemple : si l'onglet A ouvre docs.example.com/pricing, l'onglet B ouvre shop.example.com/pricing."
+    "message": "Exemple : si l'onglet A ouvre example.com/pricing, l'onglet B ouvre staging.example.com/pricing."
   },
   "urlSyncModeLanguageHelper": {
     "message": "Les langues sont conservées lorsque c'est possible."
