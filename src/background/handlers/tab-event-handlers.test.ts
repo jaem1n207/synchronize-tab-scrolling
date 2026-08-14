@@ -28,6 +28,7 @@ import {
 import {
   clearPendingUrlSyncContextualHint,
   hasPendingUrlSyncContextualHint,
+  restorePendingUrlSyncContextualHints,
 } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
@@ -161,6 +162,7 @@ vi.mock('../lib/auto-sync-suggestions', () => ({
 vi.mock('../lib/contextual-hint-state', () => ({
   clearPendingUrlSyncContextualHint: vi.fn(),
   hasPendingUrlSyncContextualHint: vi.fn(),
+  restorePendingUrlSyncContextualHints: vi.fn(),
 }));
 
 vi.mock('../lib/content-script-manager', () => ({
@@ -288,6 +290,8 @@ describe('registerTabEventHandlers', () => {
 
     vi.mocked(loadUrlSyncEnabled).mockResolvedValue(true);
     vi.mocked(hasPendingUrlSyncContextualHint).mockReturnValue(false);
+    vi.mocked(restorePendingUrlSyncContextualHints).mockResolvedValue(true);
+    vi.mocked(clearPendingUrlSyncContextualHint).mockResolvedValue(true);
 
     vi.mocked(removeTabFromAllAutoSyncGroups).mockResolvedValue();
     vi.mocked(broadcastAutoSyncGroupUpdate).mockResolvedValue();
@@ -374,22 +378,32 @@ describe('registerTabEventHandlers', () => {
       expect(waitForBackgroundInitializationMock).toHaveBeenCalledTimes(5);
     });
 
-    it('does not mutate removed-tab state before readiness resolves', async () => {
+    it('clears removed-tab hints before full background readiness resolves', async () => {
       const release = Promise.withResolvers<typeof readyBackground>();
       waitForBackgroundInitializationMock.mockReturnValue(release.promise);
       manualSyncOverriddenTabs.add(7);
 
       const result = getListener('tabs.onRemoved')(7);
-      await Promise.resolve();
+      await vi.waitFor(() => expect(clearPendingUrlSyncContextualHint).toHaveBeenCalledWith(7));
 
       expect(manualSyncOverriddenTabs.has(7)).toBe(true);
-      expect(clearPendingUrlSyncContextualHint).not.toHaveBeenCalled();
 
       release.resolve(readyBackground);
       await result;
 
       expect(manualSyncOverriddenTabs.has(7)).toBe(false);
       expect(clearPendingUrlSyncContextualHint).toHaveBeenCalledWith(7);
+    });
+
+    it('clears removed-tab hints when manual readiness is unavailable', async () => {
+      waitForBackgroundInitializationMock.mockResolvedValueOnce({
+        manual: { status: 'storage-error' },
+        auto: { status: 'degraded', reason: 'manual-state-unavailable' },
+      });
+
+      await getListener('tabs.onRemoved')(17);
+
+      expect(clearPendingUrlSyncContextualHint).toHaveBeenCalledWith(17);
     });
 
     it('captures created-tab identity before awaiting readiness', async () => {
@@ -426,6 +440,25 @@ describe('registerTabEventHandlers', () => {
       await result;
 
       expect(updateAutoSyncGroup).toHaveBeenCalledWith(9, 'https://example.com/original');
+    });
+
+    it('restores pending URL Sync hints before classifying a URL update', async () => {
+      const restoration = Promise.withResolvers<boolean>();
+      vi.mocked(restorePendingUrlSyncContextualHints).mockReturnValueOnce(restoration.promise);
+
+      const result = getListener('tabs.onUpdated')(
+        9,
+        { url: 'https://example.com/relayed' },
+        { id: 9, url: 'https://example.com/relayed' },
+      );
+      await Promise.resolve();
+
+      expect(hasPendingUrlSyncContextualHint).not.toHaveBeenCalled();
+
+      restoration.resolve(true);
+      await result;
+
+      expect(hasPendingUrlSyncContextualHint).toHaveBeenCalledWith(9);
     });
 
     it('captures storage change values before awaiting readiness', async () => {
@@ -744,7 +777,7 @@ describe('registerTabEventHandlers', () => {
         { url: 'chrome://settings' },
         { id: 7, url: 'chrome://settings' },
       );
-      await Promise.resolve();
+      await vi.waitFor(() => expect(syncTransitionGate.run).toHaveBeenCalledTimes(2));
       const expiry = syncTransitionGate.run(async () => {
         order.push('expiry');
       });
@@ -968,6 +1001,7 @@ describe('registerTabEventHandlers', () => {
         { url: 'https://example.com/relayed' },
         { id: 2, url: 'https://example.com/relayed', title: 'Relayed' },
       );
+      await vi.waitFor(() => expect(hasPendingUrlSyncContextualHint).toHaveBeenCalledWith(2));
       hasPendingNavigation = false;
       readiness.resolve(readyBackground);
       await event;

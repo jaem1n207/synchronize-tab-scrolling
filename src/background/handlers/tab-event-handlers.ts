@@ -41,6 +41,7 @@ import { isContentScriptAlive, reinjectManualReconnect } from '../lib/content-sc
 import {
   clearPendingUrlSyncContextualHint,
   hasPendingUrlSyncContextualHint,
+  restorePendingUrlSyncContextualHints,
 } from '../lib/contextual-hint-state';
 import { stopKeepAlive } from '../lib/keep-alive';
 import { sendMessageWithTimeout } from '../lib/messaging';
@@ -348,6 +349,8 @@ export function registerTabEventHandlers(): void {
 
   browser.tabs.onRemoved.addListener(async (tabId) => {
     const removedTabId = tabId;
+    await restorePendingUrlSyncContextualHints();
+    await clearPendingUrlSyncContextualHint(removedTabId);
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
       return;
@@ -355,7 +358,6 @@ export function registerTabEventHandlers(): void {
     await syncTransitionGate.run((context) =>
       quickSyncCoordinator.invalidateCandidateForTab(context, removedTabId),
     );
-    clearPendingUrlSyncContextualHint(removedTabId);
 
     if (readiness.auto.status === 'ready' && autoSyncState.enabled) {
       await removeTabFromAllAutoSyncGroups(removedTabId);
@@ -491,8 +493,11 @@ export function registerTabEventHandlers(): void {
       url: incomingTab.url,
       title: incomingTab.title,
     };
-    const isRelayedUrlSyncNavigation =
-      changeInfo.url !== undefined && hasPendingUrlSyncContextualHint(tabId);
+    let isRelayedUrlSyncNavigation = false;
+    if (changeInfo.url !== undefined) {
+      await restorePendingUrlSyncContextualHints();
+      isRelayedUrlSyncNavigation = hasPendingUrlSyncContextualHint(tabId);
+    }
     const readiness = await waitForBackgroundInitialization();
     if (readiness.manual.status !== 'ready') {
       return;
