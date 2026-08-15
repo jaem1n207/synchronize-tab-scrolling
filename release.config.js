@@ -11,7 +11,6 @@ export default {
       },
     ],
     '@semantic-release/release-notes-generator',
-    '@semantic-release/changelog',
     [
       'semantic-release-chrome',
       {
@@ -57,6 +56,5 @@ export default {
         publishCmd: 'node scripts/publish-edge.mjs ${nextRelease.version}',
       },
     ],
-    '@semantic-release/git',
   ],
 };
