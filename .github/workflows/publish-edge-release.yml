@@ -1,0 +1,54 @@
+name: Publish Edge Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Released semantic version
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edge-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish-edge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download released Chromium package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release version." >&2
+            exit 1
+          fi
+          gh release download "v${RELEASE_VERSION}" \
+            --pattern synchronize-tab-scrolling-chrome.zip
+
+      - name: Publish Edge Add-ons
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/publish-edge.mjs "${RELEASE_VERSION}"

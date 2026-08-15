@@ -93,9 +93,6 @@ jobs:
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           AMO_API_KEY: ${{ secrets.AMO_API_KEY }}
           AMO_API_SECRET: ${{ secrets.AMO_API_SECRET }}
-          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
-          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
-          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
         run: |
           package_version="$(node -p "require('./package.json').version")"
           if [[ "${package_version}" != "${RELEASE_VERSION}" ]]; then
@@ -103,3 +100,12 @@ jobs:
             exit 1
           fi
           pnpm exec semantic-release
+
+      - name: Publish Edge Add-ons
+        continue-on-error: true
+        env:
+          RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+        run: node scripts/publish-edge.mjs "${RELEASE_VERSION}"
