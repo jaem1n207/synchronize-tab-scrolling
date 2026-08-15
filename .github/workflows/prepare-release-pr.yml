@@ -1,0 +1,66 @@
+name: Prepare Release PR
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-extension-release
+  cancel-in-progress: false
+
+jobs:
+  prepare-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate release app token
+        id: release-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: synchronize-tab-scrolling
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Prepare release files
+        id: prepare-release
+        env:
+          GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+        run: pnpm exec esno scripts/prepare-release-pr.ts
+
+      - name: Create release pull request
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_BRANCH: ${{ steps.prepare-release.outputs.branch }}
+          RELEASE_VERSION: ${{ steps.prepare-release.outputs.version }}
+        run: |
+          git config user.name "synchronize-tab-scrolling-release[bot]"
+          git config user.email "316274237+synchronize-tab-scrolling-release[bot]@users.noreply.github.com"
+          git switch -c "${RELEASE_BRANCH}"
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): ${RELEASE_VERSION}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${RELEASE_BRANCH}"
+          gh pr create \
+            --base main \
+            --head "${RELEASE_BRANCH}" \
+            --title "chore(release): v${RELEASE_VERSION}" \
+            --body "Review and merge this PR to publish v${RELEASE_VERSION} to GitHub and the browser stores." \
+            --assignee jaem1n207
