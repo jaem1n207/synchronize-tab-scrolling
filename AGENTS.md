@@ -127,8 +127,10 @@ pnpm start:firefox      # Launch in Firefox
 
 - **Extension release**: manually dispatch `Prepare Release PR`, review/merge the generated
   version + CHANGELOG PR, then semantic-release publishes to Chrome Web Store + Firefox AMO +
-  Edge Add-ons. Ordinary extension merges run only the version gate and do not publish. Dual build
-  (Chrome + Firefox). Edge API key expires — manual renewal
+  GitHub Releases. A separate best-effort step publishes Edge Add-ons, and the manual Publish Edge
+  Release workflow retries an existing release asset. Ordinary extension merges run only the
+  version gate and do not publish. Dual build (Chrome + Firefox). Edge API key expires — manual
+  renewal
 - **Extension PR checks**: required `extension-pr-checks` status. Extension-impacting PRs run
   privacy logging validation, i18n validation, typecheck, lint check, unit tests, Chrome/Firefox
   builds, and the URL Sync mode plus safe-navigation smoke E2E.

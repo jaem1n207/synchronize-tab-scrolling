@@ -18,7 +18,7 @@ const client = new EdgeAddonsAPI({
 try {
   await client.submit({
     filePath: 'synchronize-tab-scrolling-chrome.zip',
-    notes: `Release v${version}`,
+    notes: '',
   });
   console.log(`Edge Add-ons: v${version} submitted successfully.`);
 } catch (error) {
