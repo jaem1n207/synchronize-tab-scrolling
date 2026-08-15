@@ -14,9 +14,44 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: extension-release
+  cancel-in-progress: false
+
 jobs:
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.release-version.outputs.should-release }}
+      version: ${{ steps.release-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check release version
+        id: release-version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid package version: ${version}" >&2
+            exit 1
+          fi
+
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          if git show-ref --verify --quiet "refs/tags/v${version}"; then
+            echo "should-release=false" >> "${GITHUB_OUTPUT}"
+            echo "v${version} is already released."
+          else
+            echo "should-release=true" >> "${GITHUB_OUTPUT}"
+            echo "v${version} is ready to release."
+          fi
+
   release:
-    if: ${{ github.actor != 'dependabot[bot]' }}
+    needs: check-release
+    if: needs.check-release.outputs.should-release == 'true' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,6 +87,7 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
@@ -60,4 +96,10 @@ jobs:
           EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
           EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
           EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
-        run: pnpm exec semantic-release
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          if [[ "${package_version}" != "${RELEASE_VERSION}" ]]; then
+            echo "Release version changed between jobs." >&2
+            exit 1
+          fi
+          pnpm exec semantic-release

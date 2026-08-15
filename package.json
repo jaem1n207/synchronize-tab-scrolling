@@ -1,7 +1,7 @@
 {
   "name": "synchronize-tab-scrolling",
   "displayName": "Synchronize Tab Scrolling",
-  "version": "2.14.2",
+  "version": "2.15.0",
   "private": true,
   "description": "Scroll once, sync everywhere. Compare documents, code, or translations side by side with one-click sync.",
   "author": "jaem1n207 <tech.jmtt@gmail.com>",
@@ -102,9 +102,7 @@
     "@iconify/json": "^2.2.353",
     "@plasmohq/edge-addons-api": "^2.0.0",
     "@playwright/test": "^1.53.1",
-    "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/git": "^10.0.1",
     "@svgr/core": "^8.1.0",
     "@svgr/plugin-jsx": "^8.1.0",
     "@testing-library/jest-dom": "^6.9.1",
