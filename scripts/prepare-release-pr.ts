@@ -17,13 +17,18 @@ const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 function parsePackageMetadata(value: string): object {
   const parsed: unknown = JSON.parse(value);
-  if (typeof parsed !== 'object' || parsed === null || !('version' in parsed)) {
+  if (typeof parsed !== 'object' || parsed === null) {
     throw new Error('package.json must contain a version string');
   }
-  if (typeof parsed.version !== 'string') {
-    throw new Error('package.json must contain a version string');
-  }
+  getPackageVersion(parsed);
   return parsed;
+}
+
+function getPackageVersion(packageMetadata: object): string {
+  if (!('version' in packageMetadata) || typeof packageMetadata.version !== 'string') {
+    throw new Error('package.json must contain a version string');
+  }
+  return packageMetadata.version;
 }
 
 function validateReleaseInput(version: string, notes: string): void {
@@ -94,6 +99,25 @@ export async function prepareNextRelease(cwd: string): Promise<string> {
   return result.nextRelease.version;
 }
 
+export async function verifyPreparedRelease(cwd: string, version: string): Promise<void> {
+  validateReleaseInput(version, `[${version}](`);
+
+  const [packageSource, changelogSource] = await Promise.all([
+    readFile(path.join(cwd, 'package.json'), 'utf8'),
+    readFile(path.join(cwd, 'CHANGELOG.md'), 'utf8'),
+  ]);
+  const packageVersion = getPackageVersion(parsePackageMetadata(packageSource));
+
+  if (packageVersion !== version) {
+    throw new Error(
+      `package.json version ${packageVersion} does not match calculated release ${version}`,
+    );
+  }
+  if (!changelogSource.includes(`[${version}](`)) {
+    throw new Error(`CHANGELOG.md does not contain calculated release ${version}`);
+  }
+}
+
 async function writeWorkflowOutput(version: string): Promise<void> {
   const outputPath = process.env.GITHUB_OUTPUT;
   if (outputPath === undefined) {
@@ -103,14 +127,26 @@ async function writeWorkflowOutput(version: string): Promise<void> {
   await appendFile(outputPath, `version=${version}\nbranch=release/v${version}\n`);
 }
 
+async function run(): Promise<void> {
+  if (process.argv[2] === '--verify') {
+    const version = process.argv[3];
+    if (version === undefined) {
+      throw new Error('Usage: esno scripts/prepare-release-pr.ts --verify <version>');
+    }
+    await verifyPreparedRelease(r(), version);
+    console.log(`Verified prepared release v${version}`);
+    return;
+  }
+
+  await writeWorkflowOutput(await prepareNextRelease(r()));
+}
+
 const isDirectExecution =
   process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isDirectExecution) {
-  void prepareNextRelease(r())
-    .then(writeWorkflowOutput)
-    .catch((error: unknown) => {
-      console.error(error);
-      process.exitCode = 1;
-    });
+  void run().catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
 }

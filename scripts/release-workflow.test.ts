@@ -40,6 +40,8 @@ describe('release workflow boundaries', () => {
   it('does not let semantic-release commit directly to main', async () => {
     const releaseConfig = await readRepositoryFile('release.config.js');
 
+    expect(releaseConfig).toContain('verifyReleaseCmd');
+    expect(releaseConfig).toContain('scripts/prepare-release-pr.ts --verify');
     expect(releaseConfig).not.toContain("'@semantic-release/git'");
     expect(releaseConfig).not.toContain("'@semantic-release/changelog'");
   });

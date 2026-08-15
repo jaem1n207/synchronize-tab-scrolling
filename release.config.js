@@ -53,6 +53,8 @@ export default {
     [
       '@semantic-release/exec',
       {
+        verifyReleaseCmd:
+          'pnpm exec esno scripts/prepare-release-pr.ts --verify ${nextRelease.version}',
         publishCmd: 'node scripts/publish-edge.mjs ${nextRelease.version}',
       },
     ],

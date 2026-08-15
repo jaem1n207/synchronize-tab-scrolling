@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { prepareReleaseFiles } from './prepare-release-pr';
+import { prepareReleaseFiles, verifyPreparedRelease } from './prepare-release-pr';
 
 const temporaryRoots: Array<string> = [];
 
@@ -80,5 +80,28 @@ describe('release PR preparation', () => {
         notes: '## [2.15.0](next-link)\n\nRelease notes',
       }),
     ).rejects.toThrow('package.json must contain a version string');
+  });
+
+  it('verifies that prepared source metadata matches the calculated release', async () => {
+    const root = await createReleaseFixture();
+    await prepareReleaseFiles({
+      cwd: root,
+      version: '2.15.0',
+      notes: '## [2.15.0](next-link)\n\nRelease notes',
+    });
+
+    await expect(verifyPreparedRelease(root, '2.15.0')).resolves.toBeUndefined();
+  });
+
+  it('rejects a package version that differs from the calculated release', async () => {
+    const root = await createReleaseFixture();
+    await writeFile(
+      path.join(root, 'CHANGELOG.md'),
+      '## [2.15.0](next-link)\n\nPrepared release notes\n',
+    );
+
+    await expect(verifyPreparedRelease(root, '2.15.0')).rejects.toThrow(
+      'package.json version 2.14.2 does not match calculated release 2.15.0',
+    );
   });
 });
