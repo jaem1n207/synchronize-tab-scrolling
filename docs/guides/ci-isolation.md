@@ -1,16 +1,18 @@
 # CI 파이프라인 격리: 확장 프로그램 vs 랜딩 페이지
 
 이 저장소는 하나의 모노레포에서 **브라우저 확장 프로그램**과 **랜딩 페이지**를 함께 관리합니다.
-두 프로젝트가 서로의 배포에 영향을 미치지 않도록 **2중 격리**(워크플로우 트리거 + semantic-release 규칙)를 적용합니다.
+두 프로젝트가 서로의 배포에 영향을 미치지 않도록 **3중 격리**(워크플로우 트리거 +
+release PR version gate + semantic-release 규칙)를 적용합니다.
 
 ---
 
 ## 워크플로우 구조
 
-| 워크플로우           | 대상                                       | 파일                                   |
-| -------------------- | ------------------------------------------ | -------------------------------------- |
-| `release.yml`        | 확장 프로그램 → Chrome/Edge/Firefox 스토어 | `.github/workflows/release.yml`        |
-| `deploy-landing.yml` | 랜딩 페이지 → GitHub Pages                 | `.github/workflows/deploy-landing.yml` |
+| 워크플로우               | 대상                                       | 파일                                       |
+| ------------------------ | ------------------------------------------ | ------------------------------------------ |
+| `prepare-release-pr.yml` | 확장 프로그램 release PR 준비              | `.github/workflows/prepare-release-pr.yml` |
+| `release.yml`            | 확장 프로그램 → Chrome/Edge/Firefox 스토어 | `.github/workflows/release.yml`            |
+| `deploy-landing.yml`     | 랜딩 페이지 → GitHub Pages                 | `.github/workflows/deploy-landing.yml`     |
 
 ---
 
@@ -28,9 +30,12 @@ on:
       - '.github/workflows/deploy-landing.yml'
 ```
 
-- `main` 브랜치에 push할 때 실행
+- `main` 브랜치에 push할 때 version check job 실행
 - **단, 랜딩 페이지 전용 파일만 변경된 경우 실행하지 않음**
 - `src/shared/**` 변경 시 실행됨 (확장 프로그램에도 영향을 줄 수 있으므로)
+- `package.json`의 version tag가 이미 존재하면 store publish job은 실행하지 않음
+- extension 변경을 배포하려면 `Prepare Release PR`을 수동 실행하고 생성된 version/CHANGELOG
+  PR을 병합해야 함
 
 ### `deploy-landing.yml` (랜딩 페이지)
 
@@ -54,12 +59,12 @@ on:
 
 ## 시나리오별 동작
 
-| 변경 내용                                                    | `release.yml`            | `deploy-landing.yml` |
-| ------------------------------------------------------------ | ------------------------ | -------------------- |
-| `src/landing/**`만 변경                                      | ❌ 건너뜀 (paths-ignore) | ✅ 실행              |
-| `src/popup/**`, `src/background/**`, `src/contentScripts/**` | ✅ 실행                  | ❌ 건너뜀            |
-| `src/shared/**`                                              | ✅ 실행                  | ✅ 실행              |
-| 랜딩 + 확장 프로그램 모두 변경                               | ✅ 실행                  | ✅ 실행              |
+| 변경 내용                                | `release.yml`                   | `deploy-landing.yml` |
+| ---------------------------------------- | ------------------------------- | -------------------- |
+| `src/landing/**`만 변경                  | ❌ 건너뜀                       | ✅ 실행              |
+| 일반 extension PR                        | version check 후 publish 건너뜀 | ❌ 건너뜀            |
+| `src/shared/**`                          | version check 후 publish 건너뜀 | ✅ 실행              |
+| release PR (`package.json` version 갱신) | ✅ build + store publish        | ❌ 건너뜀            |
 
 ---
 
@@ -68,8 +73,8 @@ on:
 워크플로우 트리거 격리만으로는 불충분한 경우가 있습니다:
 
 **문제 시나리오**: `src/shared/`와 `src/landing/` 모두 변경된 push
-→ `release.yml`이 실행됨 (shared 변경 때문)
-→ semantic-release가 `feat(landing): ...` 커밋을 분석하여 버전 범프
+→ 일반 PR merge에서는 package version tag가 이미 존재하므로 publish 건너뜀
+→ 다음 release PR 계산 시 semantic-release가 `feat(landing): ...` 커밋을 분석할 수 있음
 
 **해결**: `release.config.js`에서 `landing` 스코프 커밋을 버전 범프에서 제외:
 
@@ -97,9 +102,9 @@ on:
 
 **`(landing)` 스코프를 사용하지 않으면**:
 
-1. `release.yml`의 `paths-ignore`가 보호하지만
-2. `src/shared/` 변경과 함께 push된 경우 semantic-release가 버전을 올림
-3. 불필요한 확장 프로그램 릴리스가 Chrome/Edge/Firefox 스토어에 배포됨
+1. `release.yml`의 version gate가 일반 merge의 즉시 배포를 막지만
+2. 다음 release PR 계산에 landing 커밋이 포함되면 불필요한 version bump가 생길 수 있음
+3. 따라서 `(landing)` scope를 계속 사용해야 함
 
 ---
 
@@ -131,9 +136,9 @@ on:
 
 ### `src/shared/` 변경 시 양쪽 모두 배포됨
 
-이는 **의도된 동작**입니다. `src/shared/`는 양쪽 모두 사용하므로:
+`src/shared/`는 양쪽 모두 사용하므로:
 
-- 확장 프로그램: semantic-release가 커밋 메시지 분석 후 버전 범프 여부 결정
+- 확장 프로그램: 즉시 publish하지 않고 다음 release PR에 포함
 - 랜딩 페이지: 항상 재배포 (버전 개념 없음)
 
 단, `(landing)` 스코프 커밋은 `releaseRules`에 의해 버전 범프에서 제외되므로, shared 코드 변경과 landing 커밋만 있는 push에서는 확장 프로그램 버전이 올라가지 않습니다.

@@ -1,28 +1,35 @@
 # Store Deployment Pipeline
 
-이 문서는 Chrome Web Store, Firefox AMO, Microsoft Edge Add-ons에 자동 배포하는 CI/CD 파이프라인을 설명합니다.
-코드를 `main` 브랜치에 머지하면 semantic-release가 커밋을 분석하여 버전을 결정하고, 3개 스토어에 자동 배포합니다.
+이 문서는 Chrome Web Store, Firefox AMO, Microsoft Edge Add-ons에 배포하는 CI/CD 파이프라인을 설명합니다.
+확장 프로그램 변경은 먼저 release PR로 버전과 CHANGELOG를 검토한 뒤, 해당 PR이 `main`에
+병합될 때만 3개 스토어에 배포합니다.
 
 ---
 
 ## 전체 흐름
 
 ```
-push to main
+Prepare Release PR 수동 실행
     │
+    ├─ semantic-release dry-run → 다음 버전과 release notes 계산
+    ├─ package.json + CHANGELOG.md 갱신
+    └─ release/vX.Y.Z branch + release PR 생성
+
+release PR required checks 통과 및 병합
+    │
+    ├─ package.json의 vX.Y.Z tag 존재 여부 확인
     ├─ Build Chrome → extension/ staging → validate/copy to build/chromium/
     ├─ Build Firefox → extension/ staging → validate/copy to build/firefox/
     │
     └─ semantic-release
-         ├─ analyzeCommits → 커밋 메시지 분석 → 다음 버전 결정
+         ├─ analyzeCommits → 커밋 메시지 분석 → 다음 버전 검증
          ├─ generateNotes → 릴리스 노트 생성
          ├─ prepare:
-         │    ├─ changelog → CHANGELOG.md 업데이트
          │    ├─ semantic-release-chrome → build/chromium/manifest.json에 버전 기록, zip 생성
          │    ├─ semantic-release-amo → build/firefox/manifest.json에 버전 기록, zip 생성
-         │    ├─ npm → package.json 버전 업데이트
-         │    └─ git → CHANGELOG.md + package.json 커밋
+         │    └─ npm → runner의 package.json 버전 검증
          └─ publish:
+              ├─ vX.Y.Z tag 생성
               ├─ semantic-release-chrome → Chrome Web Store 업로드
               ├─ semantic-release-amo → Firefox AMO 업로드
               ├─ github → GitHub Release 생성 + zip 에셋 첨부
@@ -33,12 +40,14 @@ push to main
 
 ## 관련 파일
 
-| 파일                            | 역할                                                            |
-| ------------------------------- | --------------------------------------------------------------- |
-| `.github/workflows/release.yml` | GitHub Actions 워크플로우 — 빌드, 패키징, semantic-release 실행 |
-| `release.config.js`             | semantic-release 플러그인 구성 — 스토어별 설정 포함             |
-| `scripts/publish-edge.mjs`      | Edge Add-ons API 호출 스크립트 (soft-fail 지원)                 |
-| `src/manifest.ts`               | 동적 manifest.json 생성 — 브라우저별 분기                       |
+| 파일                                       | 역할                                                         |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `.github/workflows/prepare-release-pr.yml` | 다음 버전과 CHANGELOG를 담은 release PR 생성                 |
+| `.github/workflows/release.yml`            | 승인된 package version의 빌드, 패키징, semantic-release 실행 |
+| `scripts/prepare-release-pr.ts`            | semantic-release dry-run 결과를 package/CHANGELOG에 반영     |
+| `release.config.js`                        | semantic-release publish 플러그인 구성                       |
+| `scripts/publish-edge.mjs`                 | Edge Add-ons API 호출 스크립트 (soft-fail 지원)              |
+| `src/manifest.ts`                          | 동적 manifest.json 생성 — 브라우저별 분기                    |
 
 ---
 
@@ -89,7 +98,7 @@ pnpm build-firefox     # Firefox staging → build/firefox/
 
 Repository Settings → Secrets and variables → Actions 에서 등록합니다.
 
-### GitHub Release / release commit
+### Release PR / GitHub Release
 
 | 종류     | 이름                      | 설명                                              |
 | -------- | ------------------------- | ------------------------------------------------- |
@@ -100,24 +109,23 @@ release 전용 GitHub App은 다음 원칙으로 구성합니다.
 
 - App 이름: `synchronize-tab-scrolling-release`
 - 소유자/설치 가능 계정: `jaem1n207`
-- Repository permission: `Contents: Read and write`만 허용
+- Repository permission: `Contents: Read and write`, `Pull requests: Read and write`
 - Webhook, OAuth user authorization, Device Flow: 비활성화
 - Repository access: `jaem1n207/synchronize-tab-scrolling`만 선택
-- `main` ruleset bypass list: App을 `Always allow`로 등록
 
 워크플로우는 `actions/create-github-app-token@v3`으로 현재 저장소에만 유효한 installation
-token을 만들고 `permission-contents: write`로 권한을 다시 제한합니다. 이 token은 1시간
-이내 만료되며 job 종료 시 action이 폐기합니다.
+token을 만듭니다. 이 token은 1시간 이내 만료되며 job 종료 시 action이 폐기됩니다.
 
-checkout은 read-only 기본 Actions token을 사용하고 `persist-credentials: false`로 후속
-step에 Git credential을 남기지 않습니다. Chrome/Firefox 빌드가 모두 끝난 뒤에만 release
-App token을 생성하고, semantic-release step의 `GITHUB_TOKEN`으로만 전달합니다.
-semantic-release는 이 환경변수를 Git push와 GitHub API 인증에 사용하므로 release
-commit/tag와 GitHub Release가 같은 App actor로 처리됩니다. install/build step은 App
-private key나 `main` ruleset bypass 권한이 있는 token에 접근할 수 없습니다.
+두 workflow의 checkout은 read-only 기본 Actions token을 사용하고
+`persist-credentials: false`로 후속 step에 Git credential을 남기지 않습니다.
 
-검증 완료 후 기존 `RELEASE_GITHUB_TOKEN` secret과 `Repository admin` role bypass는
-제거했으며, release App만 자동 release를 위한 예외 actor로 유지합니다.
+- `prepare-release-pr.yml`: install이 끝난 뒤에만 `Contents: write`와
+  `Pull requests: write` token을 생성해 release branch push와 PR 생성에 사용합니다.
+- `release.yml`: Chrome/Firefox build가 모두 끝난 뒤에만 `Contents: write` token을 생성해
+  tag push와 GitHub Release 생성에 사용합니다.
+
+release App은 `main`을 직접 push하지 않으므로 ruleset bypass actor가 아닙니다.
+`package.json`과 `CHANGELOG.md`는 required checks를 통과한 PR로만 변경됩니다.
 
 ### Chrome Web Store
 
@@ -158,7 +166,8 @@ private key나 `main` ruleset bypass 권한이 있는 token에 접근할 수 없
 - 무중단 rotation은 새 private key를 생성하고 `RELEASE_APP_PRIVATE_KEY`를 교체한 뒤,
   release token 생성이 성공하는지 확인하고 이전 key를 삭제하는 순서로 진행합니다.
 - App 권한을 확대하면 설치 소유자의 별도 승인이 필요할 수 있습니다. 이 파이프라인은
-  `Contents: Read and write` 외 권한을 요구하지 않습니다.
+  release branch/tag 및 GitHub Release용 `Contents: Read and write`와 release PR 생성용
+  `Pull requests: Read and write`만 요구합니다.
 - private key 파일은 repository에 커밋하지 않고 GitHub Actions secret에 등록한 후 로컬
   다운로드 파일을 안전하게 삭제합니다.
 
@@ -183,32 +192,39 @@ private key나 `main` ruleset bypass 권한이 있는 token에 접근할 수 없
 
 ## Troubleshooting
 
-### semantic-release가 버전을 올리지 않는 경우
+### Prepare Release PR이 버전을 결정하지 못하는 경우
 
 - Conventional Commits 형식을 따르지 않는 커밋만 있으면 버전이 올라가지 않음
 - `fix:`, `feat:` 등의 prefix가 있는 커밋이 필요
 - `chore:`, `docs:`, `style:` 등은 기본적으로 버전 변경을 트리거하지 않음
 
-### release commit push가 ruleset에 막히는 경우
+### Release workflow가 publish job을 건너뛰는 경우
 
-- 로그에 `GH013: Repository rule violations found for refs/heads/main`가 표시되면 release
-  commit/tag push가 `main` ruleset을 통과하지 못한 것입니다.
-- `synchronize-tab-scrolling-release` App이 현재 저장소에 설치되어 있는지 확인합니다.
-- `main` ruleset bypass list에 App이 `Always allow`로 등록되어 있는지 확인합니다.
-- `Generate release app token`이 build step 뒤, `Release` step 바로 앞에 있는지 확인합니다.
-- `Release` step의 `GITHUB_TOKEN`이
-  `${{ steps.release-app-token.outputs.token }}`인지 확인합니다. semantic-release는 이
-  환경변수를 Git push와 GitHub API 인증에 모두 사용합니다.
-- `actions/checkout`은 `persist-credentials: false`를 유지해야 합니다. release App token을
-  checkout에 전달하면 install/build step에도 `main` bypass Git credential이 노출됩니다.
+- `Check release version` 로그에서 `vX.Y.Z is already released`를 확인합니다.
+- 일반 extension PR merge는 package version을 변경하지 않으므로 publish job을 건너뛰는
+  것이 정상입니다.
+- 새 배포가 필요하면 `Prepare Release PR` workflow를 수동 실행하고 생성된 PR을
+  required checks 후 병합합니다.
+- package version에 대응하는 tag가 이미 있는데 재배포가 필요한 경우 tag를 삭제해
+  우회하지 말고, 실패한 release job의 publish 상태와 스토어별 복구 절차를 먼저 확인합니다.
 
 ### release App token 생성이 실패하는 경우
 
 - `RELEASE_APP_CLIENT_ID`가 App ID가 아닌 Client ID인지 확인합니다.
 - `RELEASE_APP_PRIVATE_KEY`에 PEM의 시작/끝 줄을 포함한 전체 내용이 들어 있는지 확인합니다.
 - App 설치 범위에 현재 저장소가 포함되어 있는지 확인합니다.
-- App과 설치의 `Contents: Read and write` 권한이 모두 승인되어 있는지 확인합니다.
+- App과 설치의 `Contents: Read and write`, `Pull requests: Read and write` 권한이 모두
+  승인되어 있는지 확인합니다.
 - key를 교체했다면 새 secret이 저장된 뒤 이전 private key를 삭제했는지 확인합니다.
+
+### Release PR 생성이 실패하는 경우
+
+- `release/vX.Y.Z` branch나 동일 버전의 open PR이 이미 있는지 확인합니다. workflow는
+  기존 release branch를 force-push하지 않습니다.
+- App token이 현재 저장소 하나로 제한되어 있고 `permission-pull-requests: write`를
+  요청하는지 확인합니다.
+- PR은 release App token으로 생성해야 required PR workflows가 실행됩니다. 기본
+  `GITHUB_TOKEN`으로 대체하지 않습니다.
 
 ### Chrome Web Store 업로드 실패
 
