@@ -32,22 +32,25 @@ release PR required checks 통과 및 병합
               ├─ vX.Y.Z tag 생성
               ├─ semantic-release-chrome → Chrome Web Store 업로드
               ├─ semantic-release-amo → Firefox AMO 업로드
-              ├─ github → GitHub Release 생성 + zip 에셋 첨부
-              └─ exec → scripts/publish-edge.mjs (Chrome zip으로 Edge 업로드)
+              └─ github → GitHub Release 생성 + zip 에셋 첨부
+
+Edge Add-ons best-effort step
+    └─ scripts/publish-edge.mjs → Chrome zip을 Edge에 업로드·제출
 ```
 
 ---
 
 ## 관련 파일
 
-| 파일                                       | 역할                                                         |
-| ------------------------------------------ | ------------------------------------------------------------ |
-| `.github/workflows/prepare-release-pr.yml` | 다음 버전과 CHANGELOG를 담은 release PR 생성                 |
-| `.github/workflows/release.yml`            | 승인된 package version의 빌드, 패키징, semantic-release 실행 |
-| `scripts/prepare-release-pr.ts`            | semantic-release dry-run 결과를 package/CHANGELOG에 반영     |
-| `release.config.js`                        | semantic-release publish 플러그인 구성                       |
-| `scripts/publish-edge.mjs`                 | Edge Add-ons API 호출 스크립트 (soft-fail 지원)              |
-| `src/manifest.ts`                          | 동적 manifest.json 생성 — 브라우저별 분기                    |
+| 파일                                         | 역할                                                     |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `.github/workflows/prepare-release-pr.yml`   | 다음 버전과 CHANGELOG를 담은 release PR 생성             |
+| `.github/workflows/release.yml`              | 승인된 package version의 빌드, 패키징, 스토어 배포       |
+| `.github/workflows/publish-edge-release.yml` | 기존 GitHub Release asset의 Edge 수동 재제출             |
+| `scripts/prepare-release-pr.ts`              | semantic-release dry-run 결과를 package/CHANGELOG에 반영 |
+| `release.config.js`                          | semantic-release publish 플러그인 구성                   |
+| `scripts/publish-edge.mjs`                   | Edge Add-ons API 호출 스크립트                           |
+| `src/manifest.ts`                            | 동적 manifest.json 생성 — 브라우저별 분기                |
 
 ---
 
@@ -87,9 +90,14 @@ pnpm build-firefox     # Firefox staging → build/firefox/
 
 ### Microsoft Edge Add-ons
 
-- **방식**: `@semantic-release/exec` → `scripts/publish-edge.mjs`
-- **동작**: Chrome zip을 Edge Add-ons API v1.1로 업로드 (Edge는 Chromium 기반이므로 Chrome 빌드 재사용)
-- **Soft-fail**: 자격증명이 없으면 경고만 출력하고 exit 0 (Chrome/Firefox/GitHub Release는 정상 진행)
+- **방식**: semantic-release 완료 후 별도 `Publish Edge Add-ons` step에서
+  `scripts/publish-edge.mjs` 실행
+- **동작**: Chrome zip을 Edge Add-ons API v1.1로 업로드하고 certification notes 없이
+  제출 (Edge는 Chromium 기반이므로 Chrome 빌드 재사용)
+- **Soft-fail**: Edge step은 `continue-on-error`이므로 실패해도 이미 완료된
+  Chrome/Firefox/GitHub Release를 실패로 바꾸지 않음
+- **수동 재시도**: `Publish Edge Release` workflow에 이미 릴리스된 버전을 입력하면 해당
+  GitHub Release의 Chrome zip을 내려받아 Edge에 다시 제출
 - **자격증명**: API Key + Client ID + Product ID
 
 ---
@@ -240,8 +248,12 @@ release App은 `main`을 직접 push하지 않으므로 ruleset bypass actor가 
 ### Edge Add-ons 업로드 실패
 
 - `401 Unauthorized`: API Key 만료 → Partner Center에서 갱신
+- publish 단계의 `400 Bad Request`: `Publish Edge Release` workflow에 릴리스 버전을 입력해
+  GitHub Release의 동일 Chrome zip을 certification notes 없이 재제출
 - `409 Conflict`: 이전 제출이 아직 처리 중 → 잠시 후 재시도
 - Edge 배포 실패는 릴리스 전체를 차단하지 않음 (soft-fail)
+- tag나 GitHub Release를 삭제하지 않음. Chrome/Firefox에 이미 게시된 동일 버전을 다시
+  semantic-release로 배포하지 않음
 
 ### 워크플로우 디버깅
 
