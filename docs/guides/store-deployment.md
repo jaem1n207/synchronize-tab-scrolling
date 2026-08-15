@@ -8,7 +8,7 @@
 
 ## 전체 흐름
 
-```
+```text
 Prepare Release PR 수동 실행
     │
     ├─ semantic-release dry-run → 다음 버전과 release notes 계산
