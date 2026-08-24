@@ -66,7 +66,7 @@ pnpm start:firefox      # Launch in Firefox
 - **Files**: kebab-case. **Components**: PascalCase. **Hooks**: useCamelCase
 - **Imports**: `~/` alias → `src/`. ESLint-enforced ordering: react → external → `~/` → relative → type
 - **Barrel files**: Every directory with multiple exports has `index.ts`
-- **TypeScript**: `interface` over `type`. Prefer unions over enums except for boolean function parameters, which require descriptive enums. No `any`, no `as` assertions. `import type` enforced
+- **TypeScript**: Use `interface` for object shapes and `type` aliases for unions. Prefer unions over enums, except replace boolean function parameters with descriptive enums. No `any`, no `as` assertions. `import type` enforced
 - **Values**: Extract recurring, meaningful, or spec-defined numbers and strings into descriptive constants or enums. Always constantize spec values, such as HTTP 200. Keep self-explanatory one-offs inline.
 - **Control flow**: Minimize indentation. Avoid the Arrow Anti-Pattern. Prefer early returns and `continue`.
 - **Functions**: Keep names under 30 characters.
