@@ -2,6 +2,11 @@
 
 Cross-browser extension (Chrome/Edge/Firefox/Brave) synchronizing scroll positions across tabs. React 19 + TypeScript, Vite, UnoCSS + Tailwind + shadcn/ui, webextension-polyfill, webext-bridge.
 
+## Communication
+
+- **Human-facing text**: Use the fewest words possible in comments, commit messages, and prompt replies. Choose every word.
+- **Tone**: No praise or superlatives. State the cold hard truth.
+
 ## Structure
 
 ```
@@ -61,7 +66,15 @@ pnpm start:firefox      # Launch in Firefox
 - **Files**: kebab-case. **Components**: PascalCase. **Hooks**: useCamelCase
 - **Imports**: `~/` alias → `src/`. ESLint-enforced ordering: react → external → `~/` → relative → type
 - **Barrel files**: Every directory with multiple exports has `index.ts`
-- **TypeScript**: `interface` over `type`. Union types over enum. No `any`, no `as` assertions. `import type` enforced
+- **TypeScript**: Use `interface` for object shapes and `type` aliases for unions. Prefer unions over enums, except replace boolean function parameters with descriptive enums. No `any`, no `as` assertions. `import type` enforced
+- **Values**: Extract recurring, meaningful, or spec-defined numbers and strings into descriptive constants or enums. Always constantize spec values, such as HTTP 200. Keep self-explanatory one-offs inline.
+- **Control flow**: Minimize indentation. Avoid the Arrow Anti-Pattern. Prefer early returns and `continue`.
+- **Functions**: Keep names under 30 characters.
+- **Whitespace**: Add empty lines between logical blocks.
+- **Abstraction**: Encapsulate low-level mechanics in dedicated drivers or abstraction layers. Expose domain-level APIs.
+- **Layers**: A layer may call only its immediate lower neighbor. Never bypass intermediate layers.
+- **Braces**: Always use `{}`, including one-line `if` statements.
+- **Bug fixes**: Write the test first, confirm it fails, implement the fix, then confirm it passes.
 - **Formatting**: Prettier — `singleQuote`, `printWidth: 100`, `tabWidth: 2`, `semi: true`
 - **Commits**: Conventional Commits. Landing changes MUST use `(landing)` scope — without it, commits trigger extension store releases. `release.config.js`: `releaseRules: [{ scope: 'landing', release: false }]`
 - **Pull Requests**: Always `--assignee jaem1n207`
