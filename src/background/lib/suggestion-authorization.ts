@@ -95,14 +95,14 @@ export function createProposalRegistry(
   }
 
   function removeExpired(now: number): void {
-    const expiredKeys = new Set<string>();
-    for (const proposal of proposals.values()) {
+    const expiredTokens: Array<string> = [];
+    for (const [token, proposal] of proposals) {
       if (proposal.expiresAt <= now) {
-        expiredKeys.add(proposal.proposalKey);
+        expiredTokens.push(token);
       }
     }
-    for (const proposalKey of expiredKeys) {
-      deleteProposal(proposalKey);
+    for (const token of expiredTokens) {
+      revokeToken(token);
     }
   }
 

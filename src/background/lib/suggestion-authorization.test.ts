@@ -90,6 +90,38 @@ describe('createProposalRegistry', () => {
     ).toBe(false);
   });
 
+  it('keeps a later sibling token valid when an earlier token expires', () => {
+    let now = 1_000;
+    let tokenSequence = 0;
+    const registry = createProposalRegistry({
+      now: () => now,
+      createToken: () => `token-${++tokenSequence}`,
+      lifetimeMs: 500,
+    });
+    const earlierToken = registry.issue({ ...SYNC_CLAIMS, responderTabIds: [11] }).get(11);
+
+    now = 1_200;
+    const laterToken = registry.issue({ ...SYNC_CLAIMS, responderTabIds: [22] }).get(22);
+
+    now = 1_500;
+    expect(
+      registry.consume({
+        ...SYNC_CLAIMS,
+        token: earlierToken,
+        senderContext: 'content-script',
+        senderTabId: 11,
+      }),
+    ).toBe(false);
+    expect(
+      registry.consume({
+        ...SYNC_CLAIMS,
+        token: laterToken,
+        senderContext: 'content-script',
+        senderTabId: 22,
+      }),
+    ).toBe(true);
+  });
+
   it('binds add-tab proposals to the suggested tab identity', () => {
     const registry = createProposalRegistry({
       now: () => 1_000,
