@@ -18,9 +18,18 @@ import {
   suggestionSnoozeUntil,
 } from './auto-sync-state';
 import { sendMessageWithTimeout } from './messaging';
+import { suggestionProposalRegistry } from './suggestion-authorization';
 import { syncState } from './sync-state';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-suggestions' });
+const SUGGESTION_DELIVERY_WINDOW_MS = 5_000;
+const SUGGESTION_SEND_TIMEOUT_MS = 10_000;
+
+function wasSuggestionDisplayed(response: unknown): boolean {
+  return (
+    typeof response === 'object' && response !== null && Reflect.get(response, 'success') === true
+  );
+}
 
 export function isDomainPermanentlyExcluded(normalizedUrl: string): boolean {
   const domain = extractDomainFromUrl(normalizedUrl);
@@ -227,15 +236,29 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
   });
 
   const expectedRevision = syncState.revision;
+  const proposalDeliveryDeadline = Date.now() + SUGGESTION_DELIVERY_WINDOW_MS;
+  const proposalTokens = suggestionProposalRegistry.issue({
+    kind: 'sync',
+    normalizedUrl,
+    expectedRevision,
+    responderTabIds: uniqueTargetTabs,
+  });
 
   // Send toast to all tabs in parallel
   const results = await Promise.allSettled(
     uniqueTargetTabs.map(async (targetTabId) => {
+      const proposalToken = proposalTokens.get(targetTabId);
+      if (!proposalToken) {
+        return { tabId: targetTabId, success: false };
+      }
+
       try {
-        await sendMessageWithTimeout(
+        const response = await sendMessageWithTimeout(
           'sync-suggestion:show',
           {
             normalizedUrl,
+            proposalToken,
+            proposalDeliveryDeadline,
             tabCount: tabIds.length,
             tabIds,
             tabTitles,
@@ -249,10 +272,15 @@ export async function showSyncSuggestion(normalizedUrl: string): Promise<void> {
               }),
           },
           { context: 'content-script', tabId: targetTabId },
-          2_000, // 2 second timeout
+          SUGGESTION_SEND_TIMEOUT_MS,
         );
+        if (!wasSuggestionDisplayed(response)) {
+          suggestionProposalRegistry.revoke(proposalToken);
+          return { tabId: targetTabId, success: false };
+        }
         return { tabId: targetTabId, success: true };
       } catch (error) {
+        suggestionProposalRegistry.revoke(proposalToken);
         return {
           tabId: targetTabId,
           success: false,
@@ -338,13 +366,27 @@ export async function sendSuggestionToSingleTab(
     return;
   }
 
+  const expectedRevision = syncState.revision;
+  const proposalDeliveryDeadline = Date.now() + SUGGESTION_DELIVERY_WINDOW_MS;
+  const proposalTokens = suggestionProposalRegistry.issue({
+    kind: 'sync',
+    normalizedUrl,
+    expectedRevision,
+    responderTabIds: [tabId],
+  });
+  const proposalToken = proposalTokens.get(tabId);
+  if (!proposalToken) {
+    return;
+  }
+
   // Send toast to the single new tab
   try {
-    const expectedRevision = syncState.revision;
-    await sendMessage(
+    const response = await sendMessage(
       'sync-suggestion:show',
       {
         normalizedUrl,
+        proposalToken,
+        proposalDeliveryDeadline,
         tabIds,
         tabTitles,
         tabCount: tabIds.length,
@@ -359,11 +401,16 @@ export async function sendSuggestionToSingleTab(
       },
       { context: 'content-script', tabId },
     );
+    if (!wasSuggestionDisplayed(response)) {
+      suggestionProposalRegistry.revoke(proposalToken);
+      return;
+    }
     logger.info('[AUTO-SYNC] Sent suggestion to newly joined tab', {
       tabId,
       groupTabCount: tabIds.length,
     });
   } catch (error) {
+    suggestionProposalRegistry.revoke(proposalToken);
     logger.warn('[AUTO-SYNC] Failed to send suggestion to new tab', { tabId, error });
   }
 }
@@ -425,27 +472,47 @@ export async function showAddTabSuggestion(
   });
 
   const expectedRevision = syncState.revision;
+  const proposalDeliveryDeadline = Date.now() + SUGGESTION_DELIVERY_WINDOW_MS;
+  const proposalTokens = suggestionProposalRegistry.issue({
+    kind: 'add-tab',
+    normalizedUrl,
+    expectedRevision,
+    suggestedTabId: tabId,
+    responderTabIds: uniqueTargetTabs,
+  });
 
   // Send toast to all tabs in parallel
   const results = await Promise.allSettled(
     uniqueTargetTabs.map(async (targetTabId) => {
+      const proposalToken = proposalTokens.get(targetTabId);
+      if (!proposalToken) {
+        return { tabId: targetTabId, success: false };
+      }
+
       try {
-        await sendMessageWithTimeout(
+        const response = await sendMessageWithTimeout(
           'sync-suggestion:add-tab',
           {
             tabId,
             tabTitle,
             hasManualOffsets,
             normalizedUrl,
+            proposalToken,
+            proposalDeliveryDeadline,
             expectedRevision,
             ...(matchKind && { matchKind }),
             ...(matchConfidence && { matchConfidence }),
           },
           { context: 'content-script', tabId: targetTabId },
-          2_000, // 2 second timeout
+          SUGGESTION_SEND_TIMEOUT_MS,
         );
+        if (!wasSuggestionDisplayed(response)) {
+          suggestionProposalRegistry.revoke(proposalToken);
+          return { tabId: targetTabId, success: false };
+        }
         return { tabId: targetTabId, success: true };
       } catch (error) {
+        suggestionProposalRegistry.revoke(proposalToken);
         return {
           tabId: targetTabId,
           success: false,

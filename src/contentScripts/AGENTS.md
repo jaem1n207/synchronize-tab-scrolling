@@ -81,8 +81,8 @@ unapplied future targets cannot pollute offsets or apply after state changes.
   only the current title, current-tab flag, signed manual pixel offset, and connection status.
   Keep that data unavailable to host-page DOM traversal; never add URL, favicon, tab ID, or window
   ID to the content snapshot.
-- `suggestion-toast.tsx` and `quick-sync-hud.tsx` use open Shadow roots because their UI contains no
-  synchronized-tab title or manual-offset data.
+- `suggestion-toast.tsx` uses a closed Shadow root because it renders cross-tab suggestion data and
+  consequential controls. `quick-sync-hud.tsx` uses an open root because it contains feedback only.
 - z-index `2147483647` — maximum safe value, ensures visibility above all page content
 - **Re-injection safety**: Check for existing orphaned containers before creating new Shadow DOM roots
 - `messageHandlersRegistered` flag prevents duplicate `onMessage` handler registration on re-injection

@@ -393,6 +393,9 @@ beforeEach(() => {
       if (messageId === 'scroll:ping' && destination) {
         return { success: true, tabId: destination.tabId, isSyncActive: false };
       }
+      if (messageId === 'sync-suggestion:show' || messageId === 'sync-suggestion:add-tab') {
+        return { success: true };
+      }
       return undefined;
     },
   );

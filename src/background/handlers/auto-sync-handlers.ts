@@ -36,6 +36,7 @@ import {
 } from '../lib/legacy-auto-sync-adapter';
 import { manualOverrideAdapter } from '../lib/manual-override-adapter';
 import { sendMessageWithTimeout } from '../lib/messaging';
+import { suggestionProposalRegistry } from '../lib/suggestion-authorization';
 import { createManualCleanupRetryScheduler } from '../lib/sync-cleanup-retry';
 import { createSyncSessionOrchestrator } from '../lib/sync-session-orchestrator';
 import {
@@ -352,11 +353,25 @@ export function registerAutoSyncHandlers(): void {
   onMessage(
     'sync-suggestion:response',
     async ({
-      data: { accepted, expectedRevision, normalizedUrl, permanent, snooze },
+      data: { accepted, expectedRevision, normalizedUrl, permanent, proposalToken, snooze },
+      sender,
     }): Promise<SyncSuggestionDecisionResponse> => {
       const readiness = await waitForBackgroundInitialization();
       if (readiness.manual.status !== 'ready' || readiness.auto.status !== 'ready') {
         return { success: false, reason: 'initialization-unavailable' };
+      }
+
+      if (
+        !suggestionProposalRegistry.consume({
+          kind: 'sync',
+          normalizedUrl,
+          expectedRevision,
+          token: proposalToken,
+          senderContext: sender.context,
+          senderTabId: sender.tabId,
+        })
+      ) {
+        return { success: false, reason: 'invalid-suggestion-proposal' };
       }
 
       logger.info('[AUTO-SYNC] Received sync suggestion response', {
@@ -455,11 +470,26 @@ export function registerAutoSyncHandlers(): void {
   onMessage(
     'sync-suggestion:add-tab-response',
     async ({
-      data: { accepted, expectedRevision, tabId, permanent, snooze, normalizedUrl },
+      data: { accepted, expectedRevision, tabId, permanent, proposalToken, snooze, normalizedUrl },
+      sender,
     }): Promise<SyncSuggestionDecisionResponse> => {
       const readiness = await waitForBackgroundInitialization();
       if (readiness.manual.status !== 'ready' || readiness.auto.status !== 'ready') {
         return { success: false, reason: 'initialization-unavailable' };
+      }
+
+      if (
+        !suggestionProposalRegistry.consume({
+          kind: 'add-tab',
+          normalizedUrl,
+          expectedRevision,
+          suggestedTabId: tabId,
+          token: proposalToken,
+          senderContext: sender.context,
+          senderTabId: sender.tabId,
+        })
+      ) {
+        return { success: false, reason: 'invalid-suggestion-proposal' };
       }
 
       logger.info('[AUTO-SYNC] Received add-tab suggestion response', {

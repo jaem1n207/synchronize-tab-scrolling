@@ -343,6 +343,8 @@ export interface AutoSyncDetailedStatusResponse {
  */
 export interface SyncSuggestionMessage {
   normalizedUrl: string;
+  proposalToken: string;
+  proposalDeliveryDeadline: number;
   tabCount: number;
   tabIds: Array<number>;
   tabTitles: Array<string>;
@@ -368,6 +370,7 @@ export type TranslatedPageMetadataResponseMessage =
  */
 export interface SyncSuggestionResponseMessage {
   normalizedUrl: string;
+  proposalToken: string;
   accepted: boolean;
   expectedRevision: number;
   /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
@@ -384,6 +387,8 @@ export interface AddTabToSyncMessage {
   tabTitle: string;
   hasManualOffsets: boolean;
   normalizedUrl: string;
+  proposalToken: string;
+  proposalDeliveryDeadline: number;
   expectedRevision: number;
   matchKind?: AutoSyncSuggestionMatchKind;
   matchConfidence?: TranslatedPageConfidence;
@@ -394,18 +399,23 @@ export interface AddTabToSyncMessage {
  */
 export interface AddTabToSyncResponseMessage {
   tabId: number;
+  normalizedUrl: string;
+  proposalToken: string;
   accepted: boolean;
   expectedRevision: number;
   /** When true, the domain is snoozed for a duration (explicit dismiss via button/X) */
   snooze?: boolean;
   /** When true, the domain is permanently excluded from suggestions */
   permanent?: boolean;
-  normalizedUrl?: string;
 }
 
 export type SyncSuggestionDecisionResponse =
   | { success: true; revision?: number; warning?: 'auto-sync-degraded' }
   | { success: false; reason: string; warning?: 'auto-sync-degraded' };
+
+export interface SuggestionDisplayResponse {
+  success: boolean;
+}
 
 /**
  * Message to dismiss add-tab toast on all tabs (when one tab responds)

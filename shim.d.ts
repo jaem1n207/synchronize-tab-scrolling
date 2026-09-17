@@ -31,6 +31,7 @@ import type {
   StopSyncResponse,
   SyncBaselineUpdateMessage,
   SyncSuggestionDecisionResponse,
+  SuggestionDisplayResponse,
   SyncSuggestionMessage,
   SyncSuggestionResponseMessage,
   TranslatedPageMetadataRequestMessage,
@@ -93,7 +94,7 @@ declare module 'webext-bridge' {
     'auto-sync:status-changed': ProtocolWithReturn<AutoSyncStatusChangedMessage, unknown>;
     'auto-sync:group-updated': AutoSyncGroupUpdatedMessage;
     'auto-sync:get-status': ProtocolWithReturn<Record<string, never>, unknown>;
-    'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, unknown>;
+    'sync-suggestion:show': ProtocolWithReturn<SyncSuggestionMessage, SuggestionDisplayResponse>;
     'sync-suggestion:response': ProtocolWithReturn<
       SyncSuggestionResponseMessage,
       SyncSuggestionDecisionResponse
@@ -102,7 +103,7 @@ declare module 'webext-bridge' {
       TranslatedPageMetadataRequestMessage,
       TranslatedPageMetadataResponseMessage
     >;
-    'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, unknown>;
+    'sync-suggestion:add-tab': ProtocolWithReturn<AddTabToSyncMessage, SuggestionDisplayResponse>;
     'sync-suggestion:add-tab-response': ProtocolWithReturn<
       AddTabToSyncResponseMessage,
       SyncSuggestionDecisionResponse

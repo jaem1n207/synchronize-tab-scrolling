@@ -64,6 +64,8 @@ describe('AddTabToSyncToast', () => {
     expectedRevision: 4,
     hasManualOffsets: true,
     normalizedUrl: 'example.com/docs',
+    proposalToken: 'proposal-token',
+    proposalDeliveryDeadline: Number.MAX_SAFE_INTEGER,
     tabId: 3,
     tabTitle: 'Example Docs',
   };

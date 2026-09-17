@@ -1129,6 +1129,8 @@ describe('panel suggestion transport', () => {
       getRequiredHandler('sync-suggestion:show')({
         data: {
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'sync-proposal-token',
+          proposalDeliveryDeadline: Number.MAX_SAFE_INTEGER,
           tabCount: 2,
           tabIds: [11, 22],
           tabTitles: ['First', 'Second'],
@@ -1143,6 +1145,7 @@ describe('panel suggestion transport', () => {
         'sync-suggestion:response',
         {
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'sync-proposal-token',
           accepted,
           expectedRevision: 14,
         },
@@ -1173,6 +1176,8 @@ describe('panel suggestion transport', () => {
           tabTitle: 'Third',
           hasManualOffsets: false,
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'add-proposal-token',
+          proposalDeliveryDeadline: Number.MAX_SAFE_INTEGER,
           expectedRevision: 15,
         },
       });
@@ -1184,6 +1189,8 @@ describe('panel suggestion transport', () => {
         'sync-suggestion:add-tab-response',
         {
           tabId: 33,
+          normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'add-proposal-token',
           accepted,
           expectedRevision: 15,
         },
@@ -1208,6 +1215,8 @@ describe('panel suggestion transport', () => {
           tabTitle: 'Third',
           hasManualOffsets: false,
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'add-proposal-token',
+          proposalDeliveryDeadline: Number.MAX_SAFE_INTEGER,
           expectedRevision: 15,
         },
       });
@@ -1232,6 +1241,8 @@ describe('panel suggestion transport', () => {
           tabTitle: 'Third',
           hasManualOffsets: false,
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'add-proposal-token',
+          proposalDeliveryDeadline: Number.MAX_SAFE_INTEGER,
           expectedRevision: 15,
         },
       });

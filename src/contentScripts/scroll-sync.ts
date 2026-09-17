@@ -1982,8 +1982,7 @@ export function initScrollSync() {
     logger.info('Showing sync suggestion toast', {
       tabCount: payload.tabCount,
     });
-    showSyncSuggestionToast(payload);
-    return { success: true };
+    return { success: await showSyncSuggestionToast(payload) };
   });
 
   // Listen for add tab to sync suggestion from background
@@ -1993,8 +1992,7 @@ export function initScrollSync() {
       tabId: payload.tabId,
       hasMatchKind: payload.matchKind !== undefined,
     });
-    showAddTabSuggestionToast(payload);
-    return { success: true };
+    return { success: await showAddTabSuggestionToast(payload) };
   });
 
   onMessage('contextual-hint:show', async ({ data }) => {
