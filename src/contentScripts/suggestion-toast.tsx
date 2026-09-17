@@ -47,6 +47,10 @@ let toastThemeChangeListener: ((e: MediaQueryListEvent) => void) | null = null;
 // Memory leak fix: Prevent duplicate onMessage handler registration on re-injection
 let messageHandlersRegistered = false;
 
+function isSuggestionDeliveryValid(deadline: unknown): boolean {
+  return typeof deadline === 'number' && Number.isFinite(deadline) && Date.now() < deadline;
+}
+
 /**
  * Detect system theme preference
  */
@@ -147,7 +151,7 @@ async function ensureToastContainer(): Promise<void> {
   document.body.appendChild(toastContainer);
 
   // Create shadow DOM for style isolation
-  const shadowRoot = toastContainer.attachShadow({ mode: 'open' });
+  const shadowRoot = toastContainer.attachShadow({ mode: 'closed' });
 
   // Create theme wrapper
   const themeWrapper = document.createElement('div');
@@ -481,6 +485,7 @@ function renderToast() {
         'sync-suggestion:response',
         {
           normalizedUrl: currentSuggestion.normalizedUrl,
+          proposalToken: currentSuggestion.proposalToken,
           accepted: true,
           expectedRevision: currentSuggestion.expectedRevision,
         },
@@ -507,6 +512,7 @@ function renderToast() {
         'sync-suggestion:response',
         {
           normalizedUrl: currentSuggestion.normalizedUrl,
+          proposalToken: currentSuggestion.proposalToken,
           accepted: false,
           snooze,
           expectedRevision: currentSuggestion.expectedRevision,
@@ -532,6 +538,7 @@ function renderToast() {
         'sync-suggestion:response',
         {
           normalizedUrl: currentSuggestion.normalizedUrl,
+          proposalToken: currentSuggestion.proposalToken,
           accepted: false,
           permanent: true,
           expectedRevision: currentSuggestion.expectedRevision,
@@ -557,6 +564,7 @@ function renderToast() {
         'sync-suggestion:add-tab-response',
         {
           tabId: currentAddTabSuggestion.tabId,
+          proposalToken: currentAddTabSuggestion.proposalToken,
           accepted: true,
           normalizedUrl: currentAddTabSuggestion.normalizedUrl,
           expectedRevision: currentAddTabSuggestion.expectedRevision,
@@ -583,6 +591,7 @@ function renderToast() {
         'sync-suggestion:add-tab-response',
         {
           tabId: currentAddTabSuggestion.tabId,
+          proposalToken: currentAddTabSuggestion.proposalToken,
           accepted: false,
           snooze,
           normalizedUrl: currentAddTabSuggestion.normalizedUrl,
@@ -609,6 +618,7 @@ function renderToast() {
         'sync-suggestion:add-tab-response',
         {
           tabId: currentAddTabSuggestion.tabId,
+          proposalToken: currentAddTabSuggestion.proposalToken,
           accepted: false,
           permanent: true,
           normalizedUrl: currentAddTabSuggestion.normalizedUrl,
@@ -719,7 +729,11 @@ function renderToast() {
 /**
  * Show sync suggestion toast
  */
-export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage) {
+export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage): Promise<boolean> {
+  if (!isSuggestionDeliveryValid(suggestion.proposalDeliveryDeadline)) {
+    return false;
+  }
+
   // Debug logging to diagnose toast display issues
   logger.debug('[SuggestionToast] showSyncSuggestionToast called', {
     tabCount: suggestion.tabCount,
@@ -730,6 +744,9 @@ export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage)
   });
 
   await ensureToastContainer();
+  if (!isSuggestionDeliveryValid(suggestion.proposalDeliveryDeadline)) {
+    return false;
+  }
   suggestionCleanupDegraded = false;
 
   logger.debug('[SuggestionToast] After ensureToastContainer (CSS loaded)', {
@@ -741,16 +758,25 @@ export async function showSyncSuggestionToast(suggestion: SyncSuggestionMessage)
 
   currentSuggestion = suggestion;
   renderToast();
+  return true;
 }
 
 /**
  * Show add tab suggestion toast
  */
-export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage) {
+export async function showAddTabSuggestionToast(suggestion: AddTabToSyncMessage): Promise<boolean> {
+  if (!isSuggestionDeliveryValid(suggestion.proposalDeliveryDeadline)) {
+    return false;
+  }
+
   await ensureToastContainer();
+  if (!isSuggestionDeliveryValid(suggestion.proposalDeliveryDeadline)) {
+    return false;
+  }
   suggestionCleanupDegraded = false;
   currentAddTabSuggestion = suggestion;
   renderToast();
+  return true;
 }
 
 export async function showContextualHintToast(hint: ContextualHintShowMessage) {

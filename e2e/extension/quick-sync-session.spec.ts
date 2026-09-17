@@ -103,6 +103,40 @@ async function enableAutoSync(popup: Page): Promise<void> {
   await popup.keyboard.press('Escape');
 }
 
+async function clickClosedShadowButton(page: Page, accessibleName: RegExp): Promise<void> {
+  const cdpSession = await page.context().newCDPSession(page);
+
+  try {
+    await cdpSession.send('Accessibility.enable');
+    await cdpSession.send('DOM.enable');
+
+    const { nodes } = await cdpSession.send('Accessibility.getFullAXTree');
+    const buttonNode = nodes.find(
+      (node) =>
+        node.role?.value === 'button' && accessibleName.test(String(node.name?.value ?? '')),
+    );
+
+    if (buttonNode?.backendDOMNodeId === undefined) {
+      throw new Error('Suggestion action was not exposed to the browser accessibility tree');
+    }
+
+    const { model } = await cdpSession.send('DOM.getBoxModel', {
+      backendNodeId: buttonNode.backendDOMNodeId,
+    });
+
+    if (model === undefined) {
+      throw new Error('Suggestion action did not have a clickable box model');
+    }
+
+    const x = (model.content[0] + model.content[2] + model.content[4] + model.content[6]) / 4;
+    const y = (model.content[1] + model.content[3] + model.content[5] + model.content[7]) / 4;
+
+    await page.mouse.click(x, y);
+  } finally {
+    await cdpSession.detach();
+  }
+}
+
 test.describe('Quick Sync shared session workflows', () => {
   test('popup Start relays scrolling and Stop restores independent scrolling', async ({
     extensionContext,
@@ -191,9 +225,34 @@ test.describe('Quick Sync shared session workflows', () => {
     const addedTab = await extensionContext.newPage();
     await addedTab.goto(matchingUrl);
 
-    const addButton = addedTab.getByRole('button', { name: ADD_TAB_NAME });
-    await expect(addButton).toBeVisible();
-    await addButton.click();
+    const pageAttack = await addedTab.evaluate(() => {
+      const host = document.querySelector('#scroll-sync-suggestion-toast-root');
+      const readableRoot = host?.shadowRoot ?? null;
+      const nestedButton = readableRoot?.querySelector('button') ?? null;
+
+      if (host instanceof HTMLElement) {
+        host.click();
+        host.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+      }
+
+      return {
+        hostFound: host !== null,
+        rootReadable: readableRoot !== null,
+        buttonFound: nestedButton !== null,
+      };
+    });
+
+    expect(pageAttack).toEqual({
+      hostFound: true,
+      rootReadable: false,
+      buttonFound: false,
+    });
+
+    const blockedAttackPopup = await openPopupWithLinkedTabCount(openPopup, 2);
+    await blockedAttackPopup.close();
+
+    await addedTab.bringToFront();
+    await clickClosedShadowButton(addedTab, ADD_TAB_NAME);
 
     const activePopup = await openPopupWithLinkedTabCount(openPopup, 3);
     const activeTabs = activePopup.getByRole('list', { name: ACTIVE_SYNC_TABS_NAME });

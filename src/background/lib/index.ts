@@ -69,6 +69,11 @@ export type {
 export { buildManualSyncSnapshot } from './sync-session-snapshot';
 export { createQuickSyncCandidateStore, quickSyncCandidateStore } from './quick-sync-candidate';
 export { createQuickSyncCoordinator } from './quick-sync-coordinator';
+export { createProposalRegistry, suggestionProposalRegistry } from './suggestion-authorization';
+export type {
+  SuggestionProposalKind,
+  SuggestionProposalRegistry,
+} from './suggestion-authorization';
 export {
   createQuickSyncBadgeController,
   createQuickSyncFeedbackSender,

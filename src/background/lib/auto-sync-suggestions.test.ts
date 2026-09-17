@@ -160,7 +160,7 @@ describe('auto-sync-suggestions', () => {
     mockedBrowser.tabs.get.mockImplementation(async (tabId: number) => createMockTab(tabId));
     mockedBrowser.scripting.executeScript.mockResolvedValue([]);
 
-    mockedSendMessage.mockResolvedValue(undefined);
+    mockedSendMessage.mockResolvedValue({ success: true });
     mockedSendMessageWithTimeout.mockResolvedValue({
       success: true,
       tabId: 1,
@@ -247,6 +247,22 @@ describe('auto-sync-suggestions', () => {
       );
       expect(showCalls).toHaveLength(2);
       expect(showCalls.map((call) => getExpectedRevision(call[1]))).toEqual([6, 6]);
+    });
+
+    it('does not keep a suggestion pending when every content script refuses to display it', async () => {
+      const normalizedUrl = 'https://expired-delivery.test/page';
+      autoSyncState.groups.set(normalizedUrl, createGroup([1, 2]));
+      mockedSendMessageWithTimeout.mockImplementation(async (messageId) => {
+        if (messageId === 'scroll:ping') {
+          return { success: true, tabId: 1, isSyncActive: false };
+        }
+
+        return { success: false, tabId: 0, isSyncActive: false };
+      });
+
+      await showSyncSuggestion(normalizedUrl);
+
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(false);
     });
 
     it('does not display after opt-in is disabled during suggestion preparation', async () => {
@@ -535,8 +551,8 @@ describe('auto-sync-suggestions', () => {
       });
     });
 
-    it('uses 2000ms timeout when sending suggestion to tabs', async () => {
-      const normalizedUrl = 'https://timeout-2000.test';
+    it('uses 10000ms timeout when sending suggestion to tabs', async () => {
+      const normalizedUrl = 'https://timeout-10000.test';
       autoSyncState.groups.set(normalizedUrl, createGroup([40, 41]));
 
       await showSyncSuggestion(normalizedUrl);
@@ -544,7 +560,7 @@ describe('auto-sync-suggestions', () => {
       const showCalls = mockedSendMessageWithTimeout.mock.calls.filter(
         (call) => call[0] === 'sync-suggestion:show',
       );
-      expect(showCalls.every((call) => call[3] === 2000)).toBe(true);
+      expect(showCalls.every((call) => call[3] === 10000)).toBe(true);
     });
 
     it('removes from pending suggestions when all sends fail', async () => {
@@ -802,6 +818,8 @@ describe('auto-sync-suggestions', () => {
         {
           expectedRevision: 0,
           normalizedUrl: 'https://single.test',
+          proposalToken: expect.any(String),
+          proposalDeliveryDeadline: expect.any(Number),
           tabIds: [1, 2, 3],
           tabTitles: ['One', 'Two', 'Three'],
           tabCount: 3,
@@ -1028,7 +1046,7 @@ describe('auto-sync-suggestions', () => {
       expect(mockedSendMessageWithTimeout).not.toHaveBeenCalled();
     });
 
-    it('uses 2000ms timeout for add-tab suggestion messages', async () => {
+    it('uses 10000ms timeout for add-tab suggestion messages', async () => {
       syncState.linkedTabs = [10, 11];
 
       await showAddTabSuggestion(12, 'Timeout Tab', 'https://timeout-add-tab.test');
@@ -1036,7 +1054,7 @@ describe('auto-sync-suggestions', () => {
       const addCalls = mockedSendMessageWithTimeout.mock.calls.filter(
         (call) => call[0] === 'sync-suggestion:add-tab',
       );
-      expect(addCalls.every((call) => call[3] === 2000)).toBe(true);
+      expect(addCalls.every((call) => call[3] === 10000)).toBe(true);
     });
 
     it('includes expected payload fields in add-tab message', async () => {
@@ -1052,9 +1070,11 @@ describe('auto-sync-suggestions', () => {
           tabTitle: 'Brand New',
           hasManualOffsets: false,
           normalizedUrl: 'https://payload-add-tab.test',
+          proposalToken: expect.any(String),
+          proposalDeliveryDeadline: expect.any(Number),
         },
         { context: 'content-script', tabId: 20 },
-        2000,
+        10000,
       );
     });
 
@@ -1077,11 +1097,13 @@ describe('auto-sync-suggestions', () => {
           tabTitle: 'Translated Tab',
           hasManualOffsets: false,
           normalizedUrl: 'https://payload-add-tab.test/docs',
+          proposalToken: expect.any(String),
+          proposalDeliveryDeadline: expect.any(Number),
           matchKind: 'translated-page',
           matchConfidence: 'high',
         },
         { context: 'content-script', tabId: 22 },
-        2000,
+        10000,
       );
     });
 

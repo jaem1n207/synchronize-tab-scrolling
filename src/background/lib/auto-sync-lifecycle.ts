@@ -28,6 +28,7 @@ import {
   suggestionSnoozeUntil,
 } from './auto-sync-state';
 import { showSyncSuggestion } from './auto-sync-suggestions';
+import { suggestionProposalRegistry } from './suggestion-authorization';
 
 const logger = new ExtensionLogger({ scope: 'background/auto-sync-lifecycle' });
 
@@ -226,6 +227,7 @@ export async function toggleAutoSync(enabled: boolean): Promise<void> {
   try {
     autoSyncState.enabled = enabled;
     await saveAutoSyncEnabled(enabled);
+    suggestionProposalRegistry.clear();
 
     if (enabled) {
       logger.info('[AUTO-SYNC] Enabling - clearing stale state before initialization');

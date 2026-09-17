@@ -44,10 +44,11 @@ type RegisteredMessageHandler = (payload: {
     tabId?: number;
     snooze?: boolean;
     permanent?: boolean;
+    proposalToken?: string;
     expectedRevision?: number;
     domains?: Array<string>;
   };
-  sender: { tabId?: number };
+  sender: { context?: string; tabId?: number };
 }) => Promise<unknown>;
 
 const { messageHandlers, onMessageMock } = vi.hoisted(() => ({
@@ -62,6 +63,12 @@ const { waitForBackgroundInitializationMock } = vi.hoisted(() => ({
 const { quickSyncCoordinatorMock } = vi.hoisted(() => ({
   quickSyncCoordinatorMock: {
     invalidateCandidate: vi.fn().mockResolvedValue(false),
+  },
+}));
+
+const { proposalRegistryMock } = vi.hoisted(() => ({
+  proposalRegistryMock: {
+    consume: vi.fn().mockReturnValue(true),
   },
 }));
 
@@ -131,6 +138,10 @@ vi.mock('../lib/auto-sync-state', () => ({
 
 vi.mock('../lib/messaging', () => ({
   sendMessageWithTimeout: vi.fn(),
+}));
+
+vi.mock('../lib/suggestion-authorization', () => ({
+  suggestionProposalRegistry: proposalRegistryMock,
 }));
 
 vi.mock('../lib/sync-state', () => {
@@ -238,6 +249,8 @@ describe('registerAutoSyncHandlers', () => {
     vi.mocked(updateAutoSyncGroup).mockResolvedValue('https://example.com/page');
     vi.mocked(withAutoSyncLock).mockImplementation((fn: () => Promise<unknown>) => fn());
     vi.mocked(persistSyncState).mockResolvedValue({ status: 'persisted' });
+    proposalRegistryMock.consume.mockReset();
+    proposalRegistryMock.consume.mockReturnValue(true);
     vi.mocked(commitSyncState).mockClear();
     vi.mocked(getSyncStateSnapshot).mockClear();
     vi.mocked(broadcastSyncStatus).mockResolvedValue();
@@ -510,6 +523,40 @@ describe('registerAutoSyncHandlers', () => {
   });
 
   describe('sync-suggestion:response', () => {
+    it('rejects a response without an authorized current proposal', async () => {
+      const normalizedUrl = 'https://fixture.invalid/group';
+      autoSyncState.enabled = true;
+      autoSyncState.groups.set(normalizedUrl, {
+        tabIds: new Set([10, 20]),
+        isActive: false,
+      });
+      pendingSuggestions.add(normalizedUrl);
+      proposalRegistryMock.consume.mockReturnValue(false);
+
+      const handler = getRequiredHandler('sync-suggestion:response');
+      const response = await handler({
+        data: {
+          normalizedUrl,
+          proposalToken: 'invalid-token',
+          accepted: true,
+          expectedRevision: 6,
+        },
+        sender: { context: 'content-script', tabId: 10 },
+      });
+
+      expect(response).toEqual({ success: false, reason: 'invalid-suggestion-proposal' });
+      expect(pendingSuggestions.has(normalizedUrl)).toBe(true);
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(proposalRegistryMock.consume).toHaveBeenCalledWith({
+        kind: 'sync',
+        normalizedUrl,
+        expectedRevision: 6,
+        token: 'invalid-token',
+        senderContext: 'content-script',
+        senderTabId: 10,
+      });
+    });
+
     it('rejects stale acceptance without changing manual or auto suggestion state', async () => {
       const normalizedUrl = 'https://fixture.invalid/group';
       const group = { tabIds: new Set([10, 20]), isActive: false };
@@ -905,6 +952,37 @@ describe('registerAutoSyncHandlers', () => {
   });
 
   describe('sync-suggestion:add-tab-response', () => {
+    it('rejects an add response without an authorized current proposal', async () => {
+      proposalRegistryMock.consume.mockReturnValue(false);
+      syncState.isActive = true;
+      syncState.linkedTabs = [1, 2];
+
+      const handler = getRequiredHandler('sync-suggestion:add-tab-response');
+      const response = await handler({
+        data: {
+          tabId: 3,
+          normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'invalid-token',
+          accepted: true,
+          expectedRevision: 6,
+        },
+        sender: { context: 'content-script', tabId: 1 },
+      });
+
+      expect(response).toEqual({ success: false, reason: 'invalid-suggestion-proposal' });
+      expect(syncState.linkedTabs).toEqual([1, 2]);
+      expect(sendMessageWithTimeout).not.toHaveBeenCalled();
+      expect(proposalRegistryMock.consume).toHaveBeenCalledWith({
+        kind: 'add-tab',
+        normalizedUrl: 'https://fixture.invalid/group',
+        expectedRevision: 6,
+        suggestedTabId: 3,
+        token: 'invalid-token',
+        senderContext: 'content-script',
+        senderTabId: 1,
+      });
+    });
+
     it('rejects stale add acceptance without changing the active session', async () => {
       autoSyncState.enabled = true;
       syncState.isActive = true;

@@ -3,11 +3,25 @@
 import { act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+const originalAttachShadow = Element.prototype.attachShadow;
+let capturedToastShadowRoot: ShadowRoot | null = null;
+
 describe('showContextualHintToast', () => {
   beforeEach(() => {
     vi.resetModules();
+    capturedToastShadowRoot = null;
     document.body.innerHTML = '';
     document.documentElement.style.fontSize = '';
+    vi.spyOn(Element.prototype, 'attachShadow').mockImplementation(function (
+      this: Element,
+      options,
+    ) {
+      const shadowRoot = originalAttachShadow.call(this, options);
+      if (this instanceof HTMLElement && this.id === 'scroll-sync-suggestion-toast-root') {
+        capturedToastShadowRoot = shadowRoot;
+      }
+      return shadowRoot;
+    });
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       writable: true,
@@ -69,8 +83,7 @@ describe('showContextualHintToast', () => {
   async function finishToastCssLoad(waitForContainer = true): Promise<ShadowRoot> {
     if (waitForContainer) {
       await waitFor(() => {
-        const container = document.querySelector('#scroll-sync-suggestion-toast-root');
-        const shadowRoot = container?.shadowRoot ?? null;
+        const shadowRoot = capturedToastShadowRoot;
         const styleLink = shadowRoot?.querySelector('link[rel="stylesheet"]') ?? null;
 
         expect(shadowRoot).not.toBeNull();
@@ -78,8 +91,7 @@ describe('showContextualHintToast', () => {
       });
     }
 
-    const container = document.querySelector('#scroll-sync-suggestion-toast-root');
-    const shadowRoot = container?.shadowRoot;
+    const shadowRoot = capturedToastShadowRoot;
     const styleLink = shadowRoot?.querySelector<HTMLLinkElement>('link[rel="stylesheet"]');
 
     if (!shadowRoot || !styleLink) {
@@ -91,11 +103,53 @@ describe('showContextualHintToast', () => {
     return shadowRoot;
   }
 
+  it('keeps suggestion metadata inside a closed shadow root unavailable to the host page', async () => {
+    const { ui } = await mountSyncSuggestionToast(5);
+
+    const container = document.querySelector('#scroll-sync-suggestion-toast-root');
+    expect(container?.shadowRoot).toBeNull();
+    expect(capturedToastShadowRoot?.textContent).toContain('First');
+    expect(document.body.textContent).not.toContain('First');
+    expect(ui.getByRole('button', { name: 'startSyncButton' })).toBeInTheDocument();
+  });
+
+  it('does not render a suggestion after its delivery deadline', async () => {
+    mockSuggestionToastDependencies();
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { showAddTabSuggestionToast } = await import('./suggestion-toast');
+    const suggestion = {
+      tabId: 33,
+      tabTitle: 'Third',
+      hasManualOffsets: false,
+      normalizedUrl: 'https://fixture.invalid/group',
+      proposalToken: 'expired-add-proposal-token',
+      proposalDeliveryDeadline: 1_500,
+      expectedRevision: 5,
+    };
+    const showPromise = showAddTabSuggestionToast(suggestion);
+    const shadowRoot = capturedToastShadowRoot;
+    const styleLink = shadowRoot?.querySelector<HTMLLinkElement>('link[rel="stylesheet"]');
+
+    if (!shadowRoot || !styleLink) {
+      throw new Error('Expected add-tab suggestion toast CSS link to exist');
+    }
+
+    now.mockReturnValue(1_501);
+    styleLink.dispatchEvent(new Event('load'));
+
+    await expect(showPromise).resolves.toBe(false);
+    expect(shadowRoot.querySelector('#scroll-sync-suggestion-app')?.textContent).not.toContain(
+      'Third',
+    );
+  });
+
   async function mountSyncSuggestionToast(expectedRevision: number) {
     const dependencies = mockSuggestionToastDependencies();
     const { showSyncSuggestionToast } = await import('./suggestion-toast');
     const showPromise = showSyncSuggestionToast({
       normalizedUrl: 'https://fixture.invalid/group',
+      proposalToken: 'sync-proposal-token',
+      proposalDeliveryDeadline: Number.MAX_SAFE_INTEGER,
       tabCount: 2,
       tabIds: [11, 22],
       tabTitles: ['First', 'Second'],
@@ -123,6 +177,8 @@ describe('showContextualHintToast', () => {
       tabTitle: 'Third',
       hasManualOffsets: false,
       normalizedUrl: 'https://fixture.invalid/group',
+      proposalToken: 'add-proposal-token',
+      proposalDeliveryDeadline: Number.MAX_SAFE_INTEGER,
       expectedRevision,
     });
     const shadowRoot = await finishToastCssLoad(false);
@@ -150,6 +206,7 @@ describe('showContextualHintToast', () => {
         'sync-suggestion:response',
         {
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'sync-proposal-token',
           accepted: true,
           expectedRevision: 6,
         },
@@ -169,6 +226,7 @@ describe('showContextualHintToast', () => {
         'sync-suggestion:response',
         {
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'sync-proposal-token',
           accepted: false,
           snooze: true,
           expectedRevision: 7,
@@ -189,6 +247,7 @@ describe('showContextualHintToast', () => {
         'sync-suggestion:response',
         {
           normalizedUrl: 'https://fixture.invalid/group',
+          proposalToken: 'sync-proposal-token',
           accepted: false,
           permanent: true,
           expectedRevision: 8,
@@ -208,6 +267,7 @@ describe('showContextualHintToast', () => {
       'sync-suggestion:response',
       {
         normalizedUrl: 'https://fixture.invalid/group',
+        proposalToken: 'sync-proposal-token',
         accepted: false,
         snooze: false,
         expectedRevision: 9,
@@ -227,6 +287,7 @@ describe('showContextualHintToast', () => {
         'sync-suggestion:add-tab-response',
         {
           tabId: 33,
+          proposalToken: 'add-proposal-token',
           accepted: true,
           normalizedUrl: 'https://fixture.invalid/group',
           expectedRevision: 10,
@@ -279,6 +340,7 @@ describe('showContextualHintToast', () => {
         'sync-suggestion:add-tab-response',
         {
           tabId: 33,
+          proposalToken: 'add-proposal-token',
           accepted: false,
           snooze: true,
           normalizedUrl: 'https://fixture.invalid/group',
@@ -300,6 +362,7 @@ describe('showContextualHintToast', () => {
         'sync-suggestion:add-tab-response',
         {
           tabId: 33,
+          proposalToken: 'add-proposal-token',
           accepted: false,
           permanent: true,
           normalizedUrl: 'https://fixture.invalid/group',
@@ -320,6 +383,7 @@ describe('showContextualHintToast', () => {
       'sync-suggestion:add-tab-response',
       {
         tabId: 33,
+        proposalToken: 'add-proposal-token',
         accepted: false,
         snooze: false,
         normalizedUrl: 'https://fixture.invalid/group',

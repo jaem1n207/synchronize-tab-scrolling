@@ -35,6 +35,10 @@ const URL_SYNC_SAVE_FAILED_NOTICE: UrlSyncNotice = {
   severity: 'error',
 };
 
+function isSuggestionDeliveryValid(deadline: unknown): boolean {
+  return typeof deadline === 'number' && Number.isFinite(deadline) && Date.now() < deadline;
+}
+
 // Custom event type for connection status
 interface ConnectionStatusEvent extends CustomEvent {
   detail: { isConnected: boolean; tabId: number };
@@ -315,11 +319,21 @@ function PanelApp() {
   // Listen for sync suggestion messages
   useEffect(() => {
     const unsubscribeSuggestion = onMessage('sync-suggestion:show', ({ data }) => {
-      setSyncSuggestion(data as unknown as SyncSuggestionMessage);
+      if (!isSuggestionDeliveryValid(data.proposalDeliveryDeadline)) {
+        return { success: false };
+      }
+
+      setSyncSuggestion(data);
+      return { success: true };
     });
 
     const unsubscribeAddTab = onMessage('sync-suggestion:add-tab', ({ data }) => {
-      setAddTabSuggestion(data as unknown as AddTabToSyncMessage);
+      if (!isSuggestionDeliveryValid(data.proposalDeliveryDeadline)) {
+        return { success: false };
+      }
+
+      setAddTabSuggestion(data);
+      return { success: true };
     });
 
     // Issue 11 Fix: Listen for dismiss messages to close add-tab toast when another tab responds
@@ -465,6 +479,7 @@ function PanelApp() {
         'sync-suggestion:response',
         {
           normalizedUrl: syncSuggestion.normalizedUrl,
+          proposalToken: syncSuggestion.proposalToken,
           accepted: true,
           expectedRevision: syncSuggestion.expectedRevision,
         },
@@ -491,6 +506,7 @@ function PanelApp() {
         'sync-suggestion:response',
         {
           normalizedUrl: syncSuggestion.normalizedUrl,
+          proposalToken: syncSuggestion.proposalToken,
           accepted: false,
           expectedRevision: syncSuggestion.expectedRevision,
         },
@@ -515,6 +531,8 @@ function PanelApp() {
         'sync-suggestion:add-tab-response',
         {
           tabId: addTabSuggestion.tabId,
+          normalizedUrl: addTabSuggestion.normalizedUrl,
+          proposalToken: addTabSuggestion.proposalToken,
           accepted: true,
           expectedRevision: addTabSuggestion.expectedRevision,
         },
@@ -540,6 +558,8 @@ function PanelApp() {
         'sync-suggestion:add-tab-response',
         {
           tabId: addTabSuggestion.tabId,
+          normalizedUrl: addTabSuggestion.normalizedUrl,
+          proposalToken: addTabSuggestion.proposalToken,
           accepted: false,
           expectedRevision: addTabSuggestion.expectedRevision,
         },
