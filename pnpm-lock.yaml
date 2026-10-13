@@ -32,7 +32,7 @@ overrides:
   protocol-buffers-schema@<3.6.1: 3.6.1
   qs@<6.15.2: 6.15.2
   rollup@>=4.0.0 <4.59.0: 4.59.0
-  shell-quote@<1.9.0: 1.9.0
+  shell-quote@<1.9.0: 1.11.0
   tinyglobby>picomatch: 4.0.4
   undici@<6.27.0: 6.27.0
   undici@>=7.0.0 <7.28.0: 7.28.0
@@ -3879,6 +3879,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -3889,6 +3890,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -6049,6 +6051,7 @@ packages:
   semantic-release-amo@2.0.1:
     resolution: {integrity: sha512-NIvOzBCrAwuxdQIZiUOh0jwLlm1Us2y1d3aSDIIgId5xmfzVu5nM6Rm7vwvXK1M2nm+lqNPZmArxhQOGfiyd4Q==}
     engines: {pnpm: '>=10'}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
     peerDependencies:
       semantic-release: '>=20'
 
@@ -6122,8 +6125,8 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
-  shell-quote@1.9.0:
-    resolution: {integrity: sha512-Iov+JwFv/2HcTpcwNMKd8+IWNb8tboQJNQTkAY/LLVK7gGH9jy+LGkVqPxfekHl+yMmiqXszdGWXgkfml7hjqA==}
+  shell-quote@1.11.0:
+    resolution: {integrity: sha512-JdxDPD0DBTyu08pq0kPC0xSNet/qsU07qT6IsX1AS8oO2ICNRY4ldNa8OAI6PuwAH8tG3lxEhbqmyp4Dw4036g==}
     engines: {node: '>= 0.4'}
 
   side-channel-list@1.0.0:
@@ -11217,7 +11220,7 @@ snapshots:
   fx-runner@1.5.0:
     dependencies:
       commander: 12.1.0
-      shell-quote: 1.9.0
+      shell-quote: 1.11.0
       which: 4.0.0
       winreg: 0.0.12
 
@@ -12298,7 +12301,7 @@ snapshots:
       picomatch: 4.0.4
       pidtree: 0.6.1
       read-package-json-fast: 4.0.0
-      shell-quote: 1.9.0
+      shell-quote: 1.11.0
       which: 5.0.0
 
   npm-run-path@4.0.1:
@@ -13222,7 +13225,7 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
-  shell-quote@1.9.0: {}
+  shell-quote@1.11.0: {}
 
   side-channel-list@1.0.0:
     dependencies:
