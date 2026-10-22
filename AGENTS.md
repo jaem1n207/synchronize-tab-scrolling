@@ -76,7 +76,7 @@ pnpm start:firefox      # Launch in Firefox
 - **Braces**: Always use `{}`, including one-line `if` statements.
 - **Bug fixes**: Write the test first, confirm it fails, implement the fix, then confirm it passes.
 - **Formatting**: Prettier — `singleQuote`, `printWidth: 100`, `tabWidth: 2`, `semi: true`
-- **Commits**: Conventional Commits. Landing changes MUST use `(landing)` scope — without it, commits trigger extension store releases. `release.config.js`: `releaseRules: [{ scope: 'landing', release: false }]`
+- **Commits**: Conventional Commits. Landing-only changes MUST use `(landing)` scope to exclude them from extension version calculation. Never use it to hide extension-impacting changes. Workflow triggers and the release version gate control publishing.
 - **Pull Requests**: Always `--assignee jaem1n207`
 
 ## Anti-Patterns
@@ -129,6 +129,25 @@ pnpm start:firefox      # Launch in Firefox
 
 ## CI/CD
 
+### Deployment Target Selection
+
+- When deployment is requested, infer the target from the final diff and direct consumers. The user need not specify "landing only" or "extension only". State the target and proceed within existing authorization; ask only when a material scope ambiguity remains after inspection.
+- Code edits, commits, or PR creation alone do not authorize merge or deployment. Follow explicit user restrictions.
+
+| Change impact                                                                | Deployment target                                                    |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Landing UI, SEO, public assets, or landing-only build changes                | GitHub Pages only                                                    |
+| Extension runtime, popup, manifest, locales, or packaging changes            | Extension stores only                                                |
+| Shared code, dependencies, or common build configuration                     | Inspect consumers and artifacts; deploy the affected product(s)      |
+| Both landing and extension behavior                                          | Both pipelines                                                       |
+| Documentation, tests, or agent instructions without shipped artifact changes | No product deployment to initiate; automatic workflows may still run |
+
+- Before merge or dispatch, inspect current workflow filters and release gates. Workflow execution is not proof of publication. Do not proceed if automatic publishing would exceed the selected scope.
+- If an affected target is not covered by automatic path filters, use its existing manual deployment workflow within the same authorization.
+- For landing-only or documentation-only work, do not bump the extension version, dispatch `Prepare Release PR` or `Publish Edge Release`, or submit store packages.
+- When deployment authorization covers extension changes requiring a new package, complete `Prepare Release PR` → required checks → release PR merge → store submission. Do not stop after merging the feature PR or request the same approval again. Follow [store-deployment.md](docs/guides/store-deployment.md).
+- Verify the selected deployment for the merged commit and report which products were deployed. For landing, check the production response; for extensions, distinguish submission from store approval or public availability.
+
 ### Two Isolated Pipelines
 
 | Change                | `release.yml` | `deploy-landing.yml` |
@@ -138,12 +157,15 @@ pnpm start:firefox      # Launch in Firefox
 | `src/shared/**`       | Runs          | Runs                 |
 | Both                  | Runs          | Runs                 |
 
+"Runs" describes workflow scheduling. `release.yml` publishes only when the
+`v<package.json version>` tag is absent; verify that gate before merging non-release work.
+
 - **Extension release**: manually dispatch `Prepare Release PR`, review/merge the generated
   version + CHANGELOG PR, then semantic-release publishes to Chrome Web Store + Firefox AMO +
   GitHub Releases. A separate best-effort step publishes Edge Add-ons, and the manual Publish Edge
-  Release workflow retries an existing release asset. Ordinary extension merges run only the
-  version gate and do not publish. Dual build (Chrome + Firefox). Edge API key expires — manual
-  renewal
+  Release workflow retries an existing release asset. Ordinary extension merges with an already
+  tagged package version run only the version gate and do not publish. Dual build (Chrome + Firefox).
+  Edge API key expires — manual renewal
 - **Extension PR checks**: required `extension-pr-checks` status. Extension-impacting PRs run
   privacy logging validation, i18n validation, typecheck, lint check, unit tests, Chrome/Firefox
   builds, and the URL Sync mode plus safe-navigation smoke E2E.

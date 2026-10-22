@@ -2,7 +2,7 @@
 
 Marketing site at `https://jaem1n207.github.io/synchronize-tab-scrolling/`. Completely separate from extension: own Vite config, CI pipeline, i18n system, and theme management.
 
-**ALWAYS use `(landing)` commit scope.** Without it, commits trigger extension store releases.
+**Use `(landing)` scope for landing-only commits.** This excludes them from extension version calculation; workflow filters and the release version gate control publishing.
 
 ## Key Files
 
@@ -23,6 +23,7 @@ Marketing site at `https://jaem1n207.github.io/synchronize-tab-scrolling/`. Comp
 
 ## Build & Deploy
 
+- When deployment is requested for landing-only changes, deploy GitHub Pages without asking the user to name the target. Do not initiate extension releases. For shared or mixed changes, follow [Deployment Target Selection](../../AGENTS.md#deployment-target-selection).
 - **Vite config**: `vite.config.landing.mts` — `LANDING_BASE=/synchronize-tab-scrolling/`
 - **Build**: `pnpm build:landing` → `dist-landing/`
 - **Prerender**: `pnpm prerender:landing` — Playwright captures rendered HTML, injects into dist
